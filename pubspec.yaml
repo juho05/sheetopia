@@ -8,18 +8,29 @@ environment:
   sdk: ^3.10.4
 
 dependencies:
+  drift: ^2.30.0
+  drift_flutter: ^0.2.8
+  file_selector: ^1.1.0
   flutter:
     sdk: flutter
   go_router: ^17.0.1
+  path: ^1.9.1
+  path_provider: ^2.1.5
   pdfrx: ^2.2.17
   provider: ^6.1.5+1
+  rxdart: ^0.28.0
+  uuid: ^4.5.2
+
+dependency_overrides:
+  path_provider_linux:
+    path: ./dependency_overrides/path_provider_linux
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  drift_dev: ^2.30.0
+  build_runner: ^2.10.4
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/test.pdf

@@ -1,0 +1,111 @@
+import 'dart:io';
+
+import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
+import 'package:rxdart/rxdart.dart';
+import 'package:sheetopia/data/repositories/scores/score.dart';
+import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/database/scores_table.dart';
+
+class InvalidFileTypeException implements Exception {
+  final String filePath;
+
+  const InvalidFileTypeException({required this.filePath});
+
+  @override
+  String toString() {
+    final ext = path.extension(filePath);
+    return "Invalid file type $ext: $filePath";
+  }
+}
+
+class ScoresRepository {
+  final Database _db;
+
+  final BehaviorSubject<List<Score>> _updatedScores = BehaviorSubject.seeded(
+    [],
+  );
+  Stream<List<Score>> get updatedScores => _updatedScores.stream;
+
+  ScoresRepository({required Database db}) : _db = db;
+
+  Future<List<Score>> importAll(Iterable<String> paths) async {
+    List<Score> scores = [];
+    try {
+      for (final p in paths) {
+        final fileType = fileTypeFromExtension(path.extension(p));
+        if (fileType == null) {
+          throw InvalidFileTypeException(filePath: p);
+        }
+
+        final id = _db.newId();
+        final title = path.basenameWithoutExtension(p);
+
+        final file = await _scoreFile(id, fileType);
+
+        await File(p).copy(file.path);
+
+        final now = DateTime.now();
+        scores.add(
+          Score(
+            id: id,
+            title: title,
+            createdAt: now,
+            fileUpdatedAt: now,
+            metadataUpdatedAt: now,
+            fileType: fileType,
+            file: file,
+          ),
+        );
+      }
+
+      await _db.managers.scoresTable.bulkCreate(
+        (o) => scores.map(
+          (s) => o(
+            id: s.id,
+            title: s.title,
+            createdAt: Value(s.createdAt),
+            metadataUpdatedAt: Value(s.metadataUpdatedAt),
+            fileUpdatedAt: Value(s.fileUpdatedAt),
+            downloaded: true,
+            fileType: s.fileType,
+          ),
+        ),
+      );
+    } catch (_) {
+      for (final s in scores) {
+        try {
+          await s.file?.delete();
+        } catch (_) {}
+      }
+      rethrow;
+    }
+
+    _updatedScores.add(scores);
+    return scores;
+  }
+
+  Directory? _cachedScoresDir;
+  Future<Directory> get _scoresDir async {
+    if (_cachedScoresDir != null) return SynchronousFuture(_cachedScoresDir!);
+    final dir = Directory(
+      path.join(
+        (await getApplicationSupportDirectory()).absolute.path,
+        "scores",
+      ),
+    );
+    if (!dir.existsSync()) {
+      await dir.create(recursive: true);
+    }
+    _cachedScoresDir = dir;
+    return dir;
+  }
+
+  Future<File> _scoreFile(String id, FileType fileType) async {
+    return File(
+      path.join((await _scoresDir).path, id + fileTypeToExtension(fileType)),
+    );
+  }
+}

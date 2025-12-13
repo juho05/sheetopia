@@ -1,38 +1,26 @@
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
-import 'package:pdfrx/pdfrx.dart';
+import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 
 class HomeViewModel extends ChangeNotifier {
-  PdfDocument? _document;
-  PdfDocument? get pdf => _document;
+  static const XTypeGroup _pdfTypeGroup = XTypeGroup(
+    label: "PDF",
+    extensions: <String>["pdf"],
+  );
 
-  int _currentPage = 0;
-  int get currentPageIndex => _currentPage;
+  final ScoresRepository _scoresRepo;
 
-  PdfPage get currentPage => _document!.pages[_currentPage];
-  int get currentPageNumber => currentPage.pageNumber;
+  HomeViewModel({required ScoresRepository scoresRepo})
+    : _scoresRepo = scoresRepo;
 
-  HomeViewModel() {
-    _load();
-  }
+  Future<List<String>> importScores() async {
+    final List<XFile> files = await openFiles(
+      acceptedTypeGroups: [_pdfTypeGroup],
+      confirmButtonText: "Import",
+    );
+    if (files.isEmpty) return [];
 
-  Future<void> _load() async {
-    final document = await PdfDocument.openAsset("assets/test.pdf");
-    _document = document;
-    _currentPage = 0;
-    notifyListeners();
-  }
-
-  void nextPage() {
-    if (_document == null) return;
-    if (_currentPage >= _document!.pages.length - 1) return;
-    _currentPage++;
-    notifyListeners();
-  }
-
-  void prevPage() {
-    if (_document == null) return;
-    if (_currentPage <= 0) return;
-    _currentPage--;
-    notifyListeners();
+    final scores = await _scoresRepo.importAll(files.map((f) => f.path));
+    return scores.map((s) => s.id).toList();
   }
 }
