@@ -84,6 +84,10 @@ class _PdfViewState extends State<PdfView> {
               _viewModel.currentPageIndex,
             );
 
+            final (nextPageCount, nextGap) = calcPageCountAndGap(
+              _viewModel.currentPageIndex + pageCount,
+            );
+
             return GestureDetector(
               onTapUp: (details) {
                 if (details.localPosition.dx < constraints.maxWidth / 2) {
@@ -98,8 +102,42 @@ class _PdfViewState extends State<PdfView> {
               },
               child: Material(
                 child: Stack(
+                  fit: StackFit.expand,
                   children: [
+                    // back layer
+                    if (pageCount > 0 && nextPageCount > 0)
+                      Row(
+                        key: ValueKey(
+                          "${_viewModel.currentPageIndex + pageCount}-${widget.file.path}",
+                        ),
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        spacing: nextGap,
+                        children: List.generate(nextPageCount, (index) {
+                          final page =
+                              pages[_viewModel.currentPageIndex +
+                                  pageCount +
+                                  index];
+                          return Flexible(
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth:
+                                    constraints.maxHeight *
+                                    (page.width / page.height),
+                              ),
+                              child: PdfPageView(
+                                document: _viewModel.document!,
+                                pageNumber: page.pageNumber,
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    const Material(),
+                    // front layer
                     Row(
+                      key: ValueKey(
+                        "${_viewModel.currentPageIndex}-${widget.file.path}",
+                      ),
                       mainAxisAlignment: MainAxisAlignment.center,
                       spacing: gap,
                       children: List.generate(pageCount, (index) {

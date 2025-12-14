@@ -37,14 +37,16 @@ class PdfViewModel extends ChangeNotifier {
   }
 
   void nextPage(int pageCount) {
-    _currentPageIndex = min(
-      _currentPageIndex + pageCount,
-      _document!.pages.length - 1,
-    );
+    final newIndex = _currentPageIndex + pageCount;
+    if (newIndex >= (_document?.pages.length ?? 0)) {
+      return;
+    }
+    _currentPageIndex = newIndex;
     notifyListeners();
   }
 
   void prevPage(int pageCount) {
+    if (_currentPageIndex == 0) return;
     _currentPageIndex = max(_currentPageIndex - pageCount, 0);
     notifyListeners();
   }
