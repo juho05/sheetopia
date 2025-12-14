@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:sheetopia/ui/score/pdf_viewmodel.dart';
 
@@ -88,76 +90,113 @@ class _PdfViewState extends State<PdfView> {
               _viewModel.currentPageIndex + pageCount,
             );
 
-            return GestureDetector(
-              onTapUp: (details) {
-                if (details.localPosition.dx < constraints.maxWidth / 2) {
-                  final (count, _) = calcPageCountAndGap(
-                    _viewModel.currentPageIndex - 1,
-                    reverse: true,
-                  );
-                  _viewModel.prevPage(count);
-                } else {
-                  _viewModel.nextPage(pageCount);
-                }
+            void nextPage() {
+              _viewModel.nextPage(pageCount);
+            }
+
+            void prevPage() {
+              final (count, _) = calcPageCountAndGap(
+                _viewModel.currentPageIndex - 1,
+                reverse: true,
+              );
+              _viewModel.prevPage(count);
+            }
+
+            return CallbackShortcuts(
+              bindings: <ShortcutActivator, VoidCallback>{
+                const SingleActivator(LogicalKeyboardKey.arrowUp): prevPage,
+                const SingleActivator(LogicalKeyboardKey.arrowDown): nextPage,
+                const SingleActivator(LogicalKeyboardKey.arrowLeft): prevPage,
+                const SingleActivator(LogicalKeyboardKey.arrowRight): nextPage,
+                const SingleActivator(LogicalKeyboardKey.pageUp): prevPage,
+                const SingleActivator(LogicalKeyboardKey.pageDown): nextPage,
+                const SingleActivator(LogicalKeyboardKey.space): nextPage,
+                const SingleActivator(LogicalKeyboardKey.enter): nextPage,
+                const SingleActivator(LogicalKeyboardKey.backspace): prevPage,
               },
-              child: Material(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // back layer
-                    if (pageCount > 0 && nextPageCount > 0)
-                      Row(
-                        key: ValueKey(
-                          "${_viewModel.currentPageIndex + pageCount}-${widget.file.path}",
-                        ),
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        spacing: nextGap,
-                        children: List.generate(nextPageCount, (index) {
-                          final page =
-                              pages[_viewModel.currentPageIndex +
-                                  pageCount +
-                                  index];
-                          return Flexible(
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxWidth:
-                                    constraints.maxHeight *
-                                    (page.width / page.height),
+              child: Listener(
+                onPointerSignal: (event) {
+                  if (event is PointerScrollEvent &&
+                      event.kind == PointerDeviceKind.mouse) {
+                    if (event.scrollDelta.dy > 0) {
+                      nextPage();
+                    } else {
+                      prevPage();
+                    }
+                  }
+                },
+                child: GestureDetector(
+                  onTapUp: (details) {
+                    if (details.localPosition.dx < constraints.maxWidth / 2) {
+                      prevPage();
+                    } else {
+                      nextPage();
+                    }
+                  },
+                  child: Focus(
+                    autofocus: true,
+                    child: Material(
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          // back layer
+                          if (pageCount > 0 && nextPageCount > 0)
+                            Row(
+                              key: ValueKey(
+                                "${_viewModel.currentPageIndex + pageCount}-${widget.file.path}",
                               ),
-                              child: PdfPageView(
-                                document: _viewModel.document!,
-                                pageNumber: page.pageNumber,
-                              ),
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              spacing: nextGap,
+                              children: List.generate(nextPageCount, (index) {
+                                final page =
+                                    pages[_viewModel.currentPageIndex +
+                                        pageCount +
+                                        index];
+                                return Flexible(
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxWidth:
+                                          constraints.maxHeight *
+                                          (page.width / page.height),
+                                    ),
+                                    child: PdfPageView(
+                                      document: _viewModel.document!,
+                                      pageNumber: page.pageNumber,
+                                    ),
+                                  ),
+                                );
+                              }),
                             ),
-                          );
-                        }),
-                      ),
-                    const Material(),
-                    // front layer
-                    Row(
-                      key: ValueKey(
-                        "${_viewModel.currentPageIndex}-${widget.file.path}",
-                      ),
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      spacing: gap,
-                      children: List.generate(pageCount, (index) {
-                        final page = pages[_viewModel.currentPageIndex + index];
-                        return Flexible(
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth:
-                                  constraints.maxHeight *
-                                  (page.width / page.height),
+                          const Material(),
+                          // front layer
+                          Row(
+                            key: ValueKey(
+                              "${_viewModel.currentPageIndex}-${widget.file.path}",
                             ),
-                            child: PdfPageView(
-                              document: _viewModel.document!,
-                              pageNumber: page.pageNumber,
-                            ),
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            spacing: gap,
+                            children: List.generate(pageCount, (index) {
+                              final page =
+                                  pages[_viewModel.currentPageIndex + index];
+                              return Flexible(
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth:
+                                        constraints.maxHeight *
+                                        (page.width / page.height),
+                                  ),
+                                  child: PdfPageView(
+                                    document: _viewModel.document!,
+                                    pageNumber: page.pageNumber,
+                                  ),
+                                ),
+                              );
+                            }),
                           ),
-                        );
-                      }),
+                        ],
+                      ),
                     ),
-                  ],
+                  ),
                 ),
               ),
             );

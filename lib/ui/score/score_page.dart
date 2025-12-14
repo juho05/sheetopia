@@ -36,13 +36,13 @@ class ScorePage extends StatelessWidget {
                   },
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.all(4),
                   child: Material(
                     borderRadius: BorderRadius.circular(999999),
                     color: darkTheme
-                        ? background.withAlpha(140)
-                        : foreground.withAlpha(140),
-                    child: BackButton(color: foreground),
+                        ? background.withAlpha(100)
+                        : foreground.withAlpha(100),
+                    child: const BackButton(color: Colors.white),
                   ),
                 ),
               ],
