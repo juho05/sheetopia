@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -41,35 +40,88 @@ class _PdfViewState extends State<PdfView> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        double calcPageWidth(PdfPage page) {
+          return constraints.maxHeight * (page.width / page.height);
+        }
+
         return ListenableBuilder(
           listenable: _viewModel,
           builder: (context, _) {
-            // TODO calculate page count and gap size
-            return Stack(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    min(_viewModel.document?.pages.length ?? 0, 1),
-                    (index) {
-                      final page = _viewModel.document!.pages[index];
-                      return Flexible(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth:
-                                constraints.maxHeight *
-                                (page.width / page.height),
+            final pages = _viewModel.document?.pages ?? [];
+
+            (int, double) calcPageCountAndGap(
+              int startIndex, {
+              bool reverse = false,
+            }) {
+              int pageCount = 0;
+              double totalWidth = 0;
+              while (startIndex + pageCount >= 0 &&
+                  startIndex + pageCount < pages.length) {
+                final newTotalWidth =
+                    totalWidth + calcPageWidth(pages[startIndex + pageCount]);
+                if (newTotalWidth > constraints.maxWidth &&
+                    pageCount.abs() > 0) {
+                  break;
+                }
+                if (reverse) {
+                  pageCount--;
+                } else {
+                  pageCount++;
+                }
+                totalWidth = newTotalWidth;
+              }
+
+              pageCount = pageCount.abs();
+
+              final gap = pageCount > 1
+                  ? ((constraints.maxWidth - totalWidth) / (pageCount - 1))
+                        .clamp(0.0, 16.0)
+                  : 0.0;
+              return (pageCount, gap);
+            }
+
+            final (pageCount, gap) = calcPageCountAndGap(
+              _viewModel.currentPageIndex,
+            );
+
+            return GestureDetector(
+              onTapUp: (details) {
+                if (details.localPosition.dx < constraints.maxWidth / 2) {
+                  final (count, _) = calcPageCountAndGap(
+                    _viewModel.currentPageIndex - 1,
+                    reverse: true,
+                  );
+                  _viewModel.prevPage(count);
+                } else {
+                  _viewModel.nextPage(pageCount);
+                }
+              },
+              child: Material(
+                child: Stack(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      spacing: gap,
+                      children: List.generate(pageCount, (index) {
+                        final page = pages[_viewModel.currentPageIndex + index];
+                        return Flexible(
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth:
+                                  constraints.maxHeight *
+                                  (page.width / page.height),
+                            ),
+                            child: PdfPageView(
+                              document: _viewModel.document!,
+                              pageNumber: page.pageNumber,
+                            ),
                           ),
-                          child: PdfPageView(
-                            document: _viewModel.document!,
-                            pageNumber: index + 1,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                        );
+                      }),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             );
           },
         );

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -8,6 +9,9 @@ class PdfViewModel extends ChangeNotifier {
 
   PdfDocument? _document;
   PdfDocument? get document => _document;
+
+  int _currentPageIndex = 0;
+  int get currentPageIndex => _currentPageIndex;
 
   PdfViewModel({required File file}) : _file = file {
     _loadDocument();
@@ -22,6 +26,7 @@ class PdfViewModel extends ChangeNotifier {
     final document = await PdfDocument.openFile(_file.path);
     _document?.dispose();
     _document = document;
+    _currentPageIndex = 0;
     notifyListeners();
   }
 
@@ -29,5 +34,18 @@ class PdfViewModel extends ChangeNotifier {
   void dispose() {
     _document?.dispose();
     super.dispose();
+  }
+
+  void nextPage(int pageCount) {
+    _currentPageIndex = min(
+      _currentPageIndex + pageCount,
+      _document!.pages.length - 1,
+    );
+    notifyListeners();
+  }
+
+  void prevPage(int pageCount) {
+    _currentPageIndex = max(_currentPageIndex - pageCount, 0);
+    notifyListeners();
   }
 }
