@@ -31,6 +31,43 @@ class ScoresRepository {
 
   ScoresRepository({required Database db}) : _db = db;
 
+  Future<Score?> getScore(String id) async {
+    final score = await _db.managers.scoresTable
+        .filter((f) => f.id(id))
+        .getSingleOrNull();
+    if (score == null) return null;
+    return Score(
+      id: score.id,
+      title: score.title,
+      createdAt: score.createdAt,
+      metadataUpdatedAt: score.metadataUpdatedAt,
+      fileUpdatedAt: score.fileUpdatedAt,
+      fileType: score.fileType,
+      file: score.downloaded
+          ? await _scoreFile(score.id, score.fileType)
+          : null,
+    );
+  }
+
+  Future<List<Score>> getAllScores() async {
+    final scores = await _db.managers.scoresTable
+        .orderBy((o) => o.createdAt.desc())
+        .get();
+    return Future.wait(
+      scores.map(
+        (s) async => Score(
+          id: s.id,
+          title: s.title,
+          fileType: s.fileType,
+          metadataUpdatedAt: s.metadataUpdatedAt,
+          createdAt: s.createdAt,
+          fileUpdatedAt: s.fileUpdatedAt,
+          file: s.downloaded ? await _scoreFile(s.id, s.fileType) : null,
+        ),
+      ),
+    );
+  }
+
   Future<List<Score>> importAll(Iterable<String> paths) async {
     List<Score> scores = [];
     try {

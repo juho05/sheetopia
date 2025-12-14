@@ -6,7 +6,7 @@ import 'package:sheetopia/routing/router.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  pdfrxFlutterInitialize(dismissPdfiumWasmWarnings: true);
+  pdfrxFlutterInitialize();
   runApp(
     MultiProvider(
       providers: await createProviders(),

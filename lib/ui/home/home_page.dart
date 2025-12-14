@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/home/home_viewmodel.dart';
+import 'package:sheetopia/ui/home/library_view.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -13,13 +14,7 @@ class HomePage extends StatelessWidget {
       builder: (context, _) {
         return Scaffold(
           appBar: AppBar(title: const Text("Library")),
-          body: SafeArea(
-            child: Consumer<HomeViewModel>(
-              builder: (context, viewModel, _) {
-                return const Placeholder();
-              },
-            ),
-          ),
+          body: const SafeArea(child: LibraryView()),
           floatingActionButton: FloatingActionButton(
             onPressed: () async {
               try {
