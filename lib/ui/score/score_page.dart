@@ -37,82 +37,88 @@ class _ScorePageState extends State<ScorePage> {
           body: SafeArea(
             child: Consumer<ScoreViewModel>(
               builder: (context, viewModel, _) {
-                return Listener(
-                  onPointerHover: (event) => viewModel.showOverlay(),
-                  onPointerMove: (event) => viewModel.showOverlay(),
-                  onPointerDown: (event) => viewModel.showOverlay(),
-                  child: CallbackShortcuts(
-                    bindings: {
-                      const SingleActivator(LogicalKeyboardKey.escape):
-                          viewModel.exitFullScreen,
-                      const SingleActivator(LogicalKeyboardKey.keyF):
-                          viewModel.toggleFullScreen,
-                      const SingleActivator(LogicalKeyboardKey.f11):
-                          viewModel.toggleFullScreen,
-                    },
-                    child: FocusScope(
-                      autofocus: true,
-                      child: Stack(
-                        children: [
-                          if (viewModel.file == null)
-                            const Center(
-                              child: CircularProgressIndicator.adaptive(),
-                            ),
-                          if (viewModel.file != null)
-                            switch (viewModel.fileType!) {
-                              FileType.pdf => PdfView(file: viewModel.file!),
-                            },
-                          if (!viewModel.isFullScreen)
-                            Padding(
-                              padding: const EdgeInsets.all(4),
-                              child: SizedBox.square(
-                                dimension: 32,
-                                child: IconButton.filled(
-                                  color: Colors.white,
-                                  style: ButtonStyle(
-                                    backgroundColor: WidgetStateProperty.all(
-                                      Colors.black.withAlpha(100),
-                                    ),
-                                  ),
-                                  icon: const BackButtonIcon(),
-                                  iconSize: 20,
-                                  padding: const EdgeInsets.all(0),
-                                  onPressed: () {
-                                    context.pop();
-                                  },
-                                ),
+                return MouseRegion(
+                  cursor: !viewModel.isFullScreen || viewModel.overlayVisible
+                      ? SystemMouseCursors.basic
+                      : SystemMouseCursors.none,
+                  child: Listener(
+                    onPointerHover: (event) => viewModel.showOverlay(),
+                    onPointerMove: (event) => viewModel.showOverlay(),
+                    onPointerDown: (event) => viewModel.showOverlay(),
+                    child: CallbackShortcuts(
+                      bindings: {
+                        const SingleActivator(LogicalKeyboardKey.escape):
+                            viewModel.exitFullScreen,
+                        const SingleActivator(LogicalKeyboardKey.keyF):
+                            viewModel.toggleFullScreen,
+                        const SingleActivator(LogicalKeyboardKey.f11):
+                            viewModel.toggleFullScreen,
+                      },
+                      child: FocusScope(
+                        autofocus: true,
+                        child: Stack(
+                          children: [
+                            if (viewModel.file == null)
+                              const Center(
+                                child: CircularProgressIndicator.adaptive(),
                               ),
-                            ),
-                          if (Platform.isWindows ||
-                              Platform.isMacOS ||
-                              Platform.isLinux)
-                            AnimatedOpacity(
-                              opacity: viewModel.overlayVisible ? 1 : 0,
-                              duration: const Duration(milliseconds: 100),
-                              child: Align(
-                                alignment: Alignment.bottomRight,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
+                            if (viewModel.file != null)
+                              switch (viewModel.fileType!) {
+                                FileType.pdf => PdfView(file: viewModel.file!),
+                              },
+                            if (!viewModel.isFullScreen)
+                              Padding(
+                                padding: const EdgeInsets.all(4),
+                                child: SizedBox.square(
+                                  dimension: 32,
                                   child: IconButton.filled(
-                                    onPressed: () {
-                                      viewModel.toggleFullScreen();
-                                    },
                                     color: Colors.white,
                                     style: ButtonStyle(
                                       backgroundColor: WidgetStateProperty.all(
                                         Colors.black.withAlpha(100),
                                       ),
                                     ),
-                                    iconSize: 26,
-                                    padding: const EdgeInsets.all(10),
-                                    icon: viewModel.isFullScreen
-                                        ? const Icon(Icons.fullscreen_exit)
-                                        : const Icon(Icons.fullscreen),
+                                    icon: const BackButtonIcon(),
+                                    iconSize: 20,
+                                    padding: const EdgeInsets.all(0),
+                                    onPressed: () {
+                                      context.pop();
+                                    },
                                   ),
                                 ),
                               ),
-                            ),
-                        ],
+                            if (Platform.isWindows ||
+                                Platform.isMacOS ||
+                                Platform.isLinux)
+                              AnimatedOpacity(
+                                opacity: viewModel.overlayVisible ? 1 : 0,
+                                duration: const Duration(milliseconds: 50),
+                                child: Align(
+                                  alignment: Alignment.bottomRight,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: IconButton.filled(
+                                      onPressed: () {
+                                        viewModel.toggleFullScreen();
+                                      },
+                                      color: Colors.white,
+                                      style: ButtonStyle(
+                                        backgroundColor:
+                                            WidgetStateProperty.all(
+                                              Colors.black.withAlpha(100),
+                                            ),
+                                      ),
+                                      iconSize: 26,
+                                      padding: const EdgeInsets.all(10),
+                                      icon: viewModel.isFullScreen
+                                          ? const Icon(Icons.fullscreen_exit)
+                                          : const Icon(Icons.fullscreen),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

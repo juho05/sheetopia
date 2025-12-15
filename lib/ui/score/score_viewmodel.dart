@@ -80,6 +80,7 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
 
   void _setFullScreen(bool fullScreen) {
     if (!supportsFullScreen || fullScreen == isFullScreen) return;
+    showOverlay();
     FullScreen.setFullScreen(fullScreen);
   }
 
