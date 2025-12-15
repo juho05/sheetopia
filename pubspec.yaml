@@ -13,6 +13,7 @@ dependencies:
   file_selector: ^1.1.0
   flutter:
     sdk: flutter
+  flutter_fullscreen: ^1.2.0
   go_router: ^17.0.1
   path: ^1.9.1
   path_provider: ^2.1.5

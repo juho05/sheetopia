@@ -1,51 +1,123 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_fullscreen/flutter_fullscreen.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/ui/score/pdf_view.dart';
 import 'package:sheetopia/ui/score/score_viewmodel.dart';
 
-class ScorePage extends StatelessWidget {
+class ScorePage extends StatefulWidget {
   final String scoreId;
 
   const ScorePage({super.key, required this.scoreId});
 
   @override
+  State<ScorePage> createState() => _ScorePageState();
+}
+
+class _ScorePageState extends State<ScorePage> {
+  @override
+  void dispose() {
+    if (FullScreen.isFullScreen) {
+      FullScreen.setFullScreen(false);
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (context) =>
-          ScoreViewModel(repo: context.read(), scoreId: scoreId),
+          ScoreViewModel(repo: context.read(), scoreId: widget.scoreId),
       builder: (context, _) {
-        final theme = Theme.of(context);
-        final background = theme.colorScheme.surface;
-        final foreground = theme.colorScheme.onSurface;
-        final darkTheme = theme.brightness == Brightness.dark;
         return Scaffold(
           body: SafeArea(
-            child: Stack(
-              children: [
-                Consumer<ScoreViewModel>(
-                  builder: (context, viewModel, _) {
-                    if (viewModel.file == null) {
-                      return const Center(
-                        child: CircularProgressIndicator.adaptive(),
-                      );
-                    }
-                    return switch (viewModel.fileType!) {
-                      FileType.pdf => PdfView(file: viewModel.file!),
-                    };
-                  },
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Material(
-                    borderRadius: BorderRadius.circular(999999),
-                    color: darkTheme
-                        ? background.withAlpha(100)
-                        : foreground.withAlpha(100),
-                    child: const BackButton(color: Colors.white),
+            child: Consumer<ScoreViewModel>(
+              builder: (context, viewModel, _) {
+                return Listener(
+                  onPointerHover: (event) => viewModel.showOverlay(),
+                  onPointerMove: (event) => viewModel.showOverlay(),
+                  onPointerDown: (event) => viewModel.showOverlay(),
+                  child: CallbackShortcuts(
+                    bindings: {
+                      const SingleActivator(LogicalKeyboardKey.escape):
+                          viewModel.exitFullScreen,
+                      const SingleActivator(LogicalKeyboardKey.keyF):
+                          viewModel.toggleFullScreen,
+                      const SingleActivator(LogicalKeyboardKey.f11):
+                          viewModel.toggleFullScreen,
+                    },
+                    child: FocusScope(
+                      autofocus: true,
+                      child: Stack(
+                        children: [
+                          if (viewModel.file == null)
+                            const Center(
+                              child: CircularProgressIndicator.adaptive(),
+                            ),
+                          if (viewModel.file != null)
+                            switch (viewModel.fileType!) {
+                              FileType.pdf => PdfView(file: viewModel.file!),
+                            },
+                          if (!viewModel.isFullScreen)
+                            Padding(
+                              padding: const EdgeInsets.all(4),
+                              child: SizedBox.square(
+                                dimension: 32,
+                                child: IconButton.filled(
+                                  color: Colors.white,
+                                  style: ButtonStyle(
+                                    backgroundColor: WidgetStateProperty.all(
+                                      Colors.black.withAlpha(100),
+                                    ),
+                                  ),
+                                  icon: const BackButtonIcon(),
+                                  iconSize: 20,
+                                  padding: const EdgeInsets.all(0),
+                                  onPressed: () {
+                                    context.pop();
+                                  },
+                                ),
+                              ),
+                            ),
+                          if (Platform.isWindows ||
+                              Platform.isMacOS ||
+                              Platform.isLinux)
+                            AnimatedOpacity(
+                              opacity: viewModel.overlayVisible ? 1 : 0,
+                              duration: const Duration(milliseconds: 100),
+                              child: Align(
+                                alignment: Alignment.bottomRight,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: IconButton.filled(
+                                    onPressed: () {
+                                      viewModel.toggleFullScreen();
+                                    },
+                                    color: Colors.white,
+                                    style: ButtonStyle(
+                                      backgroundColor: WidgetStateProperty.all(
+                                        Colors.black.withAlpha(100),
+                                      ),
+                                    ),
+                                    iconSize: 26,
+                                    padding: const EdgeInsets.all(10),
+                                    icon: viewModel.isFullScreen
+                                        ? const Icon(Icons.fullscreen_exit)
+                                        : const Icon(Icons.fullscreen),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                );
+              },
             ),
           ),
         );

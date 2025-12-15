@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_fullscreen/flutter_fullscreen.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/providers.dart';
@@ -6,7 +7,9 @@ import 'package:sheetopia/routing/router.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await FullScreen.ensureInitialized();
   pdfrxFlutterInitialize();
+
   runApp(
     MultiProvider(
       providers: await createProviders(),

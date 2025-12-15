@@ -133,7 +133,7 @@ class _PdfViewState extends State<PdfView> {
                       nextPage();
                     }
                   },
-                  child: Focus(
+                  child: FocusScope(
                     autofocus: true,
                     child: Material(
                       child: Stack(
