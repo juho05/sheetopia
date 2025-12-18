@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:sheetopia/ui/common/next_button.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_desktop.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_mobile.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_viewmodel.dart';
+import 'package:sheetopia/ui/edit_score/nextdonedelete_button.dart';
 
 class EditScorePage extends StatelessWidget {
   final String scoreId;
@@ -35,22 +34,10 @@ class EditScorePage extends StatelessWidget {
                               : const Text("Import score"))
                         : const Text("Edit score"),
                     actions: [
-                      if (mobile && viewModel.isImport)
+                      if (mobile)
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: NextButton(
-                            label: viewModel.isImport && !viewModel.hasNext
-                                ? "Done"
-                                : null,
-                            showIcon: viewModel.hasNext,
-                            onPressed: () {
-                              if (viewModel.hasNext) {
-                                viewModel.next();
-                              } else {
-                                context.pop();
-                              }
-                            },
-                          ),
+                          child: NextDoneDeleteButton(viewModel: viewModel),
                         ),
                     ],
                   ),

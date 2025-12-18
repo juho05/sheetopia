@@ -43,6 +43,10 @@ class EditScoreViewModel extends ChangeNotifier {
     await _repo.updateScore(score!.id, title: title);
   }
 
+  Future<void> delete() async {
+    await _repo.deleteScore(score!.id);
+  }
+
   Future<void> changeFile() async {
     final XFile? file = await openFile(
       acceptedTypeGroups: ScoresRepository.scoreFileTypeGroup,

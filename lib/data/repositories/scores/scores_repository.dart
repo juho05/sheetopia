@@ -198,4 +198,9 @@ class ScoresRepository {
       path.join((await _scoresDir).path, id + fileTypeToExtension(fileType)),
     );
   }
+
+  Future<void> deleteScore(String scoreId) async {
+    await _db.managers.scoresTable.filter((f) => f.id(scoreId)).delete();
+    _updatedScoreIds.add([]);
+  }
 }

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:sheetopia/ui/common/next_button.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_form.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_preview.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_viewmodel.dart';
+import 'package:sheetopia/ui/edit_score/nextdonedelete_button.dart';
 
 class EditScoreDesktop extends StatelessWidget {
   const EditScoreDesktop({super.key});
@@ -22,26 +21,13 @@ class EditScoreDesktop extends StatelessWidget {
               child: Column(
                 children: [
                   const Expanded(child: EditScoreForm()),
-                  if (viewModel.isImport)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: NextButton(
-                          label: viewModel.isImport && !viewModel.hasNext
-                              ? "Done"
-                              : null,
-                          showIcon: viewModel.hasNext,
-                          onPressed: () {
-                            if (viewModel.hasNext) {
-                              viewModel.next();
-                            } else {
-                              context.pop();
-                            }
-                          },
-                        ),
-                      ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: NextDoneDeleteButton(viewModel: viewModel),
                     ),
+                  ),
                 ],
               ),
             ),

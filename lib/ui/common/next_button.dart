@@ -3,31 +3,22 @@ import 'package:flutter/material.dart';
 class NextButton extends StatelessWidget {
   final String? label;
   final void Function()? onPressed;
-  final bool showIcon;
 
-  const NextButton({
-    super.key,
-    this.label,
-    this.showIcon = true,
-    required this.onPressed,
-  });
+  const NextButton({super.key, this.label, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
     return FilledButton(
       onPressed: onPressed,
-      style: ButtonStyle(
+      style: const ButtonStyle(
         padding: WidgetStatePropertyAll(
-          EdgeInsetsGeometry.only(left: 14, right: showIcon ? 8 : 14),
+          EdgeInsetsGeometry.only(left: 14, right: 8),
         ),
       ),
       child: Row(
         spacing: 2,
         mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(label ?? "Next"),
-          if (showIcon) const Icon(Icons.navigate_next),
-        ],
+        children: [Text(label ?? "Next"), const Icon(Icons.navigate_next)],
       ),
     );
   }
