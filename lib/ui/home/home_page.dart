@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/home/home_viewmodel.dart';
@@ -18,17 +19,11 @@ class HomePage extends StatelessWidget {
           floatingActionButton: FloatingActionButton(
             onPressed: () async {
               try {
-                final ids = await context.read<HomeViewModel>().importScores();
-                if (!context.mounted || ids.isEmpty) return;
-                // TODO replace with navigation to edit page
-                if (ids.length == 1) {
-                  Toast.show(context, "Successfully imported score!");
-                } else {
-                  Toast.show(
-                    context,
-                    "Successfully imported ${ids.length} scores!",
-                  );
-                }
+                final firstScoreId = await context
+                    .read<HomeViewModel>()
+                    .importScores();
+                if (!context.mounted || firstScoreId == null) return;
+                context.go("/scores/$firstScoreId/edit");
               } catch (e, st) {
                 Toast.exception(
                   context,

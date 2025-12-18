@@ -14,7 +14,7 @@ class LibraryViewModel extends ChangeNotifier {
   StreamSubscription? _updatedScoresSub;
   LibraryViewModel({required ScoresRepository repo}) : _repo = repo {
     _load().then((value) {
-      _updatedScoresSub = _repo.updatedScores.listen((_) => _load());
+      _updatedScoresSub = _repo.updatedScoreIds.listen((_) => _load());
     });
   }
 

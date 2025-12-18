@@ -13,14 +13,14 @@ class HomeViewModel extends ChangeNotifier {
   HomeViewModel({required ScoresRepository scoresRepo})
     : _scoresRepo = scoresRepo;
 
-  Future<List<String>> importScores() async {
+  Future<String?> importScores() async {
     final List<XFile> files = await openFiles(
       acceptedTypeGroups: [_pdfTypeGroup],
       confirmButtonText: "Import",
     );
-    if (files.isEmpty) return [];
+    if (files.isEmpty) return null;
 
     final scores = await _scoresRepo.importAll(files.map((f) => f.path));
-    return scores.map((s) => s.id).toList();
+    return scores.first.id;
   }
 }

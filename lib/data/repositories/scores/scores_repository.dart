@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -24,12 +25,15 @@ class InvalidFileTypeException implements Exception {
 class ScoresRepository {
   final Database _db;
 
-  final BehaviorSubject<List<Score>> _updatedScores = BehaviorSubject.seeded(
-    [],
-  );
-  Stream<List<Score>> get updatedScores => _updatedScores.stream;
+  final BehaviorSubject<Iterable<String>> _updatedScoreIds =
+      BehaviorSubject.seeded([]);
+  Stream<Iterable<String>> get updatedScoreIds => _updatedScoreIds.stream;
 
   ScoresRepository({required Database db}) : _db = db;
+
+  List<String> _freshImports = [];
+  UnmodifiableListView<String> get freshImports =>
+      UnmodifiableListView(_freshImports);
 
   Future<Score?> getScore(String id) async {
     final score = await _db.managers.scoresTable
@@ -66,6 +70,16 @@ class ScoresRepository {
         ),
       ),
     );
+  }
+
+  Future<void> updateScore(String scoreId, {required String title}) async {
+    await _db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .update(
+          (o) =>
+              o(title: Value(title), metadataUpdatedAt: Value(DateTime.now())),
+        );
+    _updatedScoreIds.add([scoreId]);
   }
 
   Future<List<Score>> importAll(Iterable<String> paths) async {
@@ -120,8 +134,13 @@ class ScoresRepository {
       rethrow;
     }
 
-    _updatedScores.add(scores);
+    _freshImports = List.of(scores.map((s) => s.id));
+    _updatedScoreIds.add(scores.map((s) => s.id));
     return scores;
+  }
+
+  void clearFreshImports() {
+    _freshImports = [];
   }
 
   Directory? _cachedScoresDir;

@@ -22,6 +22,14 @@ class LibraryView extends StatelessWidget {
                       onTap: () {
                         context.go("/scores/${viewModel.scores[index].id}");
                       },
+                      trailing: IconButton(
+                        onPressed: () {
+                          context.go(
+                            "/scores/${viewModel.scores[index].id}/edit",
+                          );
+                        },
+                        icon: const Icon(Icons.edit),
+                      ),
                     );
                   },
                   itemCount: viewModel.scores.length,

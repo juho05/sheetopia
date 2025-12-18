@@ -28,8 +28,8 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
     : _repo = repo,
       _scoreId = scoreId {
     _load().then((_) {
-      _updatedScoresSub = _repo.updatedScores
-          .where((ss) => ss.any((s) => s.id == _scoreId))
+      _updatedScoresSub = _repo.updatedScoreIds
+          .where((s) => s.any((id) => id == _scoreId))
           .listen((_) {
             _load();
           });
