@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -24,6 +25,10 @@ class InvalidFileTypeException implements Exception {
 
 class ScoresRepository {
   final Database _db;
+
+  static const List<XTypeGroup> scoreFileTypeGroup = [
+    XTypeGroup(label: "PDF", extensions: <String>["pdf"]),
+  ];
 
   final BehaviorSubject<Iterable<String>> _updatedScoreIds =
       BehaviorSubject.seeded([]);
@@ -137,6 +142,35 @@ class ScoresRepository {
     _freshImports = List.of(scores.map((s) => s.id));
     _updatedScoreIds.add(scores.map((s) => s.id));
     return scores;
+  }
+
+  Future<void> updateScoreFile(String scoreId, String filePath) async {
+    final score = (await getScore(scoreId))!;
+
+    final fileType = fileTypeFromExtension(path.extension(filePath));
+    if (fileType == null) {
+      throw InvalidFileTypeException(filePath: filePath);
+    }
+
+    final file = await _scoreFile(scoreId, fileType);
+
+    await File(filePath).copy(file.path);
+
+    if (fileType != score.fileType) {
+      try {
+        (await _scoreFile(score.id, score.fileType)).delete();
+      } catch (_) {}
+    }
+
+    await _db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .update(
+          (o) => o(
+            fileUpdatedAt: Value(DateTime.now()),
+            fileType: Value(fileType),
+          ),
+        );
+    _updatedScoreIds.add([scoreId]);
   }
 
   void clearFreshImports() {

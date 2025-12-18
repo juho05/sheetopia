@@ -3,11 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 
 class HomeViewModel extends ChangeNotifier {
-  static const XTypeGroup _pdfTypeGroup = XTypeGroup(
-    label: "PDF",
-    extensions: <String>["pdf"],
-  );
-
   final ScoresRepository _scoresRepo;
 
   HomeViewModel({required ScoresRepository scoresRepo})
@@ -15,7 +10,7 @@ class HomeViewModel extends ChangeNotifier {
 
   Future<String?> importScores() async {
     final List<XFile> files = await openFiles(
-      acceptedTypeGroups: [_pdfTypeGroup],
+      acceptedTypeGroups: ScoresRepository.scoreFileTypeGroup,
       confirmButtonText: "Import",
     );
     if (files.isEmpty) return null;

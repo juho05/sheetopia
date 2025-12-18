@@ -5,21 +5,59 @@ import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_viewmodel.dart';
 
-class EditScorePreview extends StatelessWidget {
+class EditScorePreview extends StatefulWidget {
   final Score score;
 
   const EditScorePreview({super.key, required this.score});
 
   @override
+  State<EditScorePreview> createState() => _EditScorePreviewState();
+}
+
+class _EditScorePreviewState extends State<EditScorePreview> {
+  PdfDocumentRefFile? pdfRef;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.score.file != null && widget.score.fileType == FileType.pdf) {
+      pdfRef = PdfDocumentRefFile(
+        widget.score.file!.path,
+        autoDispose: true,
+        key: PdfDocumentRefKey(
+          "${widget.score.file!.path}-${widget.score.fileUpdatedAt}",
+        ),
+      );
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant EditScorePreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.score.file != null &&
+        widget.score.fileType == FileType.pdf &&
+        (oldWidget.score.fileUpdatedAt != widget.score.fileUpdatedAt ||
+            oldWidget.score.file == null && widget.score.file != null)) {
+      pdfRef = PdfDocumentRefFile(
+        widget.score.file!.path,
+        autoDispose: true,
+        key: PdfDocumentRefKey(
+          "${widget.score.file!.path}-${widget.score.fileUpdatedAt}",
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (score.file == null) {
+    if (widget.score.file == null) {
       return const Center(child: CircularProgressIndicator.adaptive());
     }
     return Stack(
       children: [
-        switch (score.fileType) {
-          FileType.pdf => PdfViewer.file(
-            score.file!.path,
+        switch (widget.score.fileType) {
+          FileType.pdf => PdfViewer(
+            pdfRef!,
             params: const PdfViewerParams(
               scrollPhysics: ClampingScrollPhysics(),
             ),
