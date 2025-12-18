@@ -63,16 +63,22 @@ class _EditScorePreviewState extends State<EditScorePreview> {
             ),
           ),
         },
-        Align(
-          alignment: Alignment.bottomRight,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: FilledButton.icon(
-              onPressed: () => context.read<EditScoreViewModel>().changeFile(),
-              icon: const Icon(Icons.edit),
-              label: const Text("Change"),
-            ),
-          ),
+        Consumer<EditScoreViewModel>(
+          builder: (context, viewModel, _) {
+            if (viewModel.isImport) return const SizedBox.shrink();
+            return Align(
+              alignment: Alignment.bottomRight,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: FilledButton.icon(
+                  onPressed: () =>
+                      context.read<EditScoreViewModel>().changeFile(),
+                  icon: const Icon(Icons.edit),
+                  label: const Text("Change"),
+                ),
+              ),
+            );
+          },
         ),
       ],
     );

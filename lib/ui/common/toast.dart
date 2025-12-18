@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class Toast {
   static void show(BuildContext context, String message) {
+    if (!context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
@@ -23,7 +24,6 @@ class Toast {
     String errorMsg = "An unexpected error occurred",
   }) {
     print("$e\n$st");
-    if (!context.mounted) return;
     show(context, errorMsg);
   }
 }

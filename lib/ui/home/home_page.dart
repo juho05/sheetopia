@@ -10,31 +10,50 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final disabledColor = Color.fromARGB(
+      255,
+      (theme.colorScheme.surface.r * 1.3843 * 255).toInt(),
+      (theme.colorScheme.surface.g * 1.3843 * 255).toInt(),
+      (theme.colorScheme.surface.b * 1.3843 * 255).toInt(),
+    );
     return ChangeNotifierProvider(
       create: (context) => HomeViewModel(scoresRepo: context.read()),
       builder: (context, _) {
         return Scaffold(
           appBar: AppBar(title: const Text("Library")),
           body: const SafeArea(child: LibraryView()),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () async {
-              try {
-                final firstScoreId = await context
-                    .read<HomeViewModel>()
-                    .importScores();
-                if (!context.mounted || firstScoreId == null) return;
-                context.go("/scores/$firstScoreId/edit");
-              } catch (e, st) {
-                Toast.exception(
-                  context,
-                  e,
-                  st: st,
-                  errorMsg: "Failed to import scores!",
-                );
-              }
+          floatingActionButton: Consumer<HomeViewModel>(
+            builder: (context, viewModel, _) {
+              return FloatingActionButton(
+                onPressed: viewModel.importing
+                    ? null
+                    : () async {
+                        try {
+                          final firstScoreId = await context
+                              .read<HomeViewModel>()
+                              .importScores();
+                          if (!context.mounted || firstScoreId == null) return;
+                          context.go("/scores/$firstScoreId/edit");
+                        } catch (e, st) {
+                          Toast.exception(
+                            context,
+                            e,
+                            st: st,
+                            errorMsg: "Failed to import scores!",
+                          );
+                        }
+                      },
+                backgroundColor: viewModel.importing ? disabledColor : null,
+                tooltip: "Import score",
+                child: viewModel.importing
+                    ? const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: CircularProgressIndicator.adaptive(),
+                      )
+                    : const Icon(Icons.add),
+              );
             },
-            tooltip: "Import score",
-            child: const Icon(Icons.add),
           ),
         );
       },
