@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:collection';
 
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/file_picker.dart';
 
 class EditScoreViewModel extends ChangeNotifier {
   final ScoresRepository _repo;
@@ -48,10 +48,7 @@ class EditScoreViewModel extends ChangeNotifier {
   }
 
   Future<void> changeFile() async {
-    final XFile? file = await openFile(
-      acceptedTypeGroups: ScoresRepository.scoreFileTypeGroup,
-      confirmButtonText: "Select",
-    );
+    final file = await selectScoreFile();
     if (file == null) return;
     await _repo.updateScoreFile(score!.id, file.path);
   }

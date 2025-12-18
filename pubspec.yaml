@@ -10,6 +10,7 @@ environment:
 dependencies:
   drift: ^2.30.0
   drift_flutter: ^0.2.8
+  file_picker: ^10.3.8
   file_selector: ^1.1.0
   flutter:
     sdk: flutter

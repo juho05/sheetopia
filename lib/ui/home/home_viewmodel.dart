@@ -1,6 +1,6 @@
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/file_picker.dart';
 
 class HomeViewModel extends ChangeNotifier {
   final ScoresRepository _scoresRepo;
@@ -9,10 +9,7 @@ class HomeViewModel extends ChangeNotifier {
     : _scoresRepo = scoresRepo;
 
   Future<String?> importScores() async {
-    final List<XFile> files = await openFiles(
-      acceptedTypeGroups: ScoresRepository.scoreFileTypeGroup,
-      confirmButtonText: "Import",
-    );
+    final files = await selectScoreFiles();
     if (files.isEmpty) return null;
 
     final scores = await _scoresRepo.importAll(files.map((f) => f.path));
