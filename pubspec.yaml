@@ -36,6 +36,7 @@ dev_dependencies:
   drift_dev: ^2.30.0
   build_runner: ^2.10.4
   flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.7
 
 flutter_launcher_icons:
   image_path: ./assets/icon/sheetopia.png
@@ -58,6 +59,13 @@ flutter_launcher_icons:
   macos:
     image_path: ./assets/icon/sheetopia-macos.png
     generate: true
+
+flutter_native_splash:
+  web: false
+  android: false
+  color: "#fef7ff"
+  color_dark: "#151218"
+  image: assets/icon/sheetopia-circle.png
 
 flutter:
   uses-material-design: true
