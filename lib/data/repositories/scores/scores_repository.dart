@@ -126,7 +126,9 @@ class ScoresRepository {
           .update(
             (o) => o(
               title: Value(title),
-              composer: Value(composer),
+              composer: composer.isNotEmpty
+                  ? Value(composer)
+                  : const Value(null),
               metadataUpdatedAt: Value(DateTime.now()),
             ),
           );
@@ -259,7 +261,7 @@ class ScoresRepository {
     int? size,
     int offset = 0,
   }) async {
-    final query = _db.selectOnly(_db.scoresTable)
+    final query = _db.selectOnly(_db.scoresTable, distinct: true)
       ..addColumns([_db.scoresTable.composer]);
     if (filter.isEmpty) {
       query.where(_db.scoresTable.composer.isNotNull());

@@ -32,6 +32,12 @@ class EditScoreForm extends StatelessWidget {
                   Autocomplete(
                     optionsBuilder: (textEditingValue) =>
                         viewModel.getComposers(filter: textEditingValue.text),
+                    onSelected: (option) =>
+                        viewModel
+                                .form
+                                .controls[EditScoreFormViewModel.formComposer]!
+                                .value =
+                            option,
                     fieldViewBuilder:
                         (
                           context,

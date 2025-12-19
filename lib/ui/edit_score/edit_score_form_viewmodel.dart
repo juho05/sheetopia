@@ -60,8 +60,12 @@ class EditScoreFormViewModel extends ChangeNotifier {
 
     await _onValuesChanged(form.value);
 
+    _composers = null;
     _score = _editScoreViewModel.score!;
-    form.updateValue({formTitle: _score.title});
+    form.updateValue({
+      formTitle: _score.title,
+      formComposer: _score.composer ?? "",
+    });
 
     notifyListeners();
   }
@@ -69,7 +73,7 @@ class EditScoreFormViewModel extends ChangeNotifier {
   Future<void> _onValuesChanged(Map<String, dynamic> values) async {
     await _editScoreViewModel.edit(
       title: values[formTitle],
-      composer: values[formComposer],
+      composer: values[formComposer] ?? "",
     );
   }
 
