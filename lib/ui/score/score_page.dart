@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/ui/score/pdf_view.dart';
 import 'package:sheetopia/ui/score/score_viewmodel.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class ScorePage extends StatefulWidget {
   final String scoreId;
@@ -20,7 +21,14 @@ class ScorePage extends StatefulWidget {
 
 class _ScorePageState extends State<ScorePage> {
   @override
+  void initState() {
+    WakelockPlus.enable();
+    super.initState();
+  }
+
+  @override
   void dispose() {
+    WakelockPlus.disable();
     if (FullScreen.isFullScreen) {
       FullScreen.setFullScreen(false);
     }
