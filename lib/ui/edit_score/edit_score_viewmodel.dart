@@ -39,8 +39,8 @@ class EditScoreViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> edit({required String title}) async {
-    await _repo.updateScore(score!.id, title: title);
+  Future<void> edit({required String title, required String composer}) async {
+    await _repo.updateScore(score!.id, title: title, composer: composer);
   }
 
   Future<void> delete() async {

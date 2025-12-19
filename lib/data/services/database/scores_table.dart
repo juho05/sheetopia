@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 class ScoresTable extends Table {
   late final id = text()();
   late final title = text()();
+  late final composer = text().nullable()();
 
   late final createdAt = dateTime().withDefault(currentDateAndTime)();
   late final metadataUpdatedAt = dateTime().withDefault(currentDateAndTime)();

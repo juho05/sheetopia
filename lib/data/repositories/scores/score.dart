@@ -1,10 +1,16 @@
 import 'dart:io';
 
+import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 
 class Score {
   final String id;
   final String title;
+  final String? composer;
+
+  final List<String> genres;
+  final List<String> instruments;
+  final List<Tag> tags;
 
   final DateTime createdAt;
   final DateTime metadataUpdatedAt;
@@ -16,6 +22,10 @@ class Score {
   Score({
     required this.id,
     required this.title,
+    required this.composer,
+    required this.genres,
+    required this.instruments,
+    required this.tags,
     required this.createdAt,
     required this.metadataUpdatedAt,
     required this.fileUpdatedAt,

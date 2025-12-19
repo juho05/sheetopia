@@ -8,6 +8,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
+import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 
@@ -41,13 +42,30 @@ class ScoresRepository {
       UnmodifiableListView(_freshImports);
 
   Future<Score?> getScore(String id) async {
-    final score = await _db.managers.scoresTable
+    final result = await _db.managers.scoresTable
         .filter((f) => f.id(id))
+        .withReferences(
+          (prefetch) => prefetch(
+            genresTableRefs: true,
+            instrumentsTableRefs: true,
+            scoreTagsTableRefs: true,
+          ),
+        )
         .getSingleOrNull();
-    if (score == null) return null;
+    if (result == null) return null;
+    final score = result.$1;
+    final data = result.$2;
     return Score(
       id: score.id,
       title: score.title,
+      composer: score.composer,
+      genres: (data.genresTableRefs.prefetchedData ?? [])
+          .map((e) => e.genre)
+          .toList(),
+      instruments: (data.instrumentsTableRefs.prefetchedData ?? [])
+          .map((e) => e.instrument)
+          .toList(),
+      tags: [], // TODO
       createdAt: score.createdAt,
       metadataUpdatedAt: score.metadataUpdatedAt,
       fileUpdatedAt: score.fileUpdatedAt,
@@ -61,29 +79,88 @@ class ScoresRepository {
   Future<List<Score>> getAllScores() async {
     final scores = await _db.managers.scoresTable
         .orderBy((o) => o.createdAt.desc())
+        .withReferences(
+          (prefetch) => prefetch(
+            genresTableRefs: true,
+            instrumentsTableRefs: true,
+            scoreTagsTableRefs: true,
+          ),
+        )
         .get();
     return Future.wait(
       scores.map(
         (s) async => Score(
-          id: s.id,
-          title: s.title,
-          fileType: s.fileType,
-          metadataUpdatedAt: s.metadataUpdatedAt,
-          createdAt: s.createdAt,
-          fileUpdatedAt: s.fileUpdatedAt,
-          file: s.downloaded ? await _scoreFile(s.id, s.fileType) : null,
+          id: s.$1.id,
+          title: s.$1.title,
+          composer: s.$1.composer,
+          genres: (s.$2.genresTableRefs.prefetchedData ?? [])
+              .map((e) => e.genre)
+              .toList(),
+          instruments: (s.$2.instrumentsTableRefs.prefetchedData ?? [])
+              .map((e) => e.instrument)
+              .toList(),
+          tags: [], // TODO
+          fileType: s.$1.fileType,
+          metadataUpdatedAt: s.$1.metadataUpdatedAt,
+          createdAt: s.$1.createdAt,
+          fileUpdatedAt: s.$1.fileUpdatedAt,
+          file: s.$1.downloaded
+              ? await _scoreFile(s.$1.id, s.$1.fileType)
+              : null,
         ),
       ),
     );
   }
 
-  Future<void> updateScore(String scoreId, {required String title}) async {
-    await _db.managers.scoresTable
-        .filter((f) => f.id(scoreId))
-        .update(
-          (o) =>
-              o(title: Value(title), metadataUpdatedAt: Value(DateTime.now())),
+  Future<void> updateScore(
+    String scoreId, {
+    required String title,
+    required String composer,
+    Iterable<String>? genres,
+    Iterable<String>? instruments,
+    Iterable<Tag>? tags,
+  }) async {
+    await _db.transaction(() async {
+      await _db.managers.scoresTable
+          .filter((f) => f.id(scoreId))
+          .update(
+            (o) => o(
+              title: Value(title),
+              composer: Value(composer),
+              metadataUpdatedAt: Value(DateTime.now()),
+            ),
+          );
+
+      if (genres != null) {
+        await _db.managers.genresTable
+            .filter((f) => f.score.id(scoreId))
+            .delete();
+
+        await _db.managers.genresTable.bulkCreate(
+          (o) => genres.map((g) => o(score: scoreId, genre: g)),
         );
+      }
+
+      if (instruments != null) {
+        await _db.managers.instrumentsTable
+            .filter((f) => f.score.id(scoreId))
+            .delete();
+
+        await _db.managers.instrumentsTable.bulkCreate(
+          (o) => instruments.map((i) => o(score: scoreId, instrument: i)),
+        );
+      }
+
+      if (tags != null) {
+        await _db.managers.scoreTagsTable
+            .filter((f) => f.score.id(scoreId))
+            .delete();
+
+        await _db.managers.scoreTagsTable.bulkCreate(
+          (o) => tags.map((t) => o(score: scoreId, tag: t.id)),
+        );
+      }
+    });
     _updatedScoreIds.add([scoreId]);
   }
 
@@ -108,6 +185,10 @@ class ScoresRepository {
           Score(
             id: id,
             title: title,
+            composer: null,
+            genres: const [],
+            instruments: const [],
+            tags: const [],
             createdAt: now,
             fileUpdatedAt: now,
             metadataUpdatedAt: now,
@@ -171,6 +252,28 @@ class ScoresRepository {
           ),
         );
     _updatedScoreIds.add([scoreId]);
+  }
+
+  Future<List<String>> getComposers({
+    String filter = "",
+    int? size,
+    int offset = 0,
+  }) async {
+    final query = _db.selectOnly(_db.scoresTable)
+      ..addColumns([_db.scoresTable.composer]);
+    if (filter.isEmpty) {
+      query.where(_db.scoresTable.composer.isNotNull());
+    } else {
+      query.where(
+        _db.scoresTable.composer.isNotNull() &
+            _db.scoresTable.composer.contains(filter),
+      );
+    }
+    query.orderBy([OrderingTerm.asc(_db.scoresTable.composer)]);
+    if (size != null) {
+      query.limit(size, offset: offset);
+    }
+    return await query.map((r) => r.read(_db.scoresTable.composer)!).get();
   }
 
   void clearFreshImports() {

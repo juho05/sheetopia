@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
+import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_viewmodel.dart';
 
 class EditScoreFormViewModel extends ChangeNotifier {
+  final ScoresRepository _repo;
   final EditScoreViewModel _editScoreViewModel;
 
   Score _score;
@@ -15,18 +17,25 @@ class EditScoreFormViewModel extends ChangeNotifier {
   final FormGroup form;
 
   static const String formTitle = "title";
+  static const String formComposer = "composer";
 
   StreamSubscription? _valueSub;
 
-  EditScoreFormViewModel({required EditScoreViewModel editScoreViewModel})
-    : _editScoreViewModel = editScoreViewModel,
-      _score = editScoreViewModel.score!,
-      form = FormGroup({
-        formTitle: FormControl<String>(
-          value: editScoreViewModel.score!.title,
-          validators: [Validators.required],
-        ),
-      }) {
+  EditScoreFormViewModel({
+    required EditScoreViewModel editScoreViewModel,
+    required ScoresRepository scoresRepo,
+  }) : _editScoreViewModel = editScoreViewModel,
+       _repo = scoresRepo,
+       _score = editScoreViewModel.score!,
+       form = FormGroup({
+         formTitle: FormControl<String>(
+           value: editScoreViewModel.score!.title,
+           validators: [Validators.required],
+         ),
+         formComposer: FormControl<String>(
+           value: editScoreViewModel.score!.composer,
+         ),
+       }) {
     _valueSub = form.valueChanges
         .debounceTime(const Duration(milliseconds: 250))
         .listen((_) {
@@ -34,6 +43,12 @@ class EditScoreFormViewModel extends ChangeNotifier {
           _onValuesChanged(form.value);
         });
     _editScoreViewModel.addListener(_onScoreChanged);
+  }
+
+  List<String>? _composers;
+  Future<Iterable<String>> getComposers({String filter = ""}) async {
+    _composers ??= await _repo.getComposers();
+    return _composers!.where((element) => element.contains(filter)).take(10);
   }
 
   Future<void> _onScoreChanged() async {
@@ -52,7 +67,10 @@ class EditScoreFormViewModel extends ChangeNotifier {
   }
 
   Future<void> _onValuesChanged(Map<String, dynamic> values) async {
-    await _editScoreViewModel.edit(title: values[formTitle]);
+    await _editScoreViewModel.edit(
+      title: values[formTitle],
+      composer: values[formComposer],
+    );
   }
 
   @override

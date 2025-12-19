@@ -9,8 +9,10 @@ class EditScoreForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) =>
-          EditScoreFormViewModel(editScoreViewModel: context.read()),
+      create: (context) => EditScoreFormViewModel(
+        editScoreViewModel: context.read(),
+        scoresRepo: context.read(),
+      ),
       builder: (context, _) {
         return Consumer<EditScoreFormViewModel>(
           builder: (context, viewModel, _) {
@@ -19,12 +21,35 @@ class EditScoreForm extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(8),
                 children: [
-                  ReactiveTextField(
+                  ReactiveTextField<String>(
                     formControlName: EditScoreFormViewModel.formTitle,
                     decoration: const InputDecoration(
                       label: Text("Title"),
                       border: OutlineInputBorder(),
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  Autocomplete(
+                    optionsBuilder: (textEditingValue) =>
+                        viewModel.getComposers(filter: textEditingValue.text),
+                    fieldViewBuilder:
+                        (
+                          context,
+                          textEditingController,
+                          focusNode,
+                          onFieldSubmitted,
+                        ) => ReactiveTextField(
+                          formControlName: EditScoreFormViewModel.formComposer,
+                          controller: textEditingController,
+                          focusNode: focusNode,
+                          onSubmitted: (control) {
+                            onFieldSubmitted();
+                          },
+                          decoration: const InputDecoration(
+                            label: Text("Composer"),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
                   ),
                 ],
               ),
