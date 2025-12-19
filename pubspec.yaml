@@ -35,6 +35,29 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   drift_dev: ^2.30.0
   build_runner: ^2.10.4
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  image_path: ./assets/icon/sheetopia.png
+
+  android: true
+  adaptive_icon_background: ./assets/icon/sheetopia-android-background.png
+  adaptive_icon_foreground: ./assets/icon/sheetopia-android-foreground.png
+  adaptive_icon_monochrome: ./assets/icon/sheetopia-android-monochrome.png
+  adaptive_icon_foreground_inset: 0
+  min_sdk_android: 21
+
+  ios: true
+  remove_alpha_ios: true
+
+  windows:
+    generate: true
+    icon_size: 256
+    image_path: ./assets/icon/sheetopia-circle.png
+
+  macos:
+    image_path: ./assets/icon/sheetopia-macos.png
+    generate: true
 
 flutter:
   uses-material-design: true

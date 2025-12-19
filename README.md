@@ -1,3 +1,5 @@
+<img src="assets/icon/sheetopia-circle.png" alt="Logo" title="Sheetopia" align="right" height="60px"/>
+
 # Sheetopia
 
 A cross-platform sheet music library manager.
