@@ -13,9 +13,9 @@ class HomePage extends StatelessWidget {
     final theme = Theme.of(context);
     final disabledColor = Color.fromARGB(
       255,
-      (theme.colorScheme.surface.r * 1.3843 * 255).toInt(),
-      (theme.colorScheme.surface.g * 1.3843 * 255).toInt(),
-      (theme.colorScheme.surface.b * 1.3843 * 255).toInt(),
+      theme.brightness == Brightness.light ? 227 : 46,
+      theme.brightness == Brightness.light ? 220 : 43,
+      theme.brightness == Brightness.light ? 228 : 48,
     );
     return ChangeNotifierProvider(
       create: (context) => HomeViewModel(scoresRepo: context.read()),
