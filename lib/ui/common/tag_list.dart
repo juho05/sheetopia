@@ -88,40 +88,44 @@ class TagWidget extends StatelessWidget {
               ? Colors.black
               : Colors.white
         : null;
-    Widget widget = Material(
+    Widget widget = Padding(
+      padding: EdgeInsets.only(
+        left: borderColor != null ? 8 : 9,
+        right: (icon != null ? 12 : 8) + (borderColor != null ? 0 : 1),
+        top: borderColor != null ? 3 : 4,
+        bottom: borderColor != null ? 3 : 4,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        spacing: 4,
+        children: [
+          if (icon != null) Icon(icon, size: 16),
+          Flexible(
+            child: Text(
+              name,
+              style: theme.textTheme.bodySmall!.copyWith(
+                color: foregroundColor,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+    if (onTap != null) {
+      widget = InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: widget,
+      );
+    }
+    widget = Material(
       borderRadius: BorderRadius.circular(12),
       color: color != null || borderColor != null
           ? color
           : theme.colorScheme.surfaceContainerHigh,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: borderColor != null ? 8 : 9,
-            right: (icon != null ? 12 : 8) + (borderColor != null ? 0 : 1),
-            top: borderColor != null ? 3 : 4,
-            bottom: borderColor != null ? 3 : 4,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            spacing: 4,
-            children: [
-              if (icon != null) Icon(icon, size: 16),
-              Flexible(
-                child: Text(
-                  name,
-                  style: theme.textTheme.bodySmall!.copyWith(
-                    color: foregroundColor,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: widget,
     );
     if (borderColor != null) {
       widget = DottedBorder(

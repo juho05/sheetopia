@@ -32,140 +32,138 @@ class AddTagsDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Dialog(
+      constraints: const BoxConstraints(maxWidth: 560),
+      insetPadding: const EdgeInsets.all(8),
       child: ListenableBuilder(
         listenable: viewModel,
         builder: (context, child) {
-          return Container(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                spacing: 8,
-                children: [
-                  Text(
-                    "Add tags",
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.headlineSmall,
-                  ),
-                  SearchInput(
-                    label: "Search or create",
-                    debounce: const Duration(milliseconds: 50),
-                    onSearch: (query) {
-                      viewModel.filter(query);
-                    },
-                  ),
-                  Flexible(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight:
-                            max(
-                              1,
-                              ((viewModel.currentFilter.isNotEmpty ? 1 : 0) +
-                                  viewModel.results.length),
-                            ) *
-                            _TagListItem.verticalExtent,
-                      ),
-                      child:
-                          viewModel.currentFilter.isNotEmpty ||
-                              viewModel.results.isNotEmpty
-                          ? ListView.builder(
-                              itemExtent: _TagListItem.verticalExtent,
-                              itemCount:
-                                  viewModel.results.length +
-                                  (viewModel.currentFilter.isNotEmpty ? 1 : 0),
-                              itemBuilder: (context, index) {
-                                if (index == 0 &&
-                                    viewModel.currentFilter.isNotEmpty) {
-                                  final filter = viewModel.currentFilter;
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 8),
-                                    child: SizedBox(
-                                      height: _TagListItem.verticalExtent - 8,
-                                      child: InkWell(
-                                        borderRadius: BorderRadius.circular(5),
-                                        onTap: () async {
-                                          final tag =
-                                              await CreateTagDialog.show(
-                                                context,
-                                                filter,
-                                              );
-                                          if (!context.mounted || tag == null) {
-                                            return;
-                                          }
-                                          viewModel.createdTag(tag);
-                                        },
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(
-                                              5,
-                                            ),
-                                            border: BoxBorder.all(
-                                              color: theme.colorScheme.primary,
-                                              width: 1,
-                                            ),
+          return Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 8,
+              children: [
+                Text(
+                  "Add tags",
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.headlineSmall,
+                ),
+                SearchInput(
+                  label: "Search or create",
+                  debounce: const Duration(milliseconds: 50),
+                  onSearch: (query) {
+                    viewModel.filter(query);
+                  },
+                ),
+                Flexible(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight:
+                          max(
+                            1,
+                            ((viewModel.currentFilter.isNotEmpty ? 1 : 0) +
+                                viewModel.results.length),
+                          ) *
+                          _TagListItem.verticalExtent,
+                    ),
+                    child:
+                        viewModel.currentFilter.isNotEmpty ||
+                            viewModel.results.isNotEmpty
+                        ? ListView.builder(
+                            itemExtent: _TagListItem.verticalExtent,
+                            itemCount:
+                                viewModel.results.length +
+                                (viewModel.currentFilter.isNotEmpty ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index == 0 &&
+                                  viewModel.currentFilter.isNotEmpty) {
+                                final filter = viewModel.currentFilter;
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: SizedBox(
+                                    height: _TagListItem.verticalExtent - 8,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(5),
+                                      onTap: () async {
+                                        final tag = await CreateTagDialog.show(
+                                          context,
+                                          filter,
+                                        );
+                                        if (!context.mounted || tag == null) {
+                                          return;
+                                        }
+                                        viewModel.createdTag(tag);
+                                      },
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                            5,
                                           ),
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 4,
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.max,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.center,
-                                              children: [
-                                                Text("Create tag '$filter'…"),
-                                              ],
-                                            ),
+                                          border: BoxBorder.all(
+                                            color: theme.colorScheme.primary,
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.max,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.center,
+                                            children: [
+                                              Text("Create tag '$filter'…"),
+                                            ],
                                           ),
                                         ),
                                       ),
                                     ),
-                                  );
-                                }
-                                if (viewModel.currentFilter.isNotEmpty) {
-                                  index--;
-                                }
-                                final t = viewModel.results[index];
-                                return _TagListItem(
-                                  tag: t,
-                                  selected: viewModel.selected.contains(t),
-                                  onSelect: () => viewModel.select(t),
-                                  onDeselect: () => viewModel.deselect(t),
+                                  ),
                                 );
-                              },
-                            )
-                          : const Center(
-                              child: Text(
-                                "Use the search bar to create a new tag.",
-                                textAlign: TextAlign.center,
-                              ),
+                              }
+                              if (viewModel.currentFilter.isNotEmpty) {
+                                index--;
+                              }
+                              final t = viewModel.results[index];
+                              return _TagListItem(
+                                tag: t,
+                                selected: viewModel.selected.contains(t),
+                                onSelect: () => viewModel.select(t),
+                                onDeselect: () => viewModel.deselect(t),
+                              );
+                            },
+                          )
+                        : const Center(
+                            child: Text(
+                              "Use the search bar to create a new tag.",
+                              textAlign: TextAlign.center,
                             ),
-                    ),
+                          ),
                   ),
-                  const Divider(height: 1),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text("${viewModel.selected.length} tags selected"),
-                      if (viewModel.selected.isEmpty)
-                        OutlinedButton(
-                          onPressed: () {
-                            Navigator.pop(context, null);
-                          },
-                          child: const Text("Cancel"),
-                        ),
-                      if (viewModel.selected.isNotEmpty)
-                        FilledButton(
-                          onPressed: () {
-                            Navigator.pop(context, viewModel.selected.toList());
-                          },
-                          child: const Text("Add"),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+                const Divider(height: 1),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("${viewModel.selected.length} tags selected"),
+                    if (viewModel.selected.isEmpty)
+                      OutlinedButton(
+                        onPressed: () {
+                          Navigator.pop(context, null);
+                        },
+                        child: const Text("Cancel"),
+                      ),
+                    if (viewModel.selected.isNotEmpty)
+                      FilledButton(
+                        onPressed: () {
+                          Navigator.pop(context, viewModel.selected.toList());
+                        },
+                        child: const Text("Add"),
+                      ),
+                  ],
+                ),
+              ],
             ),
           );
         },
@@ -205,10 +203,7 @@ class _TagListItem extends StatelessWidget {
             children: [
               Icon(selected ? Icons.check_box : Icons.check_box_outline_blank),
               Flexible(
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: TagWidget(name: tag.name, color: tag.color),
-                ),
+                child: TagWidget(name: tag.name, color: tag.color),
               ),
             ],
           ),
