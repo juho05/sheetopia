@@ -233,6 +233,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.11"
+  dotted_border:
+    dependency: "direct main"
+    description:
+      name: dotted_border
+      sha256: "99b091ec6891ba0c5331fdc2b502993c7c108f898995739a73c6845d71dad70c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.1.0"
   drift:
     dependency: "direct main"
     description:
@@ -257,6 +265,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.8"
+  extended_wrap:
+    dependency: "direct main"
+    description:
+      name: extended_wrap
+      sha256: "9eee580f639a9fd22df572e05db1b8c79e27fa30e045e10b366670c53b237109"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.5"
   fake_async:
     dependency: transitive
     description:
@@ -366,6 +382,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_colorpicker:
+    dependency: transitive
+    description:
+      name: flutter_colorpicker
+      sha256: "969de5f6f9e2a570ac660fb7b501551451ea2a1ab9e2097e89475f60e07816ea"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.0"
   flutter_fullscreen:
     dependency: "direct main"
     description:
@@ -804,6 +828,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.0"
+  reactive_color_picker:
+    dependency: "direct main"
+    description:
+      name: reactive_color_picker
+      sha256: f8e69b31c8f850e64b8725311d944a0b6c4dda080e16010e60ccf1e3ce30101e
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.2.2"
   reactive_forms:
     dependency: "direct main"
     description:

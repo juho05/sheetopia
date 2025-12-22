@@ -1,5 +1,6 @@
 import 'dart:collection';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:drift/drift.dart';
 import 'package:file_selector/file_selector.dart';
@@ -55,6 +56,24 @@ class ScoresRepository {
     if (result == null) return null;
     final score = result.$1;
     final data = result.$2;
+
+    final tags =
+        (await _db.managers.tagsTable
+                .filter(
+                  (f) => f.scoreTagsTableRefs((f) => f.score.id(score.id)),
+                )
+                .orderBy((o) => o.name.asc())
+                .get())
+            .map(
+              (t) => Tag(
+                id: t.id,
+                name: t.name,
+                color: Color(t.color),
+                updatedAt: t.updatedAt,
+              ),
+            )
+            .toList();
+
     return Score(
       id: score.id,
       title: score.title,
@@ -65,7 +84,7 @@ class ScoresRepository {
       instruments: (data.instrumentsTableRefs.prefetchedData ?? [])
           .map((e) => e.instrument)
           .toList(),
-      tags: [], // TODO
+      tags: tags,
       createdAt: score.createdAt,
       metadataUpdatedAt: score.metadataUpdatedAt,
       fileUpdatedAt: score.fileUpdatedAt,
@@ -83,10 +102,34 @@ class ScoresRepository {
           (prefetch) => prefetch(
             genresTableRefs: true,
             instrumentsTableRefs: true,
-            scoreTagsTableRefs: true,
+            scoreTagsTableRefs: false,
           ),
         )
         .get();
+
+    Map<String, List<Tag>> scoreTags = {};
+
+    final tags = await _db.managers.tagsTable
+        .orderBy((o) => o.name.asc())
+        .withReferences((prefetch) => prefetch(scoreTagsTableRefs: true))
+        .get();
+    for (final t in tags) {
+      final tag = Tag(
+        id: t.$1.id,
+        name: t.$1.name,
+        color: Color(t.$1.color),
+        updatedAt: t.$1.updatedAt,
+      );
+      for (final s
+          in t.$2.scoreTagsTableRefs.prefetchedData ?? <ScoreTagsTableData>[]) {
+        if (!scoreTags.containsKey(s.score)) {
+          scoreTags[s.score] = [tag];
+        } else {
+          scoreTags[s.score]!.add(tag);
+        }
+      }
+    }
+
     return Future.wait(
       scores.map(
         (s) async => Score(
@@ -99,7 +142,7 @@ class ScoresRepository {
           instruments: (s.$2.instrumentsTableRefs.prefetchedData ?? [])
               .map((e) => e.instrument)
               .toList(),
-          tags: [], // TODO
+          tags: scoreTags[s.$1.id] ?? [],
           fileType: s.$1.fileType,
           metadataUpdatedAt: s.$1.metadataUpdatedAt,
           createdAt: s.$1.createdAt,
@@ -116,52 +159,77 @@ class ScoresRepository {
     String scoreId, {
     required String title,
     required String composer,
-    Iterable<String>? genres,
-    Iterable<String>? instruments,
-    Iterable<Tag>? tags,
   }) async {
+    await _db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .update(
+          (o) => o(
+            title: Value(title),
+            composer: composer.isNotEmpty ? Value(composer) : const Value(null),
+            metadataUpdatedAt: Value(DateTime.now()),
+          ),
+        );
+    _updatedScoreIds.add([scoreId]);
+  }
+
+  Future<Tag> createTag({required String name, required Color color}) async {
+    final tag = await _db.managers.tagsTable.createReturning(
+      (o) => o(
+        id: _db.newId(),
+        name: name,
+        color: color.toARGB32(),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+    return Tag(
+      id: tag.id,
+      name: tag.name,
+      color: Color(tag.color),
+      updatedAt: tag.updatedAt,
+    );
+  }
+
+  Future<List<Tag>> getTags({
+    String? filter,
+    int? size,
+    int offset = 0,
+    Iterable<String> excludeTagIds = const [],
+  }) async {
+    final q = _db.select(_db.tagsTable);
+    if (filter != null) {
+      q.where((tbl) => tbl.name.contains(filter));
+    }
+    if (excludeTagIds.isNotEmpty) {
+      q.where((tbl) => tbl.id.isNotIn(excludeTagIds));
+    }
+    if (size != null) {
+      q.limit(size, offset: offset);
+    }
+    q.orderBy([(t) => OrderingTerm.asc(t.name)]);
+    final rows = await q.get();
+    return rows
+        .map(
+          (t) => Tag(
+            id: t.id,
+            name: t.name,
+            updatedAt: t.updatedAt,
+            color: Color(t.color),
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> setScoreTags(String scoreId, Iterable<String> tagIds) async {
     await _db.transaction(() async {
+      await _db.managers.scoreTagsTable
+          .filter((f) => f.score.id(scoreId))
+          .delete();
+      await _db.managers.scoreTagsTable.bulkCreate(
+        (o) => tagIds.map((id) => o(score: scoreId, tag: id)),
+      );
       await _db.managers.scoresTable
           .filter((f) => f.id(scoreId))
-          .update(
-            (o) => o(
-              title: Value(title),
-              composer: composer.isNotEmpty
-                  ? Value(composer)
-                  : const Value(null),
-              metadataUpdatedAt: Value(DateTime.now()),
-            ),
-          );
-
-      if (genres != null) {
-        await _db.managers.genresTable
-            .filter((f) => f.score.id(scoreId))
-            .delete();
-
-        await _db.managers.genresTable.bulkCreate(
-          (o) => genres.map((g) => o(score: scoreId, genre: g)),
-        );
-      }
-
-      if (instruments != null) {
-        await _db.managers.instrumentsTable
-            .filter((f) => f.score.id(scoreId))
-            .delete();
-
-        await _db.managers.instrumentsTable.bulkCreate(
-          (o) => instruments.map((i) => o(score: scoreId, instrument: i)),
-        );
-      }
-
-      if (tags != null) {
-        await _db.managers.scoreTagsTable
-            .filter((f) => f.score.id(scoreId))
-            .delete();
-
-        await _db.managers.scoreTagsTable.bulkCreate(
-          (o) => tags.map((t) => o(score: scoreId, tag: t.id)),
-        );
-      }
+          .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
     });
     _updatedScoreIds.add([scoreId]);
   }
