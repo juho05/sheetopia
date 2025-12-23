@@ -74,6 +74,7 @@ class AddTagsDialog extends StatelessWidget {
                             itemCount:
                                 viewModel.results.length +
                                 (viewModel.currentFilter.isNotEmpty ? 1 : 0),
+                            physics: const ClampingScrollPhysics(),
                             itemBuilder: (context, index) {
                               if (index == 0 &&
                                   viewModel.currentFilter.isNotEmpty) {
