@@ -102,6 +102,7 @@ class _AutoCompleteInputDialogState extends State<AutoCompleteInputDialog> {
                         label: Text(widget.inputLabel),
                         border: const OutlineInputBorder(),
                       ),
+                      onTapOutside: (event) => focusNode.unfocus(),
                     );
                   },
               optionsBuilder: (textEditingValue) =>

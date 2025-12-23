@@ -5,7 +5,7 @@ import 'package:reactive_forms/reactive_forms.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/ui/edit_score/create_tag_viewmodel.dart';
 
-class CreateTagDialog extends StatelessWidget {
+class CreateTagDialog extends StatefulWidget {
   final CreateTagViewModel viewModel;
 
   const CreateTagDialog({super.key, required this.viewModel});
@@ -25,6 +25,13 @@ class CreateTagDialog extends StatelessWidget {
   }
 
   @override
+  State<CreateTagDialog> createState() => _CreateTagDialogState();
+}
+
+class _CreateTagDialogState extends State<CreateTagDialog> {
+  final FocusNode _nameFocus = FocusNode();
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Dialog(
@@ -33,7 +40,7 @@ class CreateTagDialog extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: ReactiveForm(
-          formGroup: viewModel.form,
+          formGroup: widget.viewModel.form,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             spacing: 8,
@@ -46,6 +53,8 @@ class CreateTagDialog extends StatelessWidget {
               const SizedBox(height: 4),
               ReactiveTextField(
                 formControlName: CreateTagViewModel.formName,
+                focusNode: _nameFocus,
+                onTapOutside: (event) => _nameFocus.unfocus(),
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   labelText: "Name",
@@ -112,7 +121,7 @@ class CreateTagDialog extends StatelessWidget {
                       return FilledButton(
                         onPressed: form.valid
                             ? () async {
-                                final tag = await viewModel.createTag();
+                                final tag = await widget.viewModel.createTag();
                                 if (context.mounted) {
                                   Navigator.pop(context, tag);
                                 }

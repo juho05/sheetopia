@@ -7,8 +7,15 @@ import 'package:sheetopia/ui/edit_score/add_tags_dialog.dart';
 import 'package:sheetopia/ui/edit_score/auto_complete_input_dialog.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_form_viewmodel.dart';
 
-class EditScoreForm extends StatelessWidget {
+class EditScoreForm extends StatefulWidget {
   const EditScoreForm({super.key});
+
+  @override
+  State<EditScoreForm> createState() => _EditScoreFormState();
+}
+
+class _EditScoreFormState extends State<EditScoreForm> {
+  final _titleFocus = FocusNode();
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +34,8 @@ class EditScoreForm extends StatelessWidget {
                 children: [
                   ReactiveTextField<String>(
                     formControlName: EditScoreFormViewModel.formTitle,
+                    focusNode: _titleFocus,
+                    onTapOutside: (event) => _titleFocus.unfocus(),
                     decoration: const InputDecoration(
                       label: Text("Title"),
                       border: OutlineInputBorder(),
@@ -51,6 +60,7 @@ class EditScoreForm extends StatelessWidget {
                             focusNode,
                             onFieldSubmitted,
                           ) => ReactiveTextField(
+                            onTapOutside: (event) => focusNode.unfocus(),
                             formControlName:
                                 EditScoreFormViewModel.formComposer,
                             controller: textEditingController,
