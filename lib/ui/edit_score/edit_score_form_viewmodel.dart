@@ -18,6 +18,12 @@ class EditScoreFormViewModel extends ChangeNotifier {
   SplayTreeSet<Tag> _tags = SplayTreeSet((a, b) => a.name.compareTo(b.name));
   Iterable<Tag> get tags => _tags;
 
+  SplayTreeSet<String> _instruments = SplayTreeSet();
+  Iterable<String> get instruments => _instruments;
+
+  SplayTreeSet<String> _genres = SplayTreeSet();
+  Iterable<String> get genres => _genres;
+
   final FormGroup form;
 
   static const String formTitle = "title";
@@ -40,6 +46,8 @@ class EditScoreFormViewModel extends ChangeNotifier {
            value: editScoreViewModel.score!.composer,
          ),
        }) {
+    _instruments = SplayTreeSet.of(score.instruments);
+    _genres = SplayTreeSet.of(score.genres);
     _tags = SplayTreeSet.of(score.tags, (a, b) => a.name.compareTo(b.name));
     _valueSub = form.valueChanges.listen((_) {
       if (form.invalid) return;
@@ -48,24 +56,52 @@ class EditScoreFormViewModel extends ChangeNotifier {
     _editScoreViewModel.addListener(_onScoreChanged);
   }
 
-  Timer? _tagDebounce;
-  static const _tagDebounceDuration = Duration(milliseconds: 250);
+  Future<void> addInstrument(String instrument) async {
+    if (!_instruments.add(instrument)) return;
+    notifyListeners();
+    await _repo.addScoreInstruments(score.id, [instrument]);
+  }
+
+  Future<void> removeInstrument(String instrument) async {
+    if (!_instruments.remove(instrument)) return;
+    notifyListeners();
+    await _repo.removeScoreInstrument(score.id, instrument);
+  }
+
+  Future<void> addGenre(String genre) async {
+    if (!_genres.add(genre)) return;
+    notifyListeners();
+    await _repo.addScoreGenre(score.id, [genre]);
+  }
+
+  Future<void> removeGenre(String genre) async {
+    if (!_genres.remove(genre)) return;
+    notifyListeners();
+    await _repo.removeScoreGenre(score.id, genre);
+  }
+
   Future<void> addTags(Iterable<Tag> tags) async {
     _tags.addAll(tags);
-    _tagDebounce?.cancel();
-    _tagDebounce = Timer(_tagDebounceDuration, () => _updateTags());
     notifyListeners();
+    await _repo.addScoreTags(score.id, tags.map((t) => t.id));
   }
 
   Future<void> removeTagId(String tagId) async {
     _tags.removeWhere((t) => t.id == tagId);
-    _tagDebounce?.cancel();
-    _tagDebounce = Timer(_tagDebounceDuration, () => _updateTags());
     notifyListeners();
+    await _repo.removeScoreTag(score.id, tagId);
   }
 
-  Future<void> _updateTags() async {
-    await _repo.setScoreTags(score.id, List.of(_tags).map((t) => t.id));
+  Future<Iterable<String>> getInstruments({String filter = ""}) async {
+    return await _repo.getInstruments(
+      filter: filter,
+      size: 10,
+      exclude: instruments,
+    );
+  }
+
+  Future<Iterable<String>> getGenres({String filter = ""}) async {
+    return await _repo.getGenres(filter: filter, size: 10, exclude: genres);
   }
 
   List<String>? _composers;
@@ -75,7 +111,6 @@ class EditScoreFormViewModel extends ChangeNotifier {
   }
 
   Future<void> _onScoreChanged() async {
-    _tagDebounce?.cancel();
     if (_editScoreViewModel.score!.id == _score.id) {
       _score = _editScoreViewModel.score!;
       notifyListeners();
@@ -90,6 +125,8 @@ class EditScoreFormViewModel extends ChangeNotifier {
       formTitle: _score.title,
       formComposer: _score.composer ?? "",
     });
+    _instruments = SplayTreeSet.of(score.instruments);
+    _genres = SplayTreeSet.of(score.genres);
     _tags = SplayTreeSet.of(score.tags, (a, b) => a.name.compareTo(b.name));
 
     notifyListeners();
@@ -112,7 +149,6 @@ class EditScoreFormViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _valuesDebounce?.cancel();
-    _tagDebounce?.cancel();
     _editScoreViewModel.removeListener(_onScoreChanged);
     _valueSub?.cancel();
     super.dispose();

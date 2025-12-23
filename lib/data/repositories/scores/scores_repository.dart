@@ -78,12 +78,16 @@ class ScoresRepository {
       id: score.id,
       title: score.title,
       composer: score.composer,
-      genres: (data.genresTableRefs.prefetchedData ?? [])
-          .map((e) => e.genre)
-          .toList(),
-      instruments: (data.instrumentsTableRefs.prefetchedData ?? [])
-          .map((e) => e.instrument)
-          .toList(),
+      genres:
+          (data.genresTableRefs.prefetchedData ?? [])
+              .map((e) => e.genre)
+              .toList()
+            ..sort(),
+      instruments:
+          (data.instrumentsTableRefs.prefetchedData ?? [])
+              .map((e) => e.instrument)
+              .toList()
+            ..sort(),
       tags: tags,
       createdAt: score.createdAt,
       metadataUpdatedAt: score.metadataUpdatedAt,
@@ -136,12 +140,16 @@ class ScoresRepository {
           id: s.$1.id,
           title: s.$1.title,
           composer: s.$1.composer,
-          genres: (s.$2.genresTableRefs.prefetchedData ?? [])
-              .map((e) => e.genre)
-              .toList(),
-          instruments: (s.$2.instrumentsTableRefs.prefetchedData ?? [])
-              .map((e) => e.instrument)
-              .toList(),
+          genres:
+              (s.$2.genresTableRefs.prefetchedData ?? [])
+                  .map((e) => e.genre)
+                  .toList()
+                ..sort(),
+          instruments:
+              (s.$2.instrumentsTableRefs.prefetchedData ?? [])
+                  .map((e) => e.instrument)
+                  .toList()
+                ..sort(),
           tags: scoreTags[s.$1.id] ?? [],
           fileType: s.$1.fileType,
           metadataUpdatedAt: s.$1.metadataUpdatedAt,
@@ -219,14 +227,77 @@ class ScoresRepository {
         .toList();
   }
 
-  Future<void> setScoreTags(String scoreId, Iterable<String> tagIds) async {
+  Future<void> addScoreInstruments(
+    String scoreId,
+    Iterable<String> instruments,
+  ) async {
     await _db.transaction(() async {
-      await _db.managers.scoreTagsTable
-          .filter((f) => f.score.id(scoreId))
+      await _db.managers.instrumentsTable.bulkCreate(
+        (o) => instruments.map((i) => o(score: scoreId, instrument: i)),
+        onConflict: DoNothing(),
+      );
+      await _db.managers.scoresTable
+          .filter((f) => f.id(scoreId))
+          .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
+    });
+    _updatedScoreIds.add([scoreId]);
+  }
+
+  Future<void> removeScoreInstrument(String scoreId, String instrument) async {
+    await _db.transaction(() async {
+      await _db.managers.instrumentsTable
+          .filter((f) => f.score.id(scoreId) & f.instrument(instrument))
           .delete();
+      await _db.managers.scoresTable
+          .filter((f) => f.id(scoreId))
+          .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
+    });
+    _updatedScoreIds.add([scoreId]);
+  }
+
+  Future<void> addScoreGenre(String scoreId, Iterable<String> genres) async {
+    await _db.transaction(() async {
+      await _db.managers.genresTable.bulkCreate(
+        (o) => genres.map((g) => o(score: scoreId, genre: g)),
+        onConflict: DoNothing(),
+      );
+      await _db.managers.scoresTable
+          .filter((f) => f.id(scoreId))
+          .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
+    });
+    _updatedScoreIds.add([scoreId]);
+  }
+
+  Future<void> removeScoreGenre(String scoreId, String genre) async {
+    await _db.transaction(() async {
+      await _db.managers.genresTable
+          .filter((f) => f.score.id(scoreId) & f.genre(genre))
+          .delete();
+      await _db.managers.scoresTable
+          .filter((f) => f.id(scoreId))
+          .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
+    });
+    _updatedScoreIds.add([scoreId]);
+  }
+
+  Future<void> addScoreTags(String scoreId, Iterable<String> tagIds) async {
+    await _db.transaction(() async {
       await _db.managers.scoreTagsTable.bulkCreate(
         (o) => tagIds.map((id) => o(score: scoreId, tag: id)),
+        onConflict: DoNothing(),
       );
+      await _db.managers.scoresTable
+          .filter((f) => f.id(scoreId))
+          .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
+    });
+    _updatedScoreIds.add([scoreId]);
+  }
+
+  Future<void> removeScoreTag(String scoreId, String tagId) async {
+    await _db.transaction(() async {
+      await _db.managers.scoreTagsTable
+          .filter((f) => f.score.id(scoreId) & f.tag.id(tagId))
+          .delete();
       await _db.managers.scoresTable
           .filter((f) => f.id(scoreId))
           .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
@@ -322,6 +393,50 @@ class ScoresRepository {
           ),
         );
     _updatedScoreIds.add([scoreId]);
+  }
+
+  Future<List<String>> getInstruments({
+    String filter = "",
+    int? size,
+    int offset = 0,
+    Iterable<String> exclude = const [],
+  }) async {
+    final query = _db.selectOnly(_db.instrumentsTable, distinct: true)
+      ..addColumns([_db.instrumentsTable.instrument]);
+    if (filter.isNotEmpty) {
+      query.where(_db.instrumentsTable.instrument.contains(filter));
+    }
+    if (exclude.isNotEmpty) {
+      query.where(_db.instrumentsTable.instrument.isNotIn(exclude));
+    }
+    query.orderBy([OrderingTerm.asc(_db.instrumentsTable.instrument)]);
+    if (size != null) {
+      query.limit(size, offset: offset);
+    }
+    return await query
+        .map((r) => r.read(_db.instrumentsTable.instrument)!)
+        .get();
+  }
+
+  Future<List<String>> getGenres({
+    String filter = "",
+    int? size,
+    int offset = 0,
+    Iterable<String> exclude = const [],
+  }) async {
+    final query = _db.selectOnly(_db.genresTable, distinct: true)
+      ..addColumns([_db.genresTable.genre]);
+    if (filter.isNotEmpty) {
+      query.where(_db.genresTable.genre.contains(filter));
+    }
+    if (exclude.isNotEmpty) {
+      query.where(_db.genresTable.genre.isNotIn(exclude));
+    }
+    query.orderBy([OrderingTerm.asc(_db.genresTable.genre)]);
+    if (size != null) {
+      query.limit(size, offset: offset);
+    }
+    return await query.map((r) => r.read(_db.genresTable.genre)!).get();
   }
 
   Future<List<String>> getComposers({

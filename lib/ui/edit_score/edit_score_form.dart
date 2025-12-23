@@ -4,6 +4,7 @@ import 'package:reactive_forms/reactive_forms.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/tag_list.dart';
 import 'package:sheetopia/ui/edit_score/add_tags_dialog.dart';
+import 'package:sheetopia/ui/edit_score/auto_complete_input_dialog.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_form_viewmodel.dart';
 
 class EditScoreForm extends StatelessWidget {
@@ -69,28 +70,46 @@ class EditScoreForm extends StatelessWidget {
                     child: Heading(text: "Instruments"),
                   ),
                   TagList(
-                    tags: [
-                      (id: "1", name: "Test", color: null),
-                      (id: "2", name: "Weihnachten", color: null),
-                      (id: "3", name: "Moin", color: null),
-                      (id: "4", name: "Hahahahahah", color: null),
-                    ],
-                    onRemove: (id) {},
-                    onAdd: () {},
+                    tags: viewModel.instruments.map(
+                      (i) => (id: i, name: i, color: null),
+                    ),
+                    onRemove: (instrument) {
+                      viewModel.removeInstrument(instrument);
+                    },
+                    onAdd: () async {
+                      final instrument = await AutoCompleteInputDialog.show(
+                        context,
+                        title: "Add instrument",
+                        inputLabel: "Instrument",
+                        getOptions: (filter) =>
+                            viewModel.getInstruments(filter: filter),
+                      );
+                      if (instrument == null) return;
+                      viewModel.addInstrument(instrument);
+                    },
                   ),
                   const Padding(
                     padding: EdgeInsets.only(top: 12, bottom: 4),
                     child: Heading(text: "Genres"),
                   ),
                   TagList(
-                    tags: [
-                      (id: "1", name: "Test", color: null),
-                      (id: "2", name: "Weihnachten", color: null),
-                      (id: "3", name: "Moin", color: null),
-                      (id: "4", name: "Hahahahahah", color: null),
-                    ],
-                    onRemove: (id) {},
-                    onAdd: () {},
+                    tags: viewModel.genres.map(
+                      (g) => (id: g, name: g, color: null),
+                    ),
+                    onRemove: (genre) {
+                      viewModel.removeGenre(genre);
+                    },
+                    onAdd: () async {
+                      final genre = await AutoCompleteInputDialog.show(
+                        context,
+                        title: "Add genre",
+                        inputLabel: "Genre",
+                        getOptions: (filter) =>
+                            viewModel.getGenres(filter: filter),
+                      );
+                      if (genre == null) return;
+                      viewModel.addGenre(genre);
+                    },
                   ),
                   const Padding(
                     padding: EdgeInsets.only(top: 12, bottom: 4),
