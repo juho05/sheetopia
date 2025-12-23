@@ -25,6 +25,7 @@ class AutoCompleteInputDialog extends StatefulWidget {
         inputLabel: inputLabel,
         getOptions: getOptions,
       ),
+      barrierDismissible: true,
     );
   }
 
