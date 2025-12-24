@@ -9,6 +9,7 @@ import 'package:sheetopia/ui/common/text_scroll.dart';
 class ScoreGridCell extends StatelessWidget {
   static const double width = 250;
   static const double height = 288;
+  static final int previewHeight = (height / 2.1).toInt();
 
   final Score score;
 
@@ -41,7 +42,10 @@ class ScoreGridCell extends StatelessWidget {
                       topLeft: Radius.circular(12),
                       topRight: Radius.circular(12),
                     ),
-                    child: Container(color: Colors.white, height: height / 2.1),
+                    child: Container(
+                      color: Colors.white,
+                      height: previewHeight.toDouble(),
+                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.all(8.0),
@@ -53,6 +57,7 @@ class ScoreGridCell extends StatelessWidget {
                           message: score.title,
                           child: TextScroll(
                             score.title,
+                            fadedBorder: false,
                             style: theme.textTheme.bodyMedium!.copyWith(
                               fontWeight: FontWeight.w500,
                               fontSize: 16,

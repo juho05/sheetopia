@@ -104,7 +104,7 @@ class ScoresRepository {
             scoreTagsTableRefs: false,
           ),
         )
-        .get();
+        .get(distinct: true);
 
     final tags = await _getScoresTags(scores.map((s) => s.$1.id));
 
@@ -161,7 +161,7 @@ class ScoresRepository {
         .filter((f) => f.scoreTagsTableRefs((f) => f.score.id.isIn(scoreIds)))
         .orderBy((o) => o.name.asc())
         .withReferences((prefetch) => prefetch(scoreTagsTableRefs: true))
-        .get();
+        .get(distinct: true);
     for (final t in tags) {
       final tag = Tag(
         id: t.$1.id,
