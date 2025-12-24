@@ -83,9 +83,20 @@ class ScoresRepository {
     );
   }
 
-  Future<List<Score>> getAllScores() async {
+  Future<List<Score>> getScores({
+    required int size,
+    int offset = 0,
+    String filter = "",
+  }) async {
     final scores = await _db.managers.scoresTable
+        .filter((f) {
+          if (filter.isEmpty) {
+            return const CustomExpression<bool>("true");
+          }
+          return f.title.contains(filter) | f.composer.contains(filter);
+        })
         .orderBy((o) => o.createdAt.desc())
+        .limit(size, offset: offset)
         .withReferences(
           (prefetch) => prefetch(
             genresTableRefs: true,
