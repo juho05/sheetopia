@@ -505,6 +505,17 @@ class ScoresRepository {
     _freshImports = [];
   }
 
+  Future<void> deleteScore(String scoreId) async {
+    final score = await _db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .getSingle();
+    await _db.managers.scoresTable.filter((f) => f.id(scoreId)).delete();
+    _updatedScoreIds.add(const {});
+    try {
+      (await _scoreFile(scoreId, score.fileType)).delete();
+    } catch (_) {}
+  }
+
   Directory? _cachedScoresDir;
   Future<Directory> get _scoresDir async {
     if (_cachedScoresDir != null) return SynchronousFuture(_cachedScoresDir!);
@@ -525,10 +536,5 @@ class ScoresRepository {
     return File(
       path.join((await _scoresDir).path, id + fileTypeToExtension(fileType)),
     );
-  }
-
-  Future<void> deleteScore(String scoreId) async {
-    await _db.managers.scoresTable.filter((f) => f.id(scoreId)).delete();
-    _updatedScoreIds.add(const {});
   }
 }
