@@ -32,9 +32,10 @@ class ScoresRepository {
     XTypeGroup(label: "PDF", extensions: <String>["pdf"]),
   ];
 
-  final BehaviorSubject<Iterable<String>> _updatedScoreIds =
-      BehaviorSubject.seeded([]);
-  Stream<Iterable<String>> get updatedScoreIds => _updatedScoreIds.stream;
+  final BehaviorSubject<Set<String>> _updatedScoreIds = BehaviorSubject.seeded(
+    {},
+  );
+  Stream<Set<String>> get updatedScoreIds => _updatedScoreIds.stream;
 
   ScoresRepository({required Database db}) : _db = db;
 
@@ -49,30 +50,13 @@ class ScoresRepository {
           (prefetch) => prefetch(
             genresTableRefs: true,
             instrumentsTableRefs: true,
-            scoreTagsTableRefs: true,
+            scoreTagsTableRefs: false,
           ),
         )
         .getSingleOrNull();
     if (result == null) return null;
     final score = result.$1;
     final data = result.$2;
-
-    final tags =
-        (await _db.managers.tagsTable
-                .filter(
-                  (f) => f.scoreTagsTableRefs((f) => f.score.id(score.id)),
-                )
-                .orderBy((o) => o.name.asc())
-                .get())
-            .map(
-              (t) => Tag(
-                id: t.id,
-                name: t.name,
-                color: Color(t.color),
-                updatedAt: t.updatedAt,
-              ),
-            )
-            .toList();
 
     return Score(
       id: score.id,
@@ -88,7 +72,7 @@ class ScoresRepository {
               .map((e) => e.instrument)
               .toList()
             ..sort(),
-      tags: tags,
+      tags: (await _getScoreTags(score.id)).toList(),
       createdAt: score.createdAt,
       metadataUpdatedAt: score.metadataUpdatedAt,
       fileUpdatedAt: score.fileUpdatedAt,
@@ -111,9 +95,59 @@ class ScoresRepository {
         )
         .get();
 
+    final tags = await _getScoresTags(scores.map((s) => s.$1.id));
+
+    return Future.wait(
+      scores.map(
+        (s) async => Score(
+          id: s.$1.id,
+          title: s.$1.title,
+          composer: s.$1.composer,
+          genres:
+              (s.$2.genresTableRefs.prefetchedData ?? const [])
+                  .map((e) => e.genre)
+                  .toList()
+                ..sort(),
+          instruments:
+              (s.$2.instrumentsTableRefs.prefetchedData ?? const [])
+                  .map((e) => e.instrument)
+                  .toList()
+                ..sort(),
+          tags: tags[s.$1.id] ?? const [],
+          fileType: s.$1.fileType,
+          metadataUpdatedAt: s.$1.metadataUpdatedAt,
+          createdAt: s.$1.createdAt,
+          fileUpdatedAt: s.$1.fileUpdatedAt,
+          file: s.$1.downloaded
+              ? await _scoreFile(s.$1.id, s.$1.fileType)
+              : null,
+        ),
+      ),
+    );
+  }
+
+  Future<Iterable<Tag>> _getScoreTags(String scoreId) async {
+    return (await _db.managers.tagsTable
+            .filter((f) => f.scoreTagsTableRefs((f) => f.score.id(scoreId)))
+            .orderBy((o) => o.name.asc())
+            .get())
+        .map(
+          (t) => Tag(
+            id: t.id,
+            name: t.name,
+            color: Color(t.color),
+            updatedAt: t.updatedAt,
+          ),
+        );
+  }
+
+  Future<Map<String, List<Tag>>> _getScoresTags(
+    Iterable<String> scoreIds,
+  ) async {
     Map<String, List<Tag>> scoreTags = {};
 
     final tags = await _db.managers.tagsTable
+        .filter((f) => f.scoreTagsTableRefs((f) => f.score.id.isIn(scoreIds)))
         .orderBy((o) => o.name.asc())
         .withReferences((prefetch) => prefetch(scoreTagsTableRefs: true))
         .get();
@@ -134,33 +168,7 @@ class ScoresRepository {
       }
     }
 
-    return Future.wait(
-      scores.map(
-        (s) async => Score(
-          id: s.$1.id,
-          title: s.$1.title,
-          composer: s.$1.composer,
-          genres:
-              (s.$2.genresTableRefs.prefetchedData ?? [])
-                  .map((e) => e.genre)
-                  .toList()
-                ..sort(),
-          instruments:
-              (s.$2.instrumentsTableRefs.prefetchedData ?? [])
-                  .map((e) => e.instrument)
-                  .toList()
-                ..sort(),
-          tags: scoreTags[s.$1.id] ?? [],
-          fileType: s.$1.fileType,
-          metadataUpdatedAt: s.$1.metadataUpdatedAt,
-          createdAt: s.$1.createdAt,
-          fileUpdatedAt: s.$1.fileUpdatedAt,
-          file: s.$1.downloaded
-              ? await _scoreFile(s.$1.id, s.$1.fileType)
-              : null,
-        ),
-      ),
-    );
+    return scoreTags;
   }
 
   Future<void> updateScore(
@@ -177,7 +185,7 @@ class ScoresRepository {
             metadataUpdatedAt: Value(DateTime.now()),
           ),
         );
-    _updatedScoreIds.add([scoreId]);
+    _updatedScoreIds.add({scoreId});
   }
 
   Future<Tag> createTag({required String name, required Color color}) async {
@@ -227,6 +235,27 @@ class ScoresRepository {
         .toList();
   }
 
+  Future<void> updateTag(
+    String tagId, {
+    required String name,
+    required Color color,
+  }) async {
+    await _db.managers.tagsTable
+        .filter((f) => f.id(tagId))
+        .update(
+          (o) => o(
+            name: Value(name),
+            color: Value(color.toARGB32()),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+    final affectedScores = await _db.managers.scoreTagsTable
+        .filter((f) => f.tag.id(tagId))
+        .map((s) => s.score)
+        .get();
+    _updatedScoreIds.add(affectedScores.toSet());
+  }
+
   Future<void> addScoreInstruments(
     String scoreId,
     Iterable<String> instruments,
@@ -240,7 +269,7 @@ class ScoresRepository {
           .filter((f) => f.id(scoreId))
           .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
     });
-    _updatedScoreIds.add([scoreId]);
+    _updatedScoreIds.add({scoreId});
   }
 
   Future<void> removeScoreInstrument(String scoreId, String instrument) async {
@@ -252,7 +281,7 @@ class ScoresRepository {
           .filter((f) => f.id(scoreId))
           .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
     });
-    _updatedScoreIds.add([scoreId]);
+    _updatedScoreIds.add({scoreId});
   }
 
   Future<void> addScoreGenre(String scoreId, Iterable<String> genres) async {
@@ -265,7 +294,7 @@ class ScoresRepository {
           .filter((f) => f.id(scoreId))
           .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
     });
-    _updatedScoreIds.add([scoreId]);
+    _updatedScoreIds.add({scoreId});
   }
 
   Future<void> removeScoreGenre(String scoreId, String genre) async {
@@ -277,7 +306,7 @@ class ScoresRepository {
           .filter((f) => f.id(scoreId))
           .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
     });
-    _updatedScoreIds.add([scoreId]);
+    _updatedScoreIds.add({scoreId});
   }
 
   Future<void> addScoreTags(String scoreId, Iterable<String> tagIds) async {
@@ -290,7 +319,7 @@ class ScoresRepository {
           .filter((f) => f.id(scoreId))
           .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
     });
-    _updatedScoreIds.add([scoreId]);
+    _updatedScoreIds.add({scoreId});
   }
 
   Future<void> removeScoreTag(String scoreId, String tagId) async {
@@ -302,7 +331,7 @@ class ScoresRepository {
           .filter((f) => f.id(scoreId))
           .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
     });
-    _updatedScoreIds.add([scoreId]);
+    _updatedScoreIds.add({scoreId});
   }
 
   Future<List<Score>> importAll(Iterable<String> paths) async {
@@ -362,7 +391,7 @@ class ScoresRepository {
     }
 
     _freshImports = List.of(scores.map((s) => s.id));
-    _updatedScoreIds.add(scores.map((s) => s.id));
+    _updatedScoreIds.add(scores.map((s) => s.id).toSet());
     return scores;
   }
 
@@ -392,7 +421,7 @@ class ScoresRepository {
             fileType: Value(fileType),
           ),
         );
-    _updatedScoreIds.add([scoreId]);
+    _updatedScoreIds.add({scoreId});
   }
 
   Future<List<String>> getInstruments({
@@ -489,6 +518,6 @@ class ScoresRepository {
 
   Future<void> deleteScore(String scoreId) async {
     await _db.managers.scoresTable.filter((f) => f.id(scoreId)).delete();
-    _updatedScoreIds.add([]);
+    _updatedScoreIds.add(const {});
   }
 }

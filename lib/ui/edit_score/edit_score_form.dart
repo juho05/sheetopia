@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reactive_forms/reactive_forms.dart';
+import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/heading.dart';
-import 'package:sheetopia/ui/common/tag_list.dart';
+import 'package:sheetopia/ui/common/tag_badge.dart';
 import 'package:sheetopia/ui/edit_score/add_tags_dialog.dart';
 import 'package:sheetopia/ui/edit_score/auto_complete_input_dialog.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_form_viewmodel.dart';
+import 'package:sheetopia/ui/edit_score/edit_tag_list.dart';
 
 class EditScoreForm extends StatefulWidget {
   const EditScoreForm({super.key});
@@ -79,13 +81,15 @@ class _EditScoreFormState extends State<EditScoreForm> {
                     padding: EdgeInsets.only(top: 12, bottom: 4),
                     child: Heading(text: "Instruments"),
                   ),
-                  TagList(
+                  EditTagList(
                     tags: viewModel.instruments.map(
-                      (i) => (id: i, name: i, color: null),
+                      (i) => CommonBadge(
+                        name: i,
+                        onRemove: () {
+                          viewModel.removeInstrument(i);
+                        },
+                      ),
                     ),
-                    onRemove: (instrument) {
-                      viewModel.removeInstrument(instrument);
-                    },
                     onAdd: () async {
                       final instrument = await AutoCompleteInputDialog.show(
                         context,
@@ -102,13 +106,15 @@ class _EditScoreFormState extends State<EditScoreForm> {
                     padding: EdgeInsets.only(top: 12, bottom: 4),
                     child: Heading(text: "Genres"),
                   ),
-                  TagList(
+                  EditTagList(
                     tags: viewModel.genres.map(
-                      (g) => (id: g, name: g, color: null),
+                      (g) => CommonBadge(
+                        name: g,
+                        onRemove: () {
+                          viewModel.removeGenre(g);
+                        },
+                      ),
                     ),
-                    onRemove: (genre) {
-                      viewModel.removeGenre(genre);
-                    },
                     onAdd: () async {
                       final genre = await AutoCompleteInputDialog.show(
                         context,
@@ -125,13 +131,15 @@ class _EditScoreFormState extends State<EditScoreForm> {
                     padding: EdgeInsets.only(top: 12, bottom: 4),
                     child: Heading(text: "Tags"),
                   ),
-                  TagList(
+                  EditTagList(
                     tags: viewModel.tags.map(
-                      (t) => (id: t.id, name: t.name, color: t.color),
+                      (t) => TagBadge(
+                        tag: t,
+                        onRemove: () {
+                          viewModel.removeTag(t);
+                        },
+                      ),
                     ),
-                    onRemove: (id) {
-                      viewModel.removeTagId(id);
-                    },
                     onAdd: () async {
                       final tags = await AddTagsDialog.show(
                         context,

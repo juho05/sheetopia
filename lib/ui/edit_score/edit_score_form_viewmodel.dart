@@ -46,14 +46,13 @@ class EditScoreFormViewModel extends ChangeNotifier {
            value: editScoreViewModel.score!.composer,
          ),
        }) {
-    _instruments = SplayTreeSet.of(score.instruments);
-    _genres = SplayTreeSet.of(score.genres);
-    _tags = SplayTreeSet.of(score.tags, (a, b) => a.name.compareTo(b.name));
-    _valueSub = form.valueChanges.listen((_) {
-      if (form.invalid) return;
-      _onValuesChanged(form.value);
+    _loadScore().then((value) {
+      _valueSub = form.valueChanges.listen((_) {
+        if (form.invalid) return;
+        _onValuesChanged(form.value);
+      });
+      _editScoreViewModel.addListener(_onScoreChanged);
     });
-    _editScoreViewModel.addListener(_onScoreChanged);
   }
 
   Future<void> addInstrument(String instrument) async {
@@ -86,10 +85,10 @@ class EditScoreFormViewModel extends ChangeNotifier {
     await _repo.addScoreTags(score.id, tags.map((t) => t.id));
   }
 
-  Future<void> removeTagId(String tagId) async {
-    _tags.removeWhere((t) => t.id == tagId);
+  Future<void> removeTag(Tag tag) async {
+    _tags.remove(tag);
     notifyListeners();
-    await _repo.removeScoreTag(score.id, tagId);
+    await _repo.removeScoreTag(score.id, tag.id);
   }
 
   Future<Iterable<String>> getInstruments({String filter = ""}) async {
@@ -113,12 +112,19 @@ class EditScoreFormViewModel extends ChangeNotifier {
   Future<void> _onScoreChanged() async {
     if (_editScoreViewModel.score!.id == _score.id) {
       _score = _editScoreViewModel.score!;
+      // tags need to be updated because they might have been edited outside of
+      // this view model, e.g. in the edit tags dialog
+      _tags = SplayTreeSet.of(score.tags, (a, b) => a.name.compareTo(b.name));
       notifyListeners();
       return;
     }
 
     await _onValuesChanged(form.value);
 
+    await _loadScore();
+  }
+
+  Future<void> _loadScore() async {
     _composers = null;
     _score = _editScoreViewModel.score!;
     form.updateValue({

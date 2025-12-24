@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/ui/common/search_input.dart';
-import 'package:sheetopia/ui/common/tag_list.dart';
+import 'package:sheetopia/ui/common/tag_badge.dart';
 import 'package:sheetopia/ui/edit_score/add_tags_viewmodel.dart';
 import 'package:sheetopia/ui/edit_score/create_tag_dialog.dart';
 
@@ -207,9 +207,7 @@ class _TagListItem extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(selected ? Icons.check_box : Icons.check_box_outline_blank),
-              Flexible(
-                child: TagWidget(name: tag.name, color: tag.color),
-              ),
+              Flexible(child: TagBadge(tag: tag)),
             ],
           ),
         ),
