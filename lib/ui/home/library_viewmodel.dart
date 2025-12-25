@@ -47,7 +47,7 @@ class LibraryViewModel extends ChangeNotifier {
     final totalCount = (_currentPage + 1) * _pageSize;
     if (totalCount == 0) return;
     final scores = await _repo.getScores(size: totalCount, filter: _filter);
-    _scores = scores;
+    _scores = scores.toList();
     _hasNextPage = scores.length == totalCount;
     notifyListeners();
   }

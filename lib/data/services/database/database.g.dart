@@ -38,6 +38,17 @@ class $ScoresTableTable extends ScoresTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _searchTextMeta = const VerificationMeta(
+    'searchText',
+  );
+  @override
+  late final GeneratedColumn<String> searchText = GeneratedColumn<String>(
+    'search_text',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -104,6 +115,7 @@ class $ScoresTableTable extends ScoresTable
     id,
     title,
     composer,
+    searchText,
     createdAt,
     metadataUpdatedAt,
     fileUpdatedAt,
@@ -140,6 +152,14 @@ class $ScoresTableTable extends ScoresTable
         _composerMeta,
         composer.isAcceptableOrUnknown(data['composer']!, _composerMeta),
       );
+    }
+    if (data.containsKey('search_text')) {
+      context.handle(
+        _searchTextMeta,
+        searchText.isAcceptableOrUnknown(data['search_text']!, _searchTextMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_searchTextMeta);
     }
     if (data.containsKey('created_at')) {
       context.handle(
@@ -194,6 +214,10 @@ class $ScoresTableTable extends ScoresTable
         DriftSqlType.string,
         data['${effectivePrefix}composer'],
       ),
+      searchText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}search_text'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -232,6 +256,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
   final String id;
   final String title;
   final String? composer;
+  final String searchText;
   final DateTime createdAt;
   final DateTime metadataUpdatedAt;
   final DateTime fileUpdatedAt;
@@ -241,6 +266,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     required this.id,
     required this.title,
     this.composer,
+    required this.searchText,
     required this.createdAt,
     required this.metadataUpdatedAt,
     required this.fileUpdatedAt,
@@ -255,6 +281,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     if (!nullToAbsent || composer != null) {
       map['composer'] = Variable<String>(composer);
     }
+    map['search_text'] = Variable<String>(searchText);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['metadata_updated_at'] = Variable<DateTime>(metadataUpdatedAt);
     map['file_updated_at'] = Variable<DateTime>(fileUpdatedAt);
@@ -274,6 +301,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       composer: composer == null && nullToAbsent
           ? const Value.absent()
           : Value(composer),
+      searchText: Value(searchText),
       createdAt: Value(createdAt),
       metadataUpdatedAt: Value(metadataUpdatedAt),
       fileUpdatedAt: Value(fileUpdatedAt),
@@ -291,6 +319,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       id: serializer.fromJson<String>(json['id']),
       title: serializer.fromJson<String>(json['title']),
       composer: serializer.fromJson<String?>(json['composer']),
+      searchText: serializer.fromJson<String>(json['searchText']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       metadataUpdatedAt: serializer.fromJson<DateTime>(
         json['metadataUpdatedAt'],
@@ -309,6 +338,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       'id': serializer.toJson<String>(id),
       'title': serializer.toJson<String>(title),
       'composer': serializer.toJson<String?>(composer),
+      'searchText': serializer.toJson<String>(searchText),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'metadataUpdatedAt': serializer.toJson<DateTime>(metadataUpdatedAt),
       'fileUpdatedAt': serializer.toJson<DateTime>(fileUpdatedAt),
@@ -323,6 +353,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     String? id,
     String? title,
     Value<String?> composer = const Value.absent(),
+    String? searchText,
     DateTime? createdAt,
     DateTime? metadataUpdatedAt,
     DateTime? fileUpdatedAt,
@@ -332,6 +363,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     id: id ?? this.id,
     title: title ?? this.title,
     composer: composer.present ? composer.value : this.composer,
+    searchText: searchText ?? this.searchText,
     createdAt: createdAt ?? this.createdAt,
     metadataUpdatedAt: metadataUpdatedAt ?? this.metadataUpdatedAt,
     fileUpdatedAt: fileUpdatedAt ?? this.fileUpdatedAt,
@@ -343,6 +375,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       id: data.id.present ? data.id.value : this.id,
       title: data.title.present ? data.title.value : this.title,
       composer: data.composer.present ? data.composer.value : this.composer,
+      searchText: data.searchText.present
+          ? data.searchText.value
+          : this.searchText,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       metadataUpdatedAt: data.metadataUpdatedAt.present
           ? data.metadataUpdatedAt.value
@@ -363,6 +398,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('composer: $composer, ')
+          ..write('searchText: $searchText, ')
           ..write('createdAt: $createdAt, ')
           ..write('metadataUpdatedAt: $metadataUpdatedAt, ')
           ..write('fileUpdatedAt: $fileUpdatedAt, ')
@@ -377,6 +413,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     id,
     title,
     composer,
+    searchText,
     createdAt,
     metadataUpdatedAt,
     fileUpdatedAt,
@@ -390,6 +427,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           other.id == this.id &&
           other.title == this.title &&
           other.composer == this.composer &&
+          other.searchText == this.searchText &&
           other.createdAt == this.createdAt &&
           other.metadataUpdatedAt == this.metadataUpdatedAt &&
           other.fileUpdatedAt == this.fileUpdatedAt &&
@@ -401,6 +439,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
   final Value<String> id;
   final Value<String> title;
   final Value<String?> composer;
+  final Value<String> searchText;
   final Value<DateTime> createdAt;
   final Value<DateTime> metadataUpdatedAt;
   final Value<DateTime> fileUpdatedAt;
@@ -411,6 +450,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.id = const Value.absent(),
     this.title = const Value.absent(),
     this.composer = const Value.absent(),
+    this.searchText = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.metadataUpdatedAt = const Value.absent(),
     this.fileUpdatedAt = const Value.absent(),
@@ -422,6 +462,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     required String id,
     required String title,
     this.composer = const Value.absent(),
+    required String searchText,
     this.createdAt = const Value.absent(),
     this.metadataUpdatedAt = const Value.absent(),
     this.fileUpdatedAt = const Value.absent(),
@@ -430,12 +471,14 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
+       searchText = Value(searchText),
        downloaded = Value(downloaded),
        fileType = Value(fileType);
   static Insertable<ScoresTableData> custom({
     Expression<String>? id,
     Expression<String>? title,
     Expression<String>? composer,
+    Expression<String>? searchText,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? metadataUpdatedAt,
     Expression<DateTime>? fileUpdatedAt,
@@ -447,6 +490,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       if (id != null) 'id': id,
       if (title != null) 'title': title,
       if (composer != null) 'composer': composer,
+      if (searchText != null) 'search_text': searchText,
       if (createdAt != null) 'created_at': createdAt,
       if (metadataUpdatedAt != null) 'metadata_updated_at': metadataUpdatedAt,
       if (fileUpdatedAt != null) 'file_updated_at': fileUpdatedAt,
@@ -460,6 +504,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Value<String>? id,
     Value<String>? title,
     Value<String?>? composer,
+    Value<String>? searchText,
     Value<DateTime>? createdAt,
     Value<DateTime>? metadataUpdatedAt,
     Value<DateTime>? fileUpdatedAt,
@@ -471,6 +516,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       id: id ?? this.id,
       title: title ?? this.title,
       composer: composer ?? this.composer,
+      searchText: searchText ?? this.searchText,
       createdAt: createdAt ?? this.createdAt,
       metadataUpdatedAt: metadataUpdatedAt ?? this.metadataUpdatedAt,
       fileUpdatedAt: fileUpdatedAt ?? this.fileUpdatedAt,
@@ -491,6 +537,9 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     }
     if (composer.present) {
       map['composer'] = Variable<String>(composer.value);
+    }
+    if (searchText.present) {
+      map['search_text'] = Variable<String>(searchText.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -521,6 +570,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('composer: $composer, ')
+          ..write('searchText: $searchText, ')
           ..write('createdAt: $createdAt, ')
           ..write('metadataUpdatedAt: $metadataUpdatedAt, ')
           ..write('fileUpdatedAt: $fileUpdatedAt, ')
@@ -1574,6 +1624,7 @@ typedef $$ScoresTableTableCreateCompanionBuilder =
       required String id,
       required String title,
       Value<String?> composer,
+      required String searchText,
       Value<DateTime> createdAt,
       Value<DateTime> metadataUpdatedAt,
       Value<DateTime> fileUpdatedAt,
@@ -1586,6 +1637,7 @@ typedef $$ScoresTableTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> title,
       Value<String?> composer,
+      Value<String> searchText,
       Value<DateTime> createdAt,
       Value<DateTime> metadataUpdatedAt,
       Value<DateTime> fileUpdatedAt,
@@ -1679,6 +1731,11 @@ class $$ScoresTableTableFilterComposer
 
   ColumnFilters<String> get composer => $composableBuilder(
     column: $table.composer,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get searchText => $composableBuilder(
+    column: $table.searchText,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1808,6 +1865,11 @@ class $$ScoresTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get searchText => $composableBuilder(
+    column: $table.searchText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -1851,6 +1913,11 @@ class $$ScoresTableTableAnnotationComposer
 
   GeneratedColumn<String> get composer =>
       $composableBuilder(column: $table.composer, builder: (column) => column);
+
+  GeneratedColumn<String> get searchText => $composableBuilder(
+    column: $table.searchText,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -1984,6 +2051,7 @@ class $$ScoresTableTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String?> composer = const Value.absent(),
+                Value<String> searchText = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> metadataUpdatedAt = const Value.absent(),
                 Value<DateTime> fileUpdatedAt = const Value.absent(),
@@ -1994,6 +2062,7 @@ class $$ScoresTableTableTableManager
                 id: id,
                 title: title,
                 composer: composer,
+                searchText: searchText,
                 createdAt: createdAt,
                 metadataUpdatedAt: metadataUpdatedAt,
                 fileUpdatedAt: fileUpdatedAt,
@@ -2006,6 +2075,7 @@ class $$ScoresTableTableTableManager
                 required String id,
                 required String title,
                 Value<String?> composer = const Value.absent(),
+                required String searchText,
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> metadataUpdatedAt = const Value.absent(),
                 Value<DateTime> fileUpdatedAt = const Value.absent(),
@@ -2016,6 +2086,7 @@ class $$ScoresTableTableTableManager
                 id: id,
                 title: title,
                 composer: composer,
+                searchText: searchText,
                 createdAt: createdAt,
                 metadataUpdatedAt: metadataUpdatedAt,
                 fileUpdatedAt: fileUpdatedAt,

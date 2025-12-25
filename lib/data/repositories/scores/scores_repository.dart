@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:io';
 import 'dart:ui';
 
+import 'package:diacritic/diacritic.dart';
 import 'package:drift/drift.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
@@ -11,6 +12,7 @@ import 'package:rxdart/rxdart.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/database/instr_expression.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 
 class InvalidFileTypeException implements Exception {
@@ -83,54 +85,97 @@ class ScoresRepository {
     );
   }
 
-  Future<List<Score>> getScores({
+  Future<Iterable<Score>> getScores({
     required int size,
     int offset = 0,
     String filter = "",
   }) async {
-    final scores = await _db.managers.scoresTable
-        .filter((f) {
-          if (filter.isEmpty) {
-            return const CustomExpression<bool>("true");
-          }
-          return f.title.contains(filter) | f.composer.contains(filter);
-        })
-        .orderBy((o) => o.createdAt.desc())
-        .limit(size, offset: offset)
-        .withReferences(
-          (prefetch) => prefetch(
-            genresTableRefs: true,
-            instrumentsTableRefs: true,
-            scoreTagsTableRefs: false,
-          ),
-        )
-        .get(distinct: true);
+    final searchFields = _generateSearchFields(filter);
 
-    final tags = await _getScoresTags(scores.map((s) => s.$1.id));
+    final q = _db.select(_db.scoresTable).join([
+      leftOuterJoin(
+        _db.genresTable,
+        _db.genresTable.score.equalsExp(_db.scoresTable.id),
+      ),
+      leftOuterJoin(
+        _db.instrumentsTable,
+        _db.instrumentsTable.score.equalsExp(_db.scoresTable.id),
+      ),
+    ]);
+    if (searchFields.isNotEmpty) {
+      for (final s in searchFields) {
+        q.where(_db.scoresTable.searchText.contains(s));
+      }
+    }
+    if (searchFields.isNotEmpty) {
+      q.orderBy([
+        ...searchFields
+            .take(3)
+            .map(
+              (s) => OrderingTerm.asc(
+                InstrExpression(
+                  string: _db.scoresTable.searchText,
+                  substring: Variable(s),
+                ),
+              ),
+            ),
+        OrderingTerm.asc(_db.scoresTable.id),
+      ]);
+    }
+    q.limit(size, offset: offset);
+
+    final result = await q.get();
+
+    List<
+      ({
+        ScoresTableData score,
+        SplayTreeSet<String> genres,
+        SplayTreeSet<String> instruments,
+      })
+    >
+    scores = [];
+    String? lastId;
+    for (final row in result) {
+      final score = row.readTable(_db.scoresTable);
+      final genre = row.readTableOrNull(_db.genresTable);
+      final instrument = row.readTableOrNull(_db.instrumentsTable);
+
+      if (lastId != score.id) {
+        scores.add((
+          score: score,
+          genres: SplayTreeSet.of([if (genre != null) genre.genre]),
+          instruments: SplayTreeSet.of([
+            if (instrument != null) instrument.instrument,
+          ]),
+        ));
+        lastId = score.id;
+      } else {
+        if (genre != null) {
+          scores.last.genres.add(genre.genre);
+        }
+        if (instrument != null) {
+          scores.last.instruments.add(instrument.instrument);
+        }
+      }
+    }
+
+    final tags = await _getScoresTags(scores.map((s) => s.score.id));
 
     return Future.wait(
       scores.map(
         (s) async => Score(
-          id: s.$1.id,
-          title: s.$1.title,
-          composer: s.$1.composer,
-          genres:
-              (s.$2.genresTableRefs.prefetchedData ?? const [])
-                  .map((e) => e.genre)
-                  .toList()
-                ..sort(),
-          instruments:
-              (s.$2.instrumentsTableRefs.prefetchedData ?? const [])
-                  .map((e) => e.instrument)
-                  .toList()
-                ..sort(),
-          tags: tags[s.$1.id] ?? const [],
-          fileType: s.$1.fileType,
-          metadataUpdatedAt: s.$1.metadataUpdatedAt,
-          createdAt: s.$1.createdAt,
-          fileUpdatedAt: s.$1.fileUpdatedAt,
-          file: s.$1.downloaded
-              ? await _scoreFile(s.$1.id, s.$1.fileType)
+          id: s.score.id,
+          title: s.score.title,
+          composer: s.score.composer,
+          genres: s.genres.toList(),
+          instruments: s.instruments.toList(),
+          tags: tags[s.score.id] ?? [],
+          createdAt: s.score.createdAt,
+          metadataUpdatedAt: s.score.metadataUpdatedAt,
+          fileUpdatedAt: s.score.fileUpdatedAt,
+          fileType: s.score.fileType,
+          file: s.score.downloaded
+              ? await _scoreFile(s.score.id, s.score.fileType)
               : null,
         ),
       ),
@@ -193,6 +238,7 @@ class ScoresRepository {
           (o) => o(
             title: Value(title),
             composer: composer.isNotEmpty ? Value(composer) : const Value(null),
+            searchText: Value(_generateSearchText([title, composer])),
             metadataUpdatedAt: Value(DateTime.now()),
           ),
         );
@@ -384,6 +430,7 @@ class ScoresRepository {
           (s) => o(
             id: s.id,
             title: s.title,
+            searchText: _generateSearchText([s.title]),
             createdAt: Value(s.createdAt),
             metadataUpdatedAt: Value(s.metadataUpdatedAt),
             fileUpdatedAt: Value(s.fileUpdatedAt),
@@ -536,5 +583,25 @@ class ScoresRepository {
     return File(
       path.join((await _scoresDir).path, id + fileTypeToExtension(fileType)),
     );
+  }
+
+  final _whitespaceRegex = RegExp(r'\s+');
+
+  String _generateSearchText(Iterable<String?> dataFields) {
+    String result = dataFields
+        .where((f) => f != null && f.isNotEmpty)
+        .map((f) {
+          return f!.trim().toLowerCase().replaceAll(_whitespaceRegex, " ");
+        })
+        .join(" ");
+    result = removeDiacritics(result);
+    return " $result ";
+  }
+
+  Iterable<String> _generateSearchFields(String input) {
+    if (input.isEmpty) return const [];
+    input = input.trim().toLowerCase().replaceAll(_whitespaceRegex, " ");
+    input = removeDiacritics(input);
+    return input.split(" ").map((s) => " $s");
   }
 }
