@@ -1,11 +1,17 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/ui/common/search_input.dart';
 import 'package:sheetopia/ui/home/library_viewmodel.dart';
 import 'package:sheetopia/ui/home/score_grid_cell.dart';
 import 'package:sheetopia/ui/home/sliver_score_grid.dart';
 
 class LibraryView extends StatefulWidget {
-  const LibraryView({super.key});
+  final void Function()? onScrollDown;
+  final void Function()? onScrollUp;
+
+  const LibraryView({super.key, this.onScrollDown, this.onScrollUp});
 
   @override
   State<LibraryView> createState() => _LibraryViewState();
@@ -19,15 +25,31 @@ class _LibraryViewState extends State<LibraryView> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _viewModel = LibraryViewModel(repo: context.read());
     _viewModel.loadNextPage();
     Future.delayed(const Duration(milliseconds: 100), () {
       WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
         _loadInitialPages().then((value) {
-          _scrollController.addListener(_onScroll);
+          _scrollController.addListener(_checkEndReached);
         });
       });
     });
+  }
+
+  void _onScroll() {
+    _onScrollChanged(_scrollController.position.userScrollDirection);
+  }
+
+  ScrollDirection? _lastDirection;
+  void _onScrollChanged(ScrollDirection direction) {
+    if (direction == _lastDirection) return;
+    _lastDirection = direction;
+    if (direction == ScrollDirection.reverse) {
+      widget.onScrollDown?.call();
+    } else {
+      widget.onScrollUp?.call();
+    }
   }
 
   Future<void> _loadInitialPages() async {
@@ -39,12 +61,13 @@ class _LibraryViewState extends State<LibraryView> {
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
+    _scrollController.removeListener(_checkEndReached);
     _scrollController.dispose();
     _viewModel.dispose();
     super.dispose();
   }
 
-  void _onScroll() {
+  void _checkEndReached() {
     if (_isBottom) _viewModel.loadNextPage();
   }
 
@@ -59,16 +82,52 @@ class _LibraryViewState extends State<LibraryView> {
 
   @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
-      controller: _scrollController,
-      slivers: [
-        ListenableBuilder(
-          listenable: _viewModel,
-          builder: (context, _) {
-            return SliverScoreGrid(scores: _viewModel.scores);
-          },
+    return Listener(
+      onPointerSignal: (event) {
+        if (event is PointerScrollEvent) {
+          _onScrollChanged(
+            event.scrollDelta.dy < 0
+                ? ScrollDirection.forward
+                : ScrollDirection.reverse,
+          );
+        }
+      },
+      child: GestureDetector(
+        onVerticalDragUpdate: (details) {
+          if (details.kind == PointerDeviceKind.mouse) {
+            return;
+          }
+          _onScrollChanged(
+            details.delta.dy < 0
+                ? ScrollDirection.forward
+                : ScrollDirection.reverse,
+          );
+        },
+        child: CustomScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 12, right: 12, bottom: 12),
+                child: SearchInput(
+                  label: "Search",
+                  debounce: const Duration(milliseconds: 250),
+                  onSearch: (query) {
+                    _viewModel.filter = query;
+                  },
+                ),
+              ),
+            ),
+            ListenableBuilder(
+              listenable: _viewModel,
+              builder: (context, _) {
+                return SliverScoreGrid(scores: _viewModel.scores);
+              },
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

@@ -14,7 +14,7 @@ import 'package:sheetopia/routing/router.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await FullScreen.ensureInitialized();
-  pdfrxFlutterInitialize();
+  await pdfrxFlutterInitialize();
 
   runApp(
     MultiProvider(

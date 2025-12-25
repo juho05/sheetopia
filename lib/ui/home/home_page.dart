@@ -20,38 +20,57 @@ class HomePage extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (context) => HomeViewModel(scoresRepo: context.read()),
       builder: (context, _) {
+        final viewModel = context.read<HomeViewModel>();
         return Scaffold(
           appBar: AppBar(title: const Text("Library")),
-          body: const SafeArea(child: LibraryView()),
+          body: SafeArea(
+            child: LibraryView(
+              onScrollUp: () => viewModel.importButtonVisible = true,
+              onScrollDown: () => viewModel.importButtonVisible = false,
+            ),
+          ),
           floatingActionButton: Consumer<HomeViewModel>(
             builder: (context, viewModel, _) {
-              return FloatingActionButton(
-                onPressed: viewModel.importing
-                    ? null
-                    : () async {
-                        try {
-                          final firstScoreId = await context
-                              .read<HomeViewModel>()
-                              .importScores();
-                          if (!context.mounted || firstScoreId == null) return;
-                          context.go("/scores/$firstScoreId/edit");
-                        } catch (e, st) {
-                          Toast.exception(
-                            context,
-                            e,
-                            st: st,
-                            errorMsg: "Failed to import scores!",
-                          );
-                        }
-                      },
-                backgroundColor: viewModel.importing ? disabledColor : null,
-                tooltip: "Import score",
-                child: viewModel.importing
-                    ? const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: CircularProgressIndicator.adaptive(),
-                      )
-                    : const Icon(Icons.add),
+              final duration = const Duration(milliseconds: 200);
+              return AnimatedSlide(
+                duration: duration,
+                offset: viewModel.importButtonVisible
+                    ? Offset.zero
+                    : const Offset(0, 2),
+                child: AnimatedOpacity(
+                  duration: duration,
+                  opacity: viewModel.importButtonVisible ? 1 : 0,
+                  child: FloatingActionButton(
+                    onPressed: viewModel.importing
+                        ? null
+                        : () async {
+                            try {
+                              final firstScoreId = await context
+                                  .read<HomeViewModel>()
+                                  .importScores();
+                              if (!context.mounted || firstScoreId == null) {
+                                return;
+                              }
+                              context.go("/scores/$firstScoreId/edit");
+                            } catch (e, st) {
+                              Toast.exception(
+                                context,
+                                e,
+                                st: st,
+                                errorMsg: "Failed to import scores!",
+                              );
+                            }
+                          },
+                    backgroundColor: viewModel.importing ? disabledColor : null,
+                    tooltip: "Import score",
+                    child: viewModel.importing
+                        ? const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: CircularProgressIndicator.adaptive(),
+                          )
+                        : const Icon(Icons.add),
+                  ),
+                ),
               );
             },
           ),

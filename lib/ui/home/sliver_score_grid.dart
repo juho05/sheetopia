@@ -13,6 +13,14 @@ class SliverScoreGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (scores.isEmpty) {
+      return const SliverPadding(
+        padding: EdgeInsets.all(12),
+        sliver: SliverToBoxAdapter(
+          child: Center(child: Text("No scores found.")),
+        ),
+      );
+    }
     return SliverLayoutBuilder(
       builder: (context, constraints) {
         final columns = max(

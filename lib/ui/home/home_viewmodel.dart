@@ -8,6 +8,14 @@ class HomeViewModel extends ChangeNotifier {
   bool _importing = false;
   bool get importing => _importing;
 
+  bool _importButtonVisible = true;
+  bool get importButtonVisible => _importButtonVisible;
+  set importButtonVisible(bool visible) {
+    if (_importButtonVisible == visible) return;
+    _importButtonVisible = visible;
+    notifyListeners();
+  }
+
   HomeViewModel({required ScoresRepository scoresRepo})
     : _scoresRepo = scoresRepo;
 
