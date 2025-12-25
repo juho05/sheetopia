@@ -20,15 +20,18 @@ class _LibraryViewState extends State<LibraryView> {
   void initState() {
     super.initState();
     _viewModel = LibraryViewModel(repo: context.read());
-    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      _loadInitialPages().then((value) {
-        _scrollController.addListener(_onScroll);
+    _viewModel.loadNextPage();
+    Future.delayed(const Duration(milliseconds: 100), () {
+      WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+        _loadInitialPages().then((value) {
+          _scrollController.addListener(_onScroll);
+        });
       });
     });
   }
 
   Future<void> _loadInitialPages() async {
-    while (_isBottom && _viewModel.hasNextPage) {
+    while (context.mounted && _isBottom && _viewModel.hasNextPage) {
       await _viewModel.loadNextPage();
     }
   }
@@ -47,7 +50,9 @@ class _LibraryViewState extends State<LibraryView> {
 
   bool get _isBottom {
     if (!_scrollController.hasClients) return false;
-    final maxScroll = _scrollController.position.maxScrollExtent;
+    final position = _scrollController.position;
+    if (!position.hasContentDimensions || !position.hasPixels) return false;
+    final maxScroll = position.maxScrollExtent;
     final currentScroll = _scrollController.offset;
     return currentScroll >= (maxScroll - 3 * ScoreGridCell.height);
   }
