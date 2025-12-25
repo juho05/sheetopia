@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -42,14 +44,18 @@ class _LibraryViewState extends State<LibraryView> {
   }
 
   ScrollDirection? _lastDirection;
+  Timer? _onScrollChangedDebounce;
   void _onScrollChanged(ScrollDirection direction) {
     if (direction == _lastDirection) return;
     _lastDirection = direction;
-    if (direction == ScrollDirection.reverse) {
-      widget.onScrollDown?.call();
-    } else {
-      widget.onScrollUp?.call();
-    }
+    _onScrollChangedDebounce?.cancel();
+    _onScrollChangedDebounce = Timer(const Duration(milliseconds: 50), () {
+      if (direction == ScrollDirection.reverse) {
+        widget.onScrollDown?.call();
+      } else {
+        widget.onScrollUp?.call();
+      }
+    });
   }
 
   Future<void> _loadInitialPages() async {
@@ -60,6 +66,7 @@ class _LibraryViewState extends State<LibraryView> {
 
   @override
   void dispose() {
+    _onScrollChangedDebounce?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.removeListener(_checkEndReached);
     _scrollController.dispose();
@@ -94,18 +101,18 @@ class _LibraryViewState extends State<LibraryView> {
       },
       child: GestureDetector(
         onVerticalDragUpdate: (details) {
-          if (details.kind == PointerDeviceKind.mouse) {
+          if (details.kind == PointerDeviceKind.mouse ||
+              details.delta.dy.abs() < 0.5) {
             return;
           }
           _onScrollChanged(
-            details.delta.dy < 0
+            details.delta.dy > 0
                 ? ScrollDirection.forward
                 : ScrollDirection.reverse,
           );
         },
         child: CustomScrollView(
           controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
