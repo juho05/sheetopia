@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+@TableIndex(name: "search_text_index", columns: {#searchText})
 class ScoresTable extends Table {
   late final id = text()();
   late final title = text()();

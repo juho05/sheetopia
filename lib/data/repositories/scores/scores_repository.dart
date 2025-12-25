@@ -107,21 +107,20 @@ class ScoresRepository {
         q.where(_db.scoresTable.searchText.contains(s));
       }
     }
-    if (searchFields.isNotEmpty) {
-      q.orderBy([
-        ...searchFields
-            .take(3)
-            .map(
-              (s) => OrderingTerm.asc(
-                InstrExpression(
-                  string: _db.scoresTable.searchText,
-                  substring: Variable(s),
-                ),
+    q.orderBy([
+      ...searchFields
+          .take(3)
+          .map(
+            (s) => OrderingTerm.asc(
+              InstrExpression(
+                string: _db.scoresTable.searchText,
+                substring: Variable(s),
               ),
             ),
-        OrderingTerm.asc(_db.scoresTable.id),
-      ]);
-    }
+          ),
+      OrderingTerm.desc(_db.scoresTable.createdAt),
+      OrderingTerm.asc(_db.scoresTable.id),
+    ]);
     q.limit(size, offset: offset);
 
     final result = await q.get();

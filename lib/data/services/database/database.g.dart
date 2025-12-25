@@ -1544,6 +1544,10 @@ abstract class _$Database extends GeneratedDatabase {
   );
   late final $TagsTableTable tagsTable = $TagsTableTable(this);
   late final $ScoreTagsTableTable scoreTagsTable = $ScoreTagsTableTable(this);
+  late final Index searchTextIndex = Index(
+    'search_text_index',
+    'CREATE INDEX search_text_index ON scores (search_text)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1554,6 +1558,7 @@ abstract class _$Database extends GeneratedDatabase {
     instrumentsTable,
     tagsTable,
     scoreTagsTable,
+    searchTextIndex,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
