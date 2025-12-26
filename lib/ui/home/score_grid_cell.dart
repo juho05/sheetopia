@@ -5,11 +5,12 @@ import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/optional_tooltip.dart';
 import 'package:sheetopia/ui/common/tag_badge.dart';
 import 'package:sheetopia/ui/common/text_scroll.dart';
+import 'package:sheetopia/ui/home/thumbnail.dart';
 
 class ScoreGridCell extends StatelessWidget {
-  static const double width = 250;
-  static const double height = 288;
-  static final int previewHeight = (height / 2.1).toInt();
+  static const int width = 250;
+  static const int height = 288;
+  static final int thumbnailHeight = (height / 2.1).toInt();
 
   final Score score;
 
@@ -18,9 +19,10 @@ class ScoreGridCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
     return SizedBox(
-      width: width,
-      height: height,
+      width: width.toDouble(),
+      height: height.toDouble(),
       child: Material(
         borderRadius: BorderRadius.circular(12),
         color: theme.colorScheme.surfaceContainer,
@@ -36,15 +38,14 @@ class ScoreGridCell extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 spacing: 4,
                 children: [
-                  // TODO: replace with preview
-                  ClipRRect(
+                  Thumbnail(
+                    score: score,
+                    width: width,
+                    height: thumbnailHeight,
+                    devicePixelRatio: devicePixelRatio,
                     borderRadius: const BorderRadiusGeometry.only(
                       topLeft: Radius.circular(12),
                       topRight: Radius.circular(12),
-                    ),
-                    child: Container(
-                      color: Colors.white,
-                      height: previewHeight.toDouble(),
                     ),
                   ),
                   Padding(

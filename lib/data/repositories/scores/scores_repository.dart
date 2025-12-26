@@ -14,6 +14,7 @@ import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/instr_expression.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/thumbnail_service.dart';
 
 class InvalidFileTypeException implements Exception {
   final String filePath;
@@ -29,6 +30,7 @@ class InvalidFileTypeException implements Exception {
 
 class ScoresRepository {
   final Database _db;
+  final ThumbnailService _thumbnailService;
 
   static const List<XTypeGroup> scoreFileTypeGroup = [
     XTypeGroup(label: "PDF", extensions: <String>["pdf"]),
@@ -39,7 +41,11 @@ class ScoresRepository {
   );
   Stream<Set<String>> get updatedScoreIds => _updatedScoreIds.stream;
 
-  ScoresRepository({required Database db}) : _db = db;
+  ScoresRepository({
+    required Database db,
+    required ThumbnailService thumbnailService,
+  }) : _db = db,
+       _thumbnailService = thumbnailService;
 
   List<String> _freshImports = [];
   UnmodifiableListView<String> get freshImports =>
@@ -470,6 +476,8 @@ class ScoresRepository {
       } catch (_) {}
     }
 
+    await _thumbnailService.invalidateThumbnails([scoreId]);
+
     await _db.managers.scoresTable
         .filter((f) => f.id(scoreId))
         .update(
@@ -560,6 +568,7 @@ class ScoresRepository {
     try {
       (await _scoreFile(scoreId, score.fileType)).delete();
     } catch (_) {}
+    await _thumbnailService.invalidateThumbnails([scoreId]);
   }
 
   Directory? _cachedScoresDir;

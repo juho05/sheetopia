@@ -20,6 +20,7 @@ dependencies:
   flutter_fullscreen: ^1.2.0
   flutter_sharing_intent: ^2.0.4
   go_router: ^17.0.1
+  image: ^4.7.2
   infinite_scroll_pagination: ^5.1.1
   path: ^1.9.1
   path_provider: ^2.1.5
