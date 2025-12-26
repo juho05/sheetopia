@@ -40,6 +40,10 @@ class _ThumbnailState extends State<Thumbnail> {
   @override
   void didUpdateWidget(covariant Thumbnail oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (_viewModel.image != null &&
+        oldWidget.score.fileUpdatedAt != widget.score.fileUpdatedAt) {
+      FileImage(_viewModel.image!).evict();
+    }
     if (oldWidget.score.id != widget.score.id ||
         (oldWidget.score.file == null) != (widget.score.file == null) ||
         oldWidget.score.fileUpdatedAt != widget.score.fileUpdatedAt) {
