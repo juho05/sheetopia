@@ -318,6 +318,15 @@ class ScoresRepository {
     _updatedScoreIds.add(affectedScores.toSet());
   }
 
+  Future<void> deleteTag(String tagId) async {
+    final affectedScores = await _db.managers.scoreTagsTable
+        .filter((f) => f.tag.id(tagId))
+        .map((s) => s.score)
+        .get();
+    await _db.managers.tagsTable.filter((f) => f.id(tagId)).delete();
+    _updatedScoreIds.add(affectedScores.toSet());
+  }
+
   Future<void> addScoreInstruments(
     String scoreId,
     Iterable<String> instruments,

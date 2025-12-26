@@ -3,32 +3,46 @@ import 'package:provider/provider.dart';
 import 'package:reactive_color_picker/reactive_color_picker.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
-import 'package:sheetopia/ui/edit_score/create_tag_viewmodel.dart';
+import 'package:sheetopia/ui/edit_score/edit_tag_viewmodel.dart';
 
-class CreateTagDialog extends StatefulWidget {
-  final CreateTagViewModel viewModel;
+class EditTagDialog extends StatefulWidget {
+  final EditTagViewModel viewModel;
 
-  const CreateTagDialog({super.key, required this.viewModel});
+  const EditTagDialog({super.key, required this.viewModel});
 
-  static Future<Tag?> show(BuildContext context, [String? name]) async {
-    final viewModel = CreateTagViewModel(
-      repo: context.read(),
-      initialName: name,
-    );
+  static Future<Tag?> showCreate(BuildContext context, [String? name]) async {
+    final viewModel = EditTagViewModel(repo: context.read(), initialName: name);
     return await showAdaptiveDialog<Tag>(
       context: context,
       barrierDismissible: true,
       builder: (context) {
-        return CreateTagDialog(viewModel: viewModel);
+        return EditTagDialog(viewModel: viewModel);
       },
     );
   }
 
+  static Future<bool> showEdit(BuildContext context, Tag tag) async {
+    final viewModel = EditTagViewModel(
+      repo: context.read(),
+      initialName: tag.name,
+      initialColor: tag.color,
+      tagId: tag.id,
+    );
+    return await showAdaptiveDialog<bool>(
+          context: context,
+          barrierDismissible: true,
+          builder: (context) {
+            return EditTagDialog(viewModel: viewModel);
+          },
+        ) ??
+        false;
+  }
+
   @override
-  State<CreateTagDialog> createState() => _CreateTagDialogState();
+  State<EditTagDialog> createState() => _EditTagDialogState();
 }
 
-class _CreateTagDialogState extends State<CreateTagDialog> {
+class _EditTagDialogState extends State<EditTagDialog> {
   final FocusNode _nameFocus = FocusNode();
 
   @override
@@ -46,13 +60,13 @@ class _CreateTagDialogState extends State<CreateTagDialog> {
             spacing: 8,
             children: [
               Text(
-                "Create tag",
+                widget.viewModel.editMode ? "Edit tag" : "Create tag",
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.headlineSmall,
               ),
               const SizedBox(height: 4),
               ReactiveTextField(
-                formControlName: CreateTagViewModel.formName,
+                formControlName: EditTagViewModel.formName,
                 focusNode: _nameFocus,
                 onTapOutside: (event) => _nameFocus.unfocus(),
                 decoration: const InputDecoration(
@@ -61,7 +75,7 @@ class _CreateTagDialogState extends State<CreateTagDialog> {
                 ),
               ),
               ReactiveColorPicker(
-                formControlName: CreateTagViewModel.formColor,
+                formControlName: EditTagViewModel.formColor,
                 enableAlpha: false,
                 hexInputBar: false,
                 displayThumbColor: true,
@@ -112,7 +126,7 @@ class _CreateTagDialogState extends State<CreateTagDialog> {
                 children: [
                   OutlinedButton(
                     onPressed: () async {
-                      Navigator.pop(context, null);
+                      Navigator.pop(context);
                     },
                     child: const Text("Cancel"),
                   ),
@@ -121,13 +135,23 @@ class _CreateTagDialogState extends State<CreateTagDialog> {
                       return FilledButton(
                         onPressed: form.valid
                             ? () async {
-                                final tag = await widget.viewModel.createTag();
-                                if (context.mounted) {
-                                  Navigator.pop(context, tag);
+                                if (widget.viewModel.editMode) {
+                                  await widget.viewModel.updateTag();
+                                  if (context.mounted) {
+                                    Navigator.pop(context, true);
+                                  }
+                                } else {
+                                  final tag = await widget.viewModel
+                                      .createTag();
+                                  if (context.mounted) {
+                                    Navigator.pop(context, tag);
+                                  }
                                 }
                               }
                             : null,
-                        child: const Text("Create"),
+                        child: Text(
+                          widget.viewModel.editMode ? "Update" : "Create",
+                        ),
                       );
                     },
                   ),

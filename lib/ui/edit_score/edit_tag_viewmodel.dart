@@ -1,0 +1,49 @@
+import 'package:flutter/material.dart';
+import 'package:reactive_forms/reactive_forms.dart';
+import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/data/repositories/scores/tag.dart';
+
+class EditTagViewModel {
+  static const formName = "name";
+  static const formColor = "color";
+
+  final String? _tagId;
+  bool get editMode => _tagId != null;
+
+  final ScoresRepository _repo;
+
+  final FormGroup form;
+
+  EditTagViewModel({
+    required ScoresRepository repo,
+    String? initialName,
+    Color? initialColor,
+    String? tagId,
+  }) : _repo = repo,
+       _tagId = tagId,
+       form = FormGroup({
+         formName: FormControl<String>(
+           value: initialName,
+           validators: [Validators.required],
+         ),
+         formColor: FormControl<Color>(
+           value: initialColor ?? Colors.indigo,
+           validators: [Validators.required],
+         ),
+       });
+
+  Future<Tag> createTag() async {
+    return await _repo.createTag(
+      name: form.control(formName).value,
+      color: form.control(formColor).value,
+    );
+  }
+
+  Future<void> updateTag() async {
+    await _repo.updateTag(
+      _tagId!,
+      name: form.control(formName).value,
+      color: form.control(formColor).value,
+    );
+  }
+}

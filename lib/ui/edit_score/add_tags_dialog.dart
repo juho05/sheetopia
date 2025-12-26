@@ -6,24 +6,31 @@ import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/ui/common/search_input.dart';
 import 'package:sheetopia/ui/common/tag_badge.dart';
 import 'package:sheetopia/ui/edit_score/add_tags_viewmodel.dart';
-import 'package:sheetopia/ui/edit_score/create_tag_dialog.dart';
+import 'package:sheetopia/ui/edit_score/edit_tag_dialog.dart';
 
 class AddTagsDialog extends StatelessWidget {
   final AddTagsViewModel viewModel;
+  final void Function()? reloadTagsCallback;
 
-  const AddTagsDialog({super.key, required this.viewModel});
+  const AddTagsDialog({
+    super.key,
+    required this.viewModel,
+    this.reloadTagsCallback,
+  });
 
   static Future<List<Tag>?> show(
-    BuildContext context,
-    Set<Tag> alreadySelected,
-  ) async {
+    BuildContext context, {
+    Set<Tag> alreadySelected = const {},
+    void Function()? reloadTags,
+  }) async {
     final viewModel = AddTagsViewModel(
       scoreTags: alreadySelected,
       repo: context.read(),
     );
     return showAdaptiveDialog<List<Tag>>(
       context: context,
-      builder: (context) => AddTagsDialog(viewModel: viewModel),
+      builder: (context) =>
+          AddTagsDialog(viewModel: viewModel, reloadTagsCallback: reloadTags),
       barrierDismissible: true,
     );
   }
@@ -43,10 +50,34 @@ class AddTagsDialog extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               spacing: 8,
               children: [
-                Text(
-                  "Add tags",
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.headlineSmall,
+                Stack(
+                  alignment: AlignmentGeometry.center,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 64),
+                      child: Text(
+                        viewModel.manageTagsMode ? "Manage tags" : "Add tags",
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.headlineSmall,
+                      ),
+                    ),
+                    if (viewModel.manageTagsMode)
+                      Align(
+                        alignment: AlignmentGeometry.topLeft,
+                        child: IconButton(
+                          onPressed: () => viewModel.exitManageTagsMode(),
+                          icon: const Icon(Icons.arrow_back),
+                        ),
+                      ),
+                    if (!viewModel.manageTagsMode)
+                      Align(
+                        alignment: AlignmentGeometry.topRight,
+                        child: IconButton(
+                          onPressed: () => viewModel.enterManageTagsMode(),
+                          icon: const Icon(Icons.edit),
+                        ),
+                      ),
+                  ],
                 ),
                 SearchInput(
                   label: "Search or create",
@@ -89,7 +120,7 @@ class AddTagsDialog extends StatelessWidget {
                                         borderRadius: BorderRadius.circular(5),
                                         onTap: () async {
                                           final tag =
-                                              await CreateTagDialog.show(
+                                              await EditTagDialog.showCreate(
                                                 context,
                                                 filter,
                                               );
@@ -130,6 +161,26 @@ class AddTagsDialog extends StatelessWidget {
                                   index--;
                                 }
                                 final t = viewModel.results[index];
+                                if (viewModel.manageTagsMode) {
+                                  return _ManageTagListItem(
+                                    tag: t,
+                                    onEdit: () async {
+                                      final edited =
+                                          await EditTagDialog.showEdit(
+                                            context,
+                                            t,
+                                          );
+                                      if (!edited) return;
+                                      await viewModel.editedTag();
+                                      if (viewModel.scoreTags.contains(t)) {
+                                        reloadTagsCallback?.call();
+                                      }
+                                    },
+                                    onDelete: () {
+                                      viewModel.deleteTag(t);
+                                    },
+                                  );
+                                }
                                 return _TagListItem(
                                   tag: t,
                                   selected: viewModel.selected.contains(t),
@@ -147,27 +198,28 @@ class AddTagsDialog extends StatelessWidget {
                           ),
                   ),
                 ),
-                const Divider(height: 1),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text("${viewModel.selected.length} tags selected"),
-                    if (viewModel.selected.isEmpty)
-                      OutlinedButton(
-                        onPressed: () {
-                          Navigator.pop(context, null);
-                        },
-                        child: const Text("Cancel"),
-                      ),
-                    if (viewModel.selected.isNotEmpty)
-                      FilledButton(
-                        onPressed: () {
-                          Navigator.pop(context, viewModel.selected.toList());
-                        },
-                        child: const Text("Add"),
-                      ),
-                  ],
-                ),
+                if (!viewModel.manageTagsMode) const Divider(height: 1),
+                if (!viewModel.manageTagsMode)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("${viewModel.selected.length} tags selected"),
+                      if (viewModel.selected.isEmpty)
+                        OutlinedButton(
+                          onPressed: () {
+                            Navigator.pop(context, null);
+                          },
+                          child: const Text("Cancel"),
+                        ),
+                      if (viewModel.selected.isNotEmpty)
+                        FilledButton(
+                          onPressed: () {
+                            Navigator.pop(context, viewModel.selected.toList());
+                          },
+                          child: const Text("Add"),
+                        ),
+                    ],
+                  ),
               ],
             ),
           );
@@ -210,6 +262,50 @@ class _TagListItem extends StatelessWidget {
               Flexible(child: TagBadge(tag: tag)),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ManageTagListItem extends StatelessWidget {
+  static const double verticalExtent = 42;
+
+  final Tag tag;
+
+  final void Function() onEdit;
+  final void Function() onDelete;
+
+  const _ManageTagListItem({
+    required this.tag,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      height: verticalExtent,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.max,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(child: TagBadge(tag: tag)),
+            Row(
+              children: [
+                IconButton(
+                  onPressed: onDelete,
+                  color: theme.colorScheme.error,
+                  icon: const Icon(Icons.delete_outline),
+                ),
+                IconButton(onPressed: onEdit, icon: const Icon(Icons.edit)),
+              ],
+            ),
+          ],
         ),
       ),
     );

@@ -9,6 +9,7 @@ class AddTagsViewModel extends ChangeNotifier {
   final ScoresRepository _repo;
 
   final Set<Tag> _scoreTags;
+  Set<Tag> get scoreTags => UnmodifiableSetView(_scoreTags);
 
   List<Tag> _results = [];
   List<Tag> get results => UnmodifiableListView(_results);
@@ -19,12 +20,27 @@ class AddTagsViewModel extends ChangeNotifier {
   String _currentFilter = "";
   String get currentFilter => _currentFilter;
 
+  bool _manageTagsMode = false;
+  bool get manageTagsMode => _manageTagsMode;
+
   AddTagsViewModel({
     required Set<Tag> scoreTags,
     required ScoresRepository repo,
   }) : _scoreTags = scoreTags,
        _repo = repo {
     _loadTags("").then((_) => notifyListeners());
+  }
+
+  Future<void> enterManageTagsMode() async {
+    _manageTagsMode = true;
+    await _loadTags(_currentFilter);
+    notifyListeners();
+  }
+
+  Future<void> exitManageTagsMode() async {
+    _manageTagsMode = false;
+    await _loadTags(_currentFilter);
+    notifyListeners();
   }
 
   Future<void> filter(String query) async {
@@ -39,10 +55,15 @@ class AddTagsViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> editedTag() async {
+    await _loadTags(_currentFilter);
+    notifyListeners();
+  }
+
   Future<void> _loadTags(String filter) async {
     final tags = await _repo.getTags(
       filter: filter.isNotEmpty ? filter : null,
-      excludeTagIds: _scoreTags.map((t) => t.id),
+      excludeTagIds: manageTagsMode ? const [] : _scoreTags.map((t) => t.id),
     );
     _results = tags;
   }
@@ -55,5 +76,10 @@ class AddTagsViewModel extends ChangeNotifier {
   void deselect(Tag t) {
     _selected.remove(t);
     notifyListeners();
+  }
+
+  Future<void> deleteTag(Tag t) async {
+    await _repo.deleteTag(t.id);
+    await editedTag();
   }
 }

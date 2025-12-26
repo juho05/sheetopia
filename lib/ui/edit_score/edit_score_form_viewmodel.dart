@@ -109,6 +109,11 @@ class EditScoreFormViewModel extends ChangeNotifier {
     return _composers!.where((element) => element.contains(filter)).take(10);
   }
 
+  Future<void> reloadScore() async {
+    await _onValuesChanged(form.value);
+    await _loadScore();
+  }
+
   Future<void> _onScoreChanged() async {
     if (_editScoreViewModel.score!.id == _score.id) {
       _score = _editScoreViewModel.score!;
@@ -119,9 +124,7 @@ class EditScoreFormViewModel extends ChangeNotifier {
       return;
     }
 
-    await _onValuesChanged(form.value);
-
-    await _loadScore();
+    await reloadScore();
   }
 
   Future<void> _loadScore() async {

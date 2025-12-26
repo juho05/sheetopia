@@ -143,7 +143,8 @@ class _EditScoreFormState extends State<EditScoreForm> {
                     onAdd: () async {
                       final tags = await AddTagsDialog.show(
                         context,
-                        viewModel.tags.toSet(),
+                        alreadySelected: viewModel.tags.toSet(),
+                        reloadTags: viewModel.reloadScore,
                       );
                       if (tags == null || tags.isEmpty) return;
                       viewModel.addTags(tags);
