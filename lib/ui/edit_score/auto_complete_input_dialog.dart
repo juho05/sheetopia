@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 
 class AutoCompleteInputDialog extends StatefulWidget {
   final String title;
@@ -21,7 +22,7 @@ class AutoCompleteInputDialog extends StatefulWidget {
     required String submitBtnText,
     required Future<Iterable<String>> Function(String filter) getOptions,
   }) async {
-    return showDialog<String>(
+    return showSheetopiaDialog<String>(
       context: context,
       builder: (context) => AutoCompleteInputDialog(
         title: title,
@@ -68,72 +69,63 @@ class _AutoCompleteInputDialogState extends State<AutoCompleteInputDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Dialog(
-      constraints: const BoxConstraints(maxWidth: 480),
-      insetPadding: const EdgeInsets.all(8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          spacing: 8,
-          children: [
-            Text(
-              widget.title,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.headlineSmall,
-            ),
-            Autocomplete(
-              textEditingController: _controller,
-              focusNode: _focusNode,
-              fieldViewBuilder:
-                  (
-                    context,
-                    textEditingController,
-                    focusNode,
-                    onFieldSubmitted,
-                  ) {
-                    return TextField(
-                      autofocus: true,
-                      controller: textEditingController,
-                      focusNode: focusNode,
-                      onSubmitted: (value) {
-                        onFieldSubmitted();
-                        value = textEditingController.value.text.trim();
-                        if (value.isEmpty) return;
-                        Navigator.pop(context, value);
-                      },
-                      decoration: InputDecoration(
-                        label: Text(widget.inputLabel),
-                        border: const OutlineInputBorder(),
-                      ),
-                      onTapOutside: (event) => focusNode.unfocus(),
-                    );
-                  },
-              optionsBuilder: (textEditingValue) =>
-                  widget.getOptions(textEditingValue.text.trim()),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              spacing: 8,
-              children: [
-                OutlinedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: const Text("Cancel"),
-                ),
-                FilledButton(
-                  onPressed: _valid
-                      ? () {
-                          Navigator.pop(context, _controller.text.trim());
-                        }
-                      : null,
-                  child: Text(widget.submitBtnText),
-                ),
-              ],
-            ),
-          ],
-        ),
+    return SheetopiaDialog(
+      maxWidth: 480,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        spacing: 8,
+        children: [
+          Text(
+            widget.title,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.headlineSmall,
+          ),
+          Autocomplete(
+            textEditingController: _controller,
+            focusNode: _focusNode,
+            fieldViewBuilder:
+                (context, textEditingController, focusNode, onFieldSubmitted) {
+                  return TextField(
+                    autofocus: true,
+                    controller: textEditingController,
+                    focusNode: focusNode,
+                    onSubmitted: (value) {
+                      onFieldSubmitted();
+                      value = textEditingController.value.text.trim();
+                      if (value.isEmpty) return;
+                      Navigator.pop(context, value);
+                    },
+                    decoration: InputDecoration(
+                      label: Text(widget.inputLabel),
+                      border: const OutlineInputBorder(),
+                    ),
+                    onTapOutside: (event) => focusNode.unfocus(),
+                  );
+                },
+            optionsBuilder: (textEditingValue) =>
+                widget.getOptions(textEditingValue.text.trim()),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            spacing: 8,
+            children: [
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text("Cancel"),
+              ),
+              FilledButton(
+                onPressed: _valid
+                    ? () {
+                        Navigator.pop(context, _controller.text.trim());
+                      }
+                    : null,
+                child: Text(widget.submitBtnText),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

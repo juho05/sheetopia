@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sheetopia/ui/common/adaptive_dialog_action.dart';
+import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 
 class ConfirmationDialog extends StatelessWidget {
   final String title;
@@ -18,7 +19,7 @@ class ConfirmationDialog extends StatelessWidget {
     String title = "Are you sure?",
     String? message,
   ]) async {
-    final result = await showDialog<bool>(
+    final result = await showSheetopiaDialog<bool>(
       context: context,
       builder: (context) {
         return ConfirmationDialog._(
@@ -36,7 +37,7 @@ class ConfirmationDialog extends StatelessWidget {
     String title = "Are you sure?",
     String? message,
   }) async {
-    final result = await showDialog<bool>(
+    final result = await showSheetopiaDialog<bool>(
       context: context,
       builder: (context) {
         return ConfirmationDialog._(
@@ -55,7 +56,7 @@ class ConfirmationDialog extends StatelessWidget {
     String? message,
     String? cancelBtn,
   }) async {
-    final result = await showDialog<bool?>(
+    final result = await showSheetopiaDialog<bool>(
       context: context,
       builder: (context) {
         return ConfirmationDialog._(

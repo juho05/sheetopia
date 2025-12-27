@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/search_input.dart';
+import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/common/tag_badge.dart';
 import 'package:sheetopia/ui/edit_score/add_tags_viewmodel.dart';
 import 'package:sheetopia/ui/edit_score/edit_tag_dialog.dart';
@@ -36,7 +37,7 @@ class AddTagsDialog extends StatelessWidget {
       scoreTags: alreadySelected,
       repo: context.read(),
     );
-    return showDialog<List<Tag>>(
+    return showSheetopiaDialog<List<Tag>>(
       context: context,
       builder: (context) => AddTagsDialog._(
         viewModel: viewModel,
@@ -51,9 +52,7 @@ class AddTagsDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Dialog(
-      constraints: const BoxConstraints(maxWidth: 560),
-      insetPadding: const EdgeInsets.all(8),
+    return SheetopiaDialog(
       child: ListenableBuilder(
         listenable: viewModel,
         builder: (context, child) {
@@ -66,195 +65,185 @@ class AddTagsDialog extends StatelessWidget {
                 viewModel.exitManageTagsMode();
               }
             },
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                spacing: 8,
-                children: [
-                  Stack(
-                    alignment: AlignmentGeometry.center,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 64),
-                        child: Text(
-                          viewModel.manageTagsMode ? "Manage tags" : title,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.headlineSmall,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 8,
+              children: [
+                Stack(
+                  alignment: AlignmentGeometry.center,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 64),
+                      child: Text(
+                        viewModel.manageTagsMode ? "Manage tags" : title,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.headlineSmall,
+                      ),
+                    ),
+                    if (viewModel.manageTagsMode)
+                      Align(
+                        alignment: AlignmentGeometry.topLeft,
+                        child: IconButton(
+                          onPressed: () => viewModel.exitManageTagsMode(),
+                          icon: const Icon(Icons.arrow_back),
                         ),
                       ),
-                      if (viewModel.manageTagsMode)
-                        Align(
-                          alignment: AlignmentGeometry.topLeft,
-                          child: IconButton(
-                            onPressed: () => viewModel.exitManageTagsMode(),
-                            icon: const Icon(Icons.arrow_back),
-                          ),
+                    if (!viewModel.manageTagsMode && enableTagEdits)
+                      Align(
+                        alignment: AlignmentGeometry.topRight,
+                        child: IconButton(
+                          onPressed: () => viewModel.enterManageTagsMode(),
+                          icon: const Icon(Icons.edit),
                         ),
-                      if (!viewModel.manageTagsMode && enableTagEdits)
-                        Align(
-                          alignment: AlignmentGeometry.topRight,
-                          child: IconButton(
-                            onPressed: () => viewModel.enterManageTagsMode(),
-                            icon: const Icon(Icons.edit),
-                          ),
-                        ),
-                    ],
-                  ),
-                  SearchInput(
-                    label: enableTagEdits ? "Search or create" : "Search",
-                    debounce: const Duration(milliseconds: 50),
-                    onSearch: (query) {
-                      viewModel.filter(query);
-                    },
-                  ),
-                  Flexible(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight:
-                            max(
-                              1,
-                              ((showCreate ? 1 : 0) + viewModel.results.length),
-                            ) *
-                            _TagListItem.verticalExtent,
                       ),
-                      child: showCreate || viewModel.results.isNotEmpty
-                          ? Material(
-                              type: MaterialType.transparency,
-                              child: ListView.builder(
-                                itemExtent: _TagListItem.verticalExtent,
-                                padding: EdgeInsets.zero,
-                                itemCount:
-                                    viewModel.results.length +
-                                    (showCreate ? 1 : 0),
-                                itemBuilder: (context, index) {
-                                  if (index == 0 && showCreate) {
-                                    final filter = viewModel.currentFilter;
-                                    return Padding(
-                                      padding: const EdgeInsets.only(bottom: 8),
-                                      child: SizedBox(
-                                        height: _TagListItem.verticalExtent - 8,
-                                        child: InkWell(
-                                          borderRadius: BorderRadius.circular(
-                                            5,
-                                          ),
-                                          onTap: () async {
-                                            final tag =
-                                                await EditTagDialog.showCreate(
-                                                  context,
-                                                  filter,
-                                                );
-                                            if (!context.mounted ||
-                                                tag == null) {
-                                              return;
-                                            }
-                                            viewModel.createdTag(tag);
-                                          },
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(5),
-                                              border: BoxBorder.all(
-                                                color:
-                                                    theme.colorScheme.primary,
-                                                width: 1,
-                                              ),
+                  ],
+                ),
+                SearchInput(
+                  label: enableTagEdits ? "Search or create" : "Search",
+                  debounce: const Duration(milliseconds: 50),
+                  onSearch: (query) {
+                    viewModel.filter(query);
+                  },
+                ),
+                Flexible(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight:
+                          max(
+                            1,
+                            ((showCreate ? 1 : 0) + viewModel.results.length),
+                          ) *
+                          _TagListItem.verticalExtent,
+                    ),
+                    child: showCreate || viewModel.results.isNotEmpty
+                        ? Material(
+                            type: MaterialType.transparency,
+                            child: ListView.builder(
+                              itemExtent: _TagListItem.verticalExtent,
+                              padding: EdgeInsets.zero,
+                              itemCount:
+                                  viewModel.results.length +
+                                  (showCreate ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                if (index == 0 && showCreate) {
+                                  final filter = viewModel.currentFilter;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: SizedBox(
+                                      height: _TagListItem.verticalExtent - 8,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(5),
+                                        onTap: () async {
+                                          final tag =
+                                              await EditTagDialog.showCreate(
+                                                context,
+                                                filter,
+                                              );
+                                          if (!context.mounted || tag == null) {
+                                            return;
+                                          }
+                                          viewModel.createdTag(tag);
+                                        },
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              5,
                                             ),
-                                            child: Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 4,
-                                                  ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.max,
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.center,
-                                                children: [
-                                                  Text("Create tag '$filter'…"),
-                                                ],
-                                              ),
+                                            border: BoxBorder.all(
+                                              color: theme.colorScheme.primary,
+                                              width: 1,
+                                            ),
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 4,
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.max,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.center,
+                                              children: [
+                                                Text("Create tag '$filter'…"),
+                                              ],
                                             ),
                                           ),
                                         ),
                                       ),
-                                    );
-                                  }
-                                  if (showCreate) {
-                                    index--;
-                                  }
-                                  final t = viewModel.results[index];
-                                  if (viewModel.manageTagsMode) {
-                                    return _ManageTagListItem(
-                                      tag: t,
-                                      onEdit: () async {
-                                        final edited =
-                                            await EditTagDialog.showEdit(
-                                              context,
-                                              t,
-                                            );
-                                        if (!edited) return;
-                                        await viewModel.editedTag();
-                                        if (viewModel.scoreTags.contains(t)) {
-                                          reloadTagsCallback?.call();
-                                        }
-                                      },
-                                      onDelete: () async {
-                                        final confirmation =
-                                            await ConfirmationDialog.showYesNo(
-                                              context,
-                                              message: "Delete '${t.name}'?",
-                                            );
-                                        if (confirmation != true) return;
-                                        await viewModel.deleteTag(t);
-                                      },
-                                    );
-                                  }
-                                  return _TagListItem(
-                                    tag: t,
-                                    selected: viewModel.selected.contains(t),
-                                    onSelect: () => viewModel.select(t),
-                                    onDeselect: () => viewModel.deselect(t),
+                                    ),
                                   );
-                                },
-                              ),
-                            )
-                          : Center(
-                              child: Text(
-                                enableTagEdits
-                                    ? "Use the search bar to create a new tag."
-                                    : "No tags found.",
-                                textAlign: TextAlign.center,
-                              ),
+                                }
+                                if (showCreate) {
+                                  index--;
+                                }
+                                final t = viewModel.results[index];
+                                if (viewModel.manageTagsMode) {
+                                  return _ManageTagListItem(
+                                    tag: t,
+                                    onEdit: () async {
+                                      final edited =
+                                          await EditTagDialog.showEdit(
+                                            context,
+                                            t,
+                                          );
+                                      if (!edited) return;
+                                      await viewModel.editedTag();
+                                      if (viewModel.scoreTags.contains(t)) {
+                                        reloadTagsCallback?.call();
+                                      }
+                                    },
+                                    onDelete: () async {
+                                      final confirmation =
+                                          await ConfirmationDialog.showYesNo(
+                                            context,
+                                            message: "Delete '${t.name}'?",
+                                          );
+                                      if (confirmation != true) return;
+                                      await viewModel.deleteTag(t);
+                                    },
+                                  );
+                                }
+                                return _TagListItem(
+                                  tag: t,
+                                  selected: viewModel.selected.contains(t),
+                                  onSelect: () => viewModel.select(t),
+                                  onDeselect: () => viewModel.deselect(t),
+                                );
+                              },
                             ),
-                    ),
+                          )
+                        : Center(
+                            child: Text(
+                              enableTagEdits
+                                  ? "Use the search bar to create a new tag."
+                                  : "No tags found.",
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
                   ),
-                  if (!viewModel.manageTagsMode) const Divider(height: 1),
-                  if (!viewModel.manageTagsMode)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text("${viewModel.selected.length} tags selected"),
-                        if (viewModel.selected.isEmpty)
-                          OutlinedButton(
-                            onPressed: () {
-                              Navigator.pop(context, null);
-                            },
-                            child: const Text("Cancel"),
-                          ),
-                        if (viewModel.selected.isNotEmpty)
-                          FilledButton(
-                            onPressed: () {
-                              Navigator.pop(
-                                context,
-                                viewModel.selected.toList(),
-                              );
-                            },
-                            child: Text(addBtnText),
-                          ),
-                      ],
-                    ),
-                ],
-              ),
+                ),
+                if (!viewModel.manageTagsMode) const Divider(height: 1),
+                if (!viewModel.manageTagsMode)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("${viewModel.selected.length} tags selected"),
+                      if (viewModel.selected.isEmpty)
+                        OutlinedButton(
+                          onPressed: () {
+                            Navigator.pop(context, null);
+                          },
+                          child: const Text("Cancel"),
+                        ),
+                      if (viewModel.selected.isNotEmpty)
+                        FilledButton(
+                          onPressed: () {
+                            Navigator.pop(context, viewModel.selected.toList());
+                          },
+                          child: Text(addBtnText),
+                        ),
+                    ],
+                  ),
+              ],
             ),
           );
         },
