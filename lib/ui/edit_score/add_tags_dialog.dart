@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
+import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/search_input.dart';
 import 'package:sheetopia/ui/common/tag_badge.dart';
 import 'package:sheetopia/ui/edit_score/add_tags_viewmodel.dart';
@@ -197,8 +198,14 @@ class AddTagsDialog extends StatelessWidget {
                                           reloadTagsCallback?.call();
                                         }
                                       },
-                                      onDelete: () {
-                                        viewModel.deleteTag(t);
+                                      onDelete: () async {
+                                        final confirmation =
+                                            await ConfirmationDialog.showYesNo(
+                                              context,
+                                              message: "Delete '${t.name}'?",
+                                            );
+                                        if (confirmation != true) return;
+                                        await viewModel.deleteTag(t);
                                       },
                                     );
                                   }

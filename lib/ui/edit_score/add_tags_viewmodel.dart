@@ -79,6 +79,7 @@ class AddTagsViewModel extends ChangeNotifier {
   }
 
   Future<void> deleteTag(Tag t) async {
+    _selected.remove(t);
     await _repo.deleteTag(t.id);
     await editedTag();
   }
