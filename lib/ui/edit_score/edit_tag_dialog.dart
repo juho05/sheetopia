@@ -12,9 +12,8 @@ class EditTagDialog extends StatefulWidget {
 
   static Future<Tag?> showCreate(BuildContext context, [String? name]) async {
     final viewModel = EditTagViewModel(repo: context.read(), initialName: name);
-    return await showAdaptiveDialog<Tag>(
+    return await showDialog<Tag>(
       context: context,
-      barrierDismissible: true,
       builder: (context) {
         return EditTagDialog(viewModel: viewModel);
       },
@@ -28,9 +27,8 @@ class EditTagDialog extends StatefulWidget {
       initialColor: tag.color,
       tagId: tag.id,
     );
-    return await showAdaptiveDialog<bool>(
+    return await showDialog<bool>(
           context: context,
-          barrierDismissible: true,
           builder: (context) {
             return EditTagDialog(viewModel: viewModel);
           },

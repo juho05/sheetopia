@@ -17,9 +17,8 @@ class FilterDialog extends StatelessWidget {
     BuildContext context, {
     required LibraryViewModel viewModel,
   }) async {
-    return await showAdaptiveDialog(
+    return await showDialog(
       context: context,
-      barrierDismissible: true,
       builder: (context) {
         return FilterDialog._(viewModel: viewModel);
       },

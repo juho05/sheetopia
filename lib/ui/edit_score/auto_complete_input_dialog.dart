@@ -21,7 +21,7 @@ class AutoCompleteInputDialog extends StatefulWidget {
     required String submitBtnText,
     required Future<Iterable<String>> Function(String filter) getOptions,
   }) async {
-    return showAdaptiveDialog<String>(
+    return showDialog<String>(
       context: context,
       builder: (context) => AutoCompleteInputDialog(
         title: title,
@@ -29,7 +29,6 @@ class AutoCompleteInputDialog extends StatefulWidget {
         getOptions: getOptions,
         submitBtnText: submitBtnText,
       ),
-      barrierDismissible: true,
     );
   }
 

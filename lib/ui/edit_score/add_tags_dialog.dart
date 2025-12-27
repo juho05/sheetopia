@@ -35,7 +35,7 @@ class AddTagsDialog extends StatelessWidget {
       scoreTags: alreadySelected,
       repo: context.read(),
     );
-    return showAdaptiveDialog<List<Tag>>(
+    return showDialog<List<Tag>>(
       context: context,
       builder: (context) => AddTagsDialog._(
         viewModel: viewModel,
@@ -44,7 +44,6 @@ class AddTagsDialog extends StatelessWidget {
         title: title,
         addBtnText: addBtnText,
       ),
-      barrierDismissible: true,
     );
   }
 
