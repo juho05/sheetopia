@@ -11,17 +11,25 @@ import 'package:sheetopia/ui/edit_score/edit_tag_dialog.dart';
 class AddTagsDialog extends StatelessWidget {
   final AddTagsViewModel viewModel;
   final void Function()? reloadTagsCallback;
+  final String title;
+  final String addBtnText;
+  final bool enableTagEdits;
 
-  const AddTagsDialog({
-    super.key,
+  const AddTagsDialog._({
     required this.viewModel,
+    required this.enableTagEdits,
+    this.title = "Add tags",
+    this.addBtnText = "Add",
     this.reloadTagsCallback,
   });
 
   static Future<List<Tag>?> show(
     BuildContext context, {
+    required bool enableTagEdits,
     Set<Tag> alreadySelected = const {},
     void Function()? reloadTags,
+    String title = "Add tags",
+    String addBtnText = "Add",
   }) async {
     final viewModel = AddTagsViewModel(
       scoreTags: alreadySelected,
@@ -29,8 +37,13 @@ class AddTagsDialog extends StatelessWidget {
     );
     return showAdaptiveDialog<List<Tag>>(
       context: context,
-      builder: (context) =>
-          AddTagsDialog(viewModel: viewModel, reloadTagsCallback: reloadTags),
+      builder: (context) => AddTagsDialog._(
+        viewModel: viewModel,
+        reloadTagsCallback: reloadTags,
+        enableTagEdits: enableTagEdits,
+        title: title,
+        addBtnText: addBtnText,
+      ),
       barrierDismissible: true,
     );
   }
@@ -44,8 +57,10 @@ class AddTagsDialog extends StatelessWidget {
       child: ListenableBuilder(
         listenable: viewModel,
         builder: (context, child) {
+          final showCreate =
+              enableTagEdits && viewModel.currentFilter.isNotEmpty;
           return PopScope(
-            canPop: !viewModel.manageTagsMode,
+            canPop: !viewModel.manageTagsMode || !enableTagEdits,
             onPopInvokedWithResult: (didPop, result) {
               if (!didPop && viewModel.manageTagsMode) {
                 viewModel.exitManageTagsMode();
@@ -63,7 +78,7 @@ class AddTagsDialog extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 64),
                         child: Text(
-                          viewModel.manageTagsMode ? "Manage tags" : "Add tags",
+                          viewModel.manageTagsMode ? "Manage tags" : title,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.headlineSmall,
                         ),
@@ -76,7 +91,7 @@ class AddTagsDialog extends StatelessWidget {
                             icon: const Icon(Icons.arrow_back),
                           ),
                         ),
-                      if (!viewModel.manageTagsMode)
+                      if (!viewModel.manageTagsMode && enableTagEdits)
                         Align(
                           alignment: AlignmentGeometry.topRight,
                           child: IconButton(
@@ -87,7 +102,7 @@ class AddTagsDialog extends StatelessWidget {
                     ],
                   ),
                   SearchInput(
-                    label: "Search or create",
+                    label: enableTagEdits ? "Search or create" : "Search",
                     debounce: const Duration(milliseconds: 50),
                     onSearch: (query) {
                       viewModel.filter(query);
@@ -99,14 +114,11 @@ class AddTagsDialog extends StatelessWidget {
                         maxHeight:
                             max(
                               1,
-                              ((viewModel.currentFilter.isNotEmpty ? 1 : 0) +
-                                  viewModel.results.length),
+                              ((showCreate ? 1 : 0) + viewModel.results.length),
                             ) *
                             _TagListItem.verticalExtent,
                       ),
-                      child:
-                          viewModel.currentFilter.isNotEmpty ||
-                              viewModel.results.isNotEmpty
+                      child: showCreate || viewModel.results.isNotEmpty
                           ? Material(
                               type: MaterialType.transparency,
                               child: ListView.builder(
@@ -114,12 +126,9 @@ class AddTagsDialog extends StatelessWidget {
                                 padding: EdgeInsets.zero,
                                 itemCount:
                                     viewModel.results.length +
-                                    (viewModel.currentFilter.isNotEmpty
-                                        ? 1
-                                        : 0),
+                                    (showCreate ? 1 : 0),
                                 itemBuilder: (context, index) {
-                                  if (index == 0 &&
-                                      viewModel.currentFilter.isNotEmpty) {
+                                  if (index == 0 && showCreate) {
                                     final filter = viewModel.currentFilter;
                                     return Padding(
                                       padding: const EdgeInsets.only(bottom: 8),
@@ -170,7 +179,7 @@ class AddTagsDialog extends StatelessWidget {
                                       ),
                                     );
                                   }
-                                  if (viewModel.currentFilter.isNotEmpty) {
+                                  if (showCreate) {
                                     index--;
                                   }
                                   final t = viewModel.results[index];
@@ -203,9 +212,11 @@ class AddTagsDialog extends StatelessWidget {
                                 },
                               ),
                             )
-                          : const Center(
+                          : Center(
                               child: Text(
-                                "Use the search bar to create a new tag.",
+                                enableTagEdits
+                                    ? "Use the search bar to create a new tag."
+                                    : "No tags found.",
                                 textAlign: TextAlign.center,
                               ),
                             ),
@@ -232,7 +243,7 @@ class AddTagsDialog extends StatelessWidget {
                                 viewModel.selected.toList(),
                               );
                             },
-                            child: const Text("Add"),
+                            child: Text(addBtnText),
                           ),
                       ],
                     ),

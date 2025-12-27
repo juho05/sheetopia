@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/ui/common/search_input.dart';
+import 'package:sheetopia/ui/home/filter_dialog.dart';
 import 'package:sheetopia/ui/home/library_viewmodel.dart';
 import 'package:sheetopia/ui/home/score_grid_cell.dart';
 import 'package:sheetopia/ui/home/sliver_score_grid.dart';
@@ -114,17 +115,84 @@ class _LibraryViewState extends State<LibraryView> {
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 12, right: 12, bottom: 12),
-                child: SearchInput(
-                  label: "Search",
-                  debounce: const Duration(milliseconds: 250),
-                  onSearch: (query) {
-                    _viewModel.filter = query;
-                  },
-                ),
-              ),
+            SliverLayoutBuilder(
+              builder: (context, constraints) {
+                return SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(
+                      left: 12,
+                      right: 12,
+                      bottom: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: SearchInput(
+                            label: "Search",
+                            debounce: null,
+                            onSearch: (query) {
+                              _viewModel.filterSearch = query;
+                            },
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: ListenableBuilder(
+                            listenable: _viewModel,
+                            builder: (context, _) {
+                              final filterActive =
+                                  _viewModel.filterComposer.isNotEmpty ||
+                                  _viewModel.filterInstruments.isNotEmpty ||
+                                  _viewModel.filterGenres.isNotEmpty ||
+                                  _viewModel.filterTags.isNotEmpty;
+                              final icon = filterActive
+                                  ? const Icon(Icons.filter_alt)
+                                  : const Icon(Icons.filter_alt_outlined);
+                              return Builder(
+                                builder: (context) {
+                                  if (constraints.crossAxisExtent < 500) {
+                                    return IconButton(
+                                      icon: icon,
+                                      onPressed: () {
+                                        FilterDialog.show(
+                                          context,
+                                          viewModel: _viewModel,
+                                        );
+                                      },
+                                    );
+                                  }
+                                  if (filterActive) {
+                                    return FilledButton.icon(
+                                      icon: icon,
+                                      label: const Text("Filter"),
+                                      onPressed: () {
+                                        FilterDialog.show(
+                                          context,
+                                          viewModel: _viewModel,
+                                        );
+                                      },
+                                    );
+                                  }
+                                  return OutlinedButton.icon(
+                                    icon: icon,
+                                    label: const Text("Filter"),
+                                    onPressed: () {
+                                      FilterDialog.show(
+                                        context,
+                                        viewModel: _viewModel,
+                                      );
+                                    },
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
             ListenableBuilder(
               listenable: _viewModel,

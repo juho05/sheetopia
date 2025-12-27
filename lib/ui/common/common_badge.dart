@@ -5,6 +5,7 @@ import 'optional_tooltip.dart';
 class CommonBadge extends StatelessWidget {
   final String name;
   final Color? color;
+  final bool onDialog;
   final void Function()? onTap;
   final void Function()? onRemove;
 
@@ -12,6 +13,7 @@ class CommonBadge extends StatelessWidget {
     super.key,
     required this.name,
     this.color,
+    this.onDialog = false,
     this.onTap,
     this.onRemove,
   });
@@ -41,7 +43,11 @@ class CommonBadge extends StatelessWidget {
     }
     widget = Material(
       borderRadius: BorderRadius.circular(12),
-      color: color ?? theme.colorScheme.surfaceContainerHigh,
+      color:
+          color ??
+          (onDialog
+              ? theme.colorScheme.surfaceContainer
+              : theme.colorScheme.surfaceContainerHigh),
       child: widget,
     );
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 class AutoCompleteInputDialog extends StatefulWidget {
   final String title;
   final String inputLabel;
+  final String submitBtnText;
   final Future<Iterable<String>> Function(String filter) getOptions;
 
   const AutoCompleteInputDialog({
@@ -10,12 +11,14 @@ class AutoCompleteInputDialog extends StatefulWidget {
     required this.title,
     required this.inputLabel,
     required this.getOptions,
+    required this.submitBtnText,
   });
 
   static Future<String?> show(
     BuildContext context, {
     required String title,
     required String inputLabel,
+    required String submitBtnText,
     required Future<Iterable<String>> Function(String filter) getOptions,
   }) async {
     return showAdaptiveDialog<String>(
@@ -24,6 +27,7 @@ class AutoCompleteInputDialog extends StatefulWidget {
         title: title,
         inputLabel: inputLabel,
         getOptions: getOptions,
+        submitBtnText: submitBtnText,
       ),
       barrierDismissible: true,
     );
@@ -125,7 +129,7 @@ class _AutoCompleteInputDialogState extends State<AutoCompleteInputDialog> {
                           Navigator.pop(context, _controller.text);
                         }
                       : null,
-                  child: const Text("Add"),
+                  child: Text(widget.submitBtnText),
                 ),
               ],
             ),

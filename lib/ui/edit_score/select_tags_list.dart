@@ -2,11 +2,11 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:sheetopia/ui/common/optional_tooltip.dart';
 
-class EditTagList extends StatelessWidget {
+class SelectTagsList extends StatelessWidget {
   final Iterable<Widget> tags;
   final void Function() onAdd;
 
-  const EditTagList({super.key, required this.tags, required this.onAdd});
+  const SelectTagsList({super.key, required this.tags, required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -14,21 +14,21 @@ class EditTagList extends StatelessWidget {
       alignment: WrapAlignment.start,
       spacing: 4,
       runSpacing: 4,
-      children: tags.followedBy([AddBadge(onTap: onAdd)]).toList(),
+      children: tags.followedBy([_AddBadge(onTap: onAdd)]).toList(),
     );
   }
 }
 
-class AddBadge extends StatelessWidget {
+class _AddBadge extends StatelessWidget {
   final void Function()? onTap;
 
-  const AddBadge({super.key, this.onTap});
+  const _AddBadge({this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     Widget widget = Padding(
-      padding: const EdgeInsets.only(left: 8, right: 12, top: 3, bottom: 3),
+      padding: const EdgeInsets.only(left: 6, right: 10, top: 1, bottom: 1),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -60,15 +60,11 @@ class AddBadge extends StatelessWidget {
         strokeWidth: 2,
         color: theme.colorScheme.onSurface.withAlpha(160),
       ),
-      child: Material(
-        borderRadius: BorderRadius.circular(12),
-        color: null,
-        child: widget,
-      ),
+      child: widget,
     );
 
     return Padding(
-      padding: const EdgeInsets.only(left: 5, top: 5),
+      padding: const EdgeInsets.only(left: 5, top: 7),
       child: OptionalTooltip(message: "Add", child: widget),
     );
   }

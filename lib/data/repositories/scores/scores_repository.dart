@@ -41,6 +41,11 @@ class ScoresRepository {
   );
   Stream<Set<String>> get updatedScoreIds => _updatedScoreIds.stream;
 
+  final BehaviorSubject<Set<String>> _updatedTagIds = BehaviorSubject.seeded(
+    {},
+  );
+  Stream<Set<String>> get updatedTagIds => _updatedTagIds.stream;
+
   ScoresRepository({
     required Database db,
     required ThumbnailService thumbnailService,
@@ -95,10 +100,52 @@ class ScoresRepository {
     required int size,
     int offset = 0,
     String filter = "",
+    String composer = "",
+    Iterable<String> instruments = const [],
+    Iterable<String> genres = const [],
+    Iterable<String> tagIds = const [],
   }) async {
     final searchFields = _generateSearchFields(filter);
 
+    final tagsSubQ = _db.selectOnly(_db.scoreTagsTable).join([]);
+    tagsSubQ.addColumns([_db.scoreTagsTable.score]);
+    tagsSubQ.where(_db.scoreTagsTable.tag.isIn(tagIds));
+    tagsSubQ.groupBy(
+      [_db.scoreTagsTable.score],
+      having: _db.scoreTagsTable.tag
+          .count(distinct: true)
+          .equals(tagIds.length),
+    );
+    final assignedToTags = Subquery(tagsSubQ, 'assigned_to_tags');
+
+    final instrumentsSubQ = _db.selectOnly(_db.instrumentsTable).join([]);
+    instrumentsSubQ.addColumns([_db.instrumentsTable.score]);
+    instrumentsSubQ.where(_db.instrumentsTable.instrument.isIn(instruments));
+    instrumentsSubQ.groupBy(
+      [_db.instrumentsTable.score],
+      having: _db.instrumentsTable.instrument
+          .count(distinct: true)
+          .equals(instruments.length),
+    );
+    final hasInstruments = Subquery(instrumentsSubQ, 'has_instruments');
+
     final q = _db.select(_db.scoresTable).join([
+      if (tagIds.isNotEmpty)
+        innerJoin(
+          assignedToTags,
+          assignedToTags
+              .ref(_db.scoreTagsTable.score)
+              .equalsExp(_db.scoresTable.id),
+          useColumns: false,
+        ),
+      if (instruments.isNotEmpty)
+        innerJoin(
+          hasInstruments,
+          hasInstruments
+              .ref(_db.instrumentsTable.score)
+              .equalsExp(_db.scoresTable.id),
+          useColumns: false,
+        ),
       leftOuterJoin(
         _db.genresTable,
         _db.genresTable.score.equalsExp(_db.scoresTable.id),
@@ -107,11 +154,21 @@ class ScoresRepository {
         _db.instrumentsTable,
         _db.instrumentsTable.score.equalsExp(_db.scoresTable.id),
       ),
+      leftOuterJoin(
+        _db.scoreTagsTable,
+        _db.scoreTagsTable.score.equalsExp(_db.scoresTable.id),
+      ),
     ]);
     if (searchFields.isNotEmpty) {
       for (final s in searchFields) {
         q.where(_db.scoresTable.searchText.contains(s));
       }
+    }
+    if (genres.isNotEmpty) {
+      q.where(_db.genresTable.genre.isIn(genres));
+    }
+    if (composer.isNotEmpty) {
+      q.where(_db.scoresTable.composer.equals(composer));
     }
     q.orderBy([
       ...searchFields
@@ -259,6 +316,7 @@ class ScoresRepository {
         updatedAt: Value(DateTime.now()),
       ),
     );
+    _updatedTagIds.add({tag.id});
     return Tag(
       id: tag.id,
       name: tag.name,
@@ -297,6 +355,24 @@ class ScoresRepository {
         .toList();
   }
 
+  Future<List<Tag>> getTagsById(Iterable<String> tagIds) async {
+    if (tagIds.isEmpty) return [];
+    final q = _db.select(_db.tagsTable);
+    q.where((tbl) => tbl.id.isIn(tagIds));
+    q.orderBy([(t) => OrderingTerm.asc(t.name)]);
+    final rows = await q.get();
+    return rows
+        .map(
+          (t) => Tag(
+            id: t.id,
+            name: t.name,
+            updatedAt: t.updatedAt,
+            color: Color(t.color),
+          ),
+        )
+        .toList();
+  }
+
   Future<void> updateTag(
     String tagId, {
     required String name,
@@ -316,6 +392,7 @@ class ScoresRepository {
         .map((s) => s.score)
         .get();
     _updatedScoreIds.add(affectedScores.toSet());
+    _updatedTagIds.add({tagId});
   }
 
   Future<void> deleteTag(String tagId) async {
@@ -325,6 +402,7 @@ class ScoresRepository {
         .get();
     await _db.managers.tagsTable.filter((f) => f.id(tagId)).delete();
     _updatedScoreIds.add(affectedScores.toSet());
+    _updatedTagIds.add({tagId});
   }
 
   Future<void> addScoreInstruments(
@@ -573,7 +651,7 @@ class ScoresRepository {
         .filter((f) => f.id(scoreId))
         .getSingle();
     await _db.managers.scoresTable.filter((f) => f.id(scoreId)).delete();
-    _updatedScoreIds.add(const {});
+    _updatedScoreIds.add({scoreId});
     try {
       (await _scoreFile(scoreId, score.fileType)).delete();
     } catch (_) {}
