@@ -46,8 +46,8 @@ class _EditScoreFormState extends State<EditScoreForm> {
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
                     child: Autocomplete(
-                      optionsBuilder: (textEditingValue) =>
-                          viewModel.getComposers(filter: textEditingValue.text),
+                      optionsBuilder: (textEditingValue) => viewModel
+                          .getComposers(filter: textEditingValue.text.trim()),
                       onSelected: (option) =>
                           viewModel
                                   .form

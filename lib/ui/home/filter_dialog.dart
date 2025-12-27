@@ -57,7 +57,7 @@ class FilterDialog extends StatelessWidget {
                       optionsBuilder: (textEditingValue) => _viewModel
                           .getComposers(filter: textEditingValue.text),
                       onSelected: (option) =>
-                          _viewModel.filterComposer = option,
+                          _viewModel.filterComposer = option.trim(),
                       initialValue: TextEditingValue(
                         text: _viewModel.filterComposer,
                       ),
@@ -71,7 +71,7 @@ class FilterDialog extends StatelessWidget {
                             onTapOutside: (event) => focusNode.unfocus(),
                             controller: textEditingController,
                             onChanged: (value) =>
-                                _viewModel.filterComposer = value,
+                                _viewModel.filterComposer = value.trim(),
                             focusNode: focusNode,
                             onSubmitted: (control) {
                               onFieldSubmitted();

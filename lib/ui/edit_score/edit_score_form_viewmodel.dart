@@ -149,8 +149,8 @@ class EditScoreFormViewModel extends ChangeNotifier {
       _valuesDebounceDuration,
       () => _repo.updateScore(
         _score.id,
-        title: values[formTitle],
-        composer: values[formComposer] ?? "",
+        title: values[formTitle].trim(),
+        composer: (values[formComposer] ?? "").trim(),
       ),
     );
   }

@@ -58,7 +58,7 @@ class _AutoCompleteInputDialogState extends State<AutoCompleteInputDialog> {
   }
 
   void _onTextChanged() {
-    bool newValid = _controller.text.isNotEmpty;
+    bool newValid = _controller.text.trim().isNotEmpty;
     if (newValid != _valid) {
       setState(() {
         _valid = newValid;
@@ -99,7 +99,7 @@ class _AutoCompleteInputDialogState extends State<AutoCompleteInputDialog> {
                       focusNode: focusNode,
                       onSubmitted: (value) {
                         onFieldSubmitted();
-                        value = textEditingController.value.text;
+                        value = textEditingController.value.text.trim();
                         if (value.isEmpty) return;
                         Navigator.pop(context, value);
                       },
@@ -111,7 +111,7 @@ class _AutoCompleteInputDialogState extends State<AutoCompleteInputDialog> {
                     );
                   },
               optionsBuilder: (textEditingValue) =>
-                  widget.getOptions(textEditingValue.text),
+                  widget.getOptions(textEditingValue.text.trim()),
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -126,7 +126,7 @@ class _AutoCompleteInputDialogState extends State<AutoCompleteInputDialog> {
                 FilledButton(
                   onPressed: _valid
                       ? () {
-                          Navigator.pop(context, _controller.text);
+                          Navigator.pop(context, _controller.text.trim());
                         }
                       : null,
                   child: Text(widget.submitBtnText),

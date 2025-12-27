@@ -122,7 +122,7 @@ class _LibraryViewState extends State<LibraryView> {
                     padding: const EdgeInsets.only(
                       left: 12,
                       right: 12,
-                      bottom: 12,
+                      bottom: 16,
                     ),
                     child: Row(
                       children: [
