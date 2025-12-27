@@ -120,12 +120,18 @@ class ScoresRepository {
 
     final instrumentsSubQ = _db.selectOnly(_db.instrumentsTable).join([]);
     instrumentsSubQ.addColumns([_db.instrumentsTable.score]);
-    instrumentsSubQ.where(_db.instrumentsTable.instrument.isIn(instruments));
     instrumentsSubQ.groupBy(
       [_db.instrumentsTable.score],
-      having: _db.instrumentsTable.instrument
-          .count(distinct: true)
-          .equals(instruments.length),
+      having:
+          _db.instrumentsTable.instrument
+              .count(
+                distinct: true,
+                filter: _db.instrumentsTable.instrument.isIn(instruments),
+              )
+              .equals(instruments.length) &
+          _db.instrumentsTable.instrument
+              .count(distinct: true)
+              .equals(instruments.length),
     );
     final hasInstruments = Subquery(instrumentsSubQ, 'has_instruments');
 
