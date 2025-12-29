@@ -8,13 +8,15 @@ import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/sync_connection.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
 
+enum SyncState { none, failure, syncing, success }
+
 class SyncRepository {
   final ScoresRepository _scoresRepo;
   final KeyValueRepository _keyValue;
   final Database _db;
   final SyncService _service;
 
-  final ValueNotifier<bool> syncing = ValueNotifier(false);
+  final ValueNotifier<SyncState> state = ValueNotifier(SyncState.none);
 
   static const String _lastSyncKey = "last_sync";
   DateTime? _lastSync;
@@ -43,8 +45,8 @@ class SyncRepository {
 
   // TODO implement proper scheduling
   Future<void> _sync() async {
-    if (syncing.value) return;
-    syncing.value = true;
+    if (state.value == SyncState.syncing) return;
+    state.value = SyncState.syncing;
 
     try {
       if (_lastSync == null) {
@@ -70,17 +72,20 @@ class SyncRepository {
       await _downloadFileChanges();
 
       await _updateLastSync(syncTime);
+
+      state.value = SyncState.success;
     } on UnauthenticatedException catch (_) {
       // TODO logout
       print("Unauthenticated!");
+      state.value = SyncState.none;
     } catch (e, st) {
       print("Sync failed: $e\n$st");
+      state.value = SyncState.failure;
     } finally {
       _scoresRepo.changedTags(_changedTags);
       _scoresRepo.changedScores(_changedScores);
       _changedTags = {};
       _changedScores = {};
-      syncing.value = false;
     }
   }
 

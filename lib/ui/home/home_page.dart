@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/home/home_viewmodel.dart';
 import 'package:sheetopia/ui/home/library_view.dart';
+import 'package:sheetopia/ui/home/sync_icon.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -22,7 +23,15 @@ class HomePage extends StatelessWidget {
       builder: (context, _) {
         final viewModel = context.read<HomeViewModel>();
         return Scaffold(
-          appBar: AppBar(title: const Text("Library")),
+          appBar: AppBar(
+            title: const Text("Library"),
+            actions: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: SyncIcon(),
+              ),
+            ],
+          ),
           body: SafeArea(
             child: LibraryView(
               onScrollUp: () => viewModel.importButtonVisible = true,

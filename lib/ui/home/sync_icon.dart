@@ -1,0 +1,45 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
+
+class SyncIcon extends StatelessWidget {
+  const SyncIcon({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final syncRepository = context.read<SyncRepository>();
+    final theme = Theme.of(context);
+    return IconButton(
+      onPressed: () {
+        context.go("/sync");
+      },
+      icon: SizedBox.square(
+        dimension: 24,
+        child: ValueListenableBuilder(
+          valueListenable: syncRepository.state,
+          builder: (context, state, _) {
+            return switch (state) {
+              SyncState.none => const Icon(Icons.cloud_off_outlined),
+              SyncState.failure => const Icon(Icons.wifi_off),
+              SyncState.success => const Icon(Icons.cloud_done),
+              SyncState.syncing => Stack(
+                children: [
+                  const Icon(Icons.cloud),
+                  Padding(
+                    padding: const EdgeInsetsGeometry.all(8),
+                    child: CircularProgressIndicator(
+                      color: theme.colorScheme.surface,
+                      strokeCap: StrokeCap.round,
+                      strokeWidth: 2,
+                    ),
+                  ),
+                ],
+              ),
+            };
+          },
+        ),
+      ),
+    );
+  }
+}
