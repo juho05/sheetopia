@@ -36,15 +36,21 @@ class ScoresRepository {
     XTypeGroup(label: "PDF", extensions: <String>["pdf"]),
   ];
 
-  final BehaviorSubject<Set<String>> _updatedScoreIds = BehaviorSubject.seeded(
-    {},
-  );
-  Stream<Set<String>> get updatedScoreIds => _updatedScoreIds.stream;
+  final BehaviorSubject<({Set<String> changed, bool remoteTriggered})>
+  _updatedScoreIds = BehaviorSubject();
+  Stream<Set<String>> get updatedScoreIds =>
+      _updatedScoreIds.stream.map((event) => event.changed);
+  Stream<Set<String>> get locallyUpdatedScoreIds => _updatedScoreIds.stream
+      .where((event) => !event.remoteTriggered)
+      .map((event) => event.changed);
 
-  final BehaviorSubject<Set<String>> _updatedTagIds = BehaviorSubject.seeded(
-    {},
-  );
-  Stream<Set<String>> get updatedTagIds => _updatedTagIds.stream;
+  final BehaviorSubject<({Set<String> changed, bool remoteTriggered})>
+  _updatedTagIds = BehaviorSubject();
+  Stream<Set<String>> get updatedTagIds =>
+      _updatedTagIds.stream.map((event) => event.changed);
+  Stream<Set<String>> get locallyUpdatedTagIds => _updatedTagIds.stream
+      .where((event) => !event.remoteTriggered)
+      .map((event) => event.changed);
 
   ScoresRepository({
     required Database db,
@@ -309,7 +315,7 @@ class ScoresRepository {
             metadataUploaded: const Value(false),
           ),
         );
-    _updatedScoreIds.add({scoreId});
+    _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
   Future<Tag> createTag({required String name, required Color color}) async {
@@ -321,7 +327,7 @@ class ScoresRepository {
         updatedAt: Value(DateTime.now().toUtc()),
       ),
     );
-    _updatedTagIds.add({tag.id});
+    _updatedTagIds.add((changed: {tag.id}, remoteTriggered: false));
     return Tag(
       id: tag.id,
       name: tag.name,
@@ -397,8 +403,11 @@ class ScoresRepository {
         .filter((f) => f.tag.id(tagId))
         .map((s) => s.score)
         .get();
-    _updatedScoreIds.add(affectedScores.toSet());
-    _updatedTagIds.add({tagId});
+    _updatedScoreIds.add((
+      changed: affectedScores.toSet(),
+      remoteTriggered: false,
+    ));
+    _updatedTagIds.add((changed: {tagId}, remoteTriggered: false));
   }
 
   Future<void> deleteTag(String tagId) async {
@@ -411,8 +420,11 @@ class ScoresRepository {
       await _db.managers.deletedTagsTable.create(
         (o) => o(tagId: tagId, deletedAt: Value(DateTime.now().toUtc())),
       );
-      _updatedScoreIds.add(affectedScores.toSet());
-      _updatedTagIds.add({tagId});
+      _updatedScoreIds.add((
+        changed: affectedScores.toSet(),
+        remoteTriggered: false,
+      ));
+      _updatedTagIds.add((changed: {tagId}, remoteTriggered: false));
     });
   }
 
@@ -434,7 +446,7 @@ class ScoresRepository {
             ),
           );
     });
-    _updatedScoreIds.add({scoreId});
+    _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
   Future<void> removeScoreInstrument(String scoreId, String instrument) async {
@@ -451,7 +463,7 @@ class ScoresRepository {
             ),
           );
     });
-    _updatedScoreIds.add({scoreId});
+    _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
   Future<void> addScoreGenre(String scoreId, Iterable<String> genres) async {
@@ -469,7 +481,7 @@ class ScoresRepository {
             ),
           );
     });
-    _updatedScoreIds.add({scoreId});
+    _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
   Future<void> removeScoreGenre(String scoreId, String genre) async {
@@ -486,7 +498,7 @@ class ScoresRepository {
             ),
           );
     });
-    _updatedScoreIds.add({scoreId});
+    _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
   Future<void> addScoreTags(String scoreId, Iterable<String> tagIds) async {
@@ -504,7 +516,7 @@ class ScoresRepository {
             ),
           );
     });
-    _updatedScoreIds.add({scoreId});
+    _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
   Future<void> removeScoreTag(String scoreId, String tagId) async {
@@ -521,7 +533,7 @@ class ScoresRepository {
             ),
           );
     });
-    _updatedScoreIds.add({scoreId});
+    _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
   Future<List<Score>> importAll(Iterable<String> paths) async {
@@ -580,7 +592,10 @@ class ScoresRepository {
     }
 
     _freshImports = List.of(scores.map((s) => s.id));
-    _updatedScoreIds.add(scores.map((s) => s.id).toSet());
+    _updatedScoreIds.add((
+      changed: scores.map((s) => s.id).toSet(),
+      remoteTriggered: false,
+    ));
     return scores;
   }
 
@@ -613,7 +628,7 @@ class ScoresRepository {
             fileUploaded: const Value(false),
           ),
         );
-    _updatedScoreIds.add({scoreId});
+    _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
   Future<List<String>> getInstruments({
@@ -695,7 +710,7 @@ class ScoresRepository {
       await _db.managers.deletedScoresTable.create(
         (o) => o(scoreId: scoreId, deletedAt: Value(DateTime.now().toUtc())),
       );
-      _updatedScoreIds.add({scoreId});
+      _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
       try {
         (await scoreFile(scoreId, score.fileType)).delete();
       } catch (_) {}
@@ -703,14 +718,14 @@ class ScoresRepository {
     await _thumbnailService.invalidateThumbnails([scoreId]);
   }
 
-  void changedTags(Set<String> tagIds) {
+  void remoteChangedTags(Set<String> tagIds) {
     if (tagIds.isEmpty) return;
-    _updatedTagIds.add(tagIds);
+    _updatedTagIds.add((changed: tagIds, remoteTriggered: true));
   }
 
-  void changedScores(Set<String> scoreIds) {
+  void remoteChangedScores(Set<String> scoreIds) {
     if (scoreIds.isEmpty) return;
-    _updatedScoreIds.add(scoreIds);
+    _updatedScoreIds.add((changed: scoreIds, remoteTriggered: true));
   }
 
   Directory? _cachedScoresDir;

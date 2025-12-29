@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -14,6 +15,8 @@ import 'package:sheetopia/data/services/thumbnail_service.dart';
 enum SyncState { none, failure, syncing, success }
 
 class SyncRepository {
+  static const _defaultSyncDelay = Duration(seconds: 30);
+
   final ScoresRepository _scoresRepo;
   final KeyValueRepository _keyValue;
   final Database _db;
@@ -44,19 +47,56 @@ class SyncRepository {
        _db = db,
        _service = syncService,
        _thumbnailService = thumbnailService {
+    _load().then((value) {
+      _scoresRepo.locallyUpdatedScoreIds.listen((event) => _requestSync());
+      _scoresRepo.locallyUpdatedTagIds.listen((event) => _requestSync());
+    });
+  }
+
+  Future<void> login({required String user, required String password}) async {
+    // TODO
+
     _sync();
   }
 
-  // TODO sync local updates quickly without full sync
+  Future<void> logout() async {
+    // TODO delete auth state
+
+    _syncTimer?.cancel();
+    _syncTimer = null;
+    _nextSyncDelay = _defaultSyncDelay;
+    state.value = SyncState.none;
+  }
+
+  Future<void> _load() async {
+    // TODO load auth state
+    _sync();
+  }
+
+  void _requestSync() {
+    // TODO ignore if not logged in
+    _nextSyncDelay = const Duration(seconds: 5);
+    if (state.value != SyncState.syncing) {
+      _scheduleSync();
+    }
+  }
+
+  Duration _nextSyncDelay = _defaultSyncDelay;
+  Timer? _syncTimer;
+
+  void _scheduleSync() {
+    _syncTimer?.cancel();
+    _syncTimer = Timer(_nextSyncDelay, () {
+      _syncTimer = null;
+      _nextSyncDelay = _defaultSyncDelay;
+      _sync();
+    });
+  }
 
   // TODO implement proper scheduling
-  Future<void> _sync({bool fullSync = false}) async {
-    if (state.value == SyncState.syncing) return;
+  Future<bool> _sync() async {
+    if (state.value == SyncState.syncing) return false;
     state.value = SyncState.syncing;
-
-    if (fullSync) {
-      await _updateLastSync(null);
-    }
 
     try {
       if (_lastSync == null) {
@@ -85,18 +125,18 @@ class SyncRepository {
 
       state.value = SyncState.success;
     } on UnauthenticatedException catch (_) {
-      // TODO logout
-      print("Unauthenticated!");
-      state.value = SyncState.none;
+      await logout();
     } catch (e, st) {
       print("Sync failed: $e\n$st");
       state.value = SyncState.failure;
     } finally {
-      _scoresRepo.changedTags(_changedTags);
-      _scoresRepo.changedScores(_changedScores);
+      _scoresRepo.remoteChangedTags(_changedTags);
+      _scoresRepo.remoteChangedScores(_changedScores);
       _changedTags = {};
       _changedScores = {};
+      _scheduleSync();
     }
+    return true;
   }
 
   Future<void> _uploadDeletedTags() async {
