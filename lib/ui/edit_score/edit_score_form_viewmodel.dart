@@ -115,6 +115,7 @@ class EditScoreFormViewModel extends ChangeNotifier {
   }
 
   Future<void> _onScoreChanged() async {
+    if (_editScoreViewModel.score == null) return;
     if (_editScoreViewModel.score!.id == _score.id) {
       _score = _editScoreViewModel.score!;
       // tags need to be updated because they might have been edited outside of

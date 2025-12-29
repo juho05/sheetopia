@@ -9,14 +9,14 @@ part of 'score_metadata.dart';
 ScoreMetadataModel _$ScoreMetadataModelFromJson(Map<String, dynamic> json) =>
     $checkedCreate('ScoreMetadataModel', json, ($checkedConvert) {
       final val = ScoreMetadataModel(
-        composer: $checkedConvert('composer', (v) => v as String),
+        composer: $checkedConvert('composer', (v) => v as String?),
         instruments: $checkedConvert(
           'instruments',
-          (v) => (v as List<dynamic>).map((e) => e as String).toList(),
+          (v) => (v as List<dynamic>?)?.map((e) => e as String).toList(),
         ),
         genres: $checkedConvert(
           'genres',
-          (v) => (v as List<dynamic>).map((e) => e as String).toList(),
+          (v) => (v as List<dynamic>?)?.map((e) => e as String).toList(),
         ),
       );
       return val;

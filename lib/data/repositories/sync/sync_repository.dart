@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
@@ -7,6 +9,7 @@ import 'package:sheetopia/data/services/sync/exceptions.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/sync_connection.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
+import 'package:sheetopia/data/services/thumbnail_service.dart';
 
 enum SyncState { none, failure, syncing, success }
 
@@ -15,6 +18,7 @@ class SyncRepository {
   final KeyValueRepository _keyValue;
   final Database _db;
   final SyncService _service;
+  final ThumbnailService _thumbnailService;
 
   final ValueNotifier<SyncState> state = ValueNotifier(SyncState.none);
 
@@ -34,19 +38,25 @@ class SyncRepository {
     required KeyValueRepository keyValue,
     required Database db,
     required SyncService syncService,
+    required ThumbnailService thumbnailService,
   }) : _scoresRepo = scoresRepo,
        _keyValue = keyValue,
        _db = db,
-       _service = syncService {
+       _service = syncService,
+       _thumbnailService = thumbnailService {
     _sync();
   }
 
   // TODO sync local updates quickly without full sync
 
   // TODO implement proper scheduling
-  Future<void> _sync() async {
+  Future<void> _sync({bool fullSync = false}) async {
     if (state.value == SyncState.syncing) return;
     state.value = SyncState.syncing;
+
+    if (fullSync) {
+      await _updateLastSync(null);
+    }
 
     try {
       if (_lastSync == null) {
@@ -128,7 +138,26 @@ class SyncRepository {
   }
 
   Future<void> _downloadDeletedTags() async {
-    // TODO download all new deleted tags and delete them locally
+    final deletedTagIds = await _service.getDeletedTagIds(
+      _con,
+      since: _lastSync,
+    );
+    for (final t in deletedTagIds) {
+      await _db.transaction(() async {
+        final affectedScores = await _db.managers.scoreTagsTable
+            .filter((f) => f.tag.id(t))
+            .get();
+        _changedScores.addAll(affectedScores.map((s) => s.score));
+
+        await _db.managers.scoreTagsTable.filter((f) => f.tag.id(t)).delete();
+        final count = await _db.managers.tagsTable
+            .filter((f) => f.id(t))
+            .delete();
+        if (count > 0) {
+          _changedTags.add(t);
+        }
+      });
+    }
   }
 
   Future<void> _uploadTagChanges() async {
@@ -143,7 +172,7 @@ class SyncRepository {
           t.id,
           name: t.name,
           color: t.color,
-          updatedAt: t.updatedAt,
+          updatedAt: t.updatedAt.toUtc(),
         );
         await _db.managers.tagsTable
             .filter((f) => f.id(t.id) & f.updatedAt.equals(t.updatedAt))
@@ -155,11 +184,51 @@ class SyncRepository {
   }
 
   Future<void> _downloadTagChanges() async {
-    // TODO download all new updated tags and update them locally
+    final tags = await _service.getTags(_con, changedAfter: _lastSync);
+    for (final t in tags) {
+      final result = await _db.managers.tagsTable.createReturningOrNull(
+        (o) => o(
+          id: t.id,
+          name: t.name,
+          color: t.color,
+          updatedAt: Value(t.updatedAt.toUtc()),
+          uploaded: const Value(true),
+        ),
+        onConflict: DoUpdate.withExcluded(
+          (old, excluded) => TagsTableCompanion.custom(
+            name: excluded.name,
+            color: excluded.color,
+            uploaded: excluded.uploaded,
+            updatedAt: excluded.updatedAt,
+          ),
+          where: (old, excluded) =>
+              old.updatedAt.isSmallerThan(excluded.updatedAt),
+        ),
+      );
+      if (result != null) {
+        _changedTags.add(t.id);
+        final affectedScores = await _db.managers.scoreTagsTable
+            .filter((f) => f.tag.id(t.id))
+            .map((s) => s.score)
+            .get();
+        _changedScores.addAll(affectedScores);
+      }
+    }
   }
 
   Future<void> _downloadDeletedScores() async {
-    // TODO download all new deleted scores and delete them locally
+    final deletedScores = await _service.getDeletedScoreIds(
+      _con,
+      since: _lastSync,
+    );
+    for (final s in deletedScores) {
+      final count = await _db.managers.scoresTable
+          .filter((f) => f.id(s))
+          .delete();
+      if (count > 0) {
+        _changedScores.add(s);
+      }
+    }
   }
 
   Future<void> _uploadMetadataChanges() async {
@@ -180,7 +249,7 @@ class SyncRepository {
           _con,
           s.id,
           title: s.title,
-          metadataUpdatedAt: s.metadataUpdatedAt,
+          metadataUpdatedAt: s.metadataUpdatedAt.toUtc(),
           tagIds: (refs.scoreTagsTableRefs.prefetchedData ?? [])
               .map((t) => t.tag)
               .toList(),
@@ -217,7 +286,7 @@ class SyncRepository {
           _con,
           s.id,
           file: file,
-          updatedAt: s.fileUpdatedAt,
+          updatedAt: s.fileUpdatedAt.toUtc(),
           fileType: s.fileType,
         );
         await _db.managers.scoresTable
@@ -230,21 +299,163 @@ class SyncRepository {
   }
 
   Future<void> _downloadMetadataChanges() async {
-    // TODO download all new updated scores and update them locally, set downloaded to false if fileUpdatedAt changed
-    // REMEMBER received data: null fields -> ignore, zero value -> set to null
+    final scores = await _service.getScores(_con, changedAfter: _lastSync);
+
+    for (final s in scores) {
+      File? deleteFile;
+      await _db.transaction(() async {
+        final score = await _db.managers.scoresTable
+            .filter((f) => f.id(s.id))
+            .getSingleOrNull();
+
+        final metadataChanged =
+            score != null &&
+            score.metadataUpdatedAt.isBefore(s.metadataUpdatedAt);
+        final fileChanged =
+            score != null && score.fileUpdatedAt.isBefore(s.fileUpdatedAt);
+        if (score == null) {
+          await _db.managers.scoresTable.create(
+            (o) => o(
+              id: s.id,
+              searchText: ScoresRepository.generateSearchText([
+                s.title,
+                s.metadata.composer,
+              ]),
+              title: s.title,
+              composer: _optionalStringValue(s.metadata.composer),
+              metadataUploaded: const Value(true),
+              metadataUpdatedAt: Value(s.metadataUpdatedAt.toUtc()),
+              fileType: s.fileType,
+              fileUpdatedAt: Value(s.fileUpdatedAt.toUtc()),
+              fileDownloaded: false,
+              fileUploaded: const Value(true),
+            ),
+          );
+        } else if (metadataChanged || fileChanged) {
+          await _db.managers.scoresTable
+              .filter((f) => f.id(s.id))
+              .update(
+                (o) => o(
+                  title: metadataChanged
+                      ? Value(s.title)
+                      : const Value.absent(),
+                  metadataUpdatedAt: metadataChanged
+                      ? Value(s.metadataUpdatedAt.toUtc())
+                      : const Value.absent(),
+                  metadataUploaded: metadataChanged
+                      ? const Value(true)
+                      : const Value.absent(),
+                  composer: metadataChanged
+                      ? _optionalStringValue(s.metadata.composer)
+                      : const Value.absent(),
+                  searchText: metadataChanged
+                      ? Value(
+                          ScoresRepository.generateSearchText([
+                            s.title,
+                            s.metadata.composer,
+                          ]),
+                        )
+                      : const Value.absent(),
+                  fileUpdatedAt: fileChanged
+                      ? Value(s.fileUpdatedAt.toUtc())
+                      : const Value.absent(),
+                  fileUploaded: fileChanged
+                      ? const Value(true)
+                      : const Value.absent(),
+                  fileDownloaded: fileChanged
+                      ? const Value(false)
+                      : const Value.absent(),
+                  fileType: fileChanged
+                      ? Value(s.fileType)
+                      : const Value.absent(),
+                ),
+              );
+          if (fileChanged) {
+            deleteFile = await _scoresRepo.scoreFile(score.id, score.fileType);
+          }
+        }
+        if (metadataChanged) {
+          await _db.managers.scoreTagsTable
+              .filter((f) => f.score.id(s.id))
+              .delete();
+          if (s.metadata.instruments != null) {
+            await _db.managers.instrumentsTable
+                .filter((f) => f.score.id(s.id))
+                .delete();
+          }
+          if (s.metadata.genres != null) {
+            await _db.managers.genresTable
+                .filter((f) => f.score.id(s.id))
+                .delete();
+          }
+        }
+        if (score == null || metadataChanged) {
+          if (s.tagIds.isNotEmpty) {
+            await _db.managers.scoreTagsTable.bulkCreate(
+              (o) => s.tagIds.map((t) => o(score: s.id, tag: t)),
+            );
+          }
+          if ((s.metadata.instruments ?? []).isNotEmpty) {
+            await _db.managers.instrumentsTable.bulkCreate(
+              (o) => s.metadata.instruments!.map(
+                (i) => o(score: s.id, instrument: i),
+              ),
+            );
+          }
+          if ((s.metadata.genres ?? []).isNotEmpty) {
+            await _db.managers.genresTable.bulkCreate(
+              (o) => s.metadata.genres!.map((g) => o(score: s.id, genre: g)),
+            );
+          }
+        }
+      });
+
+      if (deleteFile != null) {
+        try {
+          await deleteFile!.delete();
+        } catch (_) {}
+      }
+      _changedScores.add(s.id);
+    }
   }
 
   Future<void> _downloadFileChanges() async {
-    // TODO delete all files of scores with downloaded == false
-    // TODO download files for scores with downloaded == false and set downloaded to true
+    final scores = await _db.managers.scoresTable
+        .filter((f) => f.fileDownloaded.isFalse())
+        .get();
+    for (final s in scores) {
+      final file = await _scoresRepo.scoreFile(s.id, s.fileType);
+      final partFile = File("${file.path}.part");
+      await _service.downloadScoreFile(
+        _con,
+        s.id,
+        fileType: s.fileType,
+        target: partFile,
+      );
+
+      await partFile.rename(file.path);
+
+      await _db.managers.scoresTable
+          .filter((f) => f.id(s.id))
+          .update((o) => o(fileDownloaded: const Value(true)));
+
+      await _thumbnailService.invalidateThumbnails([s.id]);
+      _changedScores.add(s.id);
+    }
   }
 
   Future<void> _loadLastSync() async {
     _lastSync = await _keyValue.loadDateTime(_lastSyncKey);
   }
 
-  Future<void> _updateLastSync(DateTime syncTime) async {
+  Future<void> _updateLastSync(DateTime? syncTime) async {
     _lastSync = syncTime;
     await _keyValue.store(_lastSyncKey, syncTime);
+  }
+
+  Value<String?> _optionalStringValue(String? str) {
+    if (str == null) return const Value.absent();
+    if (str == "") return const Value(null);
+    return Value(str);
   }
 }

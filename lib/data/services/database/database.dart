@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:sheetopia/data/services/database/database.steps.dart';
 import 'package:sheetopia/data/services/database/deleted_scores_table.dart';
 import 'package:sheetopia/data/services/database/deleted_tags_table.dart';
 import 'package:sheetopia/data/services/database/genres_table.dart';
@@ -33,23 +32,6 @@ class Database extends _$Database {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onUpgrade: stepByStep(
-      from1To2: (m, schema) async {
-        await m.createTable(schema.keyValue);
-      },
-      from2To3: (m, schema) async {
-        await m.createTable(schema.deletedScores);
-        await m.createTable(schema.deletedTags);
-        await m.renameColumn(
-          schema.scores,
-          "downloaded",
-          schema.scores.fileDownloaded,
-        );
-        await m.addColumn(schema.scores, schema.scores.metadataUploaded);
-        await m.addColumn(schema.scores, schema.scores.fileUploaded);
-        await m.addColumn(schema.tags, schema.tags.uploaded);
-      },
-    ),
     beforeOpen: (details) async {
       await customStatement("PRAGMA foreign_keys = ON");
       await customStatement("PRAGMA journal_mode = WAL");
@@ -58,12 +40,14 @@ class Database extends _$Database {
   );
 
   static QueryExecutor _openConnection() {
-    return driftDatabase(
+    var db = driftDatabase(
       name: 'sheetopia_database',
       native: const DriftNativeOptions(
         databaseDirectory: getApplicationSupportDirectory,
       ),
     );
+    // db = db.interceptWith(LogInterceptor());
+    return db;
   }
 
   static const Uuid uuid = Uuid();

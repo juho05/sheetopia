@@ -86,9 +86,8 @@ class ScoresRepository {
               .toList()
             ..sort(),
       tags: (await _getScoreTags(score.id)).toList(),
-      createdAt: score.createdAt,
-      metadataUpdatedAt: score.metadataUpdatedAt,
-      fileUpdatedAt: score.fileUpdatedAt,
+      metadataUpdatedAt: score.metadataUpdatedAt.toUtc(),
+      fileUpdatedAt: score.fileUpdatedAt.toUtc(),
       fileType: score.fileType,
       file: score.fileDownloaded
           ? await scoreFile(score.id, score.fileType)
@@ -187,7 +186,7 @@ class ScoresRepository {
               ),
             ),
           ),
-      OrderingTerm.desc(_db.scoresTable.createdAt),
+      OrderingTerm.desc(_db.scoresTable.metadataUpdatedAt),
       OrderingTerm.asc(_db.scoresTable.id),
     ]);
     q.limit(size, offset: offset);
@@ -238,9 +237,8 @@ class ScoresRepository {
           genres: s.genres.toList(),
           instruments: s.instruments.toList(),
           tags: tags[s.score.id] ?? [],
-          createdAt: s.score.createdAt,
-          metadataUpdatedAt: s.score.metadataUpdatedAt,
-          fileUpdatedAt: s.score.fileUpdatedAt,
+          metadataUpdatedAt: s.score.metadataUpdatedAt.toUtc(),
+          fileUpdatedAt: s.score.fileUpdatedAt.toUtc(),
           fileType: s.score.fileType,
           file: s.score.fileDownloaded
               ? await scoreFile(s.score.id, s.score.fileType)
@@ -260,7 +258,7 @@ class ScoresRepository {
             id: t.id,
             name: t.name,
             color: Color(t.color),
-            updatedAt: t.updatedAt,
+            updatedAt: t.updatedAt.toUtc(),
           ),
         );
   }
@@ -280,7 +278,7 @@ class ScoresRepository {
         id: t.$1.id,
         name: t.$1.name,
         color: Color(t.$1.color),
-        updatedAt: t.$1.updatedAt,
+        updatedAt: t.$1.updatedAt.toUtc(),
       );
       for (final s
           in t.$2.scoreTagsTableRefs.prefetchedData ?? <ScoreTagsTableData>[]) {
@@ -306,8 +304,8 @@ class ScoresRepository {
           (o) => o(
             title: Value(title),
             composer: composer.isNotEmpty ? Value(composer) : const Value(null),
-            searchText: Value(_generateSearchText([title, composer])),
-            metadataUpdatedAt: Value(DateTime.now()),
+            searchText: Value(generateSearchText([title, composer])),
+            metadataUpdatedAt: Value(DateTime.now().toUtc()),
             metadataUploaded: const Value(false),
           ),
         );
@@ -320,7 +318,7 @@ class ScoresRepository {
         id: _db.newId(),
         name: name,
         color: color.toARGB32(),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now().toUtc()),
       ),
     );
     _updatedTagIds.add({tag.id});
@@ -328,7 +326,7 @@ class ScoresRepository {
       id: tag.id,
       name: tag.name,
       color: Color(tag.color),
-      updatedAt: tag.updatedAt,
+      updatedAt: tag.updatedAt.toUtc(),
     );
   }
 
@@ -355,7 +353,7 @@ class ScoresRepository {
           (t) => Tag(
             id: t.id,
             name: t.name,
-            updatedAt: t.updatedAt,
+            updatedAt: t.updatedAt.toUtc(),
             color: Color(t.color),
           ),
         )
@@ -373,7 +371,7 @@ class ScoresRepository {
           (t) => Tag(
             id: t.id,
             name: t.name,
-            updatedAt: t.updatedAt,
+            updatedAt: t.updatedAt.toUtc(),
             color: Color(t.color),
           ),
         )
@@ -391,7 +389,7 @@ class ScoresRepository {
           (o) => o(
             name: Value(name),
             color: Value(color.toARGB32()),
-            updatedAt: Value(DateTime.now()),
+            updatedAt: Value(DateTime.now().toUtc()),
             uploaded: const Value(false),
           ),
         );
@@ -411,7 +409,7 @@ class ScoresRepository {
           .get();
       await _db.managers.tagsTable.filter((f) => f.id(tagId)).delete();
       await _db.managers.deletedTagsTable.create(
-        (o) => o(tagId: tagId, deletedAt: Value(DateTime.now())),
+        (o) => o(tagId: tagId, deletedAt: Value(DateTime.now().toUtc())),
       );
       _updatedScoreIds.add(affectedScores.toSet());
       _updatedTagIds.add({tagId});
@@ -431,7 +429,7 @@ class ScoresRepository {
           .filter((f) => f.id(scoreId))
           .update(
             (o) => o(
-              metadataUpdatedAt: Value(DateTime.now()),
+              metadataUpdatedAt: Value(DateTime.now().toUtc()),
               metadataUploaded: const Value(false),
             ),
           );
@@ -448,7 +446,7 @@ class ScoresRepository {
           .filter((f) => f.id(scoreId))
           .update(
             (o) => o(
-              metadataUpdatedAt: Value(DateTime.now()),
+              metadataUpdatedAt: Value(DateTime.now().toUtc()),
               metadataUploaded: const Value(false),
             ),
           );
@@ -466,7 +464,7 @@ class ScoresRepository {
           .filter((f) => f.id(scoreId))
           .update(
             (o) => o(
-              metadataUpdatedAt: Value(DateTime.now()),
+              metadataUpdatedAt: Value(DateTime.now().toUtc()),
               metadataUploaded: const Value(false),
             ),
           );
@@ -483,7 +481,7 @@ class ScoresRepository {
           .filter((f) => f.id(scoreId))
           .update(
             (o) => o(
-              metadataUpdatedAt: Value(DateTime.now()),
+              metadataUpdatedAt: Value(DateTime.now().toUtc()),
               metadataUploaded: const Value(false),
             ),
           );
@@ -501,7 +499,7 @@ class ScoresRepository {
           .filter((f) => f.id(scoreId))
           .update(
             (o) => o(
-              metadataUpdatedAt: Value(DateTime.now()),
+              metadataUpdatedAt: Value(DateTime.now().toUtc()),
               metadataUploaded: const Value(false),
             ),
           );
@@ -518,7 +516,7 @@ class ScoresRepository {
           .filter((f) => f.id(scoreId))
           .update(
             (o) => o(
-              metadataUpdatedAt: Value(DateTime.now()),
+              metadataUpdatedAt: Value(DateTime.now().toUtc()),
               metadataUploaded: const Value(false),
             ),
           );
@@ -542,7 +540,7 @@ class ScoresRepository {
 
         await File(p).copy(file.path);
 
-        final now = DateTime.now();
+        final now = DateTime.now().toUtc();
         scores.add(
           Score(
             id: id,
@@ -551,7 +549,6 @@ class ScoresRepository {
             genres: const [],
             instruments: const [],
             tags: const [],
-            createdAt: now,
             fileUpdatedAt: now,
             metadataUpdatedAt: now,
             fileType: fileType,
@@ -565,10 +562,9 @@ class ScoresRepository {
           (s) => o(
             id: s.id,
             title: s.title,
-            searchText: _generateSearchText([s.title]),
-            createdAt: Value(s.createdAt),
-            metadataUpdatedAt: Value(s.metadataUpdatedAt),
-            fileUpdatedAt: Value(s.fileUpdatedAt),
+            searchText: generateSearchText([s.title]),
+            metadataUpdatedAt: Value(s.metadataUpdatedAt.toUtc()),
+            fileUpdatedAt: Value(s.fileUpdatedAt.toUtc()),
             fileDownloaded: true,
             fileType: s.fileType,
           ),
@@ -612,7 +608,7 @@ class ScoresRepository {
         .filter((f) => f.id(scoreId))
         .update(
           (o) => o(
-            fileUpdatedAt: Value(DateTime.now()),
+            fileUpdatedAt: Value(DateTime.now().toUtc()),
             fileType: Value(fileType),
             fileUploaded: const Value(false),
           ),
@@ -697,7 +693,7 @@ class ScoresRepository {
           .getSingle();
       await _db.managers.scoresTable.filter((f) => f.id(scoreId)).delete();
       await _db.managers.deletedScoresTable.create(
-        (o) => o(scoreId: scoreId, deletedAt: Value(DateTime.now())),
+        (o) => o(scoreId: scoreId, deletedAt: Value(DateTime.now().toUtc())),
       );
       _updatedScoreIds.add({scoreId});
       try {
@@ -739,9 +735,9 @@ class ScoresRepository {
     );
   }
 
-  final _whitespaceRegex = RegExp(r'\s+');
+  static final _whitespaceRegex = RegExp(r'\s+');
 
-  String _generateSearchText(Iterable<String?> dataFields) {
+  static String generateSearchText(Iterable<String?> dataFields) {
     String result = dataFields
         .where((f) => f != null && f.isNotEmpty)
         .map((f) {

@@ -27,6 +27,7 @@ Future<List<SingleChildWidget>> createProviders() async {
         keyValue: context.read(),
         db: context.read(),
         syncService: context.read(),
+        thumbnailService: context.read(),
       ),
       // sync should start immediately
       lazy: false,

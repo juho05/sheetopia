@@ -4,8 +4,12 @@ import 'package:dio/dio.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/sync/exceptions.dart';
 import 'package:sheetopia/data/services/sync/models/datetime_converter.dart';
+import 'package:sheetopia/data/services/sync/models/deleted_scores.dart';
+import 'package:sheetopia/data/services/sync/models/deleted_tags.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
+import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/server_info.dart';
+import 'package:sheetopia/data/services/sync/models/tags.dart';
 import 'package:sheetopia/data/services/sync/sync_connection.dart';
 
 class SyncService {
@@ -17,6 +21,40 @@ class SyncService {
       responseType: ResponseType.json,
     ),
   );
+
+  Future<List<TagModel>> getTags(
+    SyncConnection con, {
+    DateTime? changedAfter,
+  }) async {
+    final tags = await _requestObject(
+      con.baseUri,
+      "GET",
+      "tag",
+      TagsModel.fromJson,
+      authKey: con.authKey,
+      queryParams: {
+        if (changedAfter != null) "changedAfter": [changedAfter.toRFC3339()],
+      },
+    );
+    return tags.tags;
+  }
+
+  Future<List<ScoreModel>> getScores(
+    SyncConnection con, {
+    DateTime? changedAfter,
+  }) async {
+    final scores = await _requestObject(
+      con.baseUri,
+      "GET",
+      "score",
+      ScoresModel.fromJson,
+      authKey: con.authKey,
+      queryParams: {
+        if (changedAfter != null) "changedAfter": [changedAfter.toRFC3339()],
+      },
+    );
+    return scores.scores;
+  }
 
   Future<void> deleteTag(SyncConnection con, String tagId) async {
     await _request(con.baseUri, "DELETE", "tag/$tagId", authKey: con.authKey);
@@ -73,6 +111,66 @@ class SyncService {
     );
   }
 
+  Future<List<String>> getDeletedTagIds(
+    SyncConnection con, {
+    DateTime? since,
+  }) async {
+    final result = await _requestObject<DeletedTagsModel>(
+      con.baseUri,
+      "GET",
+      "tag/deleted",
+      DeletedTagsModel.fromJson,
+      queryParams: {
+        if (since != null) "since": [since.toRFC3339()],
+      },
+      authKey: con.authKey,
+    );
+    return result.tagIds;
+  }
+
+  Future<List<String>> getDeletedScoreIds(
+    SyncConnection con, {
+    DateTime? since,
+  }) async {
+    final result = await _requestObject<DeletedScoresModel>(
+      con.baseUri,
+      "GET",
+      "score/deleted",
+      DeletedScoresModel.fromJson,
+      queryParams: {
+        if (since != null) "since": [since.toRFC3339()],
+      },
+      authKey: con.authKey,
+    );
+    return result.scoreIds;
+  }
+
+  Future<void> downloadScoreFile(
+    SyncConnection con,
+    String scoreId, {
+    required File target,
+    required FileType fileType,
+  }) async {
+    final uri = _constructReqUri(
+      con.baseUri,
+      "score/$scoreId/file",
+      queryParams: {
+        "fileType": [fileType.name],
+      },
+    );
+    await _dio.downloadUri(
+      uri,
+      target.path,
+      deleteOnError: true,
+      options: Options(
+        headers: {
+          "User-Agent": "sheetopia",
+          "Authorization": "Bearer ${con.authKey}",
+        },
+      ),
+    );
+  }
+
   Future<void> uploadScoreFile(
     SyncConnection con,
     String scoreId, {
@@ -124,6 +222,7 @@ class SyncService {
       "GET",
       "info",
       ServerInfoModel.fromJson,
+      authKey: null,
     );
   }
 
@@ -132,10 +231,10 @@ class SyncService {
     String method,
     String endpointName,
     T Function(Map<String, dynamic>) fromJson, {
+    required String? authKey,
     Object? data,
     Map<String, Iterable<String>> queryParams = const {},
     Map<String, String> headers = const {},
-    String? authKey,
   }) async {
     final response = await _request(
       baseUri,
@@ -152,7 +251,8 @@ class SyncService {
 
     try {
       return fromJson(response.data!);
-    } catch (_) {
+    } catch (e, st) {
+      print("$e:\n$st");
       throw const InvalidResponseBody();
     }
   }
