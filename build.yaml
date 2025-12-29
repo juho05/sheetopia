@@ -5,4 +5,9 @@ targets:
         options:
           store_date_time_values_as_text: true
           databases:
-            my_database: lib/data/services/database/database.dart
+            database: lib/data/services/database/database.dart
+      json_serializable:
+        options:
+          create_to_json: true
+          checked: true
+          include_if_null: true

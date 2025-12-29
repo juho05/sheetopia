@@ -6,6 +6,7 @@ class TagsTable extends Table {
   late final name = text()();
   late final color = integer()();
   late final updatedAt = dateTime().withDefault(currentDateAndTime)();
+  late final uploaded = boolean().withDefault(const Variable(false))();
 
   @override
   String? get tableName => "tags";

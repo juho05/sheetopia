@@ -87,18 +87,48 @@ class $ScoresTableTable extends ScoresTable
         requiredDuringInsert: false,
         defaultValue: currentDateAndTime,
       );
-  static const VerificationMeta _downloadedMeta = const VerificationMeta(
-    'downloaded',
+  static const VerificationMeta _metadataUploadedMeta = const VerificationMeta(
+    'metadataUploaded',
   );
   @override
-  late final GeneratedColumn<bool> downloaded = GeneratedColumn<bool>(
-    'downloaded',
+  late final GeneratedColumn<bool> metadataUploaded = GeneratedColumn<bool>(
+    'metadata_uploaded',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("metadata_uploaded" IN (0, 1))',
+    ),
+    defaultValue: const Variable(false),
+  );
+  static const VerificationMeta _fileUploadedMeta = const VerificationMeta(
+    'fileUploaded',
+  );
+  @override
+  late final GeneratedColumn<bool> fileUploaded = GeneratedColumn<bool>(
+    'file_uploaded',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("file_uploaded" IN (0, 1))',
+    ),
+    defaultValue: const Variable(false),
+  );
+  static const VerificationMeta _fileDownloadedMeta = const VerificationMeta(
+    'fileDownloaded',
+  );
+  @override
+  late final GeneratedColumn<bool> fileDownloaded = GeneratedColumn<bool>(
+    'file_downloaded',
     aliasedName,
     false,
     type: DriftSqlType.bool,
     requiredDuringInsert: true,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("downloaded" IN (0, 1))',
+      'CHECK ("file_downloaded" IN (0, 1))',
     ),
   );
   @override
@@ -119,7 +149,9 @@ class $ScoresTableTable extends ScoresTable
     createdAt,
     metadataUpdatedAt,
     fileUpdatedAt,
-    downloaded,
+    metadataUploaded,
+    fileUploaded,
+    fileDownloaded,
     fileType,
   ];
   @override
@@ -185,13 +217,34 @@ class $ScoresTableTable extends ScoresTable
         ),
       );
     }
-    if (data.containsKey('downloaded')) {
+    if (data.containsKey('metadata_uploaded')) {
       context.handle(
-        _downloadedMeta,
-        downloaded.isAcceptableOrUnknown(data['downloaded']!, _downloadedMeta),
+        _metadataUploadedMeta,
+        metadataUploaded.isAcceptableOrUnknown(
+          data['metadata_uploaded']!,
+          _metadataUploadedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('file_uploaded')) {
+      context.handle(
+        _fileUploadedMeta,
+        fileUploaded.isAcceptableOrUnknown(
+          data['file_uploaded']!,
+          _fileUploadedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('file_downloaded')) {
+      context.handle(
+        _fileDownloadedMeta,
+        fileDownloaded.isAcceptableOrUnknown(
+          data['file_downloaded']!,
+          _fileDownloadedMeta,
+        ),
       );
     } else if (isInserting) {
-      context.missing(_downloadedMeta);
+      context.missing(_fileDownloadedMeta);
     }
     return context;
   }
@@ -230,9 +283,17 @@ class $ScoresTableTable extends ScoresTable
         DriftSqlType.dateTime,
         data['${effectivePrefix}file_updated_at'],
       )!,
-      downloaded: attachedDatabase.typeMapping.read(
+      metadataUploaded: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
-        data['${effectivePrefix}downloaded'],
+        data['${effectivePrefix}metadata_uploaded'],
+      )!,
+      fileUploaded: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}file_uploaded'],
+      )!,
+      fileDownloaded: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}file_downloaded'],
       )!,
       fileType: $ScoresTableTable.$converterfileType.fromSql(
         attachedDatabase.typeMapping.read(
@@ -260,7 +321,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
   final DateTime createdAt;
   final DateTime metadataUpdatedAt;
   final DateTime fileUpdatedAt;
-  final bool downloaded;
+  final bool metadataUploaded;
+  final bool fileUploaded;
+  final bool fileDownloaded;
   final FileType fileType;
   const ScoresTableData({
     required this.id,
@@ -270,7 +333,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     required this.createdAt,
     required this.metadataUpdatedAt,
     required this.fileUpdatedAt,
-    required this.downloaded,
+    required this.metadataUploaded,
+    required this.fileUploaded,
+    required this.fileDownloaded,
     required this.fileType,
   });
   @override
@@ -285,7 +350,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     map['created_at'] = Variable<DateTime>(createdAt);
     map['metadata_updated_at'] = Variable<DateTime>(metadataUpdatedAt);
     map['file_updated_at'] = Variable<DateTime>(fileUpdatedAt);
-    map['downloaded'] = Variable<bool>(downloaded);
+    map['metadata_uploaded'] = Variable<bool>(metadataUploaded);
+    map['file_uploaded'] = Variable<bool>(fileUploaded);
+    map['file_downloaded'] = Variable<bool>(fileDownloaded);
     {
       map['file_type'] = Variable<String>(
         $ScoresTableTable.$converterfileType.toSql(fileType),
@@ -305,7 +372,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       createdAt: Value(createdAt),
       metadataUpdatedAt: Value(metadataUpdatedAt),
       fileUpdatedAt: Value(fileUpdatedAt),
-      downloaded: Value(downloaded),
+      metadataUploaded: Value(metadataUploaded),
+      fileUploaded: Value(fileUploaded),
+      fileDownloaded: Value(fileDownloaded),
       fileType: Value(fileType),
     );
   }
@@ -325,7 +394,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
         json['metadataUpdatedAt'],
       ),
       fileUpdatedAt: serializer.fromJson<DateTime>(json['fileUpdatedAt']),
-      downloaded: serializer.fromJson<bool>(json['downloaded']),
+      metadataUploaded: serializer.fromJson<bool>(json['metadataUploaded']),
+      fileUploaded: serializer.fromJson<bool>(json['fileUploaded']),
+      fileDownloaded: serializer.fromJson<bool>(json['fileDownloaded']),
       fileType: $ScoresTableTable.$converterfileType.fromJson(
         serializer.fromJson<String>(json['fileType']),
       ),
@@ -342,7 +413,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'metadataUpdatedAt': serializer.toJson<DateTime>(metadataUpdatedAt),
       'fileUpdatedAt': serializer.toJson<DateTime>(fileUpdatedAt),
-      'downloaded': serializer.toJson<bool>(downloaded),
+      'metadataUploaded': serializer.toJson<bool>(metadataUploaded),
+      'fileUploaded': serializer.toJson<bool>(fileUploaded),
+      'fileDownloaded': serializer.toJson<bool>(fileDownloaded),
       'fileType': serializer.toJson<String>(
         $ScoresTableTable.$converterfileType.toJson(fileType),
       ),
@@ -357,7 +430,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     DateTime? createdAt,
     DateTime? metadataUpdatedAt,
     DateTime? fileUpdatedAt,
-    bool? downloaded,
+    bool? metadataUploaded,
+    bool? fileUploaded,
+    bool? fileDownloaded,
     FileType? fileType,
   }) => ScoresTableData(
     id: id ?? this.id,
@@ -367,7 +442,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     createdAt: createdAt ?? this.createdAt,
     metadataUpdatedAt: metadataUpdatedAt ?? this.metadataUpdatedAt,
     fileUpdatedAt: fileUpdatedAt ?? this.fileUpdatedAt,
-    downloaded: downloaded ?? this.downloaded,
+    metadataUploaded: metadataUploaded ?? this.metadataUploaded,
+    fileUploaded: fileUploaded ?? this.fileUploaded,
+    fileDownloaded: fileDownloaded ?? this.fileDownloaded,
     fileType: fileType ?? this.fileType,
   );
   ScoresTableData copyWithCompanion(ScoresTableCompanion data) {
@@ -385,9 +462,15 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       fileUpdatedAt: data.fileUpdatedAt.present
           ? data.fileUpdatedAt.value
           : this.fileUpdatedAt,
-      downloaded: data.downloaded.present
-          ? data.downloaded.value
-          : this.downloaded,
+      metadataUploaded: data.metadataUploaded.present
+          ? data.metadataUploaded.value
+          : this.metadataUploaded,
+      fileUploaded: data.fileUploaded.present
+          ? data.fileUploaded.value
+          : this.fileUploaded,
+      fileDownloaded: data.fileDownloaded.present
+          ? data.fileDownloaded.value
+          : this.fileDownloaded,
       fileType: data.fileType.present ? data.fileType.value : this.fileType,
     );
   }
@@ -402,7 +485,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           ..write('createdAt: $createdAt, ')
           ..write('metadataUpdatedAt: $metadataUpdatedAt, ')
           ..write('fileUpdatedAt: $fileUpdatedAt, ')
-          ..write('downloaded: $downloaded, ')
+          ..write('metadataUploaded: $metadataUploaded, ')
+          ..write('fileUploaded: $fileUploaded, ')
+          ..write('fileDownloaded: $fileDownloaded, ')
           ..write('fileType: $fileType')
           ..write(')'))
         .toString();
@@ -417,7 +502,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     createdAt,
     metadataUpdatedAt,
     fileUpdatedAt,
-    downloaded,
+    metadataUploaded,
+    fileUploaded,
+    fileDownloaded,
     fileType,
   );
   @override
@@ -431,7 +518,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           other.createdAt == this.createdAt &&
           other.metadataUpdatedAt == this.metadataUpdatedAt &&
           other.fileUpdatedAt == this.fileUpdatedAt &&
-          other.downloaded == this.downloaded &&
+          other.metadataUploaded == this.metadataUploaded &&
+          other.fileUploaded == this.fileUploaded &&
+          other.fileDownloaded == this.fileDownloaded &&
           other.fileType == this.fileType);
 }
 
@@ -443,7 +532,9 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
   final Value<DateTime> createdAt;
   final Value<DateTime> metadataUpdatedAt;
   final Value<DateTime> fileUpdatedAt;
-  final Value<bool> downloaded;
+  final Value<bool> metadataUploaded;
+  final Value<bool> fileUploaded;
+  final Value<bool> fileDownloaded;
   final Value<FileType> fileType;
   final Value<int> rowid;
   const ScoresTableCompanion({
@@ -454,7 +545,9 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.createdAt = const Value.absent(),
     this.metadataUpdatedAt = const Value.absent(),
     this.fileUpdatedAt = const Value.absent(),
-    this.downloaded = const Value.absent(),
+    this.metadataUploaded = const Value.absent(),
+    this.fileUploaded = const Value.absent(),
+    this.fileDownloaded = const Value.absent(),
     this.fileType = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -466,13 +559,15 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.createdAt = const Value.absent(),
     this.metadataUpdatedAt = const Value.absent(),
     this.fileUpdatedAt = const Value.absent(),
-    required bool downloaded,
+    this.metadataUploaded = const Value.absent(),
+    this.fileUploaded = const Value.absent(),
+    required bool fileDownloaded,
     required FileType fileType,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
        searchText = Value(searchText),
-       downloaded = Value(downloaded),
+       fileDownloaded = Value(fileDownloaded),
        fileType = Value(fileType);
   static Insertable<ScoresTableData> custom({
     Expression<String>? id,
@@ -482,7 +577,9 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Expression<DateTime>? createdAt,
     Expression<DateTime>? metadataUpdatedAt,
     Expression<DateTime>? fileUpdatedAt,
-    Expression<bool>? downloaded,
+    Expression<bool>? metadataUploaded,
+    Expression<bool>? fileUploaded,
+    Expression<bool>? fileDownloaded,
     Expression<String>? fileType,
     Expression<int>? rowid,
   }) {
@@ -494,7 +591,9 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       if (createdAt != null) 'created_at': createdAt,
       if (metadataUpdatedAt != null) 'metadata_updated_at': metadataUpdatedAt,
       if (fileUpdatedAt != null) 'file_updated_at': fileUpdatedAt,
-      if (downloaded != null) 'downloaded': downloaded,
+      if (metadataUploaded != null) 'metadata_uploaded': metadataUploaded,
+      if (fileUploaded != null) 'file_uploaded': fileUploaded,
+      if (fileDownloaded != null) 'file_downloaded': fileDownloaded,
       if (fileType != null) 'file_type': fileType,
       if (rowid != null) 'rowid': rowid,
     });
@@ -508,7 +607,9 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Value<DateTime>? createdAt,
     Value<DateTime>? metadataUpdatedAt,
     Value<DateTime>? fileUpdatedAt,
-    Value<bool>? downloaded,
+    Value<bool>? metadataUploaded,
+    Value<bool>? fileUploaded,
+    Value<bool>? fileDownloaded,
     Value<FileType>? fileType,
     Value<int>? rowid,
   }) {
@@ -520,7 +621,9 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       createdAt: createdAt ?? this.createdAt,
       metadataUpdatedAt: metadataUpdatedAt ?? this.metadataUpdatedAt,
       fileUpdatedAt: fileUpdatedAt ?? this.fileUpdatedAt,
-      downloaded: downloaded ?? this.downloaded,
+      metadataUploaded: metadataUploaded ?? this.metadataUploaded,
+      fileUploaded: fileUploaded ?? this.fileUploaded,
+      fileDownloaded: fileDownloaded ?? this.fileDownloaded,
       fileType: fileType ?? this.fileType,
       rowid: rowid ?? this.rowid,
     );
@@ -550,8 +653,14 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     if (fileUpdatedAt.present) {
       map['file_updated_at'] = Variable<DateTime>(fileUpdatedAt.value);
     }
-    if (downloaded.present) {
-      map['downloaded'] = Variable<bool>(downloaded.value);
+    if (metadataUploaded.present) {
+      map['metadata_uploaded'] = Variable<bool>(metadataUploaded.value);
+    }
+    if (fileUploaded.present) {
+      map['file_uploaded'] = Variable<bool>(fileUploaded.value);
+    }
+    if (fileDownloaded.present) {
+      map['file_downloaded'] = Variable<bool>(fileDownloaded.value);
     }
     if (fileType.present) {
       map['file_type'] = Variable<String>(
@@ -574,7 +683,9 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
           ..write('createdAt: $createdAt, ')
           ..write('metadataUpdatedAt: $metadataUpdatedAt, ')
           ..write('fileUpdatedAt: $fileUpdatedAt, ')
-          ..write('downloaded: $downloaded, ')
+          ..write('metadataUploaded: $metadataUploaded, ')
+          ..write('fileUploaded: $fileUploaded, ')
+          ..write('fileDownloaded: $fileDownloaded, ')
           ..write('fileType: $fileType, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -1060,8 +1171,23 @@ class $TagsTableTable extends TagsTable
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _uploadedMeta = const VerificationMeta(
+    'uploaded',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, name, color, updatedAt];
+  late final GeneratedColumn<bool> uploaded = GeneratedColumn<bool>(
+    'uploaded',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("uploaded" IN (0, 1))',
+    ),
+    defaultValue: const Variable(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, color, updatedAt, uploaded];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1101,6 +1227,12 @@ class $TagsTableTable extends TagsTable
         updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
       );
     }
+    if (data.containsKey('uploaded')) {
+      context.handle(
+        _uploadedMeta,
+        uploaded.isAcceptableOrUnknown(data['uploaded']!, _uploadedMeta),
+      );
+    }
     return context;
   }
 
@@ -1126,6 +1258,10 @@ class $TagsTableTable extends TagsTable
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      uploaded: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}uploaded'],
+      )!,
     );
   }
 
@@ -1140,11 +1276,13 @@ class TagsTableData extends DataClass implements Insertable<TagsTableData> {
   final String name;
   final int color;
   final DateTime updatedAt;
+  final bool uploaded;
   const TagsTableData({
     required this.id,
     required this.name,
     required this.color,
     required this.updatedAt,
+    required this.uploaded,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1153,6 +1291,7 @@ class TagsTableData extends DataClass implements Insertable<TagsTableData> {
     map['name'] = Variable<String>(name);
     map['color'] = Variable<int>(color);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['uploaded'] = Variable<bool>(uploaded);
     return map;
   }
 
@@ -1162,6 +1301,7 @@ class TagsTableData extends DataClass implements Insertable<TagsTableData> {
       name: Value(name),
       color: Value(color),
       updatedAt: Value(updatedAt),
+      uploaded: Value(uploaded),
     );
   }
 
@@ -1175,6 +1315,7 @@ class TagsTableData extends DataClass implements Insertable<TagsTableData> {
       name: serializer.fromJson<String>(json['name']),
       color: serializer.fromJson<int>(json['color']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      uploaded: serializer.fromJson<bool>(json['uploaded']),
     );
   }
   @override
@@ -1185,6 +1326,7 @@ class TagsTableData extends DataClass implements Insertable<TagsTableData> {
       'name': serializer.toJson<String>(name),
       'color': serializer.toJson<int>(color),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'uploaded': serializer.toJson<bool>(uploaded),
     };
   }
 
@@ -1193,11 +1335,13 @@ class TagsTableData extends DataClass implements Insertable<TagsTableData> {
     String? name,
     int? color,
     DateTime? updatedAt,
+    bool? uploaded,
   }) => TagsTableData(
     id: id ?? this.id,
     name: name ?? this.name,
     color: color ?? this.color,
     updatedAt: updatedAt ?? this.updatedAt,
+    uploaded: uploaded ?? this.uploaded,
   );
   TagsTableData copyWithCompanion(TagsTableCompanion data) {
     return TagsTableData(
@@ -1205,6 +1349,7 @@ class TagsTableData extends DataClass implements Insertable<TagsTableData> {
       name: data.name.present ? data.name.value : this.name,
       color: data.color.present ? data.color.value : this.color,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      uploaded: data.uploaded.present ? data.uploaded.value : this.uploaded,
     );
   }
 
@@ -1214,13 +1359,14 @@ class TagsTableData extends DataClass implements Insertable<TagsTableData> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('color: $color, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('uploaded: $uploaded')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, color, updatedAt);
+  int get hashCode => Object.hash(id, name, color, updatedAt, uploaded);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1228,7 +1374,8 @@ class TagsTableData extends DataClass implements Insertable<TagsTableData> {
           other.id == this.id &&
           other.name == this.name &&
           other.color == this.color &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.uploaded == this.uploaded);
 }
 
 class TagsTableCompanion extends UpdateCompanion<TagsTableData> {
@@ -1236,12 +1383,14 @@ class TagsTableCompanion extends UpdateCompanion<TagsTableData> {
   final Value<String> name;
   final Value<int> color;
   final Value<DateTime> updatedAt;
+  final Value<bool> uploaded;
   final Value<int> rowid;
   const TagsTableCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.color = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.uploaded = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TagsTableCompanion.insert({
@@ -1249,6 +1398,7 @@ class TagsTableCompanion extends UpdateCompanion<TagsTableData> {
     required String name,
     required int color,
     this.updatedAt = const Value.absent(),
+    this.uploaded = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -1258,6 +1408,7 @@ class TagsTableCompanion extends UpdateCompanion<TagsTableData> {
     Expression<String>? name,
     Expression<int>? color,
     Expression<DateTime>? updatedAt,
+    Expression<bool>? uploaded,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1265,6 +1416,7 @@ class TagsTableCompanion extends UpdateCompanion<TagsTableData> {
       if (name != null) 'name': name,
       if (color != null) 'color': color,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (uploaded != null) 'uploaded': uploaded,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1274,6 +1426,7 @@ class TagsTableCompanion extends UpdateCompanion<TagsTableData> {
     Value<String>? name,
     Value<int>? color,
     Value<DateTime>? updatedAt,
+    Value<bool>? uploaded,
     Value<int>? rowid,
   }) {
     return TagsTableCompanion(
@@ -1281,6 +1434,7 @@ class TagsTableCompanion extends UpdateCompanion<TagsTableData> {
       name: name ?? this.name,
       color: color ?? this.color,
       updatedAt: updatedAt ?? this.updatedAt,
+      uploaded: uploaded ?? this.uploaded,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1300,6 +1454,9 @@ class TagsTableCompanion extends UpdateCompanion<TagsTableData> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (uploaded.present) {
+      map['uploaded'] = Variable<bool>(uploaded.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1313,6 +1470,7 @@ class TagsTableCompanion extends UpdateCompanion<TagsTableData> {
           ..write('name: $name, ')
           ..write('color: $color, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('uploaded: $uploaded, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1534,6 +1692,651 @@ class ScoreTagsTableCompanion extends UpdateCompanion<ScoreTagsTableData> {
   }
 }
 
+class $KeyValueTableTable extends KeyValueTable
+    with TableInfo<$KeyValueTableTable, KeyValueTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $KeyValueTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+    'key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<String> value = GeneratedColumn<String>(
+    'value',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [key, value];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'key_value';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<KeyValueTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+        _keyMeta,
+        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+        _valueMeta,
+        value.isAcceptableOrUnknown(data['value']!, _valueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_valueMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {key};
+  @override
+  KeyValueTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return KeyValueTableData(
+      key: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      value: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}value'],
+      )!,
+    );
+  }
+
+  @override
+  $KeyValueTableTable createAlias(String alias) {
+    return $KeyValueTableTable(attachedDatabase, alias);
+  }
+}
+
+class KeyValueTableData extends DataClass
+    implements Insertable<KeyValueTableData> {
+  final String key;
+  final String value;
+  const KeyValueTableData({required this.key, required this.value});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['key'] = Variable<String>(key);
+    map['value'] = Variable<String>(value);
+    return map;
+  }
+
+  KeyValueTableCompanion toCompanion(bool nullToAbsent) {
+    return KeyValueTableCompanion(key: Value(key), value: Value(value));
+  }
+
+  factory KeyValueTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return KeyValueTableData(
+      key: serializer.fromJson<String>(json['key']),
+      value: serializer.fromJson<String>(json['value']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'key': serializer.toJson<String>(key),
+      'value': serializer.toJson<String>(value),
+    };
+  }
+
+  KeyValueTableData copyWith({String? key, String? value}) =>
+      KeyValueTableData(key: key ?? this.key, value: value ?? this.value);
+  KeyValueTableData copyWithCompanion(KeyValueTableCompanion data) {
+    return KeyValueTableData(
+      key: data.key.present ? data.key.value : this.key,
+      value: data.value.present ? data.value.value : this.value,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KeyValueTableData(')
+          ..write('key: $key, ')
+          ..write('value: $value')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(key, value);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is KeyValueTableData &&
+          other.key == this.key &&
+          other.value == this.value);
+}
+
+class KeyValueTableCompanion extends UpdateCompanion<KeyValueTableData> {
+  final Value<String> key;
+  final Value<String> value;
+  final Value<int> rowid;
+  const KeyValueTableCompanion({
+    this.key = const Value.absent(),
+    this.value = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  KeyValueTableCompanion.insert({
+    required String key,
+    required String value,
+    this.rowid = const Value.absent(),
+  }) : key = Value(key),
+       value = Value(value);
+  static Insertable<KeyValueTableData> custom({
+    Expression<String>? key,
+    Expression<String>? value,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (key != null) 'key': key,
+      if (value != null) 'value': value,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  KeyValueTableCompanion copyWith({
+    Value<String>? key,
+    Value<String>? value,
+    Value<int>? rowid,
+  }) {
+    return KeyValueTableCompanion(
+      key: key ?? this.key,
+      value: value ?? this.value,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<String>(value.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KeyValueTableCompanion(')
+          ..write('key: $key, ')
+          ..write('value: $value, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DeletedTagsTableTable extends DeletedTagsTable
+    with TableInfo<$DeletedTagsTableTable, DeletedTagsTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DeletedTagsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _tagIdMeta = const VerificationMeta('tagId');
+  @override
+  late final GeneratedColumn<String> tagId = GeneratedColumn<String>(
+    'tag_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [tagId, deletedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'deleted_tags';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DeletedTagsTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('tag_id')) {
+      context.handle(
+        _tagIdMeta,
+        tagId.isAcceptableOrUnknown(data['tag_id']!, _tagIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tagIdMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {tagId};
+  @override
+  DeletedTagsTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DeletedTagsTableData(
+      tagId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tag_id'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DeletedTagsTableTable createAlias(String alias) {
+    return $DeletedTagsTableTable(attachedDatabase, alias);
+  }
+}
+
+class DeletedTagsTableData extends DataClass
+    implements Insertable<DeletedTagsTableData> {
+  final String tagId;
+  final DateTime deletedAt;
+  const DeletedTagsTableData({required this.tagId, required this.deletedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['tag_id'] = Variable<String>(tagId);
+    map['deleted_at'] = Variable<DateTime>(deletedAt);
+    return map;
+  }
+
+  DeletedTagsTableCompanion toCompanion(bool nullToAbsent) {
+    return DeletedTagsTableCompanion(
+      tagId: Value(tagId),
+      deletedAt: Value(deletedAt),
+    );
+  }
+
+  factory DeletedTagsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DeletedTagsTableData(
+      tagId: serializer.fromJson<String>(json['tagId']),
+      deletedAt: serializer.fromJson<DateTime>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'tagId': serializer.toJson<String>(tagId),
+      'deletedAt': serializer.toJson<DateTime>(deletedAt),
+    };
+  }
+
+  DeletedTagsTableData copyWith({String? tagId, DateTime? deletedAt}) =>
+      DeletedTagsTableData(
+        tagId: tagId ?? this.tagId,
+        deletedAt: deletedAt ?? this.deletedAt,
+      );
+  DeletedTagsTableData copyWithCompanion(DeletedTagsTableCompanion data) {
+    return DeletedTagsTableData(
+      tagId: data.tagId.present ? data.tagId.value : this.tagId,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeletedTagsTableData(')
+          ..write('tagId: $tagId, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(tagId, deletedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DeletedTagsTableData &&
+          other.tagId == this.tagId &&
+          other.deletedAt == this.deletedAt);
+}
+
+class DeletedTagsTableCompanion extends UpdateCompanion<DeletedTagsTableData> {
+  final Value<String> tagId;
+  final Value<DateTime> deletedAt;
+  final Value<int> rowid;
+  const DeletedTagsTableCompanion({
+    this.tagId = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DeletedTagsTableCompanion.insert({
+    required String tagId,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : tagId = Value(tagId);
+  static Insertable<DeletedTagsTableData> custom({
+    Expression<String>? tagId,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (tagId != null) 'tag_id': tagId,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DeletedTagsTableCompanion copyWith({
+    Value<String>? tagId,
+    Value<DateTime>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return DeletedTagsTableCompanion(
+      tagId: tagId ?? this.tagId,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (tagId.present) {
+      map['tag_id'] = Variable<String>(tagId.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeletedTagsTableCompanion(')
+          ..write('tagId: $tagId, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DeletedScoresTableTable extends DeletedScoresTable
+    with TableInfo<$DeletedScoresTableTable, DeletedScoresTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DeletedScoresTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _scoreIdMeta = const VerificationMeta(
+    'scoreId',
+  );
+  @override
+  late final GeneratedColumn<String> scoreId = GeneratedColumn<String>(
+    'score_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [scoreId, deletedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'deleted_scores';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DeletedScoresTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('score_id')) {
+      context.handle(
+        _scoreIdMeta,
+        scoreId.isAcceptableOrUnknown(data['score_id']!, _scoreIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_scoreIdMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {scoreId};
+  @override
+  DeletedScoresTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DeletedScoresTableData(
+      scoreId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}score_id'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DeletedScoresTableTable createAlias(String alias) {
+    return $DeletedScoresTableTable(attachedDatabase, alias);
+  }
+}
+
+class DeletedScoresTableData extends DataClass
+    implements Insertable<DeletedScoresTableData> {
+  final String scoreId;
+  final DateTime deletedAt;
+  const DeletedScoresTableData({
+    required this.scoreId,
+    required this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['score_id'] = Variable<String>(scoreId);
+    map['deleted_at'] = Variable<DateTime>(deletedAt);
+    return map;
+  }
+
+  DeletedScoresTableCompanion toCompanion(bool nullToAbsent) {
+    return DeletedScoresTableCompanion(
+      scoreId: Value(scoreId),
+      deletedAt: Value(deletedAt),
+    );
+  }
+
+  factory DeletedScoresTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DeletedScoresTableData(
+      scoreId: serializer.fromJson<String>(json['scoreId']),
+      deletedAt: serializer.fromJson<DateTime>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'scoreId': serializer.toJson<String>(scoreId),
+      'deletedAt': serializer.toJson<DateTime>(deletedAt),
+    };
+  }
+
+  DeletedScoresTableData copyWith({String? scoreId, DateTime? deletedAt}) =>
+      DeletedScoresTableData(
+        scoreId: scoreId ?? this.scoreId,
+        deletedAt: deletedAt ?? this.deletedAt,
+      );
+  DeletedScoresTableData copyWithCompanion(DeletedScoresTableCompanion data) {
+    return DeletedScoresTableData(
+      scoreId: data.scoreId.present ? data.scoreId.value : this.scoreId,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeletedScoresTableData(')
+          ..write('scoreId: $scoreId, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(scoreId, deletedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DeletedScoresTableData &&
+          other.scoreId == this.scoreId &&
+          other.deletedAt == this.deletedAt);
+}
+
+class DeletedScoresTableCompanion
+    extends UpdateCompanion<DeletedScoresTableData> {
+  final Value<String> scoreId;
+  final Value<DateTime> deletedAt;
+  final Value<int> rowid;
+  const DeletedScoresTableCompanion({
+    this.scoreId = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DeletedScoresTableCompanion.insert({
+    required String scoreId,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : scoreId = Value(scoreId);
+  static Insertable<DeletedScoresTableData> custom({
+    Expression<String>? scoreId,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (scoreId != null) 'score_id': scoreId,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DeletedScoresTableCompanion copyWith({
+    Value<String>? scoreId,
+    Value<DateTime>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return DeletedScoresTableCompanion(
+      scoreId: scoreId ?? this.scoreId,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (scoreId.present) {
+      map['score_id'] = Variable<String>(scoreId.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeletedScoresTableCompanion(')
+          ..write('scoreId: $scoreId, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$Database extends GeneratedDatabase {
   _$Database(QueryExecutor e) : super(e);
   $DatabaseManager get managers => $DatabaseManager(this);
@@ -1544,6 +2347,12 @@ abstract class _$Database extends GeneratedDatabase {
   );
   late final $TagsTableTable tagsTable = $TagsTableTable(this);
   late final $ScoreTagsTableTable scoreTagsTable = $ScoreTagsTableTable(this);
+  late final $KeyValueTableTable keyValueTable = $KeyValueTableTable(this);
+  late final $DeletedTagsTableTable deletedTagsTable = $DeletedTagsTableTable(
+    this,
+  );
+  late final $DeletedScoresTableTable deletedScoresTable =
+      $DeletedScoresTableTable(this);
   late final Index searchTextIndex = Index(
     'search_text_index',
     'CREATE INDEX search_text_index ON scores (search_text)',
@@ -1558,6 +2367,9 @@ abstract class _$Database extends GeneratedDatabase {
     instrumentsTable,
     tagsTable,
     scoreTagsTable,
+    keyValueTable,
+    deletedTagsTable,
+    deletedScoresTable,
     searchTextIndex,
   ];
   @override
@@ -1633,7 +2445,9 @@ typedef $$ScoresTableTableCreateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<DateTime> metadataUpdatedAt,
       Value<DateTime> fileUpdatedAt,
-      required bool downloaded,
+      Value<bool> metadataUploaded,
+      Value<bool> fileUploaded,
+      required bool fileDownloaded,
       required FileType fileType,
       Value<int> rowid,
     });
@@ -1646,7 +2460,9 @@ typedef $$ScoresTableTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<DateTime> metadataUpdatedAt,
       Value<DateTime> fileUpdatedAt,
-      Value<bool> downloaded,
+      Value<bool> metadataUploaded,
+      Value<bool> fileUploaded,
+      Value<bool> fileDownloaded,
       Value<FileType> fileType,
       Value<int> rowid,
     });
@@ -1759,8 +2575,18 @@ class $$ScoresTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<bool> get downloaded => $composableBuilder(
-    column: $table.downloaded,
+  ColumnFilters<bool> get metadataUploaded => $composableBuilder(
+    column: $table.metadataUploaded,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get fileUploaded => $composableBuilder(
+    column: $table.fileUploaded,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get fileDownloaded => $composableBuilder(
+    column: $table.fileDownloaded,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1890,8 +2716,18 @@ class $$ScoresTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<bool> get downloaded => $composableBuilder(
-    column: $table.downloaded,
+  ColumnOrderings<bool> get metadataUploaded => $composableBuilder(
+    column: $table.metadataUploaded,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get fileUploaded => $composableBuilder(
+    column: $table.fileUploaded,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get fileDownloaded => $composableBuilder(
+    column: $table.fileDownloaded,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -1937,8 +2773,18 @@ class $$ScoresTableTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<bool> get downloaded => $composableBuilder(
-    column: $table.downloaded,
+  GeneratedColumn<bool> get metadataUploaded => $composableBuilder(
+    column: $table.metadataUploaded,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get fileUploaded => $composableBuilder(
+    column: $table.fileUploaded,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get fileDownloaded => $composableBuilder(
+    column: $table.fileDownloaded,
     builder: (column) => column,
   );
 
@@ -2060,7 +2906,9 @@ class $$ScoresTableTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> metadataUpdatedAt = const Value.absent(),
                 Value<DateTime> fileUpdatedAt = const Value.absent(),
-                Value<bool> downloaded = const Value.absent(),
+                Value<bool> metadataUploaded = const Value.absent(),
+                Value<bool> fileUploaded = const Value.absent(),
+                Value<bool> fileDownloaded = const Value.absent(),
                 Value<FileType> fileType = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ScoresTableCompanion(
@@ -2071,7 +2919,9 @@ class $$ScoresTableTableTableManager
                 createdAt: createdAt,
                 metadataUpdatedAt: metadataUpdatedAt,
                 fileUpdatedAt: fileUpdatedAt,
-                downloaded: downloaded,
+                metadataUploaded: metadataUploaded,
+                fileUploaded: fileUploaded,
+                fileDownloaded: fileDownloaded,
                 fileType: fileType,
                 rowid: rowid,
               ),
@@ -2084,7 +2934,9 @@ class $$ScoresTableTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> metadataUpdatedAt = const Value.absent(),
                 Value<DateTime> fileUpdatedAt = const Value.absent(),
-                required bool downloaded,
+                Value<bool> metadataUploaded = const Value.absent(),
+                Value<bool> fileUploaded = const Value.absent(),
+                required bool fileDownloaded,
                 required FileType fileType,
                 Value<int> rowid = const Value.absent(),
               }) => ScoresTableCompanion.insert(
@@ -2095,7 +2947,9 @@ class $$ScoresTableTableTableManager
                 createdAt: createdAt,
                 metadataUpdatedAt: metadataUpdatedAt,
                 fileUpdatedAt: fileUpdatedAt,
-                downloaded: downloaded,
+                metadataUploaded: metadataUploaded,
+                fileUploaded: fileUploaded,
+                fileDownloaded: fileDownloaded,
                 fileType: fileType,
                 rowid: rowid,
               ),
@@ -2757,6 +3611,7 @@ typedef $$TagsTableTableCreateCompanionBuilder =
       required String name,
       required int color,
       Value<DateTime> updatedAt,
+      Value<bool> uploaded,
       Value<int> rowid,
     });
 typedef $$TagsTableTableUpdateCompanionBuilder =
@@ -2765,6 +3620,7 @@ typedef $$TagsTableTableUpdateCompanionBuilder =
       Value<String> name,
       Value<int> color,
       Value<DateTime> updatedAt,
+      Value<bool> uploaded,
       Value<int> rowid,
     });
 
@@ -2817,6 +3673,11 @@ class $$TagsTableTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get uploaded => $composableBuilder(
+    column: $table.uploaded,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2874,6 +3735,11 @@ class $$TagsTableTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get uploaded => $composableBuilder(
+    column: $table.uploaded,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TagsTableTableAnnotationComposer
@@ -2896,6 +3762,9 @@ class $$TagsTableTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get uploaded =>
+      $composableBuilder(column: $table.uploaded, builder: (column) => column);
 
   Expression<T> scoreTagsTableRefs<T extends Object>(
     Expression<T> Function($$ScoreTagsTableTableAnnotationComposer a) f,
@@ -2955,12 +3824,14 @@ class $$TagsTableTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<int> color = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> uploaded = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TagsTableCompanion(
                 id: id,
                 name: name,
                 color: color,
                 updatedAt: updatedAt,
+                uploaded: uploaded,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2969,12 +3840,14 @@ class $$TagsTableTableTableManager
                 required String name,
                 required int color,
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> uploaded = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TagsTableCompanion.insert(
                 id: id,
                 name: name,
                 color: color,
                 updatedAt: updatedAt,
+                uploaded: uploaded,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -3388,6 +4261,455 @@ typedef $$ScoreTagsTableTableProcessedTableManager =
       ScoreTagsTableData,
       PrefetchHooks Function({bool score, bool tag})
     >;
+typedef $$KeyValueTableTableCreateCompanionBuilder =
+    KeyValueTableCompanion Function({
+      required String key,
+      required String value,
+      Value<int> rowid,
+    });
+typedef $$KeyValueTableTableUpdateCompanionBuilder =
+    KeyValueTableCompanion Function({
+      Value<String> key,
+      Value<String> value,
+      Value<int> rowid,
+    });
+
+class $$KeyValueTableTableFilterComposer
+    extends Composer<_$Database, $KeyValueTableTable> {
+  $$KeyValueTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$KeyValueTableTableOrderingComposer
+    extends Composer<_$Database, $KeyValueTableTable> {
+  $$KeyValueTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$KeyValueTableTableAnnotationComposer
+    extends Composer<_$Database, $KeyValueTableTable> {
+  $$KeyValueTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
+
+  GeneratedColumn<String> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+}
+
+class $$KeyValueTableTableTableManager
+    extends
+        RootTableManager<
+          _$Database,
+          $KeyValueTableTable,
+          KeyValueTableData,
+          $$KeyValueTableTableFilterComposer,
+          $$KeyValueTableTableOrderingComposer,
+          $$KeyValueTableTableAnnotationComposer,
+          $$KeyValueTableTableCreateCompanionBuilder,
+          $$KeyValueTableTableUpdateCompanionBuilder,
+          (
+            KeyValueTableData,
+            BaseReferences<_$Database, $KeyValueTableTable, KeyValueTableData>,
+          ),
+          KeyValueTableData,
+          PrefetchHooks Function()
+        > {
+  $$KeyValueTableTableTableManager(_$Database db, $KeyValueTableTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$KeyValueTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$KeyValueTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$KeyValueTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> key = const Value.absent(),
+                Value<String> value = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) =>
+                  KeyValueTableCompanion(key: key, value: value, rowid: rowid),
+          createCompanionCallback:
+              ({
+                required String key,
+                required String value,
+                Value<int> rowid = const Value.absent(),
+              }) => KeyValueTableCompanion.insert(
+                key: key,
+                value: value,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$KeyValueTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$Database,
+      $KeyValueTableTable,
+      KeyValueTableData,
+      $$KeyValueTableTableFilterComposer,
+      $$KeyValueTableTableOrderingComposer,
+      $$KeyValueTableTableAnnotationComposer,
+      $$KeyValueTableTableCreateCompanionBuilder,
+      $$KeyValueTableTableUpdateCompanionBuilder,
+      (
+        KeyValueTableData,
+        BaseReferences<_$Database, $KeyValueTableTable, KeyValueTableData>,
+      ),
+      KeyValueTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$DeletedTagsTableTableCreateCompanionBuilder =
+    DeletedTagsTableCompanion Function({
+      required String tagId,
+      Value<DateTime> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$DeletedTagsTableTableUpdateCompanionBuilder =
+    DeletedTagsTableCompanion Function({
+      Value<String> tagId,
+      Value<DateTime> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$DeletedTagsTableTableFilterComposer
+    extends Composer<_$Database, $DeletedTagsTableTable> {
+  $$DeletedTagsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get tagId => $composableBuilder(
+    column: $table.tagId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DeletedTagsTableTableOrderingComposer
+    extends Composer<_$Database, $DeletedTagsTableTable> {
+  $$DeletedTagsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get tagId => $composableBuilder(
+    column: $table.tagId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DeletedTagsTableTableAnnotationComposer
+    extends Composer<_$Database, $DeletedTagsTableTable> {
+  $$DeletedTagsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get tagId =>
+      $composableBuilder(column: $table.tagId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$DeletedTagsTableTableTableManager
+    extends
+        RootTableManager<
+          _$Database,
+          $DeletedTagsTableTable,
+          DeletedTagsTableData,
+          $$DeletedTagsTableTableFilterComposer,
+          $$DeletedTagsTableTableOrderingComposer,
+          $$DeletedTagsTableTableAnnotationComposer,
+          $$DeletedTagsTableTableCreateCompanionBuilder,
+          $$DeletedTagsTableTableUpdateCompanionBuilder,
+          (
+            DeletedTagsTableData,
+            BaseReferences<
+              _$Database,
+              $DeletedTagsTableTable,
+              DeletedTagsTableData
+            >,
+          ),
+          DeletedTagsTableData,
+          PrefetchHooks Function()
+        > {
+  $$DeletedTagsTableTableTableManager(
+    _$Database db,
+    $DeletedTagsTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DeletedTagsTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DeletedTagsTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DeletedTagsTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> tagId = const Value.absent(),
+                Value<DateTime> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DeletedTagsTableCompanion(
+                tagId: tagId,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String tagId,
+                Value<DateTime> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DeletedTagsTableCompanion.insert(
+                tagId: tagId,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DeletedTagsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$Database,
+      $DeletedTagsTableTable,
+      DeletedTagsTableData,
+      $$DeletedTagsTableTableFilterComposer,
+      $$DeletedTagsTableTableOrderingComposer,
+      $$DeletedTagsTableTableAnnotationComposer,
+      $$DeletedTagsTableTableCreateCompanionBuilder,
+      $$DeletedTagsTableTableUpdateCompanionBuilder,
+      (
+        DeletedTagsTableData,
+        BaseReferences<
+          _$Database,
+          $DeletedTagsTableTable,
+          DeletedTagsTableData
+        >,
+      ),
+      DeletedTagsTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$DeletedScoresTableTableCreateCompanionBuilder =
+    DeletedScoresTableCompanion Function({
+      required String scoreId,
+      Value<DateTime> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$DeletedScoresTableTableUpdateCompanionBuilder =
+    DeletedScoresTableCompanion Function({
+      Value<String> scoreId,
+      Value<DateTime> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$DeletedScoresTableTableFilterComposer
+    extends Composer<_$Database, $DeletedScoresTableTable> {
+  $$DeletedScoresTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get scoreId => $composableBuilder(
+    column: $table.scoreId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DeletedScoresTableTableOrderingComposer
+    extends Composer<_$Database, $DeletedScoresTableTable> {
+  $$DeletedScoresTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get scoreId => $composableBuilder(
+    column: $table.scoreId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DeletedScoresTableTableAnnotationComposer
+    extends Composer<_$Database, $DeletedScoresTableTable> {
+  $$DeletedScoresTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get scoreId =>
+      $composableBuilder(column: $table.scoreId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$DeletedScoresTableTableTableManager
+    extends
+        RootTableManager<
+          _$Database,
+          $DeletedScoresTableTable,
+          DeletedScoresTableData,
+          $$DeletedScoresTableTableFilterComposer,
+          $$DeletedScoresTableTableOrderingComposer,
+          $$DeletedScoresTableTableAnnotationComposer,
+          $$DeletedScoresTableTableCreateCompanionBuilder,
+          $$DeletedScoresTableTableUpdateCompanionBuilder,
+          (
+            DeletedScoresTableData,
+            BaseReferences<
+              _$Database,
+              $DeletedScoresTableTable,
+              DeletedScoresTableData
+            >,
+          ),
+          DeletedScoresTableData,
+          PrefetchHooks Function()
+        > {
+  $$DeletedScoresTableTableTableManager(
+    _$Database db,
+    $DeletedScoresTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DeletedScoresTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DeletedScoresTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DeletedScoresTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> scoreId = const Value.absent(),
+                Value<DateTime> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DeletedScoresTableCompanion(
+                scoreId: scoreId,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String scoreId,
+                Value<DateTime> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DeletedScoresTableCompanion.insert(
+                scoreId: scoreId,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DeletedScoresTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$Database,
+      $DeletedScoresTableTable,
+      DeletedScoresTableData,
+      $$DeletedScoresTableTableFilterComposer,
+      $$DeletedScoresTableTableOrderingComposer,
+      $$DeletedScoresTableTableAnnotationComposer,
+      $$DeletedScoresTableTableCreateCompanionBuilder,
+      $$DeletedScoresTableTableUpdateCompanionBuilder,
+      (
+        DeletedScoresTableData,
+        BaseReferences<
+          _$Database,
+          $DeletedScoresTableTable,
+          DeletedScoresTableData
+        >,
+      ),
+      DeletedScoresTableData,
+      PrefetchHooks Function()
+    >;
 
 class $DatabaseManager {
   final _$Database _db;
@@ -3402,4 +4724,10 @@ class $DatabaseManager {
       $$TagsTableTableTableManager(_db, _db.tagsTable);
   $$ScoreTagsTableTableTableManager get scoreTagsTable =>
       $$ScoreTagsTableTableTableManager(_db, _db.scoreTagsTable);
+  $$KeyValueTableTableTableManager get keyValueTable =>
+      $$KeyValueTableTableTableManager(_db, _db.keyValueTable);
+  $$DeletedTagsTableTableTableManager get deletedTagsTable =>
+      $$DeletedTagsTableTableTableManager(_db, _db.deletedTagsTable);
+  $$DeletedScoresTableTableTableManager get deletedScoresTable =>
+      $$DeletedScoresTableTableTableManager(_db, _db.deletedScoresTable);
 }

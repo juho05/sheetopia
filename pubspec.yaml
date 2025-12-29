@@ -8,7 +8,10 @@ environment:
   sdk: ^3.10.4
 
 dependencies:
+  cryptography_plus: ^2.7.1
+  dbus_secrets: ^0.0.2
   diacritic: ^0.1.6
+  dio: ^5.9.0
   dotted_border: ^3.1.0
   drift: ^2.30.0
   drift_flutter: ^0.2.8
@@ -18,10 +21,13 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_fullscreen: ^1.2.0
+  flutter_secure_storage: ^10.0.0
   flutter_sharing_intent: ^2.0.4
   go_router: ^17.0.1
   image: ^4.7.2
   infinite_scroll_pagination: ^5.1.1
+  json_annotation: ^4.9.0
+  json_serializable: ^6.11.3
   path: ^1.9.1
   path_provider: ^2.1.5
   pdfrx: ^2.2.17
@@ -35,6 +41,8 @@ dependencies:
 dependency_overrides:
   path_provider_linux:
     path: ./dependency_overrides/path_provider_linux
+  flutter_secure_storage_linux:
+    path: ./dependency_overrides/stubs/flutter_secure_storage_linux
 
 dev_dependencies:
   flutter_test:

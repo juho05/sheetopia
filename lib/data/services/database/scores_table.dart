@@ -11,7 +11,10 @@ class ScoresTable extends Table {
   late final metadataUpdatedAt = dateTime().withDefault(currentDateAndTime)();
   late final fileUpdatedAt = dateTime().withDefault(currentDateAndTime)();
 
-  late final downloaded = boolean()();
+  late final metadataUploaded = boolean().withDefault(const Variable(false))();
+  late final fileUploaded = boolean().withDefault(const Variable(false))();
+  late final fileDownloaded = boolean()();
+
   late final fileType = textEnum<FileType>()();
 
   @override

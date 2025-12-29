@@ -90,8 +90,8 @@ class ScoresRepository {
       metadataUpdatedAt: score.metadataUpdatedAt,
       fileUpdatedAt: score.fileUpdatedAt,
       fileType: score.fileType,
-      file: score.downloaded
-          ? await _scoreFile(score.id, score.fileType)
+      file: score.fileDownloaded
+          ? await scoreFile(score.id, score.fileType)
           : null,
     );
   }
@@ -242,8 +242,8 @@ class ScoresRepository {
           metadataUpdatedAt: s.score.metadataUpdatedAt,
           fileUpdatedAt: s.score.fileUpdatedAt,
           fileType: s.score.fileType,
-          file: s.score.downloaded
-              ? await _scoreFile(s.score.id, s.score.fileType)
+          file: s.score.fileDownloaded
+              ? await scoreFile(s.score.id, s.score.fileType)
               : null,
         ),
       ),
@@ -308,6 +308,7 @@ class ScoresRepository {
             composer: composer.isNotEmpty ? Value(composer) : const Value(null),
             searchText: Value(_generateSearchText([title, composer])),
             metadataUpdatedAt: Value(DateTime.now()),
+            metadataUploaded: const Value(false),
           ),
         );
     _updatedScoreIds.add({scoreId});
@@ -391,6 +392,7 @@ class ScoresRepository {
             name: Value(name),
             color: Value(color.toARGB32()),
             updatedAt: Value(DateTime.now()),
+            uploaded: const Value(false),
           ),
         );
     final affectedScores = await _db.managers.scoreTagsTable
@@ -402,13 +404,18 @@ class ScoresRepository {
   }
 
   Future<void> deleteTag(String tagId) async {
-    final affectedScores = await _db.managers.scoreTagsTable
-        .filter((f) => f.tag.id(tagId))
-        .map((s) => s.score)
-        .get();
-    await _db.managers.tagsTable.filter((f) => f.id(tagId)).delete();
-    _updatedScoreIds.add(affectedScores.toSet());
-    _updatedTagIds.add({tagId});
+    await _db.transaction(() async {
+      final affectedScores = await _db.managers.scoreTagsTable
+          .filter((f) => f.tag.id(tagId))
+          .map((s) => s.score)
+          .get();
+      await _db.managers.tagsTable.filter((f) => f.id(tagId)).delete();
+      await _db.managers.deletedTagsTable.create(
+        (o) => o(tagId: tagId, deletedAt: Value(DateTime.now())),
+      );
+      _updatedScoreIds.add(affectedScores.toSet());
+      _updatedTagIds.add({tagId});
+    });
   }
 
   Future<void> addScoreInstruments(
@@ -422,7 +429,12 @@ class ScoresRepository {
       );
       await _db.managers.scoresTable
           .filter((f) => f.id(scoreId))
-          .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
+          .update(
+            (o) => o(
+              metadataUpdatedAt: Value(DateTime.now()),
+              metadataUploaded: const Value(false),
+            ),
+          );
     });
     _updatedScoreIds.add({scoreId});
   }
@@ -434,7 +446,12 @@ class ScoresRepository {
           .delete();
       await _db.managers.scoresTable
           .filter((f) => f.id(scoreId))
-          .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
+          .update(
+            (o) => o(
+              metadataUpdatedAt: Value(DateTime.now()),
+              metadataUploaded: const Value(false),
+            ),
+          );
     });
     _updatedScoreIds.add({scoreId});
   }
@@ -447,7 +464,12 @@ class ScoresRepository {
       );
       await _db.managers.scoresTable
           .filter((f) => f.id(scoreId))
-          .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
+          .update(
+            (o) => o(
+              metadataUpdatedAt: Value(DateTime.now()),
+              metadataUploaded: const Value(false),
+            ),
+          );
     });
     _updatedScoreIds.add({scoreId});
   }
@@ -459,7 +481,12 @@ class ScoresRepository {
           .delete();
       await _db.managers.scoresTable
           .filter((f) => f.id(scoreId))
-          .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
+          .update(
+            (o) => o(
+              metadataUpdatedAt: Value(DateTime.now()),
+              metadataUploaded: const Value(false),
+            ),
+          );
     });
     _updatedScoreIds.add({scoreId});
   }
@@ -472,7 +499,12 @@ class ScoresRepository {
       );
       await _db.managers.scoresTable
           .filter((f) => f.id(scoreId))
-          .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
+          .update(
+            (o) => o(
+              metadataUpdatedAt: Value(DateTime.now()),
+              metadataUploaded: const Value(false),
+            ),
+          );
     });
     _updatedScoreIds.add({scoreId});
   }
@@ -484,7 +516,12 @@ class ScoresRepository {
           .delete();
       await _db.managers.scoresTable
           .filter((f) => f.id(scoreId))
-          .update((o) => o(metadataUpdatedAt: Value(DateTime.now())));
+          .update(
+            (o) => o(
+              metadataUpdatedAt: Value(DateTime.now()),
+              metadataUploaded: const Value(false),
+            ),
+          );
     });
     _updatedScoreIds.add({scoreId});
   }
@@ -501,7 +538,7 @@ class ScoresRepository {
         final id = _db.newId();
         final title = path.basenameWithoutExtension(p);
 
-        final file = await _scoreFile(id, fileType);
+        final file = await scoreFile(id, fileType);
 
         await File(p).copy(file.path);
 
@@ -532,7 +569,7 @@ class ScoresRepository {
             createdAt: Value(s.createdAt),
             metadataUpdatedAt: Value(s.metadataUpdatedAt),
             fileUpdatedAt: Value(s.fileUpdatedAt),
-            downloaded: true,
+            fileDownloaded: true,
             fileType: s.fileType,
           ),
         ),
@@ -559,13 +596,13 @@ class ScoresRepository {
       throw InvalidFileTypeException(filePath: filePath);
     }
 
-    final file = await _scoreFile(scoreId, fileType);
+    final file = await scoreFile(scoreId, fileType);
 
     await File(filePath).copy(file.path);
 
     if (fileType != score.fileType) {
       try {
-        (await _scoreFile(score.id, score.fileType)).delete();
+        (await scoreFile(score.id, score.fileType)).delete();
       } catch (_) {}
     }
 
@@ -577,6 +614,7 @@ class ScoresRepository {
           (o) => o(
             fileUpdatedAt: Value(DateTime.now()),
             fileType: Value(fileType),
+            fileUploaded: const Value(false),
           ),
         );
     _updatedScoreIds.add({scoreId});
@@ -653,15 +691,30 @@ class ScoresRepository {
   }
 
   Future<void> deleteScore(String scoreId) async {
-    final score = await _db.managers.scoresTable
-        .filter((f) => f.id(scoreId))
-        .getSingle();
-    await _db.managers.scoresTable.filter((f) => f.id(scoreId)).delete();
-    _updatedScoreIds.add({scoreId});
-    try {
-      (await _scoreFile(scoreId, score.fileType)).delete();
-    } catch (_) {}
+    await _db.transaction(() async {
+      final score = await _db.managers.scoresTable
+          .filter((f) => f.id(scoreId))
+          .getSingle();
+      await _db.managers.scoresTable.filter((f) => f.id(scoreId)).delete();
+      await _db.managers.deletedScoresTable.create(
+        (o) => o(scoreId: scoreId, deletedAt: Value(DateTime.now())),
+      );
+      _updatedScoreIds.add({scoreId});
+      try {
+        (await scoreFile(scoreId, score.fileType)).delete();
+      } catch (_) {}
+    });
     await _thumbnailService.invalidateThumbnails([scoreId]);
+  }
+
+  void changedTags(Set<String> tagIds) {
+    if (tagIds.isEmpty) return;
+    _updatedTagIds.add(tagIds);
+  }
+
+  void changedScores(Set<String> scoreIds) {
+    if (scoreIds.isEmpty) return;
+    _updatedScoreIds.add(scoreIds);
   }
 
   Directory? _cachedScoresDir;
@@ -680,7 +733,7 @@ class ScoresRepository {
     return dir;
   }
 
-  Future<File> _scoreFile(String id, FileType fileType) async {
+  Future<File> scoreFile(String id, FileType fileType) async {
     return File(
       path.join((await _scoresDir).path, id + fileTypeToExtension(fileType)),
     );
