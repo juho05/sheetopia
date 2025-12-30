@@ -101,6 +101,9 @@ class SyncRepository {
     await _encryptedStorage.write(_conKey, jsonEncode(_con!));
     await _keyValue.store(_userKey, user);
 
+    await _db.managers.deletedScoresTable.delete();
+    await _db.managers.deletedTagsTable.delete();
+
     _sync();
   }
 
