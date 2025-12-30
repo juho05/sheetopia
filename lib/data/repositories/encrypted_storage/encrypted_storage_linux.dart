@@ -123,7 +123,7 @@ class EncryptedStorageLinux implements EncryptedStorage {
     _initialized = true;
 
     try {
-      _storage = DBusSecrets(appName: "org.crossonic.app");
+      _storage = DBusSecrets(appName: "de.julianh.sheetopia");
       if (!await _storage!.initialize()) {
         _useFallback = true;
         print(

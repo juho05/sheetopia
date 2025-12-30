@@ -60,7 +60,7 @@ class $ScoresTableTable extends ScoresTable
         false,
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
-        defaultValue: currentDateAndTime,
+        clientDefault: () => DateTime.now().toUtc(),
       );
   static const VerificationMeta _fileUpdatedAtMeta = const VerificationMeta(
     'fileUpdatedAt',
@@ -73,7 +73,7 @@ class $ScoresTableTable extends ScoresTable
         false,
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
-        defaultValue: currentDateAndTime,
+        clientDefault: () => DateTime.now().toUtc(),
       );
   static const VerificationMeta _metadataUploadedMeta = const VerificationMeta(
     'metadataUploaded',
@@ -88,7 +88,7 @@ class $ScoresTableTable extends ScoresTable
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'CHECK ("metadata_uploaded" IN (0, 1))',
     ),
-    defaultValue: const Variable(false),
+    defaultValue: const Constant(false),
   );
   static const VerificationMeta _fileUploadedMeta = const VerificationMeta(
     'fileUploaded',
@@ -103,7 +103,7 @@ class $ScoresTableTable extends ScoresTable
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'CHECK ("file_uploaded" IN (0, 1))',
     ),
-    defaultValue: const Variable(false),
+    defaultValue: const Constant(false),
   );
   static const VerificationMeta _fileDownloadedMeta = const VerificationMeta(
     'fileDownloaded',
@@ -1123,7 +1123,7 @@ class $TagsTableTable extends TagsTable
     false,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
-    defaultValue: currentDateAndTime,
+    clientDefault: () => DateTime.now().toUtc(),
   );
   static const VerificationMeta _uploadedMeta = const VerificationMeta(
     'uploaded',
@@ -1138,7 +1138,7 @@ class $TagsTableTable extends TagsTable
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'CHECK ("uploaded" IN (0, 1))',
     ),
-    defaultValue: const Variable(false),
+    defaultValue: const Constant(false),
   );
   @override
   List<GeneratedColumn> get $columns => [id, name, color, updatedAt, uploaded];
@@ -1880,7 +1880,7 @@ class $DeletedTagsTableTable extends DeletedTagsTable
     false,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
-    defaultValue: currentDateAndTime,
+    clientDefault: () => DateTime.now().toUtc(),
   );
   @override
   List<GeneratedColumn> get $columns => [tagId, deletedAt];
@@ -2097,7 +2097,7 @@ class $DeletedScoresTableTable extends DeletedScoresTable
     false,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
-    defaultValue: currentDateAndTime,
+    clientDefault: () => DateTime.now().toUtc(),
   );
   @override
   List<GeneratedColumn> get $columns => [scoreId, deletedAt];

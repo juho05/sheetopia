@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
+import 'package:sheetopia/ui/home/sync_dialog.dart';
 
 class SyncIcon extends StatelessWidget {
   const SyncIcon({super.key});
@@ -12,7 +12,7 @@ class SyncIcon extends StatelessWidget {
     final theme = Theme.of(context);
     return IconButton(
       onPressed: () {
-        context.go("/sync");
+        SyncDialog.show(context);
       },
       icon: SizedBox.square(
         dimension: 24,

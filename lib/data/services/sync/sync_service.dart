@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/sync/exceptions.dart';
+import 'package:sheetopia/data/services/sync/models/auth_key.dart';
 import 'package:sheetopia/data/services/sync/models/datetime_converter.dart';
 import 'package:sheetopia/data/services/sync/models/deleted_scores.dart';
 import 'package:sheetopia/data/services/sync/models/deleted_tags.dart';
@@ -10,6 +11,7 @@ import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/server_info.dart';
 import 'package:sheetopia/data/services/sync/models/tags.dart';
+import 'package:sheetopia/data/services/sync/models/user.dart';
 import 'package:sheetopia/data/services/sync/sync_connection.dart';
 
 class SyncService {
@@ -21,6 +23,39 @@ class SyncService {
       responseType: ResponseType.json,
     ),
   );
+
+  Future<SyncConnection> login(
+    Uri baseUri, {
+    required String user,
+    required String password,
+  }) async {
+    final response = await _requestObject(
+      baseUri,
+      "POST",
+      "login",
+      AuthKeyModel.fromJson,
+      authKey: null,
+      data: {"user": user, "password": password},
+    );
+    return SyncConnection(baseUri: baseUri, authKey: response.authKey);
+  }
+
+  Future<void> logout(SyncConnection con) async {
+    try {
+      await _request(con.baseUri, "POST", "logout", authKey: con.authKey);
+    } on UnauthenticatedException catch (_) {}
+  }
+
+  Future<String> getUser(SyncConnection con) async {
+    final response = await _requestObject(
+      con.baseUri,
+      "GET",
+      "user",
+      UserModel.fromJson,
+      authKey: con.authKey,
+    );
+    return response.user;
+  }
 
   Future<List<TagModel>> getTags(
     SyncConnection con, {

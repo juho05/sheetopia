@@ -1,8 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
+import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage.dart';
+import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage_linux.dart';
+import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage_secure_storage.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
@@ -23,6 +28,8 @@ class SyncRepository {
   final SyncService _service;
   final ThumbnailService _thumbnailService;
 
+  final EncryptedStorage _encryptedStorage;
+
   final ValueNotifier<SyncState> state = ValueNotifier(SyncState.none);
 
   static const String _lastSyncKey = "last_sync";
@@ -30,11 +37,15 @@ class SyncRepository {
   Set<String> _changedScores = {};
   Set<String> _changedTags = {};
 
-  // TODO replace with actual credentials
-  static final _con = SyncConnection(
-    baseUri: Uri.parse("http://localhost:8080"),
-    authKey: "uf9Zng1T3FV58i3GmRi1x2Dy3Fwnh8TyYB9UnXnKLMhbscpXVTRizaDG6uyERpsR",
-  );
+  static const String _userKey = "auth.user";
+  static const String _conKey = "sheetopia/auth.con";
+
+  SyncConnection? _con;
+  String? _user;
+
+  bool get signedIn => _con != null;
+  String get user => _user ?? "unknown";
+  Uri get serverUri => _con!.baseUri;
 
   SyncRepository({
     required ScoresRepository scoresRepo,
@@ -46,35 +57,94 @@ class SyncRepository {
        _keyValue = keyValue,
        _db = db,
        _service = syncService,
-       _thumbnailService = thumbnailService {
+       _thumbnailService = thumbnailService,
+       _encryptedStorage = Platform.isLinux
+           ? EncryptedStorageLinux(keyValueRepo: keyValue)
+           : EncryptedStorageSecureStorage() {
     _load().then((value) {
       _scoresRepo.locallyUpdatedScoreIds.listen((event) => _requestSync());
       _scoresRepo.locallyUpdatedTagIds.listen((event) => _requestSync());
     });
   }
 
-  Future<void> login({required String user, required String password}) async {
-    // TODO
+  Future<bool> isSheetopiaUri(Uri baseUri) async {
+    try {
+      final info = await _service.getServerInfo(baseUri);
+      if (info.server != "sheetopia-sync") return false;
+      return true;
+    } on InvalidResponseBody catch (_) {
+      return false;
+    } on StatusCodeException catch (_) {
+      return false;
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.badResponse ||
+          (e.type == DioExceptionType.unknown &&
+              e.error != null &&
+              e.error!.toString().contains("is not a subtype of"))) {
+        return false;
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> login({
+    required Uri baseUri,
+    required String user,
+    required String password,
+  }) async {
+    if (signedIn) throw Exception("already signed in");
+    _con = await _service.login(baseUri, user: user, password: password);
+
+    await _encryptedStorage.write(_conKey, jsonEncode(_con!));
+    await _keyValue.store(_userKey, user);
 
     _sync();
   }
 
   Future<void> logout() async {
-    // TODO delete auth state
-
     _syncTimer?.cancel();
     _syncTimer = null;
     _nextSyncDelay = _defaultSyncDelay;
+    _con = null;
+    _user = null;
     state.value = SyncState.none;
+
+    await _updateLastSync(null);
+    await _keyValue.remove(_userKey);
+    await _encryptedStorage.delete(_conKey);
+
+    await _db.managers.scoresTable.update(
+      (o) => o(
+        metadataUploaded: const Value(false),
+        fileUploaded: const Value(false),
+      ),
+    );
+    await _db.managers.tagsTable.update((o) => o(uploaded: const Value(false)));
   }
 
   Future<void> _load() async {
-    // TODO load auth state
+    final conStr = await _encryptedStorage.read(_conKey);
+    if (conStr == null) {
+      await _keyValue.remove(_conKey);
+      return;
+    }
+    _con = SyncConnection.fromJson(jsonDecode(conStr));
+    _user = await _keyValue.loadString(_userKey);
+
+    try {
+      _user = await _service.getUser(_con!);
+    } on UnauthenticatedException catch (_) {
+      await logout();
+      return;
+    } on DioException catch (_) {
+      // server unreachable at the moment, use cached user value
+    }
+
     _sync();
   }
 
   void _requestSync() {
-    // TODO ignore if not logged in
+    if (!signedIn) return;
     _nextSyncDelay = const Duration(seconds: 5);
     if (state.value != SyncState.syncing) {
       _scheduleSync();
@@ -85,6 +155,7 @@ class SyncRepository {
   Timer? _syncTimer;
 
   void _scheduleSync() {
+    if (!signedIn) return;
     _syncTimer?.cancel();
     _syncTimer = Timer(_nextSyncDelay, () {
       _syncTimer = null;
@@ -94,8 +165,9 @@ class SyncRepository {
   }
 
   // TODO implement proper scheduling
-  Future<bool> _sync() async {
-    if (state.value == SyncState.syncing) return false;
+  Future<void> _sync() async {
+    if (!signedIn) return;
+    if (state.value == SyncState.syncing) return;
     state.value = SyncState.syncing;
 
     try {
@@ -103,7 +175,7 @@ class SyncRepository {
         await _loadLastSync();
       }
 
-      final syncTime = (await _service.getServerInfo(_con.baseUri)).time;
+      final syncTime = (await _service.getServerInfo(_con!.baseUri)).time;
 
       await _uploadDeletedTags();
       await _uploadDeletedScores();
@@ -127,8 +199,10 @@ class SyncRepository {
     } on UnauthenticatedException catch (_) {
       await logout();
     } catch (e, st) {
-      print("Sync failed: $e\n$st");
-      state.value = SyncState.failure;
+      if (signedIn) {
+        print("Sync failed: $e\n$st");
+        state.value = SyncState.failure;
+      }
     } finally {
       _scoresRepo.remoteChangedTags(_changedTags);
       _scoresRepo.remoteChangedScores(_changedScores);
@@ -136,7 +210,6 @@ class SyncRepository {
       _changedScores = {};
       _scheduleSync();
     }
-    return true;
   }
 
   Future<void> _uploadDeletedTags() async {
@@ -147,7 +220,7 @@ class SyncRepository {
 
     for (final tagId in deletedTagIds) {
       try {
-        await _service.deleteTag(_con, tagId);
+        await _service.deleteTag(_con!, tagId);
       } on NotFoundException catch (_) {
         // tag is already deleted on server or was never synced
       }
@@ -166,7 +239,7 @@ class SyncRepository {
 
     for (final scoreId in deletedScoreIds) {
       try {
-        await _service.deleteScore(_con, scoreId);
+        await _service.deleteScore(_con!, scoreId);
       } on NotFoundException catch (_) {
         // score is already deleted on server or was never synced
       }
@@ -179,7 +252,7 @@ class SyncRepository {
 
   Future<void> _downloadDeletedTags() async {
     final deletedTagIds = await _service.getDeletedTagIds(
-      _con,
+      _con!,
       since: _lastSync,
     );
     for (final t in deletedTagIds) {
@@ -208,7 +281,7 @@ class SyncRepository {
     for (final t in changedTags) {
       try {
         await _service.updateTag(
-          _con,
+          _con!,
           t.id,
           name: t.name,
           color: t.color,
@@ -224,7 +297,7 @@ class SyncRepository {
   }
 
   Future<void> _downloadTagChanges() async {
-    final tags = await _service.getTags(_con, changedAfter: _lastSync);
+    final tags = await _service.getTags(_con!, changedAfter: _lastSync);
     for (final t in tags) {
       final result = await _db.managers.tagsTable.createReturningOrNull(
         (o) => o(
@@ -258,7 +331,7 @@ class SyncRepository {
 
   Future<void> _downloadDeletedScores() async {
     final deletedScores = await _service.getDeletedScoreIds(
-      _con,
+      _con!,
       since: _lastSync,
     );
     for (final s in deletedScores) {
@@ -286,7 +359,7 @@ class SyncRepository {
     for (final (s, refs) in changedScores) {
       try {
         await _service.updateScore(
-          _con,
+          _con!,
           s.id,
           title: s.title,
           metadataUpdatedAt: s.metadataUpdatedAt.toUtc(),
@@ -323,7 +396,7 @@ class SyncRepository {
       final file = await _scoresRepo.scoreFile(s.id, s.fileType);
       try {
         await _service.uploadScoreFile(
-          _con,
+          _con!,
           s.id,
           file: file,
           updatedAt: s.fileUpdatedAt.toUtc(),
@@ -339,7 +412,7 @@ class SyncRepository {
   }
 
   Future<void> _downloadMetadataChanges() async {
-    final scores = await _service.getScores(_con, changedAfter: _lastSync);
+    final scores = await _service.getScores(_con!, changedAfter: _lastSync);
 
     for (final s in scores) {
       File? deleteFile;
@@ -467,7 +540,7 @@ class SyncRepository {
       final file = await _scoresRepo.scoreFile(s.id, s.fileType);
       final partFile = File("${file.path}.part");
       await _service.downloadScoreFile(
-        _con,
+        _con!,
         s.id,
         fileType: s.fileType,
         target: partFile,
@@ -490,7 +563,11 @@ class SyncRepository {
 
   Future<void> _updateLastSync(DateTime? syncTime) async {
     _lastSync = syncTime;
-    await _keyValue.store(_lastSyncKey, syncTime);
+    if (syncTime == null) {
+      await _keyValue.remove(_lastSyncKey);
+    } else {
+      await _keyValue.store(_lastSyncKey, syncTime);
+    }
   }
 
   Value<String?> _optionalStringValue(String? str) {
