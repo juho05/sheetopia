@@ -710,12 +710,12 @@ class ScoresRepository {
       await _db.managers.deletedScoresTable.create(
         (o) => o(scoreId: scoreId, deletedAt: Value(DateTime.now().toUtc())),
       );
-      _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
       try {
         (await scoreFile(scoreId, score.fileType)).delete();
       } catch (_) {}
     });
     await _thumbnailService.invalidateThumbnails([scoreId]);
+    _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
   void remoteChangedTags(Set<String> tagIds) {

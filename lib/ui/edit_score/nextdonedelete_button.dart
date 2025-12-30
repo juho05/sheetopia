@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sheetopia/routing/router.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/next_button.dart';
 import 'package:sheetopia/ui/common/toast.dart';
@@ -33,8 +34,8 @@ class NextDoneDeleteButton extends StatelessWidget {
                   context,
                   "Successfully deleted score '${viewModel.score!.title}'!",
                 );
-                context.go("/");
               }
+              goRouter.go("/");
             },
             style: FilledButton.styleFrom(
               backgroundColor: theme.colorScheme.errorContainer,
