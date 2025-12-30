@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -40,6 +41,7 @@ class _PdfViewState extends State<PdfView> {
 
   @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         double calcPageWidth(PdfPage page) {
@@ -159,9 +161,17 @@ class _PdfViewState extends State<PdfView> {
                                           constraints.maxHeight *
                                           (page.width / page.height),
                                     ),
-                                    child: PdfPageView(
-                                      document: _viewModel.document!,
-                                      pageNumber: page.pageNumber,
+                                    child: MediaQuery(
+                                      data: mediaQuery.copyWith(
+                                        devicePixelRatio: max(
+                                          mediaQuery.devicePixelRatio,
+                                          2.0,
+                                        ),
+                                      ),
+                                      child: PdfPageView(
+                                        document: _viewModel.document!,
+                                        pageNumber: page.pageNumber,
+                                      ),
                                     ),
                                   ),
                                 );
@@ -185,9 +195,17 @@ class _PdfViewState extends State<PdfView> {
                                         constraints.maxHeight *
                                         (page.width / page.height),
                                   ),
-                                  child: PdfPageView(
-                                    document: _viewModel.document!,
-                                    pageNumber: page.pageNumber,
+                                  child: MediaQuery(
+                                    data: mediaQuery.copyWith(
+                                      devicePixelRatio: max(
+                                        mediaQuery.devicePixelRatio,
+                                        2.0,
+                                      ),
+                                    ),
+                                    child: PdfPageView(
+                                      document: _viewModel.document!,
+                                      pageNumber: page.pageNumber,
+                                    ),
                                   ),
                                 ),
                               );

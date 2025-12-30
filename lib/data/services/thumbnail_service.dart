@@ -54,20 +54,24 @@ class ThumbnailService {
     try {
       final page = pdf.pages.first;
       final fullHeight = width * (page.height / page.width);
+      final actualHeight = min(height, fullHeight.floor());
+
+      bool renderHigherResolution = width < 500;
+
       pdfImage = await page.render(
         x: 0,
         y: 0,
-        fullWidth: width.toDouble(),
-        fullHeight: fullHeight,
-        width: width,
-        height: min(height, fullHeight.floor()),
+        fullWidth: width.toDouble() * (renderHigherResolution ? 2 : 1),
+        fullHeight: fullHeight * (renderHigherResolution ? 2 : 1),
+        width: width * (renderHigherResolution ? 2 : 1),
+        height: actualHeight * (renderHigherResolution ? 2 : 1),
       );
       if (pdfImage == null) return null;
 
       final path = await _thumbnailPath(score.id, width: width, height: height);
 
       await compute((pdfImage) async {
-        final image = img.Image.fromBytes(
+        var image = img.Image.fromBytes(
           width: pdfImage.width,
           height: pdfImage.height,
           bytes: pdfImage.pixels.buffer,
@@ -75,7 +79,15 @@ class ThumbnailService {
           numChannels: 4,
           order: img.ChannelOrder.bgra,
         );
-        await img.encodeJpgFile(path, image, quality: 85);
+        if (renderHigherResolution) {
+          image = img.resize(
+            image,
+            width: width,
+            height: height,
+            interpolation: img.Interpolation.average,
+          );
+        }
+        await img.encodeJpgFile(path, image, quality: 90);
       }, pdfImage);
 
       return path;
