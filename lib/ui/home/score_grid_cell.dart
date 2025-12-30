@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
@@ -32,9 +34,20 @@ class ScoreGridCell extends StatelessWidget {
           onTap: () {
             context.go("/scores/${score.id}");
           },
-          child: Stack(
-            children: [
-              Column(
+          child: Builder(
+            builder: (context) {
+              final title = OptionalTooltip(
+                message: score.title,
+                child: TextScroll(
+                  score.title,
+                  fadedBorder: false,
+                  style: theme.textTheme.bodyMedium!.copyWith(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  ),
+                ),
+              );
+              final widget = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 spacing: 4,
                 children: [
@@ -54,17 +67,25 @@ class ScoreGridCell extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       spacing: 4,
                       children: [
-                        OptionalTooltip(
-                          message: score.title,
-                          child: TextScroll(
-                            score.title,
-                            fadedBorder: false,
-                            style: theme.textTheme.bodyMedium!.copyWith(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
+                        if (Platform.isAndroid)
+                          Row(
+                            children: [
+                              Expanded(child: title),
+                              SizedBox.square(
+                                dimension: 22,
+                                child: IconButton(
+                                  onPressed: () {
+                                    context.go("/scores/${score.id}/edit");
+                                  },
+                                  padding: const EdgeInsetsGeometry.all(2),
+                                  iconSize: 18,
+                                  icon: const Icon(Icons.edit),
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          title,
                         OptionalTooltip(
                           message: score.composer,
                           child: Text(
@@ -115,31 +136,40 @@ class ScoreGridCell extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
-              Align(
-                alignment: Alignment.topRight,
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: SizedBox.square(
-                    dimension: 34,
-                    child: IconButton.filled(
-                      color: Colors.white,
-                      iconSize: 20,
-                      padding: const EdgeInsets.all(0),
-                      style: ButtonStyle(
-                        backgroundColor: WidgetStateProperty.all(
-                          Colors.black.withAlpha(100),
+              );
+              // android really struggles with transparent overlays on images
+              if (Platform.isAndroid) {
+                return widget;
+              }
+              return Stack(
+                children: [
+                  widget,
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: SizedBox.square(
+                        dimension: 34,
+                        child: IconButton.filled(
+                          color: Colors.white,
+                          iconSize: 20,
+                          padding: const EdgeInsets.all(0),
+                          style: ButtonStyle(
+                            backgroundColor: WidgetStateProperty.all(
+                              Colors.black.withAlpha(100),
+                            ),
+                          ),
+                          onPressed: () {
+                            context.go("/scores/${score.id}/edit");
+                          },
+                          icon: const Icon(Icons.edit),
                         ),
                       ),
-                      onPressed: () {
-                        context.go("/scores/${score.id}/edit");
-                      },
-                      icon: const Icon(Icons.edit),
                     ),
                   ),
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
         ),
       ),
