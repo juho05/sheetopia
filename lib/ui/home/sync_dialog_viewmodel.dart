@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/services/sync/exceptions.dart';
@@ -15,6 +16,14 @@ class SyncDialogViewModel extends ChangeNotifier {
   String? _errorText;
   String? get errorText => _errorText;
 
+  String get user => _repo.user;
+  String get server => _repo.serverUri.toString();
+
+  SyncState get state => _repo.state.value;
+
+  String? _lastSync;
+  String? get lastSync => _lastSync;
+
   final form = FormGroup({
     "url": FormControl<String>(
       validators: [Validators.required, const _BaseUriValidator()],
@@ -25,6 +34,19 @@ class SyncDialogViewModel extends ChangeNotifier {
 
   SyncDialogViewModel({required SyncRepository repo}) : _repo = repo {
     repo.state.addListener(notifyListeners);
+    repo.lastSync.addListener(_updateLastSync);
+    _updateLastSync();
+  }
+
+  void _updateLastSync() {
+    final dateTime = _repo.lastSync.value;
+    if (dateTime == null) {
+      _lastSync = null;
+    } else {
+      _lastSync = DateFormat("yyyy-MM-dd HH:mm:ss").format(dateTime.toLocal());
+    }
+
+    notifyListeners();
   }
 
   Future<void> login() async {
@@ -60,8 +82,17 @@ class SyncDialogViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> logout() async {
+    await _repo.logout();
+  }
+
+  void syncNow() {
+    _repo.syncNow();
+  }
+
   @override
   void dispose() {
+    _repo.lastSync.removeListener(_updateLastSync);
     _repo.state.removeListener(notifyListeners);
     super.dispose();
   }

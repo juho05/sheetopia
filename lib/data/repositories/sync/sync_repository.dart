@@ -33,7 +33,9 @@ class SyncRepository {
   final ValueNotifier<SyncState> state = ValueNotifier(SyncState.none);
 
   static const String _lastSyncKey = "last_sync";
-  DateTime? _lastSync;
+
+  final ValueNotifier<DateTime?> lastSync = ValueNotifier(null);
+
   Set<String> _changedScores = {};
   Set<String> _changedTags = {};
 
@@ -94,6 +96,7 @@ class SyncRepository {
   }) async {
     if (signedIn) throw Exception("already signed in");
     _con = await _service.login(baseUri, user: user, password: password);
+    _user = user;
 
     await _encryptedStorage.write(_conKey, jsonEncode(_con!));
     await _keyValue.store(_userKey, user);
@@ -143,6 +146,14 @@ class SyncRepository {
     _sync();
   }
 
+  Future<void> syncNow() async {
+    if (!signedIn) return;
+    _nextSyncDelay = Duration.zero;
+    if (state.value != SyncState.syncing) {
+      _scheduleSync();
+    }
+  }
+
   void _requestSync() {
     if (!signedIn) return;
     _nextSyncDelay = const Duration(seconds: 5);
@@ -171,7 +182,7 @@ class SyncRepository {
     state.value = SyncState.syncing;
 
     try {
-      if (_lastSync == null) {
+      if (lastSync.value == null) {
         await _loadLastSync();
       }
 
@@ -253,7 +264,7 @@ class SyncRepository {
   Future<void> _downloadDeletedTags() async {
     final deletedTagIds = await _service.getDeletedTagIds(
       _con!,
-      since: _lastSync,
+      since: lastSync.value,
     );
     for (final t in deletedTagIds) {
       await _db.transaction(() async {
@@ -297,7 +308,7 @@ class SyncRepository {
   }
 
   Future<void> _downloadTagChanges() async {
-    final tags = await _service.getTags(_con!, changedAfter: _lastSync);
+    final tags = await _service.getTags(_con!, changedAfter: lastSync.value);
     for (final t in tags) {
       final result = await _db.managers.tagsTable.createReturningOrNull(
         (o) => o(
@@ -332,7 +343,7 @@ class SyncRepository {
   Future<void> _downloadDeletedScores() async {
     final deletedScores = await _service.getDeletedScoreIds(
       _con!,
-      since: _lastSync,
+      since: lastSync.value,
     );
     for (final s in deletedScores) {
       final count = await _db.managers.scoresTable
@@ -412,7 +423,10 @@ class SyncRepository {
   }
 
   Future<void> _downloadMetadataChanges() async {
-    final scores = await _service.getScores(_con!, changedAfter: _lastSync);
+    final scores = await _service.getScores(
+      _con!,
+      changedAfter: lastSync.value,
+    );
 
     for (final s in scores) {
       File? deleteFile;
@@ -558,11 +572,11 @@ class SyncRepository {
   }
 
   Future<void> _loadLastSync() async {
-    _lastSync = await _keyValue.loadDateTime(_lastSyncKey);
+    lastSync.value = await _keyValue.loadDateTime(_lastSyncKey);
   }
 
   Future<void> _updateLastSync(DateTime? syncTime) async {
-    _lastSync = syncTime;
+    lastSync.value = syncTime;
     if (syncTime == null) {
       await _keyValue.remove(_lastSyncKey);
     } else {

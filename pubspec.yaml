@@ -26,6 +26,7 @@ dependencies:
   go_router: ^17.0.1
   image: ^4.7.2
   infinite_scroll_pagination: ^5.1.1
+  intl: ^0.20.2
   json_annotation: ^4.9.0
   json_serializable: ^6.11.3
   path: ^1.9.1

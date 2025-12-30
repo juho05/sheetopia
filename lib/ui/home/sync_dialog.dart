@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reactive_forms/reactive_forms.dart';
+import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
+import 'package:sheetopia/ui/common/confirmation.dart';
+import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/home/sync_dialog_viewmodel.dart';
 
@@ -33,7 +36,7 @@ class SyncDialog extends StatelessWidget {
                 Align(
                   alignment: Alignment.center,
                   child: Text(
-                    viewModel.signedIn ? "Sync settings" : "Setup sync",
+                    viewModel.signedIn ? "Sync status" : "Setup sync",
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.headlineSmall,
                   ),
@@ -138,11 +141,143 @@ class _StatusView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    final theme = Theme.of(context);
+    final labelStyle = theme.textTheme.bodyMedium!.copyWith(
+      fontWeight: FontWeight.w500,
+    );
+    return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: 8,
-      children: [Text("status")],
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 12,
+      children: [
+        Material(
+          borderRadius: BorderRadius.circular(12),
+          color: theme.colorScheme.surfaceContainerHighest,
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 8,
+              children: [
+                const Heading(text: "Status"),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 75,
+                      child: Text("State:", style: labelStyle),
+                    ),
+                    Expanded(
+                      child: Text(
+                        switch (viewModel.state) {
+                          SyncState.none => "not syncing",
+                          SyncState.failure => "last sync failed",
+                          SyncState.syncing => "syncing",
+                          SyncState.success => "waiting for next sync",
+                        },
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium!.copyWith(
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 75,
+                      child: Text("Last sync:", style: labelStyle),
+                    ),
+                    Expanded(
+                      child: Text(
+                        viewModel.lastSync ?? "never",
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                Align(
+                  alignment: AlignmentGeometry.bottomRight,
+                  child: FilledButton(
+                    onPressed: viewModel.state != SyncState.syncing
+                        ? () {
+                            viewModel.syncNow();
+                          }
+                        : null,
+                    child: const Text("Sync now"),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Material(
+          borderRadius: BorderRadius.circular(12),
+          color: theme.colorScheme.surfaceContainerHighest,
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 8,
+              children: [
+                const Heading(text: "Connection details"),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 55,
+                      child: Text("Server:", style: labelStyle),
+                    ),
+                    Expanded(
+                      child: Text(
+                        viewModel.server,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 55,
+                      child: Text("User:", style: labelStyle),
+                    ),
+                    Expanded(
+                      child: Text(
+                        viewModel.user,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                Align(
+                  alignment: AlignmentGeometry.bottomRight,
+                  child: FilledButton(
+                    onPressed: () async {
+                      final confirmation = await ConfirmationDialog.showYesNo(
+                        context,
+                        message: "Sign out and stop syncing with this server?",
+                      );
+                      if (confirmation == true) {
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                        }
+                        await viewModel.logout();
+                      }
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: theme.colorScheme.errorContainer,
+                      foregroundColor: theme.colorScheme.onErrorContainer,
+                    ),
+                    child: const Text("Logout"),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
