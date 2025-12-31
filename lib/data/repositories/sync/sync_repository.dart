@@ -49,6 +49,8 @@ class SyncRepository {
   String get user => _user ?? "unknown";
   Uri get serverUri => _con!.baseUri;
 
+  AppLifecycleListener? _listener;
+
   SyncRepository({
     required ScoresRepository scoresRepo,
     required KeyValueRepository keyValue,
@@ -66,7 +68,34 @@ class SyncRepository {
     _load().then((value) {
       _scoresRepo.locallyUpdatedScoreIds.listen((event) => _requestSync());
       _scoresRepo.locallyUpdatedTagIds.listen((event) => _requestSync());
+      _listener = AppLifecycleListener(
+        onDetach: _disableSyncing,
+        onPause: _disableSyncing,
+        onResume: _enableSyncing,
+      );
     });
+  }
+
+  bool _syncingEnabled = true;
+
+  void _disableSyncing() {
+    if (!_syncingEnabled) return;
+    _syncingEnabled = false;
+    _syncTimer?.cancel();
+    _syncTimer = null;
+    if (state.value != SyncState.syncing &&
+        _nextSyncDelay < _defaultSyncDelay) {
+      _sync();
+    } else {
+      state.value = SyncState.none;
+      _nextSyncDelay = _defaultSyncDelay;
+    }
+  }
+
+  void _enableSyncing() {
+    if (_syncingEnabled) return;
+    _syncingEnabled = true;
+    _sync();
   }
 
   Future<bool> isSheetopiaUri(Uri baseUri) async {
@@ -171,6 +200,12 @@ class SyncRepository {
   void _scheduleSync() {
     if (!signedIn) return;
     _syncTimer?.cancel();
+    _syncTimer = null;
+    if (!_syncingEnabled) {
+      _nextSyncDelay = _defaultSyncDelay;
+      state.value = SyncState.none;
+      return;
+    }
     _syncTimer = Timer(_nextSyncDelay, () {
       _syncTimer = null;
       _nextSyncDelay = _defaultSyncDelay;
@@ -178,7 +213,6 @@ class SyncRepository {
     });
   }
 
-  // TODO implement proper scheduling
   Future<void> _sync() async {
     if (!signedIn) return;
     if (state.value == SyncState.syncing) return;
