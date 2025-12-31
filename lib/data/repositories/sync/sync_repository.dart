@@ -352,6 +352,7 @@ class SyncRepository {
       final count = await _db.managers.scoresTable
           .filter((f) => f.id(s))
           .delete();
+      await _scoresRepo.cleanupScoreFilesAfterDelete(s);
       if (count > 0) {
         _changedScores.add(s);
       }

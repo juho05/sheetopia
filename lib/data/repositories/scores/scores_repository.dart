@@ -703,19 +703,24 @@ class ScoresRepository {
 
   Future<void> deleteScore(String scoreId) async {
     await _db.transaction(() async {
-      final score = await _db.managers.scoresTable
-          .filter((f) => f.id(scoreId))
-          .getSingle();
       await _db.managers.scoresTable.filter((f) => f.id(scoreId)).delete();
       await _db.managers.deletedScoresTable.create(
         (o) => o(scoreId: scoreId, deletedAt: Value(DateTime.now().toUtc())),
       );
-      try {
-        (await scoreFile(scoreId, score.fileType)).delete();
-      } catch (_) {}
     });
-    await _thumbnailService.invalidateThumbnails([scoreId]);
+    await cleanupScoreFilesAfterDelete(scoreId);
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
+  }
+
+  Future<void> cleanupScoreFilesAfterDelete(String scoreId) async {
+    try {
+      (await scoreDir(scoreId)).delete(recursive: true);
+      await _thumbnailService.invalidateThumbnails([scoreId]);
+    } catch (e, st) {
+      print(
+        "Failed to clean up score files after score $scoreId was deleted: $e\n$st",
+      );
+    }
   }
 
   void remoteChangedTags(Set<String> tagIds) {
@@ -737,16 +742,23 @@ class ScoresRepository {
         "scores",
       ),
     );
-    if (!dir.existsSync()) {
-      await dir.create(recursive: true);
-    }
+    await dir.create(recursive: true);
     _cachedScoresDir = dir;
+    return dir;
+  }
+
+  Future<Directory> scoreDir(String id) async {
+    final dir = Directory(path.join((await _scoresDir).path, id));
+    await dir.create(recursive: true);
     return dir;
   }
 
   Future<File> scoreFile(String id, FileType fileType) async {
     return File(
-      path.join((await _scoresDir).path, id + fileTypeToExtension(fileType)),
+      path.join(
+        (await scoreDir(id)).path,
+        "score${fileTypeToExtension(fileType)}",
+      ),
     );
   }
 
