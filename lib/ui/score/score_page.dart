@@ -29,7 +29,7 @@ class _ScorePageState extends State<ScorePage> {
   @override
   void dispose() {
     WakelockPlus.disable();
-    if (FullScreen.isFullScreen) {
+    if (FullScreen.isFullScreen && !Platform.isMacOS) {
       FullScreen.setFullScreen(false);
     }
     super.dispose();
@@ -45,6 +45,9 @@ class _ScorePageState extends State<ScorePage> {
           body: SafeArea(
             child: Consumer<ScoreViewModel>(
               builder: (context, viewModel, _) {
+                final backButtonVisible =
+                    !viewModel.isFullScreen ||
+                    (Platform.isMacOS && viewModel.overlayVisible);
                 return MouseRegion(
                   cursor: !viewModel.isFullScreen || viewModel.overlayVisible
                       ? SystemMouseCursors.basic
@@ -74,8 +77,10 @@ class _ScorePageState extends State<ScorePage> {
                               switch (viewModel.fileType!) {
                                 FileType.pdf => PdfView(file: viewModel.file!),
                               },
-                            if (!viewModel.isFullScreen)
-                              Padding(
+                            AnimatedOpacity(
+                              opacity: backButtonVisible ? 1 : 0,
+                              duration: const Duration(milliseconds: 50),
+                              child: Padding(
                                 padding: const EdgeInsets.all(4),
                                 child: SizedBox.square(
                                   dimension: 32,
@@ -95,6 +100,7 @@ class _ScorePageState extends State<ScorePage> {
                                   ),
                                 ),
                               ),
+                            ),
                             if (Platform.isWindows ||
                                 Platform.isMacOS ||
                                 Platform.isLinux)
