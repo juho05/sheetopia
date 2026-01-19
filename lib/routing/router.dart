@@ -3,6 +3,9 @@ import 'package:sheetopia/routing/loading_page.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_page.dart';
 import 'package:sheetopia/ui/home/home_page.dart';
 import 'package:sheetopia/ui/score/score_page.dart';
+import 'package:sheetopia/ui/settings/midi/midi_device_page.dart';
+import 'package:sheetopia/ui/settings/midi/midi_page.dart';
+import 'package:sheetopia/ui/settings/settings_page.dart';
 
 GoRouter? _goRouter;
 
@@ -30,6 +33,26 @@ GoRouter get goRouter {
             path: 'scores/:scoreId/edit',
             builder: (context, state) =>
                 EditScorePage(scoreId: state.pathParameters["scoreId"]!),
+          ),
+          GoRoute(
+            path: "settings",
+            builder: (context, state) => const SettingsPage(),
+            routes: [
+              GoRoute(
+                path: "midi",
+                builder: (context, state) => const MidiPage(),
+                routes: [
+                  GoRoute(
+                    path: "devices/:deviceId",
+                    builder: (context, state) => MidiDevicePage(
+                      deviceId: Uri.decodeComponent(
+                        state.pathParameters["deviceId"]!,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
           GoRoute(
             path: "loading",

@@ -26,9 +26,16 @@ class HomePage extends StatelessWidget {
           appBar: AppBar(
             title: const Text("Library"),
             actions: [
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: SyncIcon(),
+              const SyncIcon(),
+              const SizedBox(width: 4),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: IconButton(
+                  onPressed: () {
+                    context.go("/settings");
+                  },
+                  icon: const Icon(Icons.settings),
+                ),
               ),
             ],
           ),

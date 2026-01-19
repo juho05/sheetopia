@@ -1,6 +1,7 @@
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
+import 'package:sheetopia/data/repositories/midi/midi_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
@@ -32,5 +33,6 @@ Future<List<SingleChildWidget>> createProviders() async {
       // sync should start immediately
       lazy: false,
     ),
+    Provider(create: (context) => MidiRepository(), lazy: false),
   ];
 }

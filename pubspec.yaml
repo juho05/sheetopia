@@ -38,6 +38,11 @@ dependencies:
   rxdart: ^0.28.0
   uuid: ^4.5.2
   wakelock_plus: ^1.4.0
+  flutter_midi_command:
+    git:
+      url: https://github.com/juho05/FlutterMidiCommand
+      ref: b321dbd755bfadb35a75f9330eb57acdaeb09555
+  collection: ^1.19.1
 
 dependency_overrides:
   path_provider_linux:
