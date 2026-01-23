@@ -3,8 +3,11 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:sheetopia/data/repositories/midi/midi_repository.dart';
 
 class PdfViewModel extends ChangeNotifier {
+  final MidiRepository _midiRepository;
+
   File _file;
 
   PdfDocument? _document;
@@ -13,8 +16,23 @@ class PdfViewModel extends ChangeNotifier {
   int _currentPageIndex = 0;
   int get currentPageIndex => _currentPageIndex;
 
-  PdfViewModel({required File file}) : _file = file {
+  int _forwardPageCount = 1;
+  int _backwardPageCount = 1;
+
+  PdfViewModel({required File file, required MidiRepository midiRepository})
+    : _file = file,
+      _midiRepository = midiRepository {
+    _midiRepository.addActionListener(_midiActionListener);
     _loadDocument();
+  }
+
+  void _midiActionListener(MidiAction action) {
+    switch (action) {
+      case MidiAction.nextPage:
+        nextPage();
+      case MidiAction.prevPage:
+        prevPage();
+    }
   }
 
   Future<void> updateFile(File file) async {
@@ -32,12 +50,13 @@ class PdfViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _midiRepository.removeActionListener(_midiActionListener);
     _document?.dispose();
     super.dispose();
   }
 
-  void nextPage(int pageCount) {
-    final newIndex = _currentPageIndex + pageCount;
+  void nextPage() {
+    final newIndex = _currentPageIndex + _forwardPageCount;
     if (newIndex >= (_document?.pages.length ?? 0)) {
       return;
     }
@@ -45,9 +64,17 @@ class PdfViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void prevPage(int pageCount) {
+  void prevPage() {
     if (_currentPageIndex == 0) return;
-    _currentPageIndex = max(_currentPageIndex - pageCount, 0);
+    _currentPageIndex = max(_currentPageIndex - _backwardPageCount, 0);
     notifyListeners();
+  }
+
+  void updateForwardPageCount(int forwardPageCount) {
+    _forwardPageCount = forwardPageCount;
+  }
+
+  void updateBackwardPageCount(int backwardPageCount) {
+    _backwardPageCount = backwardPageCount;
   }
 }

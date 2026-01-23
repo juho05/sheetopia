@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:provider/provider.dart';
 import 'package:sheetopia/ui/score/pdf_viewmodel.dart';
 
 class PdfView extends StatefulWidget {
@@ -22,7 +23,10 @@ class _PdfViewState extends State<PdfView> {
   @override
   void initState() {
     super.initState();
-    _viewModel = PdfViewModel(file: widget.file);
+    _viewModel = PdfViewModel(
+      file: widget.file,
+      midiRepository: context.read(),
+    );
   }
 
   @override
@@ -92,47 +96,52 @@ class _PdfViewState extends State<PdfView> {
               _viewModel.currentPageIndex + pageCount,
             );
 
-            void nextPage() {
-              _viewModel.nextPage(pageCount);
-            }
+            final (prevPageCount, _) = calcPageCountAndGap(
+              _viewModel.currentPageIndex - 1,
+              reverse: true,
+            );
 
-            void prevPage() {
-              final (count, _) = calcPageCountAndGap(
-                _viewModel.currentPageIndex - 1,
-                reverse: true,
-              );
-              _viewModel.prevPage(count);
-            }
+            _viewModel.updateForwardPageCount(pageCount);
+            _viewModel.updateBackwardPageCount(prevPageCount);
 
             return CallbackShortcuts(
               bindings: <ShortcutActivator, VoidCallback>{
-                const SingleActivator(LogicalKeyboardKey.arrowUp): prevPage,
-                const SingleActivator(LogicalKeyboardKey.arrowDown): nextPage,
-                const SingleActivator(LogicalKeyboardKey.arrowLeft): prevPage,
-                const SingleActivator(LogicalKeyboardKey.arrowRight): nextPage,
-                const SingleActivator(LogicalKeyboardKey.pageUp): prevPage,
-                const SingleActivator(LogicalKeyboardKey.pageDown): nextPage,
-                const SingleActivator(LogicalKeyboardKey.space): nextPage,
-                const SingleActivator(LogicalKeyboardKey.enter): nextPage,
-                const SingleActivator(LogicalKeyboardKey.backspace): prevPage,
+                const SingleActivator(LogicalKeyboardKey.arrowUp):
+                    _viewModel.prevPage,
+                const SingleActivator(LogicalKeyboardKey.arrowDown):
+                    _viewModel.nextPage,
+                const SingleActivator(LogicalKeyboardKey.arrowLeft):
+                    _viewModel.prevPage,
+                const SingleActivator(LogicalKeyboardKey.arrowRight):
+                    _viewModel.nextPage,
+                const SingleActivator(LogicalKeyboardKey.pageUp):
+                    _viewModel.prevPage,
+                const SingleActivator(LogicalKeyboardKey.pageDown):
+                    _viewModel.nextPage,
+                const SingleActivator(LogicalKeyboardKey.space):
+                    _viewModel.nextPage,
+                const SingleActivator(LogicalKeyboardKey.enter):
+                    _viewModel.nextPage,
+                const SingleActivator(LogicalKeyboardKey.backspace):
+                    _viewModel.prevPage,
               },
               child: Listener(
                 onPointerSignal: (event) {
                   if (event is PointerScrollEvent &&
                       event.kind == PointerDeviceKind.mouse) {
                     if (event.scrollDelta.dy > 0) {
-                      nextPage();
+                      _viewModel.nextPage();
                     } else {
-                      prevPage();
+                      _viewModel.prevPage();
                     }
                   }
                 },
                 child: GestureDetector(
                   onTapUp: (details) {
                     if (details.localPosition.dx < constraints.maxWidth / 2) {
-                      prevPage();
+                      _viewModel.prevPage();
                     } else {
-                      nextPage();
+                      _viewModel.nextPage();
                     }
                   },
                   child: FocusScope(
