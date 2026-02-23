@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_fullscreen/flutter_fullscreen.dart';
 import 'package:flutter_sharing_intent/flutter_sharing_intent.dart';
 import 'package:flutter_sharing_intent/model/sharing_file.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -11,6 +10,8 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/ipados_workaround_flutter_binding.dart';
 import 'package:sheetopia/providers.dart';
 import 'package:sheetopia/routing/router.dart';
+import 'package:sheetopia/window_listener.dart';
+import 'package:window_manager/window_manager.dart';
 
 Future<void> main() async {
   if (Platform.isIOS) {
@@ -18,7 +19,11 @@ Future<void> main() async {
   } else {
     WidgetsFlutterBinding.ensureInitialized();
   }
-  await FullScreen.ensureInitialized();
+  await windowManager.ensureInitialized();
+  if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+    windowManager.addListener(WindowCloseListener());
+    windowManager.setPreventClose(true);
+  }
   await pdfrxFlutterInitialize();
 
   runApp(
