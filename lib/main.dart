@@ -20,8 +20,8 @@ Future<void> main() async {
   } else {
     WidgetsFlutterBinding.ensureInitialized();
   }
-  await windowManager.ensureInitialized();
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+    await windowManager.ensureInitialized();
     windowManager.addListener(WindowCloseListener());
     windowManager.setPreventClose(true);
   }
