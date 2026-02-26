@@ -106,7 +106,10 @@ class EditScoreFormViewModel extends ChangeNotifier {
   List<String>? _composers;
   Future<Iterable<String>> getComposers({String filter = ""}) async {
     _composers ??= await _repo.getComposers();
-    return _composers!.where((element) => element.contains(filter)).take(10);
+    filter = filter.toLowerCase();
+    return _composers!
+        .where((element) => element.toLowerCase().contains(filter))
+        .take(10);
   }
 
   Future<void> reloadScore() async {
