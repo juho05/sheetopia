@@ -9,8 +9,6 @@ class WindowCloseListener extends WindowListener {
     if (!isPreventClose) return;
     await windowManager.setPreventClose(false);
     await windowManager.close();
-    if (!Platform.isMacOS) {
-      exit(0);
-    }
+    exit(0);
   }
 }
