@@ -8,18 +8,13 @@ import 'package:flutter_sharing_intent/model/sharing_file.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
-import 'package:sheetopia/ipados_workaround_flutter_binding.dart';
 import 'package:sheetopia/providers.dart';
 import 'package:sheetopia/routing/router.dart';
 import 'package:sheetopia/window_listener.dart';
 import 'package:window_manager/window_manager.dart';
 
 Future<void> main() async {
-  if (Platform.isIOS) {
-    IPadOSWorkaroundFlutterBinding();
-  } else {
-    WidgetsFlutterBinding.ensureInitialized();
-  }
+  WidgetsFlutterBinding.ensureInitialized();
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
     await windowManager.ensureInitialized();
     windowManager.addListener(WindowCloseListener());

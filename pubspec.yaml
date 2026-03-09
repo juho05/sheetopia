@@ -8,13 +8,13 @@ environment:
   sdk: ^3.10.4
 
 dependencies:
-  cryptography_plus: ^2.7.1
+  cryptography_plus: ^3.0.0
   dbus_secrets: ^0.0.2
   diacritic: ^0.1.6
   dio: ^5.9.0
   dotted_border: ^3.1.0
-  drift: ^2.30.0
-  drift_flutter: ^0.2.8
+  drift: ^2.32.0
+  drift_flutter: ^0.3.0
   extended_wrap: ^0.1.5
   file_picker: ^10.3.10
   file_selector: ^1.1.0
@@ -58,7 +58,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  drift_dev: ^2.30.0
+  drift_dev: ^2.32.0
   build_runner: ^2.10.4
   flutter_launcher_icons: ^0.14.4
   flutter_native_splash: ^2.4.7
