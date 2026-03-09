@@ -31,6 +31,7 @@ class LibraryViewModel extends ChangeNotifier {
   set filterComposer(String composer) {
     if (_filterComposer == composer) return;
     _filterComposer = composer;
+    notifyListeners();
     _reset();
   }
 
@@ -162,6 +163,15 @@ class LibraryViewModel extends ChangeNotifier {
 
   Future<Iterable<String>> getComposers({String filter = ""}) async {
     return await _repo.getComposers(filter: filter, size: 10);
+  }
+
+  void clearFilters() {
+    _filterTags.clear();
+    _filterComposer = "";
+    _filterGenres.clear();
+    _filterInstruments.clear();
+    notifyListeners();
+    _reset();
   }
 
   @override

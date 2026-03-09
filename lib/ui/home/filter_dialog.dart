@@ -64,20 +64,36 @@ class FilterDialog extends StatelessWidget {
                           textEditingController,
                           focusNode,
                           onFieldSubmitted,
-                        ) => TextField(
-                          onTapOutside: (event) => focusNode.unfocus(),
-                          controller: textEditingController,
-                          onChanged: (value) =>
-                              _viewModel.filterComposer = value.trim(),
-                          focusNode: focusNode,
-                          onSubmitted: (control) {
-                            onFieldSubmitted();
-                          },
-                          decoration: const InputDecoration(
-                            label: Text("Composer"),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
+                        ) {
+                          if (_viewModel.filterComposer.isEmpty &&
+                              textEditingController.text.isNotEmpty) {
+                            textEditingController.clear();
+                          }
+                          return TextField(
+                            onTapOutside: (event) => focusNode.unfocus(),
+                            controller: textEditingController,
+                            onChanged: (value) =>
+                                _viewModel.filterComposer = value.trim(),
+                            focusNode: focusNode,
+                            onSubmitted: (control) {
+                              onFieldSubmitted();
+                            },
+                            decoration: InputDecoration(
+                              label: const Text("Composer"),
+                              border: const OutlineInputBorder(),
+                              suffixIcon: _viewModel.filterComposer.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        textEditingController.clear();
+                                        _viewModel.filterComposer = "";
+                                        focusNode.unfocus();
+                                      },
+                                    )
+                                  : null,
+                            ),
+                          );
+                        },
                   ),
                 ),
                 const Padding(
@@ -160,14 +176,30 @@ class FilterDialog extends StatelessWidget {
                   },
                 ),
                 const SizedBox(height: 4),
-                Align(
-                  alignment: AlignmentGeometry.bottomRight,
-                  child: FilledButton(
-                    onPressed: () async {
-                      Navigator.pop(context);
-                    },
-                    child: const Text("Done"),
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  spacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed:
+                          _viewModel.filterTags.isNotEmpty ||
+                              _viewModel.filterGenres.isNotEmpty ||
+                              _viewModel.filterInstruments.isNotEmpty ||
+                              _viewModel.filterComposer.isNotEmpty
+                          ? () {
+                              _viewModel.clearFilters();
+                            }
+                          : null,
+                      icon: const Icon(Icons.filter_alt_off_outlined),
+                      label: const Text("Clear"),
+                    ),
+                    FilledButton(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                      },
+                      child: const Text("Done"),
+                    ),
+                  ],
                 ),
               ],
             );
