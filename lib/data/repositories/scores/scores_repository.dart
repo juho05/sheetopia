@@ -33,7 +33,12 @@ class ScoresRepository {
   final ThumbnailService _thumbnailService;
 
   static const List<XTypeGroup> scoreFileTypeGroup = [
-    XTypeGroup(label: "PDF", extensions: <String>["pdf"]),
+    XTypeGroup(
+      label: "PDF",
+      extensions: <String>["pdf"],
+      mimeTypes: ["application/pdf"],
+      uniformTypeIdentifiers: ["com.adobe.pdf"],
+    ),
   ];
 
   final BehaviorSubject<({Set<String> changed, bool remoteTriggered})>
