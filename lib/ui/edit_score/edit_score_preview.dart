@@ -70,94 +70,96 @@ class _EditScorePreviewState extends State<EditScorePreview> {
         Consumer<EditScoreViewModel>(
           builder: (context, viewModel, _) {
             if (viewModel.isImport) return const SizedBox.shrink();
-
-            Future<void> save() async {
-              if (!await viewModel.save()) return;
-              if (!context.mounted) return;
-              Toast.show(context, "Successfully saved score file!");
-            }
-
-            Future<void> share() async {
-              Rect? sharePositionOrigin;
-              if (Platform.isIOS) {
-                final box = context.findRenderObject() as RenderBox?;
-                sharePositionOrigin =
-                    box!.localToGlobal(Offset.zero) & box.size;
-              }
-              await viewModel.share(sharePositionOrigin: sharePositionOrigin);
-            }
-
             return Align(
               alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Platform.isIOS
-                    ? IconButton(
-                        onPressed: () {
-                          share();
-                        },
-                        color: Colors.white,
-                        iconSize: 20,
-                        padding: const EdgeInsets.all(0),
-                        style: ButtonStyle(
-                          backgroundColor: WidgetStateProperty.all(
-                            Colors.black.withAlpha(100),
-                          ),
-                        ),
-                        icon: const Icon(CupertinoIcons.share),
-                      )
-                    : Platform.isAndroid
-                    ? MenuAnchor(
-                        builder: (context, controller, child) =>
-                            IconButton.filled(
-                              color: Colors.white,
-                              iconSize: 20,
-                              padding: const EdgeInsets.all(0),
-                              style: ButtonStyle(
-                                backgroundColor: WidgetStateProperty.all(
-                                  Colors.black.withAlpha(100),
-                                ),
-                              ),
-                              onPressed: () {
-                                if (controller.isOpen) {
-                                  controller.close();
-                                } else {
-                                  controller.open();
-                                }
-                              },
-                              icon: const Icon(Icons.share),
+              child: Builder(
+                builder: (context) {
+                  Future<void> save() async {
+                    if (!await viewModel.save()) return;
+                    if (!context.mounted) return;
+                    Toast.show(context, "Successfully saved score file!");
+                  }
+
+                  Future<void> share() async {
+                    Rect? sharePositionOrigin;
+                    if (Platform.isIOS) {
+                      final box = context.findRenderObject() as RenderBox?;
+                      sharePositionOrigin =
+                          box!.localToGlobal(Offset.zero) & box.size;
+                    }
+                    await viewModel.share(
+                      sharePositionOrigin: sharePositionOrigin,
+                    );
+                  }
+
+                  return Platform.isIOS
+                      ? IconButton(
+                          onPressed: () {
+                            share();
+                          },
+                          color: Colors.white,
+                          iconSize: 20,
+                          padding: const EdgeInsets.all(8),
+                          style: ButtonStyle(
+                            backgroundColor: WidgetStateProperty.all(
+                              Colors.black.withAlpha(100),
                             ),
-                        menuChildren: [
-                          MenuItemButton(
-                            onPressed: () {
-                              share();
-                            },
-                            trailingIcon: const Icon(Icons.share),
-                            child: const Text("Share"),
                           ),
-                          MenuItemButton(
-                            onPressed: () {
-                              save();
-                            },
-                            trailingIcon: const Icon(Icons.save_alt),
-                            child: const Text("Export"),
+                          icon: const Icon(CupertinoIcons.share),
+                        )
+                      : Platform.isAndroid
+                      ? MenuAnchor(
+                          builder: (context, controller, child) =>
+                              IconButton.filled(
+                                color: Colors.white,
+                                iconSize: 20,
+                                padding: const EdgeInsets.all(8),
+                                style: ButtonStyle(
+                                  backgroundColor: WidgetStateProperty.all(
+                                    Colors.black.withAlpha(100),
+                                  ),
+                                ),
+                                onPressed: () {
+                                  if (controller.isOpen) {
+                                    controller.close();
+                                  } else {
+                                    controller.open();
+                                  }
+                                },
+                                icon: const Icon(Icons.share),
+                              ),
+                          menuChildren: [
+                            MenuItemButton(
+                              onPressed: () {
+                                share();
+                              },
+                              trailingIcon: const Icon(Icons.share),
+                              child: const Text("Share"),
+                            ),
+                            MenuItemButton(
+                              onPressed: () {
+                                save();
+                              },
+                              trailingIcon: const Icon(Icons.save_alt),
+                              child: const Text("Export"),
+                            ),
+                          ],
+                        )
+                      : IconButton(
+                          onPressed: () {
+                            save();
+                          },
+                          icon: const Icon(Icons.save_alt),
+                          color: Colors.white,
+                          iconSize: 20,
+                          padding: const EdgeInsets.all(8),
+                          style: ButtonStyle(
+                            backgroundColor: WidgetStateProperty.all(
+                              Colors.black.withAlpha(100),
+                            ),
                           ),
-                        ],
-                      )
-                    : IconButton(
-                        onPressed: () {
-                          save();
-                        },
-                        icon: const Icon(Icons.save_alt),
-                        color: Colors.white,
-                        iconSize: 20,
-                        padding: const EdgeInsets.all(0),
-                        style: ButtonStyle(
-                          backgroundColor: WidgetStateProperty.all(
-                            Colors.black.withAlpha(100),
-                          ),
-                        ),
-                      ),
+                        );
+                },
               ),
             );
           },
