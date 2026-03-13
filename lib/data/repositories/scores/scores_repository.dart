@@ -86,6 +86,7 @@ class ScoresRepository {
       id: score.id,
       title: score.title,
       composer: score.composer,
+      notes: score.notes,
       genres:
           (data.genresTableRefs.prefetchedData ?? [])
               .map((e) => e.genre)
@@ -245,6 +246,7 @@ class ScoresRepository {
           id: s.score.id,
           title: s.score.title,
           composer: s.score.composer,
+          notes: s.score.notes,
           genres: s.genres.toList(),
           instruments: s.instruments.toList(),
           tags: tags[s.score.id] ?? [],
@@ -308,6 +310,7 @@ class ScoresRepository {
     String scoreId, {
     required String title,
     required String composer,
+    required String notes,
   }) async {
     await _db.managers.scoresTable
         .filter((f) => f.id(scoreId))
@@ -315,6 +318,7 @@ class ScoresRepository {
           (o) => o(
             title: Value(title),
             composer: composer.isNotEmpty ? Value(composer) : const Value(null),
+            notes: notes.isNotEmpty ? Value(notes) : const Value(null),
             searchText: Value(generateSearchText([title, composer])),
             metadataUpdatedAt: Value(DateTime.now().toUtc()),
             metadataUploaded: const Value(false),
@@ -563,6 +567,7 @@ class ScoresRepository {
             id: id,
             title: title,
             composer: null,
+            notes: null,
             genres: const [],
             instruments: const [],
             tags: const [],

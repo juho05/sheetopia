@@ -417,6 +417,7 @@ class SyncRepository {
               .toList(),
           metadata: ScoreMetadataModel(
             composer: s.composer ?? "",
+            notes: s.notes ?? "",
             genres: (refs.genresTableRefs.prefetchedData ?? [])
                 .map((g) => g.genre)
                 .toList(),
@@ -488,6 +489,7 @@ class SyncRepository {
               ]),
               title: s.title,
               composer: _optionalStringValue(s.metadata.composer),
+              notes: _optionalStringValue(s.metadata.notes),
               metadataUploaded: const Value(true),
               metadataUpdatedAt: Value(s.metadataUpdatedAt.toUtc()),
               fileType: s.fileType,
@@ -512,6 +514,9 @@ class SyncRepository {
                       : const Value.absent(),
                   composer: metadataChanged
                       ? _optionalStringValue(s.metadata.composer)
+                      : const Value.absent(),
+                  notes: metadataChanged
+                      ? _optionalStringValue(s.metadata.notes)
                       : const Value.absent(),
                   searchText: metadataChanged
                       ? Value(

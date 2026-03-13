@@ -28,6 +28,7 @@ class EditScoreFormViewModel extends ChangeNotifier {
 
   static const String formTitle = "title";
   static const String formComposer = "composer";
+  static const String formNotes = "notes";
 
   StreamSubscription? _valueSub;
 
@@ -45,6 +46,7 @@ class EditScoreFormViewModel extends ChangeNotifier {
          formComposer: FormControl<String>(
            value: editScoreViewModel.score!.composer,
          ),
+         formNotes: FormControl<String>(value: editScoreViewModel.score!.notes),
        }) {
     _loadScore().then((value) {
       _valueSub = form.valueChanges.listen((_) {
@@ -137,6 +139,7 @@ class EditScoreFormViewModel extends ChangeNotifier {
     form.updateValue({
       formTitle: _score.title,
       formComposer: _score.composer ?? "",
+      formNotes: _score.notes ?? "",
     });
     _instruments = SplayTreeSet.of(score.instruments);
     _genres = SplayTreeSet.of(score.genres);
@@ -155,6 +158,7 @@ class EditScoreFormViewModel extends ChangeNotifier {
         _score.id,
         title: values[formTitle].trim(),
         composer: (values[formComposer] ?? "").trim(),
+        notes: (values[formNotes] ?? "").trim(),
       ),
     );
   }

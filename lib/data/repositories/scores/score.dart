@@ -7,6 +7,7 @@ class Score {
   final String id;
   final String title;
   final String? composer;
+  final String? notes;
 
   final List<String> genres;
   final List<String> instruments;
@@ -22,6 +23,7 @@ class Score {
     required this.id,
     required this.title,
     required this.composer,
+    required this.notes,
     required this.genres,
     required this.instruments,
     required this.tags,

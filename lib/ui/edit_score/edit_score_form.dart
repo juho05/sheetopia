@@ -18,6 +18,7 @@ class EditScoreForm extends StatefulWidget {
 
 class _EditScoreFormState extends State<EditScoreForm> {
   final _titleFocus = FocusNode();
+  final _notesFocus = FocusNode();
 
   @override
   Widget build(BuildContext context) {
@@ -152,6 +153,21 @@ class _EditScoreFormState extends State<EditScoreForm> {
                       if (tags == null || tags.isEmpty) return;
                       viewModel.addTags(tags);
                     },
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 18, bottom: 4),
+                    child: ReactiveTextField<String>(
+                      formControlName: EditScoreFormViewModel.formNotes,
+                      focusNode: _notesFocus,
+                      onTapOutside: (event) => _notesFocus.unfocus(),
+                      maxLines: 8,
+                      minLines: 3,
+                      decoration: const InputDecoration(
+                        label: Text("Notes"),
+                        border: OutlineInputBorder(),
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                      ),
+                    ),
                   ),
                 ],
               ),

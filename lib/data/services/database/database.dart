@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sheetopia/data/services/database/deleted_scores_table.dart';
 import 'package:sheetopia/data/services/database/deleted_tags_table.dart';
@@ -9,6 +10,8 @@ import 'package:sheetopia/data/services/database/key_value_table.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:uuid/uuid.dart';
+
+import 'database.steps.dart';
 
 part 'database.g.dart';
 
@@ -28,10 +31,36 @@ class Database extends _$Database {
   Database([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      await customStatement("PRAGMA foreign_keys = OFF");
+      await transaction(
+        () async => m.runMigrationSteps(
+          from: from,
+          to: to,
+          steps: migrationSteps(
+            from1To2: (m, schema) async {
+              await m.addColumn(schema.scores, schema.scores.notes);
+            },
+          ),
+        ),
+      );
+      if (kDebugMode) {
+        // Fail if the migration broke foreign keys
+        final wrongForeignKeys = await customSelect(
+          'PRAGMA foreign_key_check',
+        ).get();
+        assert(
+          wrongForeignKeys.isEmpty,
+          '${wrongForeignKeys.map((e) => e.data)}',
+        );
+      }
+
+      await customStatement("PRAGMA foreign_keys = ON");
+    },
     beforeOpen: (details) async {
       await customStatement("PRAGMA foreign_keys = ON");
       await customStatement("PRAGMA journal_mode = WAL");
