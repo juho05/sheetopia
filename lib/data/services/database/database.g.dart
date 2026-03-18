@@ -2338,6 +2338,515 @@ class DeletedScoresTableCompanion
   }
 }
 
+class $LogMessageTableTable extends LogMessageTable
+    with TableInfo<$LogMessageTableTable, LogMessageTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LogMessageTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _sessionStartTimeMeta = const VerificationMeta(
+    'sessionStartTime',
+  );
+  @override
+  late final GeneratedColumn<DateTime> sessionStartTime =
+      GeneratedColumn<DateTime>(
+        'session_start_time',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _timeMeta = const VerificationMeta('time');
+  @override
+  late final GeneratedColumn<DateTime> time = GeneratedColumn<DateTime>(
+    'time',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<Level, String> level =
+      GeneratedColumn<String>(
+        'level',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<Level>($LogMessageTableTable.$converterlevel);
+  static const VerificationMeta _tagMeta = const VerificationMeta('tag');
+  @override
+  late final GeneratedColumn<String> tag = GeneratedColumn<String>(
+    'tag',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _messageMeta = const VerificationMeta(
+    'message',
+  );
+  @override
+  late final GeneratedColumn<String> message = GeneratedColumn<String>(
+    'message',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stackTraceMeta = const VerificationMeta(
+    'stackTrace',
+  );
+  @override
+  late final GeneratedColumn<String> stackTrace = GeneratedColumn<String>(
+    'stack_trace',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _exceptionMeta = const VerificationMeta(
+    'exception',
+  );
+  @override
+  late final GeneratedColumn<String> exception = GeneratedColumn<String>(
+    'exception',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    sessionStartTime,
+    time,
+    level,
+    tag,
+    message,
+    stackTrace,
+    exception,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'log_message';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LogMessageTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('session_start_time')) {
+      context.handle(
+        _sessionStartTimeMeta,
+        sessionStartTime.isAcceptableOrUnknown(
+          data['session_start_time']!,
+          _sessionStartTimeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sessionStartTimeMeta);
+    }
+    if (data.containsKey('time')) {
+      context.handle(
+        _timeMeta,
+        time.isAcceptableOrUnknown(data['time']!, _timeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_timeMeta);
+    }
+    if (data.containsKey('tag')) {
+      context.handle(
+        _tagMeta,
+        tag.isAcceptableOrUnknown(data['tag']!, _tagMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tagMeta);
+    }
+    if (data.containsKey('message')) {
+      context.handle(
+        _messageMeta,
+        message.isAcceptableOrUnknown(data['message']!, _messageMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_messageMeta);
+    }
+    if (data.containsKey('stack_trace')) {
+      context.handle(
+        _stackTraceMeta,
+        stackTrace.isAcceptableOrUnknown(data['stack_trace']!, _stackTraceMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stackTraceMeta);
+    }
+    if (data.containsKey('exception')) {
+      context.handle(
+        _exceptionMeta,
+        exception.isAcceptableOrUnknown(data['exception']!, _exceptionMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LogMessageTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LogMessageTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      sessionStartTime: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}session_start_time'],
+      )!,
+      time: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}time'],
+      )!,
+      level: $LogMessageTableTable.$converterlevel.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}level'],
+        )!,
+      ),
+      tag: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tag'],
+      )!,
+      message: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}message'],
+      )!,
+      stackTrace: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}stack_trace'],
+      )!,
+      exception: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}exception'],
+      ),
+    );
+  }
+
+  @override
+  $LogMessageTableTable createAlias(String alias) {
+    return $LogMessageTableTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<Level, String> $converterlevel =
+      const LogLevelConverter();
+}
+
+class LogMessageTableData extends DataClass
+    implements Insertable<LogMessageTableData> {
+  final int id;
+  final DateTime sessionStartTime;
+  final DateTime time;
+  final Level level;
+  final String tag;
+  final String message;
+  final String stackTrace;
+  final String? exception;
+  const LogMessageTableData({
+    required this.id,
+    required this.sessionStartTime,
+    required this.time,
+    required this.level,
+    required this.tag,
+    required this.message,
+    required this.stackTrace,
+    this.exception,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['session_start_time'] = Variable<DateTime>(sessionStartTime);
+    map['time'] = Variable<DateTime>(time);
+    {
+      map['level'] = Variable<String>(
+        $LogMessageTableTable.$converterlevel.toSql(level),
+      );
+    }
+    map['tag'] = Variable<String>(tag);
+    map['message'] = Variable<String>(message);
+    map['stack_trace'] = Variable<String>(stackTrace);
+    if (!nullToAbsent || exception != null) {
+      map['exception'] = Variable<String>(exception);
+    }
+    return map;
+  }
+
+  LogMessageTableCompanion toCompanion(bool nullToAbsent) {
+    return LogMessageTableCompanion(
+      id: Value(id),
+      sessionStartTime: Value(sessionStartTime),
+      time: Value(time),
+      level: Value(level),
+      tag: Value(tag),
+      message: Value(message),
+      stackTrace: Value(stackTrace),
+      exception: exception == null && nullToAbsent
+          ? const Value.absent()
+          : Value(exception),
+    );
+  }
+
+  factory LogMessageTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LogMessageTableData(
+      id: serializer.fromJson<int>(json['id']),
+      sessionStartTime: serializer.fromJson<DateTime>(json['sessionStartTime']),
+      time: serializer.fromJson<DateTime>(json['time']),
+      level: serializer.fromJson<Level>(json['level']),
+      tag: serializer.fromJson<String>(json['tag']),
+      message: serializer.fromJson<String>(json['message']),
+      stackTrace: serializer.fromJson<String>(json['stackTrace']),
+      exception: serializer.fromJson<String?>(json['exception']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'sessionStartTime': serializer.toJson<DateTime>(sessionStartTime),
+      'time': serializer.toJson<DateTime>(time),
+      'level': serializer.toJson<Level>(level),
+      'tag': serializer.toJson<String>(tag),
+      'message': serializer.toJson<String>(message),
+      'stackTrace': serializer.toJson<String>(stackTrace),
+      'exception': serializer.toJson<String?>(exception),
+    };
+  }
+
+  LogMessageTableData copyWith({
+    int? id,
+    DateTime? sessionStartTime,
+    DateTime? time,
+    Level? level,
+    String? tag,
+    String? message,
+    String? stackTrace,
+    Value<String?> exception = const Value.absent(),
+  }) => LogMessageTableData(
+    id: id ?? this.id,
+    sessionStartTime: sessionStartTime ?? this.sessionStartTime,
+    time: time ?? this.time,
+    level: level ?? this.level,
+    tag: tag ?? this.tag,
+    message: message ?? this.message,
+    stackTrace: stackTrace ?? this.stackTrace,
+    exception: exception.present ? exception.value : this.exception,
+  );
+  LogMessageTableData copyWithCompanion(LogMessageTableCompanion data) {
+    return LogMessageTableData(
+      id: data.id.present ? data.id.value : this.id,
+      sessionStartTime: data.sessionStartTime.present
+          ? data.sessionStartTime.value
+          : this.sessionStartTime,
+      time: data.time.present ? data.time.value : this.time,
+      level: data.level.present ? data.level.value : this.level,
+      tag: data.tag.present ? data.tag.value : this.tag,
+      message: data.message.present ? data.message.value : this.message,
+      stackTrace: data.stackTrace.present
+          ? data.stackTrace.value
+          : this.stackTrace,
+      exception: data.exception.present ? data.exception.value : this.exception,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LogMessageTableData(')
+          ..write('id: $id, ')
+          ..write('sessionStartTime: $sessionStartTime, ')
+          ..write('time: $time, ')
+          ..write('level: $level, ')
+          ..write('tag: $tag, ')
+          ..write('message: $message, ')
+          ..write('stackTrace: $stackTrace, ')
+          ..write('exception: $exception')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    sessionStartTime,
+    time,
+    level,
+    tag,
+    message,
+    stackTrace,
+    exception,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LogMessageTableData &&
+          other.id == this.id &&
+          other.sessionStartTime == this.sessionStartTime &&
+          other.time == this.time &&
+          other.level == this.level &&
+          other.tag == this.tag &&
+          other.message == this.message &&
+          other.stackTrace == this.stackTrace &&
+          other.exception == this.exception);
+}
+
+class LogMessageTableCompanion extends UpdateCompanion<LogMessageTableData> {
+  final Value<int> id;
+  final Value<DateTime> sessionStartTime;
+  final Value<DateTime> time;
+  final Value<Level> level;
+  final Value<String> tag;
+  final Value<String> message;
+  final Value<String> stackTrace;
+  final Value<String?> exception;
+  const LogMessageTableCompanion({
+    this.id = const Value.absent(),
+    this.sessionStartTime = const Value.absent(),
+    this.time = const Value.absent(),
+    this.level = const Value.absent(),
+    this.tag = const Value.absent(),
+    this.message = const Value.absent(),
+    this.stackTrace = const Value.absent(),
+    this.exception = const Value.absent(),
+  });
+  LogMessageTableCompanion.insert({
+    this.id = const Value.absent(),
+    required DateTime sessionStartTime,
+    required DateTime time,
+    required Level level,
+    required String tag,
+    required String message,
+    required String stackTrace,
+    this.exception = const Value.absent(),
+  }) : sessionStartTime = Value(sessionStartTime),
+       time = Value(time),
+       level = Value(level),
+       tag = Value(tag),
+       message = Value(message),
+       stackTrace = Value(stackTrace);
+  static Insertable<LogMessageTableData> custom({
+    Expression<int>? id,
+    Expression<DateTime>? sessionStartTime,
+    Expression<DateTime>? time,
+    Expression<String>? level,
+    Expression<String>? tag,
+    Expression<String>? message,
+    Expression<String>? stackTrace,
+    Expression<String>? exception,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sessionStartTime != null) 'session_start_time': sessionStartTime,
+      if (time != null) 'time': time,
+      if (level != null) 'level': level,
+      if (tag != null) 'tag': tag,
+      if (message != null) 'message': message,
+      if (stackTrace != null) 'stack_trace': stackTrace,
+      if (exception != null) 'exception': exception,
+    });
+  }
+
+  LogMessageTableCompanion copyWith({
+    Value<int>? id,
+    Value<DateTime>? sessionStartTime,
+    Value<DateTime>? time,
+    Value<Level>? level,
+    Value<String>? tag,
+    Value<String>? message,
+    Value<String>? stackTrace,
+    Value<String?>? exception,
+  }) {
+    return LogMessageTableCompanion(
+      id: id ?? this.id,
+      sessionStartTime: sessionStartTime ?? this.sessionStartTime,
+      time: time ?? this.time,
+      level: level ?? this.level,
+      tag: tag ?? this.tag,
+      message: message ?? this.message,
+      stackTrace: stackTrace ?? this.stackTrace,
+      exception: exception ?? this.exception,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (sessionStartTime.present) {
+      map['session_start_time'] = Variable<DateTime>(sessionStartTime.value);
+    }
+    if (time.present) {
+      map['time'] = Variable<DateTime>(time.value);
+    }
+    if (level.present) {
+      map['level'] = Variable<String>(
+        $LogMessageTableTable.$converterlevel.toSql(level.value),
+      );
+    }
+    if (tag.present) {
+      map['tag'] = Variable<String>(tag.value);
+    }
+    if (message.present) {
+      map['message'] = Variable<String>(message.value);
+    }
+    if (stackTrace.present) {
+      map['stack_trace'] = Variable<String>(stackTrace.value);
+    }
+    if (exception.present) {
+      map['exception'] = Variable<String>(exception.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LogMessageTableCompanion(')
+          ..write('id: $id, ')
+          ..write('sessionStartTime: $sessionStartTime, ')
+          ..write('time: $time, ')
+          ..write('level: $level, ')
+          ..write('tag: $tag, ')
+          ..write('message: $message, ')
+          ..write('stackTrace: $stackTrace, ')
+          ..write('exception: $exception')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$Database extends GeneratedDatabase {
   _$Database(QueryExecutor e) : super(e);
   $DatabaseManager get managers => $DatabaseManager(this);
@@ -2354,6 +2863,9 @@ abstract class _$Database extends GeneratedDatabase {
   );
   late final $DeletedScoresTableTable deletedScoresTable =
       $DeletedScoresTableTable(this);
+  late final $LogMessageTableTable logMessageTable = $LogMessageTableTable(
+    this,
+  );
   late final Index searchTextIndex = Index(
     'search_text_index',
     'CREATE INDEX search_text_index ON scores (search_text)',
@@ -2371,6 +2883,7 @@ abstract class _$Database extends GeneratedDatabase {
     keyValueTable,
     deletedTagsTable,
     deletedScoresTable,
+    logMessageTable,
     searchTextIndex,
   ];
   @override
@@ -4711,6 +5224,266 @@ typedef $$DeletedScoresTableTableProcessedTableManager =
       DeletedScoresTableData,
       PrefetchHooks Function()
     >;
+typedef $$LogMessageTableTableCreateCompanionBuilder =
+    LogMessageTableCompanion Function({
+      Value<int> id,
+      required DateTime sessionStartTime,
+      required DateTime time,
+      required Level level,
+      required String tag,
+      required String message,
+      required String stackTrace,
+      Value<String?> exception,
+    });
+typedef $$LogMessageTableTableUpdateCompanionBuilder =
+    LogMessageTableCompanion Function({
+      Value<int> id,
+      Value<DateTime> sessionStartTime,
+      Value<DateTime> time,
+      Value<Level> level,
+      Value<String> tag,
+      Value<String> message,
+      Value<String> stackTrace,
+      Value<String?> exception,
+    });
+
+class $$LogMessageTableTableFilterComposer
+    extends Composer<_$Database, $LogMessageTableTable> {
+  $$LogMessageTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get sessionStartTime => $composableBuilder(
+    column: $table.sessionStartTime,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get time => $composableBuilder(
+    column: $table.time,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<Level, Level, String> get level =>
+      $composableBuilder(
+        column: $table.level,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<String> get tag => $composableBuilder(
+    column: $table.tag,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get message => $composableBuilder(
+    column: $table.message,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get stackTrace => $composableBuilder(
+    column: $table.stackTrace,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get exception => $composableBuilder(
+    column: $table.exception,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LogMessageTableTableOrderingComposer
+    extends Composer<_$Database, $LogMessageTableTable> {
+  $$LogMessageTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get sessionStartTime => $composableBuilder(
+    column: $table.sessionStartTime,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get time => $composableBuilder(
+    column: $table.time,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get level => $composableBuilder(
+    column: $table.level,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tag => $composableBuilder(
+    column: $table.tag,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get message => $composableBuilder(
+    column: $table.message,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get stackTrace => $composableBuilder(
+    column: $table.stackTrace,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get exception => $composableBuilder(
+    column: $table.exception,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LogMessageTableTableAnnotationComposer
+    extends Composer<_$Database, $LogMessageTableTable> {
+  $$LogMessageTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get sessionStartTime => $composableBuilder(
+    column: $table.sessionStartTime,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get time =>
+      $composableBuilder(column: $table.time, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<Level, String> get level =>
+      $composableBuilder(column: $table.level, builder: (column) => column);
+
+  GeneratedColumn<String> get tag =>
+      $composableBuilder(column: $table.tag, builder: (column) => column);
+
+  GeneratedColumn<String> get message =>
+      $composableBuilder(column: $table.message, builder: (column) => column);
+
+  GeneratedColumn<String> get stackTrace => $composableBuilder(
+    column: $table.stackTrace,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get exception =>
+      $composableBuilder(column: $table.exception, builder: (column) => column);
+}
+
+class $$LogMessageTableTableTableManager
+    extends
+        RootTableManager<
+          _$Database,
+          $LogMessageTableTable,
+          LogMessageTableData,
+          $$LogMessageTableTableFilterComposer,
+          $$LogMessageTableTableOrderingComposer,
+          $$LogMessageTableTableAnnotationComposer,
+          $$LogMessageTableTableCreateCompanionBuilder,
+          $$LogMessageTableTableUpdateCompanionBuilder,
+          (
+            LogMessageTableData,
+            BaseReferences<
+              _$Database,
+              $LogMessageTableTable,
+              LogMessageTableData
+            >,
+          ),
+          LogMessageTableData,
+          PrefetchHooks Function()
+        > {
+  $$LogMessageTableTableTableManager(_$Database db, $LogMessageTableTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LogMessageTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LogMessageTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LogMessageTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<DateTime> sessionStartTime = const Value.absent(),
+                Value<DateTime> time = const Value.absent(),
+                Value<Level> level = const Value.absent(),
+                Value<String> tag = const Value.absent(),
+                Value<String> message = const Value.absent(),
+                Value<String> stackTrace = const Value.absent(),
+                Value<String?> exception = const Value.absent(),
+              }) => LogMessageTableCompanion(
+                id: id,
+                sessionStartTime: sessionStartTime,
+                time: time,
+                level: level,
+                tag: tag,
+                message: message,
+                stackTrace: stackTrace,
+                exception: exception,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required DateTime sessionStartTime,
+                required DateTime time,
+                required Level level,
+                required String tag,
+                required String message,
+                required String stackTrace,
+                Value<String?> exception = const Value.absent(),
+              }) => LogMessageTableCompanion.insert(
+                id: id,
+                sessionStartTime: sessionStartTime,
+                time: time,
+                level: level,
+                tag: tag,
+                message: message,
+                stackTrace: stackTrace,
+                exception: exception,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LogMessageTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$Database,
+      $LogMessageTableTable,
+      LogMessageTableData,
+      $$LogMessageTableTableFilterComposer,
+      $$LogMessageTableTableOrderingComposer,
+      $$LogMessageTableTableAnnotationComposer,
+      $$LogMessageTableTableCreateCompanionBuilder,
+      $$LogMessageTableTableUpdateCompanionBuilder,
+      (
+        LogMessageTableData,
+        BaseReferences<_$Database, $LogMessageTableTable, LogMessageTableData>,
+      ),
+      LogMessageTableData,
+      PrefetchHooks Function()
+    >;
 
 class $DatabaseManager {
   final _$Database _db;
@@ -4731,4 +5504,6 @@ class $DatabaseManager {
       $$DeletedTagsTableTableTableManager(_db, _db.deletedTagsTable);
   $$DeletedScoresTableTableTableManager get deletedScoresTable =>
       $$DeletedScoresTableTableTableManager(_db, _db.deletedScoresTable);
+  $$LogMessageTableTableTableManager get logMessageTable =>
+      $$LogMessageTableTableTableManager(_db, _db.logMessageTable);
 }

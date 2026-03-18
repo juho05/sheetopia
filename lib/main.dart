@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_fullscreen/flutter_fullscreen.dart';
 import 'package:flutter_sharing_intent/flutter_sharing_intent.dart';
 import 'package:flutter_sharing_intent/model/sharing_file.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
+import 'package:sheetopia/data/repositories/logger/log_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/providers.dart';
 import 'package:sheetopia/routing/router.dart';
@@ -15,6 +18,17 @@ import 'package:window_manager/window_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  LogRepository logRepository = LogRepository();
+  Log.init(logRepository);
+  Log.info(
+    "App started. Configuration: ${kReleaseMode
+        ? "release"
+        : kProfileMode
+        ? "profile"
+        : "debug"}",
+  );
+
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
     await windowManager.ensureInitialized();
     windowManager.addListener(WindowCloseListener());
@@ -25,7 +39,7 @@ Future<void> main() async {
 
   runApp(
     MultiProvider(
-      providers: await createProviders(),
+      providers: await createProviders(logRepository: logRepository),
       builder: (context, _) {
         return const App();
       },

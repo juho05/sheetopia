@@ -1,12 +1,16 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/foundation.dart';
+import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sheetopia/data/services/database/deleted_scores_table.dart';
 import 'package:sheetopia/data/services/database/deleted_tags_table.dart';
 import 'package:sheetopia/data/services/database/genres_table.dart';
 import 'package:sheetopia/data/services/database/instruments_table.dart';
 import 'package:sheetopia/data/services/database/key_value_table.dart';
+import 'package:sheetopia/data/services/database/log_interceptor.dart';
+import 'package:sheetopia/data/services/database/log_level_converter.dart';
+import 'package:sheetopia/data/services/database/log_message.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:uuid/uuid.dart';
@@ -25,13 +29,14 @@ part 'database.g.dart';
     KeyValueTable,
     DeletedTagsTable,
     DeletedScoresTable,
+    LogMessageTable,
   ],
 )
 class Database extends _$Database {
   Database([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -44,6 +49,9 @@ class Database extends _$Database {
           steps: migrationSteps(
             from1To2: (m, schema) async {
               await m.addColumn(schema.scores, schema.scores.notes);
+            },
+            from2To3: (m, schema) async {
+              await m.createTable(schema.logMessage);
             },
           ),
         ),
@@ -75,7 +83,7 @@ class Database extends _$Database {
         databaseDirectory: getApplicationSupportDirectory,
       ),
     );
-    // db = db.interceptWith(LogInterceptor());
+    db = db.interceptWith(LogInterceptor());
     return db;
   }
 

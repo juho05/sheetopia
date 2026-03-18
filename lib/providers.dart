@@ -1,19 +1,30 @@
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
+import 'package:sheetopia/data/repositories/logger/log_repository.dart';
 import 'package:sheetopia/data/repositories/midi/midi_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 
-Future<List<SingleChildWidget>> createProviders() async {
+Future<List<SingleChildWidget>> createProviders({
+  required LogRepository logRepository,
+}) async {
   final database = Database();
+
+  await logRepository.enablePersistence(database);
 
   return [
     Provider.value(value: database),
+    Provider.value(value: logRepository),
     Provider(create: (context) => KeyValueRepository(database: context.read())),
+    Provider(
+      create: (context) =>
+          SettingsRepository(keyValueRepository: context.read()),
+    ),
     Provider(create: (context) => const ThumbnailService()),
     Provider(create: (context) => SyncService()),
     Provider(

@@ -1,6 +1,6 @@
 name: flutter_secure_storage_darwin
 description: Custom macOS implementation of flutter_secure_storage using /usr/bin/security.
-repository: https://github.com/juho05/crossonic
+repository: https://github.com/juho05/sheetopia
 version: 0.1.0
 
 environment:

@@ -1,22 +1,28 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
+import 'package:logger/logger.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
 
 class LogInterceptor extends QueryInterceptor {
   Future<T> _run<T>(
     String description,
     FutureOr<T> Function() operation,
   ) async {
+    if (Log.level > Level.trace || description.contains("log_message")) {
+      return await operation();
+    }
     final stopwatch = Stopwatch()..start();
     try {
       final result = await operation();
-      print(
+      Log.trace(
         '$description\n=> succeeded after ${stopwatch.elapsedMilliseconds}ms',
       );
       return result;
     } on Object catch (e) {
-      print(
-        'description\n=> failed after ${stopwatch.elapsedMilliseconds}ms: $e',
+      Log.trace(
+        'description\n=> failed after ${stopwatch.elapsedMilliseconds}ms',
+        e: e,
       );
       rethrow;
     }

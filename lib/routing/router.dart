@@ -1,8 +1,13 @@
 import 'package:go_router/go_router.dart';
+import 'package:sheetopia/data/repositories/logger/log_message.dart';
 import 'package:sheetopia/routing/loading_page.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_page.dart';
 import 'package:sheetopia/ui/home/home_page.dart';
 import 'package:sheetopia/ui/score/score_page.dart';
+import 'package:sheetopia/ui/settings/debug_page.dart';
+import 'package:sheetopia/ui/settings/logs/choose_log_session_page.dart';
+import 'package:sheetopia/ui/settings/logs/log_details_page.dart';
+import 'package:sheetopia/ui/settings/logs/logs_page.dart';
 import 'package:sheetopia/ui/settings/midi/midi_device_page.dart';
 import 'package:sheetopia/ui/settings/midi/midi_page.dart';
 import 'package:sheetopia/ui/settings/settings_page.dart';
@@ -49,6 +54,29 @@ GoRouter get goRouter {
                         state.pathParameters["deviceId"]!,
                       ),
                     ),
+                  ),
+                ],
+              ),
+              GoRoute(
+                path: "debug",
+                builder: (context, state) => const DebugPage(),
+                routes: [
+                  GoRoute(
+                    path: "logs",
+                    builder: (context, state) => const LogsPage(),
+                    routes: [
+                      GoRoute(
+                        path: "details",
+                        builder: (context, state) =>
+                            LogDetailsPage(msg: state.extra! as LogMessage),
+                      ),
+                      GoRoute(
+                        path: "session",
+                        builder: (context, state) => ChooseLogSessionPage(
+                          highlight: state.extra as DateTime?,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

@@ -18,6 +18,13 @@ class SettingsPage extends StatelessWidget {
                 context.go("/settings/midi");
               },
             ),
+            ListTile(
+              title: const Text("Debug"),
+              trailing: const Icon(Icons.arrow_forward_ios_outlined),
+              onTap: () {
+                context.go("/settings/debug");
+              },
+            ),
           ],
         ),
       ),
