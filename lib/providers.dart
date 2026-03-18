@@ -7,9 +7,12 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/repositories/themeManager/theme_manager.dart';
+import 'package:sheetopia/data/repositories/version/version_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/github/github.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
+import 'package:sheetopia/version_checker_viewmodel.dart';
 
 Future<List<SingleChildWidget>> createProviders({
   required LogRepository logRepository,
@@ -25,6 +28,17 @@ Future<List<SingleChildWidget>> createProviders({
     Provider(
       create: (context) =>
           SettingsRepository(keyValueRepository: context.read()),
+    ),
+    Provider(create: (context) => GitHubService()),
+    Provider(
+      create: (context) =>
+          VersionRepository(github: context.read(), keyValue: context.read()),
+    ),
+    ChangeNotifierProvider(
+      create: (context) => VersionCheckerViewModel(
+        keyValue: context.read(),
+        versionRepo: context.read(),
+      )..check(),
     ),
     ChangeNotifierProvider(
       create: (context) => ThemeManager(
