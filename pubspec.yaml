@@ -48,6 +48,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   logger: ^2.7.0
   dbus: ^0.7.12
+  url_launcher: ^6.3.2
 
 dependency_overrides:
   path_provider_linux:
@@ -97,3 +98,5 @@ flutter_native_splash:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon/sheetopia-circle.png

@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final linkStyle = theme.textTheme.bodyMedium!.copyWith(
+      color: theme.colorScheme.primary,
+      decoration: TextDecoration.underline,
+    );
     return Scaffold(
       appBar: AppBar(title: const Text("Settings")),
       body: SafeArea(
@@ -30,6 +36,52 @@ class SettingsPage extends StatelessWidget {
               trailing: const Icon(Icons.arrow_forward_ios_outlined),
               onTap: () {
                 context.go("/settings/debug");
+              },
+            ),
+            ListTile(
+              title: const Text("About"),
+              trailing: const Icon(Icons.info_outline),
+              onTap: () async {
+                final version = "vTODO";
+                if (!context.mounted) return;
+                showAboutDialog(
+                  context: context,
+                  applicationIcon: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: SizedBox.square(
+                      dimension: 48,
+                      child: Image.asset(
+                        "assets/icon/sheetopia-circle.png",
+                        cacheHeight: 48 * 2,
+                        cacheWidth: 48 * 2,
+                        isAntiAlias: true,
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.medium,
+                      ),
+                    ),
+                  ),
+                  applicationName: "Sheetopia",
+                  applicationVersion: version,
+                  applicationLegalese:
+                      "\u{a9} 2025-${DateTime.now().year} Julian Hofmann",
+                  children: [
+                    const SizedBox(height: 24),
+                    const Text(
+                      "Sheetopia is a cross-platform sheet music library manager.\n"
+                      "It's free software under the AGPL-3.0 license.",
+                    ),
+                    const SizedBox(height: 8),
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: () => launchUrl(
+                          Uri.parse("https://github.com/juho05/sheetopia"),
+                        ),
+                        child: Text("GitHub", style: linkStyle),
+                      ),
+                    ),
+                  ],
+                );
               },
             ),
           ],
