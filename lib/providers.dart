@@ -1,5 +1,6 @@
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
+import 'package:sheetopia/data/repositories/appimage/appimage_repository.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/logger/log_repository.dart';
 import 'package:sheetopia/data/repositories/midi/midi_repository.dart';
@@ -12,6 +13,7 @@ import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/github/github.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
+import 'package:sheetopia/integrate_appimage_viewmodel.dart';
 import 'package:sheetopia/version_checker_viewmodel.dart';
 
 Future<List<SingleChildWidget>> createProviders({
@@ -68,5 +70,15 @@ Future<List<SingleChildWidget>> createProviders({
       lazy: false,
     ),
     Provider(create: (context) => MidiRepository(), lazy: false),
+    if (AppImageRepository.isAppImage)
+      Provider(
+        create: (context) => AppImageRepository(keyValue: context.read()),
+      ),
+    if (AppImageRepository.isAppImage)
+      ChangeNotifierProvider(
+        create: (context) =>
+            IntegrateAppImageViewModel(appImageRepository: context.read())
+              ..check(),
+      ),
   ];
 }
