@@ -4,6 +4,7 @@ import 'package:sheetopia/routing/loading_page.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_page.dart';
 import 'package:sheetopia/ui/home/home_page.dart';
 import 'package:sheetopia/ui/score/score_page.dart';
+import 'package:sheetopia/ui/settings/appearance_page.dart';
 import 'package:sheetopia/ui/settings/debug_page.dart';
 import 'package:sheetopia/ui/settings/logs/choose_log_session_page.dart';
 import 'package:sheetopia/ui/settings/logs/log_details_page.dart';
@@ -56,6 +57,10 @@ GoRouter get goRouter {
                     ),
                   ),
                 ],
+              ),
+              GoRoute(
+                path: "appearance",
+                builder: (context, state) => const AppearancePage(),
               ),
               GoRoute(
                 path: "debug",

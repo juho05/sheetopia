@@ -6,6 +6,7 @@ import 'package:sheetopia/data/repositories/midi/midi_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
+import 'package:sheetopia/data/repositories/themeManager/theme_manager.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
@@ -24,6 +25,14 @@ Future<List<SingleChildWidget>> createProviders({
     Provider(
       create: (context) =>
           SettingsRepository(keyValueRepository: context.read()),
+    ),
+    ChangeNotifierProvider(
+      create: (context) => ThemeManager(
+        keyValue: context.read(),
+        appearanceSettings: context
+            .read<SettingsRepository>()
+            .appearanceSettings,
+      ),
     ),
     Provider(create: (context) => const ThumbnailService()),
     Provider(create: (context) => SyncService()),

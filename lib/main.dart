@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/logger/log_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/data/repositories/themeManager/theme_manager.dart';
 import 'package:sheetopia/providers.dart';
 import 'package:sheetopia/routing/router.dart';
 import 'package:sheetopia/window_listener.dart';
@@ -83,24 +84,28 @@ class _AppState extends State<App> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Sheetopia',
-      theme: ThemeData.from(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
-          brightness: Brightness.light,
-        ),
-      ),
-      darkTheme: ThemeData.from(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
-          brightness: Brightness.dark,
-        ),
-      ),
-      themeMode: ThemeMode.system,
-      debugShowCheckedModeBanner: false,
-      restorationScopeId: "app",
-      routerConfig: goRouter,
+    return Consumer<ThemeManager>(
+      builder: (context, themeManager, _) {
+        return MaterialApp.router(
+          title: 'Sheetopia',
+          theme: ThemeData.from(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.deepPurple,
+              brightness: Brightness.light,
+            ),
+          ),
+          darkTheme: ThemeData.from(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.deepPurple,
+              brightness: Brightness.dark,
+            ),
+          ),
+          themeMode: themeManager.themeMode,
+          debugShowCheckedModeBanner: false,
+          restorationScopeId: "app",
+          routerConfig: goRouter,
+        );
+      },
     );
   }
 
