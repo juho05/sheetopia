@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sheetopia/data/repositories/version/version_repository.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -42,7 +43,8 @@ class SettingsPage extends StatelessWidget {
               title: const Text("About"),
               trailing: const Icon(Icons.info_outline),
               onTap: () async {
-                final version = "vTODO";
+                final version =
+                    "v${await VersionRepository.getCurrentVersion()}";
                 if (!context.mounted) return;
                 showAboutDialog(
                   context: context,
