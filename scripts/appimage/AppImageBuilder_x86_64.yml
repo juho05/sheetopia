@@ -1,0 +1,50 @@
+# appimage-builder recipe see https://appimage-builder.readthedocs.io for details
+version: 1
+script:
+  # Workaround for error in Github Actions (https://github.com/AppImageCrafters/appimage-builder/issues/271)
+  - which mksquashfs || apt install squashfs-tools
+
+AppDir:
+  path: AppDir
+  app_info:
+    id: de.julianh.sheetopia
+    name: Sheetopia
+    icon: sheetopia
+    version: latest
+    exec: Sheetopia
+    exec_args: $@
+  apt:
+    arch:
+      - amd64
+    allow_unauthenticated: true
+    sources:
+      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy main restricted
+      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted
+      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy universe
+      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy-updates universe
+      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy multiverse
+      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy-updates multiverse
+      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy-backports main restricted universe multiverse
+      - sourceline: deb http://security.ubuntu.com/ubuntu/ jammy-security main restricted
+      - sourceline: deb http://security.ubuntu.com/ubuntu/ jammy-security universe
+      - sourceline: deb http://security.ubuntu.com/ubuntu/ jammy-security multiverse
+    include:
+      - libgtk-3-0
+    exclude:
+      - adwaita-icon-theme:*
+  runtime:
+    env:
+      XDG_DATA_DIRS: "/usr/local/share/:/usr/share/:${XDG_DATA_DIRS}"
+      GTK_USE_PORTAL: 1
+  files:
+    include: []
+    exclude:
+      - usr/share/man
+      - usr/share/doc/*/README.*
+      - usr/share/doc/*/changelog.*
+      - usr/share/doc/*/NEWS.*
+      - usr/share/doc/*/TODO.*
+
+AppImage:
+  arch: x86_64
+  update-information: gh-releases-zsync|juho05|sheetopia|latest|*x86_64.AppImage.zsync

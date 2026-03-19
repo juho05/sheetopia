@@ -1,0 +1,403 @@
+name: Release Draft
+
+on:
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: "3.41.4"
+  APK_BUILD_DIR: "/tmp/build"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from pubspec.yaml
+        id: get_version
+        run: |
+          VERSION=$(sed -n 's/^version: \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/p' pubspec.yaml)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+  draft_release:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Draft release
+        id: draft_release
+        uses: release-drafter/release-drafter@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag: v${{ needs.build.outputs.version }}
+          name: v${{ needs.build.outputs.version }}
+
+  build_android:
+    needs: build
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Copy files to env.APK_BUILD_DIR
+        run: |
+          mkdir -p $APK_BUILD_DIR
+          cp -r . $APK_BUILD_DIR
+
+      - name: Decode key.properties file
+        working-directory: ${{ env.APK_BUILD_DIR }}
+        env:
+          ENCODED_STRING: ${{ secrets.ANDROID_KEY_PROPERTIES }}
+        run: echo $ENCODED_STRING | base64 -di > android/key.properties
+
+      - name: Decode sheetopia.jks file
+        working-directory: ${{ env.APK_BUILD_DIR }}
+        env:
+          ENCODED_STRING: ${{ secrets.ANDROID_KEY_STORE }}
+        run: mkdir android/app/secrets && echo $ENCODED_STRING | base64 -di > android/app/secrets/sheetopia.jks
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Dependencies
+        working-directory: ${{ env.APK_BUILD_DIR }}
+        run: flutter pub get
+
+      - name: Build generated files
+        working-directory: ${{ env.APK_BUILD_DIR }}
+        run: flutter pub run build_runner build
+
+      - name: Build APK
+        working-directory: ${{ env.APK_BUILD_DIR }}
+        run: flutter build apk --split-per-abi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-result
+          path: |
+            ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk/app-x86_64-release.apk
+          retention-days: 2
+  build_linux_x86_64_AppImage:
+    needs: build
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get remove libunwind-*
+          sudo apt-get install -y clang cmake libgtk-3-dev ninja-build
+          sudo apt-get install -y binutils coreutils desktop-file-utils fakeroot fuse libgdk-pixbuf2.0-dev patchelf python3-pip python3-setuptools squashfs-tools strace util-linux zsync
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+
+      - name: Dependencies
+        run: flutter pub get
+      - name: Build generated files
+        run: flutter pub run build_runner build
+      - name: Compile linux
+        run: flutter build linux
+
+      # AppImage
+      - name: Copy compiled linux files
+        run: |
+          mkdir AppDir
+          cp -r build/linux/x64/release/bundle/* AppDir/
+
+      - name: Copy logo to AppDir
+        run: |
+          mkdir -p AppDir/usr/share/icons/hicolor/32x32/apps
+          cp assets/icon/desktop/sheetopia-32.png AppDir/usr/share/icons/hicolor/32x32/apps/sheetopia.png
+          mkdir -p AppDir/usr/share/icons/hicolor/128x128/apps
+          cp assets/icon/desktop/sheetopia-128.png AppDir/usr/share/icons/hicolor/128x128/apps/sheetopia.png
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+          cp assets/icon/desktop/sheetopia-256.png AppDir/usr/share/icons/hicolor/256x256/apps/sheetopia.png
+
+      - name: Copy recipe to correct location
+        run: cp scripts/appimage/AppImageBuilder_x86_64.yml AppImageBuilder.yml
+
+      - name: Set version in recipe
+        run: |
+          sed -i 's|version: latest|version: ${{ needs.build.outputs.version }}|g' AppImageBuilder.yml
+
+      - name: Build AppImage
+        run: |
+          wget -O appimagetool.AppImage https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool.AppImage
+          wget -O appimage-builder.AppImage https://github.com/AppImageCrafters/appimage-builder/releases/download/v1.1.0/appimage-builder-1.1.0-x86_64.AppImage
+          chmod +x appimage-builder.AppImage
+          ./appimage-builder.AppImage --appimage-extract
+          sed -i 's|"https://github.com/AppImage/AppImageKit/releases/download/continuous/runtime-%s"|"https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-%s"|g' squashfs-root/usr/lib/python3.8/site-packages/appimagebuilder/modules/appimage.py
+          sed -i 's|"https://github.com/AppImage/AppImageKit/releases/download/continuous/runtime-%s"|"https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-%s"|g' squashfs-root/usr/lib/python3.8/site-packages/appimagebuilder/modules/prime/appimage_primer.py
+          sed -i 's|"xz"|"zstd"|g' squashfs-root/usr/lib/python3.8/site-packages/appimagebuilder/modules/prime/appimage_primer.py
+          ./appimagetool.AppImage squashfs-root appimage-builder.AppImage
+          ./appimage-builder.AppImage --recipe=./AppImageBuilder.yml
+          rm appimagetool.AppImage
+          rm appimage-builder.AppImage
+
+      - name: Upload AppImage file
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage-x86-64-result
+          path: ./*.AppImage
+          retention-days: 2
+      - name: Upload AppImage.zsync file
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage-zsync-x86-64-result
+          path: ./*.AppImage.zsync
+          retention-days: 2
+  build_linux_x86_64_TGZ:
+    needs: build
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get remove libunwind-*
+          sudo apt-get install -y clang cmake libgtk-3-dev ninja-build
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+
+      - name: Dependencies
+        run: flutter pub get
+      - name: Build generated files
+        run: flutter pub run build_runner build
+      - name: Compile linux
+        run: flutter build linux
+
+      # tar.gz
+      - name: Create tar.gz archive
+        run: |
+          cd build/linux/x64/release/bundle
+          tar -czvf ../../../../../result.tar.gz *
+
+      - name: Upload tar.gz archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: tar-gz-x86-64-result
+          path: ./*.tar.gz
+          retention-days: 2
+
+  build_windows_x86_64:
+    needs: build
+    runs-on: windows-latest
+
+    steps:
+      - name: Fix long file paths
+        run: git config --system core.longpaths true
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+
+      - name: Dependencies
+        run: flutter pub get
+      - name: Build generated files
+        run: flutter pub run build_runner build
+      - name: Compile for Windows
+        run: flutter build windows
+
+      - name: Build iss script
+        run: dart run inno_bundle:build --no-app --release --no-installer
+
+      - name: Output config into github output
+        id: envs
+        run: echo $(dart run inno_bundle:build --envs --no-hf) | Out-File -FilePath $Env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Build installer
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
+        with:
+          path: ./build/windows/x64/installer/Release/inno-script.iss
+          options: /Fsheetopia-installer
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer-x86-64-result
+          path: ./build/windows/x64/installer/Release/sheetopia-installer.exe
+          retention-days: 2
+
+      - name: Add DLL files
+        run: |
+          Copy-Item scripts/windows/x64/msvcp140.dll build/windows/x64/runner/Release/
+          Copy-Item scripts/windows/x64/vcruntime140.dll build/windows/x64/runner/Release/
+          Copy-Item scripts/windows/x64/vcruntime140_1.dll build/windows/x64/runner/Release/
+
+      - name: Zip compiled files
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath Sheetopia.zip
+
+      - name: Upload zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-zip-x86-64-result
+          path: Sheetopia.zip
+          retention-days: 2
+  build_macos_dmg:
+    needs: build
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+
+      - name: Dependencies
+        run: flutter pub get
+      - name: Build generated files
+        run: flutter pub run build_runner build
+      - name: Compile for macOS
+        run: flutter build macos
+
+      - name: Create .dmg file
+        run: |
+          npm install -g appdmg
+          cd scripts/dmg
+          appdmg config.json ../../Sheetopia.dmg
+
+      - name: Upload .dmg file
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg-result
+          path: Sheetopia.dmg
+          retention-days: 2
+  release:
+    needs:
+      - build
+      - draft_release
+      - build_android
+      - build_linux_x86_64_TGZ
+      - build_linux_x86_64_AppImage
+      - build_windows_x86_64
+      - build_macos_dmg
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create uploads directory
+        run: mkdir uploads
+
+      # Android
+      - name: Download Android files
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk-result
+          path: android-apk-result
+
+      - name: Copy APKs to uploads
+        run: |
+          cp android-apk-result/app-armeabi-v7a-release.apk uploads/Sheetopia-${{ needs.build.outputs.version }}-android-arm32v7.apk
+          cp android-apk-result/app-arm64-v8a-release.apk uploads/Sheetopia-${{ needs.build.outputs.version }}-android-arm64v8.apk
+          cp android-apk-result/app-x86_64-release.apk uploads/Sheetopia-${{ needs.build.outputs.version }}-android-x64.apk
+
+      # TAR.GZ (x86_64)
+      - name: Download tar.gz file
+        uses: actions/download-artifact@v4
+        with:
+          name: tar-gz-x86-64-result
+          path: tar-gz-x86-64-result
+
+      - name: Copy tar.gz file to uploads
+        run: |
+          cp tar-gz-x86-64-result/* uploads/Sheetopia-${{ needs.build.outputs.version }}-linux-x86-64.tar.gz
+
+      # APPIMAGE (x86_64)
+      - name: Download AppImage file
+        uses: actions/download-artifact@v4
+        with:
+          name: appimage-x86-64-result
+          path: appimage-x86-64-result
+
+      - name: Download AppImage.zsync file
+        uses: actions/download-artifact@v4
+        with:
+          name: appimage-zsync-x86-64-result
+          path: appimage-zsync-x86-64-result
+
+      - name: Copy AppImage files to uploads
+        run: |
+          cp appimage-x86-64-result/*.AppImage uploads/Sheetopia-${{ needs.build.outputs.version }}-linux-x86-64.AppImage
+          cp appimage-zsync-x86-64-result/*.AppImage.zsync uploads/Sheetopia-${{ needs.build.outputs.version }}-linux-x86-64.AppImage.zsync
+
+      # WINDOWS ZIP (x86_64)
+      - name: Download windows zip file
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-zip-x86-64-result
+          path: windows-zip-x86-64-result
+
+      - name: Copy zip file to uploads
+        run: cp windows-zip-x86-64-result/*.zip uploads/Sheetopia-${{ needs.build.outputs.version }}-windows-x86-64.zip
+
+      # WINDOWS Installer (x86_64)
+      - name: Download windows installer file
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer-x86-64-result
+          path: windows-installer-x86-64-result
+
+      - name: Copy installer file to uploads
+        run: cp windows-installer-x86-64-result/sheetopia-installer.exe uploads/Sheetopia-${{ needs.build.outputs.version }}-windows-x86-64.exe
+
+      # macOS .dmg (universal)
+      - name: Download macOS .dmg file
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-dmg-result
+          path: macos-dmg-result
+
+      - name: Copy .dmg file to uploads
+        run: cp macos-dmg-result/Sheetopia.dmg uploads/Sheetopia-${{ needs.build.outputs.version }}-macOS-universal.dmg
+
+      - name: Upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ needs.build.outputs.version }}
+          tag_name: v${{ needs.build.outputs.version }}
+          preserve_order: true
+          draft: true
+          files: |
+            uploads/Sheetopia-${{ needs.build.outputs.version }}-android-arm64v8.apk
+            uploads/Sheetopia-${{ needs.build.outputs.version }}-android-arm32v7.apk
+            uploads/Sheetopia-${{ needs.build.outputs.version }}-android-x64.apk
+            uploads/Sheetopia-${{ needs.build.outputs.version }}-linux-x86-64.AppImage
+            uploads/Sheetopia-${{ needs.build.outputs.version }}-linux-x86-64.AppImage.zsync
+            uploads/Sheetopia-${{ needs.build.outputs.version }}-linux-x86-64.tar.gz
+            uploads/Sheetopia-${{ needs.build.outputs.version }}-windows-x86-64.exe
+            uploads/Sheetopia-${{ needs.build.outputs.version }}-windows-x86-64.zip
+            uploads/Sheetopia-${{ needs.build.outputs.version }}-macOS-universal.dmg
+            uploads/Sheetopia-${{ needs.build.outputs.version }}-web.zip
