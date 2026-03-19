@@ -79,6 +79,10 @@ jobs:
         working-directory: ${{ env.APK_BUILD_DIR }}
         run: flutter pub run build_runner build
 
+      - name: Strip pdfrx WASM build
+        working-directory: ${{ env.APK_BUILD_DIR }}
+        run: dart run pdfrx:remove_wasm_modules
+
       - name: Build APK
         working-directory: ${{ env.APK_BUILD_DIR }}
         run: flutter build apk --split-per-abi
@@ -113,8 +117,13 @@ jobs:
 
       - name: Dependencies
         run: flutter pub get
+
       - name: Build generated files
         run: flutter pub run build_runner build
+
+      - name: Strip pdfrx WASM build
+        run: dart run pdfrx:remove_wasm_modules
+
       - name: Compile linux
         run: flutter build linux
 
@@ -187,8 +196,13 @@ jobs:
 
       - name: Dependencies
         run: flutter pub get
+
       - name: Build generated files
         run: flutter pub run build_runner build
+
+      - name: Strip pdfrx WASM build
+        run: dart run pdfrx:remove_wasm_modules
+
       - name: Compile linux
         run: flutter build linux
 
@@ -223,8 +237,13 @@ jobs:
 
       - name: Dependencies
         run: flutter pub get
+
       - name: Build generated files
         run: flutter pub run build_runner build
+
+      - name: Strip pdfrx WASM build
+        run: dart run pdfrx:remove_wasm_modules
+
       - name: Compile for Windows
         run: flutter build windows
 
@@ -278,8 +297,13 @@ jobs:
 
       - name: Dependencies
         run: flutter pub get
+
       - name: Build generated files
         run: flutter pub run build_runner build
+
+      - name: Strip pdfrx WASM build
+        run: dart run pdfrx:remove_wasm_modules
+
       - name: Compile for macOS
         run: flutter build macos
 
