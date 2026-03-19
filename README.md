@@ -2,7 +2,11 @@
 
 # Sheetopia
 
-A cross-platform local-first sheet music library manager with optional self-hosted sync.
+Sheetopia is a cross-platform local-first sheet music app with optional [self-hosted sync](https://github.com/juho05/sheetopia-sync).
+
+Available on: [Windows](#windows), [macOS](#macos), [Linux](#linux), [Android](#android)
+
+*iOS/iPadOS* is supported aswell but there are no release builds available, because I do not have a paid *Apple Developer* account.
 
 [Install](#install)
 
@@ -10,13 +14,32 @@ A cross-platform local-first sheet music library manager with optional self-host
 
 ## Features
 
-- [ ] TODO
+- [x] Import PDF files of your sheet music (scanned or digital)
+- [x] Manage metadata such as:
+  - Title
+  - Composer
+  - Instruments
+  - Genres
+  - Tags
+  - Notes
+- [x] Search/filter your sheet music
+- [x] Full screen reading/play mode
+- [x] Compatible with Bluetooth/USB foot switches
+- [x] Turn pages using MIDI controllers
+  - [x] Local/USB MIDI
+  - [x] Bluetooth MIDI (incl. BLE)
+  - [x] Network MIDI on iOS/macOS
+- [x] [Sync your sheet music across your devices](https://github.com/juho05/sheetopia-sync)
+- [x] Full offline support.
+- [x] Modern UI with light/dark theme
 
 ## Install
 
 Release builds are available on the [releases](https://github.com/juho05/sheetopia/releases/latest) page under *Assets*.
 
 See below for installation instructions for your platform.
+
+Visit [sheetopia-sync](https://github.com/juho05/sheetopia-sync#setup) to install the optional sync server.
 
 ### Windows
 
