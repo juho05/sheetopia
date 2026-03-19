@@ -1,6 +1,7 @@
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 import 'package:sheetopia/data/repositories/appimage/appimage_repository.dart';
+import 'package:sheetopia/data/repositories/auto_update/auto_update_repository.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/logger/log_repository.dart';
 import 'package:sheetopia/data/repositories/midi/midi_repository.dart';
@@ -79,6 +80,13 @@ Future<List<SingleChildWidget>> createProviders({
         create: (context) =>
             IntegrateAppImageViewModel(appImageRepository: context.read())
               ..check(),
+      ),
+    if (AutoUpdateRepository.autoUpdatesSupported)
+      ChangeNotifierProvider(
+        create: (context) => AutoUpdateRepository(
+          versionRepository: context.read(),
+          github: context.read(),
+        ),
       ),
   ];
 }

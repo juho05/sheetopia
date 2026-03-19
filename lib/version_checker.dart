@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/auto_update/auto_update_repository.dart';
 import 'package:sheetopia/ui/common/adaptive_dialog_action.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/version_checker_viewmodel.dart';
@@ -45,12 +46,12 @@ class VersionChecker extends StatelessWidget {
                     Navigator.pop(context, VersionDialogChoice.view),
                 child: const Text("View"),
               ),
-              //if (AutoUpdateRepository.autoUpdatesSupported)
-              //  AdaptiveDialogAction(
-              //    onPressed: () =>
-              //        Navigator.pop(context, VersionDialogChoice.install),
-              //    child: const Text("Install"),
-              //  ),
+              if (AutoUpdateRepository.autoUpdatesSupported)
+                AdaptiveDialogAction(
+                  onPressed: () =>
+                      Navigator.pop(context, VersionDialogChoice.install),
+                  child: const Text("Install"),
+                ),
             ];
             viewModel.isOpen = true;
             showAdaptiveDialog<VersionDialogChoice>(

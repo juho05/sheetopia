@@ -3,6 +3,7 @@ import 'package:sheetopia/data/repositories/logger/log_message.dart';
 import 'package:sheetopia/routing/loading_page.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_page.dart';
 import 'package:sheetopia/ui/home/home_page.dart';
+import 'package:sheetopia/ui/install_update/install_update_page.dart';
 import 'package:sheetopia/ui/score/score_page.dart';
 import 'package:sheetopia/ui/settings/appearance_page.dart';
 import 'package:sheetopia/ui/settings/debug_page.dart';
@@ -86,6 +87,10 @@ GoRouter get goRouter {
                 ],
               ),
             ],
+          ),
+          GoRoute(
+            path: "installUpdate",
+            builder: (context, state) => const InstallUpdatePage(),
           ),
           GoRoute(
             path: "loading",
