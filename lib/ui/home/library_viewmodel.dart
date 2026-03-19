@@ -48,8 +48,10 @@ class LibraryViewModel extends ChangeNotifier {
 
   StreamSubscription? _updatedScoresSub;
   StreamSubscription? _updatedTagsSub;
+  StreamSubscription? _lastOpenedSub;
   LibraryViewModel({required ScoresRepository repo}) : _repo = repo {
     _updatedScoresSub = _repo.updatedScoreIds.listen((_) => _refresh());
+    _lastOpenedSub = _repo.lastOpenedChanged.listen((_) => _refresh());
     _updatedTagsSub = _repo.updatedTagIds
         .where((ids) => ids.intersection(_filterTags).isNotEmpty)
         .listen((_) => _refreshFilterTags());
@@ -179,6 +181,7 @@ class LibraryViewModel extends ChangeNotifier {
     _resetDebounce?.cancel();
     _updatedTagsSub?.cancel();
     _updatedScoresSub?.cancel();
+    _lastOpenedSub?.cancel();
     super.dispose();
   }
 }

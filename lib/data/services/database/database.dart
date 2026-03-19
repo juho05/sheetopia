@@ -36,7 +36,7 @@ class Database extends _$Database {
   Database([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -52,6 +52,25 @@ class Database extends _$Database {
             },
             from2To3: (m, schema) async {
               await m.createTable(schema.logMessage);
+            },
+            from3To4: (m, schema) async {
+              await m.alterTable(
+                TableMigration(
+                  scoresTable,
+                  newColumns: [scoresTable.lastOpened, scoresTable.recentTime],
+                  columnTransformer: {
+                    scoresTable.lastOpened: const CustomExpression(
+                      "MAX(metadata_updated_at,file_updated_at)",
+                    ),
+                  },
+                ),
+              );
+              await m.createIndex(
+                Index(
+                  'recent_time_index',
+                  'CREATE INDEX recent_time_index ON scores (recent_time)',
+                ),
+              );
             },
           ),
         ),

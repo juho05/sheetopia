@@ -57,6 +57,9 @@ class ScoresRepository {
       .where((event) => !event.remoteTriggered)
       .map((event) => event.changed);
 
+  final BehaviorSubject<String> _lastOpenedChanged = BehaviorSubject();
+  Stream<String> get lastOpenedChanged => _lastOpenedChanged.stream;
+
   ScoresRepository({
     required Database db,
     required ThumbnailService thumbnailService,
@@ -198,7 +201,7 @@ class ScoresRepository {
               ),
             ),
           ),
-      OrderingTerm.desc(_db.scoresTable.metadataUpdatedAt),
+      OrderingTerm.desc(_db.scoresTable.recentTime),
       OrderingTerm.asc(_db.scoresTable.id),
     ]);
     q.limit(size, offset: offset);
@@ -325,6 +328,13 @@ class ScoresRepository {
           ),
         );
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
+  }
+
+  Future<void> updateLastOpened(String scoreId) async {
+    await _db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .update((o) => o(lastOpened: Value(DateTime.now().toUtc())));
+    _lastOpenedChanged.add(scoreId);
   }
 
   Future<Tag> createTag({required String name, required Color color}) async {

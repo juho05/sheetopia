@@ -2,12 +2,23 @@ import 'package:drift/drift.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 @TableIndex(name: "search_text_index", columns: {#searchText})
+@TableIndex(name: "recent_time_index", columns: {#recentTime})
 class ScoresTable extends Table {
   late final id = text()();
   late final title = text()();
   late final composer = text().nullable()();
   late final notes = text().nullable()();
   late final searchText = text()();
+
+  late final recentTime = dateTime().generatedAs(
+    CustomExpression(
+      "MAX(${lastOpened.name}, ${metadataUpdatedAt.name}, ${fileUpdatedAt.name})",
+    ),
+  )();
+
+  late final lastOpened = dateTime().clientDefault(
+    () => DateTime.now().toUtc(),
+  )();
 
   late final metadataUpdatedAt = dateTime().clientDefault(
     () => DateTime.now().toUtc(),

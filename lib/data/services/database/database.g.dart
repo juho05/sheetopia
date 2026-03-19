@@ -58,6 +58,35 @@ class $ScoresTableTable extends ScoresTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _recentTimeMeta = const VerificationMeta(
+    'recentTime',
+  );
+  @override
+  late final GeneratedColumn<DateTime> recentTime = GeneratedColumn<DateTime>(
+    'recent_time',
+    aliasedName,
+    false,
+    generatedAs: GeneratedAs(
+      CustomExpression(
+        "MAX(${lastOpened.name}, ${metadataUpdatedAt.name}, ${fileUpdatedAt.name})",
+      ),
+      false,
+    ),
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastOpenedMeta = const VerificationMeta(
+    'lastOpened',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastOpened = GeneratedColumn<DateTime>(
+    'last_opened',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    clientDefault: () => DateTime.now().toUtc(),
+  );
   static const VerificationMeta _metadataUpdatedAtMeta = const VerificationMeta(
     'metadataUpdatedAt',
   );
@@ -144,6 +173,8 @@ class $ScoresTableTable extends ScoresTable
     composer,
     notes,
     searchText,
+    recentTime,
+    lastOpened,
     metadataUpdatedAt,
     fileUpdatedAt,
     metadataUploaded,
@@ -195,6 +226,18 @@ class $ScoresTableTable extends ScoresTable
       );
     } else if (isInserting) {
       context.missing(_searchTextMeta);
+    }
+    if (data.containsKey('recent_time')) {
+      context.handle(
+        _recentTimeMeta,
+        recentTime.isAcceptableOrUnknown(data['recent_time']!, _recentTimeMeta),
+      );
+    }
+    if (data.containsKey('last_opened')) {
+      context.handle(
+        _lastOpenedMeta,
+        lastOpened.isAcceptableOrUnknown(data['last_opened']!, _lastOpenedMeta),
+      );
     }
     if (data.containsKey('metadata_updated_at')) {
       context.handle(
@@ -272,6 +315,14 @@ class $ScoresTableTable extends ScoresTable
         DriftSqlType.string,
         data['${effectivePrefix}search_text'],
       )!,
+      recentTime: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}recent_time'],
+      )!,
+      lastOpened: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_opened'],
+      )!,
       metadataUpdatedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}metadata_updated_at'],
@@ -316,6 +367,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
   final String? composer;
   final String? notes;
   final String searchText;
+  final DateTime recentTime;
+  final DateTime lastOpened;
   final DateTime metadataUpdatedAt;
   final DateTime fileUpdatedAt;
   final bool metadataUploaded;
@@ -328,6 +381,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     this.composer,
     this.notes,
     required this.searchText,
+    required this.recentTime,
+    required this.lastOpened,
     required this.metadataUpdatedAt,
     required this.fileUpdatedAt,
     required this.metadataUploaded,
@@ -347,6 +402,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       map['notes'] = Variable<String>(notes);
     }
     map['search_text'] = Variable<String>(searchText);
+    map['last_opened'] = Variable<DateTime>(lastOpened);
     map['metadata_updated_at'] = Variable<DateTime>(metadataUpdatedAt);
     map['file_updated_at'] = Variable<DateTime>(fileUpdatedAt);
     map['metadata_uploaded'] = Variable<bool>(metadataUploaded);
@@ -371,6 +427,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           ? const Value.absent()
           : Value(notes),
       searchText: Value(searchText),
+      lastOpened: Value(lastOpened),
       metadataUpdatedAt: Value(metadataUpdatedAt),
       fileUpdatedAt: Value(fileUpdatedAt),
       metadataUploaded: Value(metadataUploaded),
@@ -391,6 +448,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       composer: serializer.fromJson<String?>(json['composer']),
       notes: serializer.fromJson<String?>(json['notes']),
       searchText: serializer.fromJson<String>(json['searchText']),
+      recentTime: serializer.fromJson<DateTime>(json['recentTime']),
+      lastOpened: serializer.fromJson<DateTime>(json['lastOpened']),
       metadataUpdatedAt: serializer.fromJson<DateTime>(
         json['metadataUpdatedAt'],
       ),
@@ -412,6 +471,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       'composer': serializer.toJson<String?>(composer),
       'notes': serializer.toJson<String?>(notes),
       'searchText': serializer.toJson<String>(searchText),
+      'recentTime': serializer.toJson<DateTime>(recentTime),
+      'lastOpened': serializer.toJson<DateTime>(lastOpened),
       'metadataUpdatedAt': serializer.toJson<DateTime>(metadataUpdatedAt),
       'fileUpdatedAt': serializer.toJson<DateTime>(fileUpdatedAt),
       'metadataUploaded': serializer.toJson<bool>(metadataUploaded),
@@ -429,6 +490,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     Value<String?> composer = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     String? searchText,
+    DateTime? recentTime,
+    DateTime? lastOpened,
     DateTime? metadataUpdatedAt,
     DateTime? fileUpdatedAt,
     bool? metadataUploaded,
@@ -441,6 +504,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     composer: composer.present ? composer.value : this.composer,
     notes: notes.present ? notes.value : this.notes,
     searchText: searchText ?? this.searchText,
+    recentTime: recentTime ?? this.recentTime,
+    lastOpened: lastOpened ?? this.lastOpened,
     metadataUpdatedAt: metadataUpdatedAt ?? this.metadataUpdatedAt,
     fileUpdatedAt: fileUpdatedAt ?? this.fileUpdatedAt,
     metadataUploaded: metadataUploaded ?? this.metadataUploaded,
@@ -448,34 +513,6 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     fileDownloaded: fileDownloaded ?? this.fileDownloaded,
     fileType: fileType ?? this.fileType,
   );
-  ScoresTableData copyWithCompanion(ScoresTableCompanion data) {
-    return ScoresTableData(
-      id: data.id.present ? data.id.value : this.id,
-      title: data.title.present ? data.title.value : this.title,
-      composer: data.composer.present ? data.composer.value : this.composer,
-      notes: data.notes.present ? data.notes.value : this.notes,
-      searchText: data.searchText.present
-          ? data.searchText.value
-          : this.searchText,
-      metadataUpdatedAt: data.metadataUpdatedAt.present
-          ? data.metadataUpdatedAt.value
-          : this.metadataUpdatedAt,
-      fileUpdatedAt: data.fileUpdatedAt.present
-          ? data.fileUpdatedAt.value
-          : this.fileUpdatedAt,
-      metadataUploaded: data.metadataUploaded.present
-          ? data.metadataUploaded.value
-          : this.metadataUploaded,
-      fileUploaded: data.fileUploaded.present
-          ? data.fileUploaded.value
-          : this.fileUploaded,
-      fileDownloaded: data.fileDownloaded.present
-          ? data.fileDownloaded.value
-          : this.fileDownloaded,
-      fileType: data.fileType.present ? data.fileType.value : this.fileType,
-    );
-  }
-
   @override
   String toString() {
     return (StringBuffer('ScoresTableData(')
@@ -484,6 +521,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           ..write('composer: $composer, ')
           ..write('notes: $notes, ')
           ..write('searchText: $searchText, ')
+          ..write('recentTime: $recentTime, ')
+          ..write('lastOpened: $lastOpened, ')
           ..write('metadataUpdatedAt: $metadataUpdatedAt, ')
           ..write('fileUpdatedAt: $fileUpdatedAt, ')
           ..write('metadataUploaded: $metadataUploaded, ')
@@ -501,6 +540,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     composer,
     notes,
     searchText,
+    recentTime,
+    lastOpened,
     metadataUpdatedAt,
     fileUpdatedAt,
     metadataUploaded,
@@ -517,6 +558,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           other.composer == this.composer &&
           other.notes == this.notes &&
           other.searchText == this.searchText &&
+          other.recentTime == this.recentTime &&
+          other.lastOpened == this.lastOpened &&
           other.metadataUpdatedAt == this.metadataUpdatedAt &&
           other.fileUpdatedAt == this.fileUpdatedAt &&
           other.metadataUploaded == this.metadataUploaded &&
@@ -531,6 +574,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
   final Value<String?> composer;
   final Value<String?> notes;
   final Value<String> searchText;
+  final Value<DateTime> lastOpened;
   final Value<DateTime> metadataUpdatedAt;
   final Value<DateTime> fileUpdatedAt;
   final Value<bool> metadataUploaded;
@@ -544,6 +588,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.composer = const Value.absent(),
     this.notes = const Value.absent(),
     this.searchText = const Value.absent(),
+    this.lastOpened = const Value.absent(),
     this.metadataUpdatedAt = const Value.absent(),
     this.fileUpdatedAt = const Value.absent(),
     this.metadataUploaded = const Value.absent(),
@@ -558,6 +603,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.composer = const Value.absent(),
     this.notes = const Value.absent(),
     required String searchText,
+    this.lastOpened = const Value.absent(),
     this.metadataUpdatedAt = const Value.absent(),
     this.fileUpdatedAt = const Value.absent(),
     this.metadataUploaded = const Value.absent(),
@@ -576,6 +622,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Expression<String>? composer,
     Expression<String>? notes,
     Expression<String>? searchText,
+    Expression<DateTime>? lastOpened,
     Expression<DateTime>? metadataUpdatedAt,
     Expression<DateTime>? fileUpdatedAt,
     Expression<bool>? metadataUploaded,
@@ -590,6 +637,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       if (composer != null) 'composer': composer,
       if (notes != null) 'notes': notes,
       if (searchText != null) 'search_text': searchText,
+      if (lastOpened != null) 'last_opened': lastOpened,
       if (metadataUpdatedAt != null) 'metadata_updated_at': metadataUpdatedAt,
       if (fileUpdatedAt != null) 'file_updated_at': fileUpdatedAt,
       if (metadataUploaded != null) 'metadata_uploaded': metadataUploaded,
@@ -606,6 +654,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Value<String?>? composer,
     Value<String?>? notes,
     Value<String>? searchText,
+    Value<DateTime>? lastOpened,
     Value<DateTime>? metadataUpdatedAt,
     Value<DateTime>? fileUpdatedAt,
     Value<bool>? metadataUploaded,
@@ -620,6 +669,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       composer: composer ?? this.composer,
       notes: notes ?? this.notes,
       searchText: searchText ?? this.searchText,
+      lastOpened: lastOpened ?? this.lastOpened,
       metadataUpdatedAt: metadataUpdatedAt ?? this.metadataUpdatedAt,
       fileUpdatedAt: fileUpdatedAt ?? this.fileUpdatedAt,
       metadataUploaded: metadataUploaded ?? this.metadataUploaded,
@@ -647,6 +697,9 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     }
     if (searchText.present) {
       map['search_text'] = Variable<String>(searchText.value);
+    }
+    if (lastOpened.present) {
+      map['last_opened'] = Variable<DateTime>(lastOpened.value);
     }
     if (metadataUpdatedAt.present) {
       map['metadata_updated_at'] = Variable<DateTime>(metadataUpdatedAt.value);
@@ -682,6 +735,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
           ..write('composer: $composer, ')
           ..write('notes: $notes, ')
           ..write('searchText: $searchText, ')
+          ..write('lastOpened: $lastOpened, ')
           ..write('metadataUpdatedAt: $metadataUpdatedAt, ')
           ..write('fileUpdatedAt: $fileUpdatedAt, ')
           ..write('metadataUploaded: $metadataUploaded, ')
@@ -2870,6 +2924,10 @@ abstract class _$Database extends GeneratedDatabase {
     'search_text_index',
     'CREATE INDEX search_text_index ON scores (search_text)',
   );
+  late final Index recentTimeIndex = Index(
+    'recent_time_index',
+    'CREATE INDEX recent_time_index ON scores (recent_time)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2885,6 +2943,7 @@ abstract class _$Database extends GeneratedDatabase {
     deletedScoresTable,
     logMessageTable,
     searchTextIndex,
+    recentTimeIndex,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -2957,6 +3016,7 @@ typedef $$ScoresTableTableCreateCompanionBuilder =
       Value<String?> composer,
       Value<String?> notes,
       required String searchText,
+      Value<DateTime> lastOpened,
       Value<DateTime> metadataUpdatedAt,
       Value<DateTime> fileUpdatedAt,
       Value<bool> metadataUploaded,
@@ -2972,6 +3032,7 @@ typedef $$ScoresTableTableUpdateCompanionBuilder =
       Value<String?> composer,
       Value<String?> notes,
       Value<String> searchText,
+      Value<DateTime> lastOpened,
       Value<DateTime> metadataUpdatedAt,
       Value<DateTime> fileUpdatedAt,
       Value<bool> metadataUploaded,
@@ -3076,6 +3137,16 @@ class $$ScoresTableTableFilterComposer
 
   ColumnFilters<String> get searchText => $composableBuilder(
     column: $table.searchText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get recentTime => $composableBuilder(
+    column: $table.recentTime,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastOpened => $composableBuilder(
+    column: $table.lastOpened,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3220,6 +3291,16 @@ class $$ScoresTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get recentTime => $composableBuilder(
+    column: $table.recentTime,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastOpened => $composableBuilder(
+    column: $table.lastOpened,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get metadataUpdatedAt => $composableBuilder(
     column: $table.metadataUpdatedAt,
     builder: (column) => ColumnOrderings(column),
@@ -3274,6 +3355,16 @@ class $$ScoresTableTableAnnotationComposer
 
   GeneratedColumn<String> get searchText => $composableBuilder(
     column: $table.searchText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get recentTime => $composableBuilder(
+    column: $table.recentTime,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastOpened => $composableBuilder(
+    column: $table.lastOpened,
     builder: (column) => column,
   );
 
@@ -3418,6 +3509,7 @@ class $$ScoresTableTableTableManager
                 Value<String?> composer = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String> searchText = const Value.absent(),
+                Value<DateTime> lastOpened = const Value.absent(),
                 Value<DateTime> metadataUpdatedAt = const Value.absent(),
                 Value<DateTime> fileUpdatedAt = const Value.absent(),
                 Value<bool> metadataUploaded = const Value.absent(),
@@ -3431,6 +3523,7 @@ class $$ScoresTableTableTableManager
                 composer: composer,
                 notes: notes,
                 searchText: searchText,
+                lastOpened: lastOpened,
                 metadataUpdatedAt: metadataUpdatedAt,
                 fileUpdatedAt: fileUpdatedAt,
                 metadataUploaded: metadataUploaded,
@@ -3446,6 +3539,7 @@ class $$ScoresTableTableTableManager
                 Value<String?> composer = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 required String searchText,
+                Value<DateTime> lastOpened = const Value.absent(),
                 Value<DateTime> metadataUpdatedAt = const Value.absent(),
                 Value<DateTime> fileUpdatedAt = const Value.absent(),
                 Value<bool> metadataUploaded = const Value.absent(),
@@ -3459,6 +3553,7 @@ class $$ScoresTableTableTableManager
                 composer: composer,
                 notes: notes,
                 searchText: searchText,
+                lastOpened: lastOpened,
                 metadataUpdatedAt: metadataUpdatedAt,
                 fileUpdatedAt: fileUpdatedAt,
                 metadataUploaded: metadataUploaded,

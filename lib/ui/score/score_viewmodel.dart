@@ -35,6 +35,7 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
           });
     });
     FullScreen.addListener(this);
+    _repo.updateLastOpened(scoreId);
     showOverlay();
   }
 
