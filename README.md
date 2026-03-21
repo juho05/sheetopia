@@ -86,7 +86,10 @@ Visit [sheetopia-sync](https://github.com/juho05/sheetopia-sync#setup) to instal
 
 ## Screenshots
 
-- TODO
+![](screenshots/library_lightdark.png)
+![](screenshots/score_light.png)
+![](screenshots/edit_dark.png)
+![](screenshots/filter_dark.png)
 
 ## License
 
