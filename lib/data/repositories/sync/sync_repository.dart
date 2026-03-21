@@ -492,6 +492,11 @@ class SyncRepository {
               notes: _optionalStringValue(s.metadata.notes),
               metadataUploaded: const Value(true),
               metadataUpdatedAt: Value(s.metadataUpdatedAt.toUtc()),
+              lastOpened: Value(
+                s.metadataUpdatedAt.isAfter(s.fileUpdatedAt)
+                    ? s.metadataUpdatedAt.toUtc()
+                    : s.fileUpdatedAt.toUtc(),
+              ),
               fileType: s.fileType,
               fileUpdatedAt: Value(s.fileUpdatedAt.toUtc()),
               fileDownloaded: false,
