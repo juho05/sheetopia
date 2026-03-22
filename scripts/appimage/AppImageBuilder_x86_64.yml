@@ -11,7 +11,7 @@ AppDir:
     name: Sheetopia
     icon: sheetopia
     version: latest
-    exec: Sheetopia
+    exec: sheetopia
     exec_args: $@
   apt:
     arch:

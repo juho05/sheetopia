@@ -71,6 +71,7 @@ dev_dependencies:
   build_runner: ^2.10.4
   flutter_launcher_icons: ^0.14.4
   flutter_native_splash: ^2.4.7
+  inno_bundle: ^0.11.2
 
 flutter_launcher_icons:
   image_path: ./assets/icon/sheetopia.png
@@ -105,3 +106,15 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon/sheetopia-circle.png
+
+inno_bundle:
+  id: 0e58be04-aee2-4ad5-84e5-40e7dd0dba1e
+  name: Sheetopia
+  description: Sheet music app
+  publisher: juho05
+  url: "https://github.com/juho05/sheetopia"
+  updates_url: "https://github.com/juho05/sheetopia/releases/latest"
+  admin: auto
+  vc_redist: true
+  languages:
+    - english
