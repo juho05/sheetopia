@@ -590,6 +590,7 @@ class SyncRepository {
               (o) => s.metadata.genres!.map((g) => o(score: s.id, genre: g)),
             );
           }
+          _changedScores.add(s.id);
         }
       });
 
@@ -598,7 +599,6 @@ class SyncRepository {
           await deleteFile!.delete();
         } catch (_) {}
       }
-      _changedScores.add(s.id);
     }
   }
 
