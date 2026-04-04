@@ -761,7 +761,7 @@ class ScoresRepository {
     clearFreshImports();
     _updatedScoreIds.add((changed: {}, remoteTriggered: false));
     _updatedTagIds.add((changed: {}, remoteTriggered: false));
-    (await _scoresDir).delete(recursive: true);
+    (await scoresDir).delete(recursive: true);
     _cachedScoresDir = null;
   }
 
@@ -776,7 +776,7 @@ class ScoresRepository {
   }
 
   Directory? _cachedScoresDir;
-  Future<Directory> get _scoresDir async {
+  Future<Directory> get scoresDir async {
     if (_cachedScoresDir != null) return SynchronousFuture(_cachedScoresDir!);
     final dir = Directory(
       path.join(
@@ -790,7 +790,7 @@ class ScoresRepository {
   }
 
   Future<Directory> scoreDir(String id) async {
-    final dir = Directory(path.join((await _scoresDir).path, id));
+    final dir = Directory(path.join((await scoresDir).path, id));
     await dir.create(recursive: true);
     return dir;
   }

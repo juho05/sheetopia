@@ -54,6 +54,8 @@ dependencies:
   android_package_installer: ^0.0.3
   device_info_plus: ^12.3.0
   open_file: ^3.5.11
+  io: ^1.0.5
+  archive: ^4.0.9
 
 dependency_overrides:
   path_provider_linux:

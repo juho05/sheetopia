@@ -8,6 +8,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/ui/common/buttons.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/heading.dart';
@@ -48,11 +49,21 @@ class ImportExportPage extends StatelessWidget {
                 padding: EdgeInsets.symmetric(vertical: 16),
                 child: Heading(text: "Export"),
               ),
+              // TODO improve feedback during export
               Align(
                 alignment: AlignmentGeometry.centerLeft,
                 child: Button(
-                  onPressed: () {
-                    // TODO
+                  onPressed: () async {
+                    Toast.show(context, "Exporting…");
+                    try {
+                      final success = await viewModel.export();
+                      if (!success || !context.mounted) return;
+                      Toast.show(context, "Export successful!");
+                    } on Exception catch (e, st) {
+                      Log.error("Export failed", e: e, st: st);
+                      if (!context.mounted) return;
+                      Toast.show(context, "Export failed!");
+                    }
                   },
                   child: const Text("Export .zip"),
                 ),
@@ -74,9 +85,15 @@ class ImportExportPage extends StatelessWidget {
 
                     // TODO ask whether to delete remote data if logged in
 
-                    await viewModel.deleteLocalData();
-                    if (!context.mounted) return;
-                    Toast.show(context, "Successfully deleted all local data!");
+                    try {
+                      await viewModel.deleteLocalData();
+                      if (!context.mounted) return;
+                      Toast.show(context, "Successfully deleted all local data!");
+                    } on Exception catch (e, st) {
+                      Log.error("Failed to delete local data", e: e, st: st);
+                      if (!context.mounted) return;
+                      Toast.show(context, "An unexpected error occurred");
+                    }
                   },
                   child: const Text("Delete local data"),
                 ),
