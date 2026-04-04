@@ -751,6 +751,20 @@ class ScoresRepository {
     }
   }
 
+  Future<void> deleteAll() async {
+    await _db.transaction(() async {
+      await _db.managers.scoresTable.delete();
+      await _db.managers.tagsTable.delete();
+      await _db.managers.instrumentsTable.delete();
+      await _db.managers.genresTable.delete();
+    });
+    clearFreshImports();
+    _updatedScoreIds.add((changed: {}, remoteTriggered: false));
+    _updatedTagIds.add((changed: {}, remoteTriggered: false));
+    (await _scoresDir).delete(recursive: true);
+    _cachedScoresDir = null;
+  }
+
   void remoteChangedTags(Set<String> tagIds) {
     if (tagIds.isEmpty) return;
     _updatedTagIds.add((changed: tagIds, remoteTriggered: true));
