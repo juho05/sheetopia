@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 import 'package:sheetopia/data/repositories/appimage/appimage_repository.dart';
 import 'package:sheetopia/data/repositories/auto_update/auto_update_repository.dart';
+import 'package:sheetopia/data/repositories/importexport/importexport_repository.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/logger/log_repository.dart';
 import 'package:sheetopia/data/repositories/midi/midi_repository.dart';
@@ -77,6 +78,9 @@ Future<List<SingleChildWidget>> createProviders({
       ),
       // sync should start immediately
       lazy: false,
+    ),
+    ChangeNotifierProvider(
+      create: (context) => ImportExportRepository(scoresRepo: context.read(), db: context.read()),
     ),
     Provider(create: (context) => MidiRepository(), lazy: false),
     if (AppImageRepository.isAppImage)

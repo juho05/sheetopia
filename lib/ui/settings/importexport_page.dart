@@ -8,6 +8,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/importexport/importexport_repository.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/ui/common/buttons.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
@@ -22,7 +23,7 @@ class ImportExportPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Provider(
-      create: (context) => ImportExportViewModel(syncRepo: context.read(), scoresRepo: context.read()),
+      create: (context) => ImportExportViewModel(syncRepo: context.read(), scoresRepo: context.read(), importExportRepo: context.read()),
       builder: (context, _) {
         final viewModel = context.read<ImportExportViewModel>();
         return Scaffold(
@@ -39,8 +40,22 @@ class ImportExportPage extends StatelessWidget {
               Align(
                 alignment: AlignmentGeometry.centerLeft,
                 child: Button(
-                  onPressed: () {
-                    // TODO
+                  onPressed: () async {
+                    try {
+                      final success = await viewModel.import(onSelected: () {
+                        Toast.show(context, "Importing…");
+                      });
+                      if (!success || !context.mounted) return;
+                      Toast.show(context, "Import successful!");
+                    } on InvalidFileException catch (e, st) {
+                      Log.warn("tried to import invalid file", e: e, st: st);
+                      if (!context.mounted) return;
+                      Toast.show(context, "The selected file is not a valid sheetopia archive!");
+                    } on Exception catch (e, st) {
+                      Log.error("failed to import scores", e: e, st: st);
+                      if (!context.mounted) return;
+                      Toast.show(context, "An unexpected error occurred!");
+                    }
                   },
                   child: const Text("Import .zip"),
                 ),
