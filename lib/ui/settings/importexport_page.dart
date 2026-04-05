@@ -22,102 +22,161 @@ class ImportExportPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Provider(
-      create: (context) => ImportExportViewModel(syncRepo: context.read(), scoresRepo: context.read(), importExportRepo: context.read()),
+    return ChangeNotifierProvider(
+      create: (context) => ImportExportViewModel(
+        syncRepo: context.read(),
+        scoresRepo: context.read(),
+        importExportRepo: context.read(),
+      ),
       builder: (context, _) {
-        final viewModel = context.read<ImportExportViewModel>();
         return Scaffold(
-          appBar: AppBar(
-            title: const Text("Import/Export"),
+          appBar: AppBar(title: const Text("Import/Export")),
+          body: SafeArea(
+            child: Consumer<ImportExportViewModel>(
+              builder: (context, viewModel, _) {
+                return ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 16),
+                      child: Heading(text: "Import"),
+                    ),
+                    Align(
+                      alignment: AlignmentGeometry.centerLeft,
+                      child: Button(
+                        enabled: viewModel.status == ImportExportStatus.idle,
+                        onPressed: () async {
+                          try {
+                            final success = await viewModel.import(
+                              onSelected: () {
+                                Toast.show(context, "Importing…");
+                              },
+                            );
+                            if (!success || !context.mounted) return;
+                            Toast.show(context, "Import successful!");
+                          } on InvalidFileException catch (e, st) {
+                            Log.warn(
+                              "tried to import invalid file",
+                              e: e,
+                              st: st,
+                            );
+                            if (!context.mounted) return;
+                            Toast.show(
+                              context,
+                              "The selected file is not a valid sheetopia archive!",
+                            );
+                          } on Exception catch (e, st) {
+                            Log.error("failed to import scores", e: e, st: st);
+                            if (!context.mounted) return;
+                            Toast.show(
+                              context,
+                              "An unexpected error occurred!",
+                            );
+                          }
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          spacing: 8,
+                          children: [
+                            const Text("Import .zip"),
+                            if (viewModel.status ==
+                                ImportExportStatus.importing)
+                              const SizedBox.square(
+                                dimension: 15,
+                                child: CircularProgressIndicator.adaptive(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Heading(text: "Export"),
+                    ),
+                    Align(
+                      alignment: AlignmentGeometry.centerLeft,
+                      child: Button(
+                        enabled: viewModel.status == ImportExportStatus.idle,
+                        onPressed: () async {
+                          Toast.show(context, "Exporting…");
+                          try {
+                            final success = await viewModel.export();
+                            if (!success || !context.mounted) return;
+                            Toast.show(context, "Export successful!");
+                          } on Exception catch (e, st) {
+                            Log.error("Export failed", e: e, st: st);
+                            if (!context.mounted) return;
+                            Toast.show(context, "Export failed!");
+                          }
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          spacing: 8,
+                          children: [
+                            const Text("Export .zip"),
+                            if (viewModel.status ==
+                                ImportExportStatus.exporting)
+                              const SizedBox.square(
+                                dimension: 15,
+                                child: CircularProgressIndicator.adaptive(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Heading(text: "Reset"),
+                    ),
+                    Align(
+                      alignment: AlignmentGeometry.centerLeft,
+                      child: Button(
+                        enabled: viewModel.status == ImportExportStatus.idle,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: theme.colorScheme.errorContainer,
+                          foregroundColor: theme.colorScheme.onErrorContainer,
+                        ),
+                        onPressed: () async {
+                          final confirmed = await ConfirmationDialog.showYesNo(
+                            context,
+                            message:
+                                "Sync will be disabled and all local scores, tags, etc. will be deleted.\n\nRemote data will not be deleted.",
+                          );
+                          if (confirmed != true) return;
+
+                          // TODO ask whether to delete remote data if logged in
+
+                          try {
+                            await viewModel.deleteLocalData();
+                            if (!context.mounted) return;
+                            Toast.show(
+                              context,
+                              "Successfully deleted all local data!",
+                            );
+                          } on Exception catch (e, st) {
+                            Log.error(
+                              "Failed to delete local data",
+                              e: e,
+                              st: st,
+                            );
+                            if (!context.mounted) return;
+                            Toast.show(context, "An unexpected error occurred");
+                          }
+                        },
+                        child: const Text("Delete local data"),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
-          body: SafeArea(child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(bottom: 16),
-                child: Heading(text: "Import"),
-              ),
-              Align(
-                alignment: AlignmentGeometry.centerLeft,
-                child: Button(
-                  onPressed: () async {
-                    try {
-                      final success = await viewModel.import(onSelected: () {
-                        Toast.show(context, "Importing…");
-                      });
-                      if (!success || !context.mounted) return;
-                      Toast.show(context, "Import successful!");
-                    } on InvalidFileException catch (e, st) {
-                      Log.warn("tried to import invalid file", e: e, st: st);
-                      if (!context.mounted) return;
-                      Toast.show(context, "The selected file is not a valid sheetopia archive!");
-                    } on Exception catch (e, st) {
-                      Log.error("failed to import scores", e: e, st: st);
-                      if (!context.mounted) return;
-                      Toast.show(context, "An unexpected error occurred!");
-                    }
-                  },
-                  child: const Text("Import .zip"),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Heading(text: "Export"),
-              ),
-              // TODO improve feedback during export
-              Align(
-                alignment: AlignmentGeometry.centerLeft,
-                child: Button(
-                  onPressed: () async {
-                    Toast.show(context, "Exporting…");
-                    try {
-                      final success = await viewModel.export();
-                      if (!success || !context.mounted) return;
-                      Toast.show(context, "Export successful!");
-                    } on Exception catch (e, st) {
-                      Log.error("Export failed", e: e, st: st);
-                      if (!context.mounted) return;
-                      Toast.show(context, "Export failed!");
-                    }
-                  },
-                  child: const Text("Export .zip"),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Heading(text: "Reset"),
-              ),
-              Align(
-                alignment: AlignmentGeometry.centerLeft,
-                child: Button(
-                  style:FilledButton.styleFrom(
-                    backgroundColor: theme.colorScheme.errorContainer,
-                    foregroundColor: theme.colorScheme.onErrorContainer,
-                  ),
-                  onPressed: () async {
-                    final confirmed = await ConfirmationDialog.showYesNo(context, message: "Sync will be disabled and all local scores, tags, etc. will be deleted.\n\nRemote data will not be deleted.");
-                    if (confirmed != true) return;
-
-                    // TODO ask whether to delete remote data if logged in
-
-                    try {
-                      await viewModel.deleteLocalData();
-                      if (!context.mounted) return;
-                      Toast.show(context, "Successfully deleted all local data!");
-                    } on Exception catch (e, st) {
-                      Log.error("Failed to delete local data", e: e, st: st);
-                      if (!context.mounted) return;
-                      Toast.show(context, "An unexpected error occurred");
-                    }
-                  },
-                  child: const Text("Delete local data"),
-                ),
-              ),
-            ],
-          )),
         );
-      }
+      },
     );
   }
-
 }
