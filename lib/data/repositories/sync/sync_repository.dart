@@ -54,7 +54,9 @@ class SyncRepository {
   String? _user;
 
   bool get signedIn => _con != null;
+
   String get user => _user ?? "unknown";
+
   Uri get serverUri => _con!.baseUri;
 
   AppLifecycleListener? _listener;
@@ -434,15 +436,14 @@ class SyncRepository {
                 .toList(),
           ),
         );
-        await _db.managers.scoresTable
-            .filter(
-              (f) =>
-                  f.id(s.id) & f.metadataUpdatedAt.equals(s.metadataUpdatedAt),
-            )
-            .update((o) => o(metadataUploaded: const Value(true)));
       } on ConflictException catch (_) {
         // local changes aren't the latest version
       }
+      await _db.managers.scoresTable
+          .filter(
+            (f) => f.id(s.id) & f.metadataUpdatedAt.equals(s.metadataUpdatedAt),
+          )
+          .update((o) => o(metadataUploaded: const Value(true)));
     }
   }
 
@@ -460,12 +461,12 @@ class SyncRepository {
           updatedAt: s.fileUpdatedAt.toUtc(),
           fileType: s.fileType,
         );
-        await _db.managers.scoresTable
-            .filter((f) => f.id(s.id) & f.fileUpdatedAt.equals(s.fileUpdatedAt))
-            .update((o) => o(fileUploaded: const Value(true)));
       } on ConflictException catch (_) {
         // local file is no longer the latest version
       }
+      await _db.managers.scoresTable
+          .filter((f) => f.id(s.id) & f.fileUpdatedAt.equals(s.fileUpdatedAt))
+          .update((o) => o(fileUploaded: const Value(true)));
     }
   }
 
