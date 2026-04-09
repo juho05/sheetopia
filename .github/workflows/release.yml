@@ -28,7 +28,7 @@ jobs:
     steps:
       - name: Draft release
         id: draft_release
-        uses: release-drafter/release-drafter@v6
+        uses: release-drafter/release-drafter@v7
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -591,4 +591,3 @@ jobs:
             uploads/Sheetopia-${{ needs.build.outputs.version }}-windows-x86-64.exe
             uploads/Sheetopia-${{ needs.build.outputs.version }}-windows-x86-64.zip
             uploads/Sheetopia-${{ needs.build.outputs.version }}-macOS-universal.dmg
-            uploads/Sheetopia-${{ needs.build.outputs.version }}-web.zip
