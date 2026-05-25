@@ -34,6 +34,7 @@ class _PdfViewState extends State<PdfView> {
     _viewModel = PdfViewModel(
       file: widget.file,
       midiRepository: context.read(),
+      scoreViewModel: context.read(),
     );
   }
 
@@ -155,6 +156,7 @@ class _PdfViewState extends State<PdfView> {
                   child: FocusScope(
                     autofocus: true,
                     child: Material(
+                      color: Colors.transparent,
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
@@ -172,6 +174,45 @@ class _PdfViewState extends State<PdfView> {
                                         pageCount +
                                         index];
                                 return Flexible(
+                                  child: Opacity(
+                                    opacity: 0,
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxWidth:
+                                            constraints.maxHeight *
+                                            (page.width / page.height),
+                                      ),
+                                      child: MediaQuery(
+                                        data: mediaQuery.copyWith(
+                                          devicePixelRatio: max(
+                                            mediaQuery.devicePixelRatio,
+                                            2.0,
+                                          ),
+                                        ),
+                                        child: PdfPageView(
+                                          document: _viewModel.document!,
+                                          pageNumber: page.pageNumber,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                          //const Material(),
+                          // front layer
+                          Row(
+                            key: ValueKey(
+                              "${_viewModel.currentPageIndex}-${widget.file.path}",
+                            ),
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            spacing: gap,
+                            children: List.generate(pageCount, (index) {
+                              final page =
+                                  pages[_viewModel.currentPageIndex + index];
+                              return Flexible(
+                                child: Opacity(
+                                  opacity: 1,
                                   child: ConstrainedBox(
                                     constraints: BoxConstraints(
                                       maxWidth:
@@ -189,39 +230,6 @@ class _PdfViewState extends State<PdfView> {
                                         document: _viewModel.document!,
                                         pageNumber: page.pageNumber,
                                       ),
-                                    ),
-                                  ),
-                                );
-                              }),
-                            ),
-                          const Material(),
-                          // front layer
-                          Row(
-                            key: ValueKey(
-                              "${_viewModel.currentPageIndex}-${widget.file.path}",
-                            ),
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            spacing: gap,
-                            children: List.generate(pageCount, (index) {
-                              final page =
-                                  pages[_viewModel.currentPageIndex + index];
-                              return Flexible(
-                                child: ConstrainedBox(
-                                  constraints: BoxConstraints(
-                                    maxWidth:
-                                        constraints.maxHeight *
-                                        (page.width / page.height),
-                                  ),
-                                  child: MediaQuery(
-                                    data: mediaQuery.copyWith(
-                                      devicePixelRatio: max(
-                                        mediaQuery.devicePixelRatio,
-                                        2.0,
-                                      ),
-                                    ),
-                                    child: PdfPageView(
-                                      document: _viewModel.document!,
-                                      pageNumber: page.pageNumber,
                                     ),
                                   ),
                                 ),

@@ -29,9 +29,16 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
 
   bool get supportsFullScreen =>
       Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+
   bool get isFullScreen => FullScreen.isFullScreen;
 
+  final StreamController<void> _pageChangedStreamController =
+      StreamController.broadcast();
+
+  Stream<void> get pageChangedStream => _pageChangedStreamController.stream;
+
   StreamSubscription? _updatedScoresSub;
+
   ScoreViewModel({required ScoresRepository repo, required String scoreId})
     : _repo = repo,
       _scoreId = scoreId {
@@ -48,9 +55,11 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
   }
 
   bool _overlayVisible = true;
+
   bool get overlayVisible => _overlayVisible;
 
   Timer? _hideOverlayTimer;
+
   void showOverlay() {
     _overlayVisible = true;
     notifyListeners();
@@ -64,6 +73,14 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
     }
   }
 
+  void onNextPage() {
+    _pageChangedStreamController.add(null);
+  }
+
+  void onPrevPage() {
+    _pageChangedStreamController.add(null);
+  }
+
   Future<void> _load() async {
     final score = await _repo.getScore(_scoreId);
     _score = score;
@@ -73,6 +90,7 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
 
   @override
   void dispose() {
+    _pageChangedStreamController.close();
     _hideOverlayTimer?.cancel();
     FullScreen.removeListener(this);
     _updatedScoresSub?.cancel();

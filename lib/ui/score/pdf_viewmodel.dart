@@ -12,24 +12,32 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:sheetopia/data/repositories/midi/midi_repository.dart';
+import 'package:sheetopia/ui/score/score_viewmodel.dart';
 
 class PdfViewModel extends ChangeNotifier {
   final MidiRepository _midiRepository;
+  final ScoreViewModel _scoreViewModel;
 
   File _file;
 
   PdfDocument? _document;
+
   PdfDocument? get document => _document;
 
   int _currentPageIndex = 0;
+
   int get currentPageIndex => _currentPageIndex;
 
   int _forwardPageCount = 1;
   int _backwardPageCount = 1;
 
-  PdfViewModel({required File file, required MidiRepository midiRepository})
-    : _file = file,
-      _midiRepository = midiRepository {
+  PdfViewModel({
+    required File file,
+    required MidiRepository midiRepository,
+    required ScoreViewModel scoreViewModel,
+  }) : _file = file,
+       _midiRepository = midiRepository,
+       _scoreViewModel = scoreViewModel {
     _midiRepository.addActionListener(_midiActionListener);
     _loadDocument();
   }
@@ -69,12 +77,14 @@ class PdfViewModel extends ChangeNotifier {
       return;
     }
     _currentPageIndex = newIndex;
+    _scoreViewModel.onNextPage();
     notifyListeners();
   }
 
   void prevPage() {
     if (_currentPageIndex == 0) return;
     _currentPageIndex = max(_currentPageIndex - _backwardPageCount, 0);
+    _scoreViewModel.onPrevPage();
     notifyListeners();
   }
 

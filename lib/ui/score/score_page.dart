@@ -27,11 +27,41 @@ class ScorePage extends StatefulWidget {
   State<ScorePage> createState() => _ScorePageState();
 }
 
-class _ScorePageState extends State<ScorePage> {
+class _ScorePageState extends State<ScorePage>
+    with SingleTickerProviderStateMixin {
+  late final ScoreViewModel _viewModel;
+
+  Animation<Color?>? _pageTurnHighlightAnimation;
+  late final AnimationController _pageTurnHighlightController;
+
   @override
   void initState() {
-    WakelockPlus.enable();
     super.initState();
+
+    WakelockPlus.enable();
+
+    _viewModel = ScoreViewModel(repo: context.read(), scoreId: widget.scoreId);
+    _viewModel.pageChangedStream.listen((event) {
+      _pageTurnHighlightController.value = 0.7;
+      _pageTurnHighlightController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
+
+    _pageTurnHighlightController = AnimationController(vsync: this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    final colorScheme = Theme.of(context).colorScheme;
+    _pageTurnHighlightAnimation ??= ColorTween(
+      begin: colorScheme.surface,
+      end: Colors.green,
+    ).animate(_pageTurnHighlightController);
+
+    super.didChangeDependencies();
   }
 
   @override
@@ -40,50 +70,53 @@ class _ScorePageState extends State<ScorePage> {
     if (FullScreen.isFullScreen && !Platform.isMacOS) {
       FullScreen.setFullScreen(false);
     }
+    _viewModel.dispose();
+    _pageTurnHighlightController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) =>
-          ScoreViewModel(repo: context.read(), scoreId: widget.scoreId),
+    return ChangeNotifierProvider.value(
+      value: _viewModel,
       builder: (context, _) {
-        return Scaffold(
-          body: SafeArea(
-            child: Consumer<ScoreViewModel>(
-              builder: (context, viewModel, _) {
+        return AnimatedBuilder(
+          animation: _pageTurnHighlightAnimation!,
+          child: SafeArea(
+            child: ListenableBuilder(
+              listenable: _viewModel,
+              builder: (context, _) {
                 final backButtonVisible =
-                    !viewModel.isFullScreen ||
-                    (Platform.isMacOS && viewModel.overlayVisible);
+                    !_viewModel.isFullScreen ||
+                    (Platform.isMacOS && _viewModel.overlayVisible);
                 return MouseRegion(
-                  cursor: !viewModel.isFullScreen || viewModel.overlayVisible
+                  cursor: !_viewModel.isFullScreen || _viewModel.overlayVisible
                       ? SystemMouseCursors.basic
                       : SystemMouseCursors.none,
                   child: Listener(
-                    onPointerHover: (event) => viewModel.showOverlay(),
-                    onPointerMove: (event) => viewModel.showOverlay(),
-                    onPointerDown: (event) => viewModel.showOverlay(),
+                    onPointerHover: (event) => _viewModel.showOverlay(),
+                    onPointerMove: (event) => _viewModel.showOverlay(),
+                    onPointerDown: (event) => _viewModel.showOverlay(),
                     child: CallbackShortcuts(
                       bindings: {
                         const SingleActivator(LogicalKeyboardKey.escape):
-                            viewModel.exitFullScreen,
+                            _viewModel.exitFullScreen,
                         const SingleActivator(LogicalKeyboardKey.keyF):
-                            viewModel.toggleFullScreen,
+                            _viewModel.toggleFullScreen,
                         const SingleActivator(LogicalKeyboardKey.f11):
-                            viewModel.toggleFullScreen,
+                            _viewModel.toggleFullScreen,
                       },
                       child: FocusScope(
                         autofocus: true,
                         child: Stack(
                           children: [
-                            if (viewModel.file == null)
+                            if (_viewModel.file == null)
                               const Center(
                                 child: CircularProgressIndicator.adaptive(),
                               ),
-                            if (viewModel.file != null)
-                              switch (viewModel.fileType!) {
-                                FileType.pdf => PdfView(file: viewModel.file!),
+                            if (_viewModel.file != null)
+                              switch (_viewModel.fileType!) {
+                                FileType.pdf => PdfView(file: _viewModel.file!),
                               },
                             AnimatedOpacity(
                               opacity: backButtonVisible ? 1 : 0,
@@ -113,7 +146,7 @@ class _ScorePageState extends State<ScorePage> {
                                 Platform.isMacOS ||
                                 Platform.isLinux)
                               AnimatedOpacity(
-                                opacity: viewModel.overlayVisible ? 1 : 0,
+                                opacity: _viewModel.overlayVisible ? 1 : 0,
                                 duration: const Duration(milliseconds: 50),
                                 child: Align(
                                   alignment: Alignment.bottomRight,
@@ -121,7 +154,7 @@ class _ScorePageState extends State<ScorePage> {
                                     padding: const EdgeInsets.all(16),
                                     child: IconButton.filled(
                                       onPressed: () {
-                                        viewModel.toggleFullScreen();
+                                        _viewModel.toggleFullScreen();
                                       },
                                       color: Colors.white,
                                       style: ButtonStyle(
@@ -132,7 +165,7 @@ class _ScorePageState extends State<ScorePage> {
                                       ),
                                       iconSize: 26,
                                       padding: const EdgeInsets.all(10),
-                                      icon: viewModel.isFullScreen
+                                      icon: _viewModel.isFullScreen
                                           ? const Icon(Icons.fullscreen_exit)
                                           : const Icon(Icons.fullscreen),
                                     ),
@@ -148,6 +181,12 @@ class _ScorePageState extends State<ScorePage> {
               },
             ),
           ),
+          builder: (context, child) {
+            return Scaffold(
+              backgroundColor: _pageTurnHighlightAnimation!.value,
+              body: child,
+            );
+          },
         );
       },
     );
