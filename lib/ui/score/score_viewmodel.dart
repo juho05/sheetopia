@@ -32,10 +32,10 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
 
   bool get isFullScreen => FullScreen.isFullScreen;
 
-  final StreamController<void> _pageChangedStreamController =
+  final StreamController<bool> _pageChangedStreamController =
       StreamController.broadcast();
 
-  Stream<void> get pageChangedStream => _pageChangedStreamController.stream;
+  Stream<bool> get pageChangedStream => _pageChangedStreamController.stream;
 
   StreamSubscription? _updatedScoresSub;
 
@@ -74,11 +74,11 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
   }
 
   void onNextPage() {
-    _pageChangedStreamController.add(null);
+    _pageChangedStreamController.add(true);
   }
 
   void onPrevPage() {
-    _pageChangedStreamController.add(null);
+    _pageChangedStreamController.add(false);
   }
 
   Future<void> _load() async {

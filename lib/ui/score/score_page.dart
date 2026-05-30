@@ -31,8 +31,12 @@ class _ScorePageState extends State<ScorePage>
     with SingleTickerProviderStateMixin {
   late final ScoreViewModel _viewModel;
 
-  Animation<Color?>? _pageTurnHighlightAnimation;
+  final Color _forwardHighlight = Colors.green;
+  final Color _backwardHighlight = Colors.orange;
+
   late final AnimationController _pageTurnHighlightController;
+
+  Animation<Color?>? _pageTurnHighlightAnimation;
 
   @override
   void initState() {
@@ -41,27 +45,26 @@ class _ScorePageState extends State<ScorePage>
     WakelockPlus.enable();
 
     _viewModel = ScoreViewModel(repo: context.read(), scoreId: widget.scoreId);
-    _viewModel.pageChangedStream.listen((event) {
-      _pageTurnHighlightController.value = 0.7;
-      _pageTurnHighlightController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    });
-
-    _pageTurnHighlightController = AnimationController(vsync: this);
+    _pageTurnHighlightController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
   }
 
   @override
   void didChangeDependencies() {
-    final colorScheme = Theme.of(context).colorScheme;
-    _pageTurnHighlightAnimation ??= ColorTween(
-      begin: colorScheme.surface,
-      end: Colors.green,
-    ).animate(_pageTurnHighlightController);
-
     super.didChangeDependencies();
+
+    final surfaceColor = Theme.of(context).colorScheme.surface;
+
+    // dummy animation for beginning
+    _pageTurnHighlightAnimation ??=
+        ColorTween(begin: surfaceColor, end: surfaceColor).animate(
+          CurvedAnimation(
+            parent: _pageTurnHighlightController,
+            curve: Curves.easeOut,
+          ),
+        );
   }
 
   @override
@@ -75,116 +78,146 @@ class _ScorePageState extends State<ScorePage>
     super.dispose();
   }
 
+  void _triggerPageTurnHighlight(bool forward) {
+    final targetColor = forward ? _forwardHighlight : _backwardHighlight;
+
+    _pageTurnHighlightAnimation =
+        ColorTween(
+          begin: targetColor,
+          end: Theme.of(context).colorScheme.surface,
+        ).animate(
+          CurvedAnimation(
+            parent: _pageTurnHighlightController,
+            curve: Curves.easeOut,
+          ),
+        );
+
+    _pageTurnHighlightController.value = 0.3;
+    _pageTurnHighlightController.forward(from: 0);
+  }
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
       value: _viewModel,
       builder: (context, _) {
-        return AnimatedBuilder(
-          animation: _pageTurnHighlightAnimation!,
-          child: SafeArea(
-            child: ListenableBuilder(
-              listenable: _viewModel,
-              builder: (context, _) {
-                final backButtonVisible =
-                    !_viewModel.isFullScreen ||
-                    (Platform.isMacOS && _viewModel.overlayVisible);
-                return MouseRegion(
-                  cursor: !_viewModel.isFullScreen || _viewModel.overlayVisible
-                      ? SystemMouseCursors.basic
-                      : SystemMouseCursors.none,
-                  child: Listener(
-                    onPointerHover: (event) => _viewModel.showOverlay(),
-                    onPointerMove: (event) => _viewModel.showOverlay(),
-                    onPointerDown: (event) => _viewModel.showOverlay(),
-                    child: CallbackShortcuts(
-                      bindings: {
-                        const SingleActivator(LogicalKeyboardKey.escape):
-                            _viewModel.exitFullScreen,
-                        const SingleActivator(LogicalKeyboardKey.keyF):
-                            _viewModel.toggleFullScreen,
-                        const SingleActivator(LogicalKeyboardKey.f11):
-                            _viewModel.toggleFullScreen,
-                      },
-                      child: FocusScope(
-                        autofocus: true,
-                        child: Stack(
-                          children: [
-                            if (_viewModel.file == null)
-                              const Center(
-                                child: CircularProgressIndicator.adaptive(),
+        final child = SafeArea(
+          child: ListenableBuilder(
+            listenable: _viewModel,
+            builder: (context, _) {
+              final backButtonVisible =
+                  !_viewModel.isFullScreen ||
+                  (Platform.isMacOS && _viewModel.overlayVisible);
+              return MouseRegion(
+                cursor: !_viewModel.isFullScreen || _viewModel.overlayVisible
+                    ? SystemMouseCursors.basic
+                    : SystemMouseCursors.none,
+                child: Listener(
+                  onPointerHover: (event) => _viewModel.showOverlay(),
+                  onPointerMove: (event) => _viewModel.showOverlay(),
+                  onPointerDown: (event) => _viewModel.showOverlay(),
+                  child: CallbackShortcuts(
+                    bindings: {
+                      const SingleActivator(LogicalKeyboardKey.escape):
+                          _viewModel.exitFullScreen,
+                      const SingleActivator(LogicalKeyboardKey.keyF):
+                          _viewModel.toggleFullScreen,
+                      const SingleActivator(LogicalKeyboardKey.f11):
+                          _viewModel.toggleFullScreen,
+                    },
+                    child: FocusScope(
+                      autofocus: true,
+                      child: Stack(
+                        children: [
+                          if (_viewModel.file == null)
+                            const Center(
+                              child: CircularProgressIndicator.adaptive(),
+                            ),
+                          if (_viewModel.file != null)
+                            switch (_viewModel.fileType!) {
+                              FileType.pdf => PdfView(file: _viewModel.file!),
+                            },
+                          AnimatedOpacity(
+                            opacity: backButtonVisible ? 1 : 0,
+                            duration: const Duration(milliseconds: 50),
+                            child: Padding(
+                              padding: const EdgeInsets.all(4),
+                              child: SizedBox.square(
+                                dimension: 32,
+                                child: IconButton.filled(
+                                  color: Colors.white,
+                                  style: ButtonStyle(
+                                    backgroundColor: WidgetStateProperty.all(
+                                      Colors.black.withAlpha(100),
+                                    ),
+                                  ),
+                                  icon: const BackButtonIcon(),
+                                  iconSize: 20,
+                                  padding: const EdgeInsets.all(0),
+                                  onPressed: () {
+                                    context.pop();
+                                  },
+                                ),
                               ),
-                            if (_viewModel.file != null)
-                              switch (_viewModel.fileType!) {
-                                FileType.pdf => PdfView(file: _viewModel.file!),
-                              },
+                            ),
+                          ),
+                          if (Platform.isWindows ||
+                              Platform.isMacOS ||
+                              Platform.isLinux)
                             AnimatedOpacity(
-                              opacity: backButtonVisible ? 1 : 0,
+                              opacity: _viewModel.overlayVisible ? 1 : 0,
                               duration: const Duration(milliseconds: 50),
-                              child: Padding(
-                                padding: const EdgeInsets.all(4),
-                                child: SizedBox.square(
-                                  dimension: 32,
+                              child: Align(
+                                alignment: Alignment.bottomRight,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
                                   child: IconButton.filled(
+                                    onPressed: () {
+                                      _viewModel.toggleFullScreen();
+                                    },
                                     color: Colors.white,
                                     style: ButtonStyle(
                                       backgroundColor: WidgetStateProperty.all(
                                         Colors.black.withAlpha(100),
                                       ),
                                     ),
-                                    icon: const BackButtonIcon(),
-                                    iconSize: 20,
-                                    padding: const EdgeInsets.all(0),
-                                    onPressed: () {
-                                      context.pop();
-                                    },
+                                    iconSize: 26,
+                                    padding: const EdgeInsets.all(10),
+                                    icon: _viewModel.isFullScreen
+                                        ? const Icon(Icons.fullscreen_exit)
+                                        : const Icon(Icons.fullscreen),
                                   ),
                                 ),
                               ),
                             ),
-                            if (Platform.isWindows ||
-                                Platform.isMacOS ||
-                                Platform.isLinux)
-                              AnimatedOpacity(
-                                opacity: _viewModel.overlayVisible ? 1 : 0,
-                                duration: const Duration(milliseconds: 50),
-                                child: Align(
-                                  alignment: Alignment.bottomRight,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: IconButton.filled(
-                                      onPressed: () {
-                                        _viewModel.toggleFullScreen();
-                                      },
-                                      color: Colors.white,
-                                      style: ButtonStyle(
-                                        backgroundColor:
-                                            WidgetStateProperty.all(
-                                              Colors.black.withAlpha(100),
-                                            ),
-                                      ),
-                                      iconSize: 26,
-                                      padding: const EdgeInsets.all(10),
-                                      icon: _viewModel.isFullScreen
-                                          ? const Icon(Icons.fullscreen_exit)
-                                          : const Icon(Icons.fullscreen),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
+                        ],
                       ),
                     ),
                   ),
+                ),
+              );
+            },
+          ),
+        );
+        return StreamBuilder<bool>(
+          stream: _viewModel.pageChangedStream,
+          builder: (context, snapshot) {
+            if (snapshot.hasData) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _triggerPageTurnHighlight(snapshot.data!);
+              });
+            }
+            return AnimatedBuilder(
+              animation: _pageTurnHighlightAnimation!,
+              child: child,
+              builder: (context, child) {
+                return Scaffold(
+                  backgroundColor: _pageTurnHighlightAnimation!.isAnimating
+                      ? _pageTurnHighlightAnimation!.value
+                      : null,
+                  body: child,
                 );
               },
-            ),
-          ),
-          builder: (context, child) {
-            return Scaffold(
-              backgroundColor: _pageTurnHighlightAnimation!.value,
-              body: child,
             );
           },
         );
