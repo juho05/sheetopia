@@ -6,6 +6,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -38,6 +39,8 @@ class _ScorePageState extends State<ScorePage>
 
   Animation<Color?>? _pageTurnHighlightAnimation;
 
+  StreamSubscription? _pageChangeSub;
+
   @override
   void initState() {
     super.initState();
@@ -49,6 +52,9 @@ class _ScorePageState extends State<ScorePage>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
+    _pageChangeSub = _viewModel.pageChangedStream.listen((forward) {
+      _triggerPageTurnHighlight(forward);
+    });
   }
 
   @override
@@ -73,6 +79,7 @@ class _ScorePageState extends State<ScorePage>
     if (FullScreen.isFullScreen && !Platform.isMacOS) {
       FullScreen.setFullScreen(false);
     }
+    _pageChangeSub?.cancel();
     _viewModel.dispose();
     _pageTurnHighlightController.dispose();
     super.dispose();
@@ -201,12 +208,7 @@ class _ScorePageState extends State<ScorePage>
         );
         return StreamBuilder<bool>(
           stream: _viewModel.pageChangedStream,
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _triggerPageTurnHighlight(snapshot.data!);
-              });
-            }
+          builder: (context, _) {
             return AnimatedBuilder(
               animation: _pageTurnHighlightAnimation!,
               child: child,
