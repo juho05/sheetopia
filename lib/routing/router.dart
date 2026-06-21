@@ -6,6 +6,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sheetopia/data/repositories/logger/log_message.dart';
 import 'package:sheetopia/routing/loading_page.dart';
@@ -25,15 +26,54 @@ import 'package:sheetopia/ui/settings/settings_page.dart';
 
 GoRouter? _goRouter;
 
+enum _ShareStatus { idle, importing, ready, empty }
+
+class ShareImport {
+  const ShareImport._(this._status, this.scoreId);
+
+  const ShareImport.idle() : this._(_ShareStatus.idle, null);
+
+  const ShareImport.importing() : this._(_ShareStatus.importing, null);
+
+  const ShareImport.ready(String scoreId) : this._(_ShareStatus.ready, scoreId);
+
+  const ShareImport.empty() : this._(_ShareStatus.empty, null);
+
+  final _ShareStatus _status;
+  final String? scoreId;
+}
+
+final ValueNotifier<ShareImport> shareImport = ValueNotifier(
+  const ShareImport.idle(),
+);
+
+bool _isSharingScheme(String scheme) =>
+    scheme == "content" ||
+    scheme == "file" ||
+    scheme.startsWith("sharingmedia");
+
 GoRouter get goRouter {
   _goRouter ??= GoRouter(
     restorationScopeId: "router",
+    refreshListenable: shareImport,
     redirect: (context, state) {
-      if (state.uri.scheme == "content") {
-        return "/loading";
+      final isShareLink = _isSharingScheme(state.uri.scheme);
+      final atLoading = state.uri.path == "/loading";
+      if (!isShareLink && !atLoading) {
+        return null;
       }
-      return null;
+
+      switch (shareImport.value._status) {
+        case _ShareStatus.ready:
+          return "/scores/${shareImport.value.scoreId}/edit";
+        case _ShareStatus.empty:
+          return "/";
+        case _ShareStatus.idle:
+        case _ShareStatus.importing:
+          return atLoading ? null : "/loading";
+      }
     },
+    onException: (context, state, router) => router.go("/"),
     initialLocation: "/",
     routes: [
       GoRoute(

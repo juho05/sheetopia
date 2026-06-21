@@ -80,14 +80,18 @@ class _AppState extends State<App> {
   Future<void> _onFilesReceived(Iterable<SharedFile> files) async {
     files = files.where((f) => f.value != null);
     if (files.isEmpty) {
-      goRouter.go("/");
       return;
     }
+    shareImport.value = const ShareImport.importing();
     final repo = context.read<ScoresRepository>();
     final scores = await repo.importAll(files.map((f) => f.value!));
     final first = scores.firstOrNull;
-    if (first == null) return;
-    goRouter.go("/scores/${scores.first.id}/edit");
+    if (first == null) {
+      shareImport.value = const ShareImport.empty();
+      return;
+    }
+    shareImport.value = ShareImport.ready(first.id);
+    goRouter.go("/scores/${first.id}/edit");
   }
 
   @override
