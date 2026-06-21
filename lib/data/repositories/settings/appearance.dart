@@ -18,6 +18,11 @@ class AppearanceSettings extends ChangeNotifier {
   ThemeMode _themeMode = _themeModeDefault;
   ThemeMode get themeMode => _themeMode;
 
+  static const String _flashOnPageTurnKey = "appearance.flash_on_page_turn";
+  static const bool _flashOnPageTurnDefault = false;
+  bool _flashOnPageTurn = _flashOnPageTurnDefault;
+  bool get flashOnPageTurn => _flashOnPageTurn;
+
   AppearanceSettings({required KeyValueRepository keyValueRepository})
     : _repo = keyValueRepository;
 
@@ -26,14 +31,18 @@ class AppearanceSettings extends ChangeNotifier {
     _themeMode = ThemeMode.values.byName(
       (await _repo.loadString(_themeModeKey)) ?? _themeModeDefault.name,
     );
+    _flashOnPageTurn =
+        (await _repo.loadBool(_flashOnPageTurnKey)) ?? _flashOnPageTurnDefault;
     notifyListeners();
   }
 
   void reset() {
     Log.debug("resetting appearance settings");
     _themeMode = _themeModeDefault;
+    _flashOnPageTurn = _flashOnPageTurnDefault;
     notifyListeners();
     _repo.remove(_themeModeKey);
+    _repo.remove(_flashOnPageTurnKey);
   }
 
   set themeMode(ThemeMode mode) {
@@ -42,5 +51,13 @@ class AppearanceSettings extends ChangeNotifier {
     _themeMode = mode;
     notifyListeners();
     _repo.store(_themeModeKey, _themeMode.name);
+  }
+
+  set flashOnPageTurn(bool value) {
+    if (value == _flashOnPageTurn) return;
+    Log.debug("flash on page turn: $value");
+    _flashOnPageTurn = value;
+    notifyListeners();
+    _repo.store(_flashOnPageTurnKey, _flashOnPageTurn);
   }
 }

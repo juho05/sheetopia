@@ -14,6 +14,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_fullscreen/flutter_fullscreen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/settings/appearance.dart';
+import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/ui/score/pdf_view.dart';
 import 'package:sheetopia/ui/score/score_viewmodel.dart';
@@ -31,6 +33,7 @@ class ScorePage extends StatefulWidget {
 class _ScorePageState extends State<ScorePage>
     with SingleTickerProviderStateMixin {
   late final ScoreViewModel _viewModel;
+  late final AppearanceSettings _appearanceSettings;
 
   final Color _forwardHighlight = Colors.green;
   final Color _backwardHighlight = Colors.orange;
@@ -48,6 +51,9 @@ class _ScorePageState extends State<ScorePage>
     WakelockPlus.enable();
 
     _viewModel = ScoreViewModel(repo: context.read(), scoreId: widget.scoreId);
+    _appearanceSettings = context
+        .read<SettingsRepository>()
+        .appearanceSettings;
     _pageTurnHighlightController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -86,6 +92,8 @@ class _ScorePageState extends State<ScorePage>
   }
 
   void _triggerPageTurnHighlight(bool forward) {
+    if (!_appearanceSettings.flashOnPageTurn) return;
+
     final targetColor = forward ? _forwardHighlight : _backwardHighlight;
 
     _pageTurnHighlightAnimation =
