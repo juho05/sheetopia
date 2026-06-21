@@ -6,6 +6,7 @@
 
 #include "generated_plugin_registrant.h"
 
+#include <desktop_drop/desktop_drop_plugin.h>
 #include <device_manager/device_manager_plugin.h>
 #include <file_selector_windows/file_selector_windows.h>
 #include <flutter_secure_storage_windows/flutter_secure_storage_windows_plugin.h>
@@ -17,6 +18,8 @@
 #include <window_manager/window_manager_plugin.h>
 
 void RegisterPlugins(flutter::PluginRegistry* registry) {
+  DesktopDropPluginRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("DesktopDropPlugin"));
   DeviceManagerPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("DeviceManagerPlugin"));
   FileSelectorWindowsRegisterWithRegistrar(

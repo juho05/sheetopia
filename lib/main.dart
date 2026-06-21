@@ -9,6 +9,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cross_file/cross_file.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_fullscreen/flutter_fullscreen.dart';
@@ -84,7 +85,7 @@ class _AppState extends State<App> {
     }
     shareImport.value = const ShareImport.importing();
     final repo = context.read<ScoresRepository>();
-    final scores = await repo.importAll(files.map((f) => f.value!));
+    final scores = await repo.importAll(files.map((f) => XFile(f.value!)));
     final first = scores.firstOrNull;
     if (first == null) {
       shareImport.value = const ShareImport.empty();

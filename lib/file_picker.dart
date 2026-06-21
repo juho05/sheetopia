@@ -36,13 +36,13 @@ Future<File?> selectScoreFile() async {
   return File(result.paths.first!);
 }
 
-Future<List<File>> selectScoreFiles() async {
+Future<List<XFile>> selectScoreFiles() async {
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
     final List<XFile> files = await openFiles(
       acceptedTypeGroups: ScoresRepository.scoreFileTypeGroup,
       confirmButtonText: "Import",
     );
-    return files.map((f) => File(f.path)).toList();
+    return files;
   }
   FilePickerResult? result = await FilePicker.platform.pickFiles(
     allowMultiple: true,
@@ -55,5 +55,5 @@ Future<List<File>> selectScoreFiles() async {
     withReadStream: false,
   );
   if (result == null || result.paths.firstOrNull == null) return [];
-  return result.paths.where((p) => p != null).map((p) => File(p!)).toList();
+  return result.xFiles;
 }

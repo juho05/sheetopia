@@ -3,6 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  desktop_drop
   device_manager
   file_selector_windows
   flutter_secure_storage_windows

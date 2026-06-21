@@ -6,6 +6,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/file_picker.dart';
@@ -14,13 +15,26 @@ class HomeViewModel extends ChangeNotifier {
   final ScoresRepository _scoresRepo;
 
   bool _importing = false;
+
   bool get importing => _importing;
 
   bool _importButtonVisible = true;
+
   bool get importButtonVisible => _importButtonVisible;
+
   set importButtonVisible(bool visible) {
     if (_importButtonVisible == visible) return;
     _importButtonVisible = visible;
+    notifyListeners();
+  }
+
+  bool _dragging = false;
+
+  bool get dragging => _dragging;
+
+  set dragging(bool dragging) {
+    if (_dragging == dragging) return;
+    _dragging = dragging;
     notifyListeners();
   }
 
@@ -34,7 +48,20 @@ class HomeViewModel extends ChangeNotifier {
       final files = await selectScoreFiles();
       if (files.isEmpty) return null;
 
-      final scores = await _scoresRepo.importAll(files.map((f) => f.path));
+      final scores = await _scoresRepo.importAll(files);
+      return scores.first.id;
+    } finally {
+      _importing = false;
+      notifyListeners();
+    }
+  }
+
+  Future<String?> receiveDrop(DropDoneDetails details) async {
+    _importing = true;
+    notifyListeners();
+    try {
+      final scores = await _scoresRepo.importAll(details.files);
+      if (scores.isEmpty) return null;
       return scores.first.id;
     } finally {
       _importing = false;

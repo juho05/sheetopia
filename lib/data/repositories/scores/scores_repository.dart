@@ -51,21 +51,26 @@ class ScoresRepository {
 
   final BehaviorSubject<({Set<String> changed, bool remoteTriggered})>
   _updatedScoreIds = BehaviorSubject();
+
   Stream<Set<String>> get updatedScoreIds =>
       _updatedScoreIds.stream.map((event) => event.changed);
+
   Stream<Set<String>> get locallyUpdatedScoreIds => _updatedScoreIds.stream
       .where((event) => !event.remoteTriggered)
       .map((event) => event.changed);
 
   final BehaviorSubject<({Set<String> changed, bool remoteTriggered})>
   _updatedTagIds = BehaviorSubject();
+
   Stream<Set<String>> get updatedTagIds =>
       _updatedTagIds.stream.map((event) => event.changed);
+
   Stream<Set<String>> get locallyUpdatedTagIds => _updatedTagIds.stream
       .where((event) => !event.remoteTriggered)
       .map((event) => event.changed);
 
   final BehaviorSubject<String> _lastOpenedChanged = BehaviorSubject();
+
   Stream<String> get lastOpenedChanged => _lastOpenedChanged.stream;
 
   ScoresRepository({
@@ -75,6 +80,7 @@ class ScoresRepository {
        _thumbnailService = thumbnailService;
 
   List<String> _freshImports = [];
+
   UnmodifiableListView<String> get freshImports =>
       UnmodifiableListView(_freshImports);
 
@@ -563,21 +569,23 @@ class ScoresRepository {
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
-  Future<List<Score>> importAll(Iterable<String> paths) async {
+  Future<List<Score>> importAll(Iterable<XFile> files) async {
     List<Score> scores = [];
     try {
-      for (final p in paths) {
-        final fileType = fileTypeFromExtension(path.extension(p));
+      for (final f in files) {
+        final fileType =
+            fileTypeFromMimeType(f.mimeType) ??
+            fileTypeFromExtension(path.extension(f.name));
         if (fileType == null) {
-          throw InvalidFileTypeException(filePath: p);
+          throw InvalidFileTypeException(filePath: f.path);
         }
 
         final id = _db.newId();
-        final title = path.basenameWithoutExtension(p);
+        final title = path.basenameWithoutExtension(f.name);
 
         final file = await scoreFile(id, fileType);
 
-        await File(p).copy(file.path);
+        await f.saveTo(file.path);
 
         final now = DateTime.now().toUtc();
         scores.add(
@@ -776,6 +784,7 @@ class ScoresRepository {
   }
 
   Directory? _cachedScoresDir;
+
   Future<Directory> get scoresDir async {
     if (_cachedScoresDir != null) return SynchronousFuture(_cachedScoresDir!);
     final dir = Directory(

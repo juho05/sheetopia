@@ -61,6 +61,14 @@ FileType? fileTypeFromExtension(String ext) {
   return null;
 }
 
+FileType? fileTypeFromMimeType(String? mimeType) {
+  if (mimeType == null) return null;
+  if (mimeType == "application/pdf") {
+    return FileType.pdf;
+  }
+  return null;
+}
+
 String fileTypeToExtension(FileType fileType) {
   return switch (fileType) {
     FileType.pdf => ".pdf",
