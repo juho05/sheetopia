@@ -71,7 +71,11 @@ class _EditScorePreviewState extends State<EditScorePreview> {
           FileType.pdf => PdfViewer(
             pdfRef!,
             params: const PdfViewerParams(
+              interactionDelegateProvider:
+                  PdfViewerScrollInteractionDelegateProviderPhysics(),
               scrollPhysics: ClampingScrollPhysics(),
+              scrollByMouseWheel: 1,
+              scaleByPointerScale: 0.8,
             ),
           ),
         },

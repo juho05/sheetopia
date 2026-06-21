@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  FLUTTER_VERSION: "3.44.0"
+  FLUTTER_VERSION: "3.44.2"
   APK_BUILD_DIR: "/tmp/build"
 
 jobs:
@@ -79,10 +79,6 @@ jobs:
         working-directory: ${{ env.APK_BUILD_DIR }}
         run: flutter pub run build_runner build
 
-      - name: Strip pdfrx WASM build
-        working-directory: ${{ env.APK_BUILD_DIR }}
-        run: dart run pdfrx:remove_wasm_modules
-
       - name: Build APK
         working-directory: ${{ env.APK_BUILD_DIR }}
         run: flutter build apk --split-per-abi
@@ -120,9 +116,6 @@ jobs:
 
       - name: Build generated files
         run: flutter pub run build_runner build
-
-      - name: Strip pdfrx WASM build
-        run: dart run pdfrx:remove_wasm_modules
 
       - name: Compile linux
         run: flutter build linux
@@ -200,9 +193,6 @@ jobs:
       - name: Build generated files
         run: flutter pub run build_runner build
 
-      - name: Strip pdfrx WASM build
-        run: dart run pdfrx:remove_wasm_modules
-
       - name: Compile linux
         run: flutter build linux
 
@@ -240,9 +230,6 @@ jobs:
 
       - name: Build generated files
         run: flutter pub run build_runner build
-
-      - name: Strip pdfrx WASM build
-        run: dart run pdfrx:remove_wasm_modules
 
       - name: Compile for Windows
         run: flutter build windows
@@ -300,9 +287,6 @@ jobs:
 
       - name: Build generated files
         run: flutter pub run build_runner build
-
-      - name: Strip pdfrx WASM build
-        run: dart run pdfrx:remove_wasm_modules
 
       - name: Compile for macOS
         run: flutter build macos
