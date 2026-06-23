@@ -13,6 +13,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sheetopia/data/repositories/midi/midi_mapping.dart';
+import 'package:sheetopia/ui/common/toast.dart';
 
 enum MidiAction { nextPage, prevPage }
 
@@ -26,6 +27,7 @@ class MidiRepository {
   final BehaviorSubject<List<MidiDevice>> _devices = BehaviorSubject.seeded(
     const [],
   );
+
   ValueStream<List<MidiDevice>> get devices => _devices.stream;
 
   // device id -> mappings
@@ -44,6 +46,7 @@ class MidiRepository {
   Future<void> _init() async {
     _devices.add(await _midi.devices ?? []);
     _midi.onMidiDataReceived?.listen(_onData);
+    _midi.onMidiDeviceDisconnected?.listen(_onDeviceDisconnected);
     await _midi
         .startBluetoothCentral()
         .catchError((e, st) {
@@ -61,6 +64,7 @@ class MidiRepository {
 
   // device id -> controller ids
   final Map<String, Set<int>> _pressedContinuousControllers = {};
+
   Future<void> _onData(MidiPacket? packet) async {
     if (packet == null) return;
 
@@ -187,6 +191,7 @@ class MidiRepository {
   }
 
   bool _scanning = false;
+
   Future<void> startScanning() async {
     if (_scanning) return;
     _scanning = true;
@@ -206,18 +211,28 @@ class MidiRepository {
     _midi.stopScanningForBluetoothDevices();
   }
 
+  Future<void> _onDeviceDisconnected(MidiDevice device) async {
+    _unregisterDevice(device);
+    _devices.add(await _midi.devices ?? []);
+    Toast.show("${device.name} disconnected!");
+  }
+
   Future<void> connectDevice(MidiDevice device) async {
     await _midi.connectToDevice(device);
     _devices.add(await _midi.devices ?? []);
   }
 
   Future<void> disconnectDevice(MidiDevice device) async {
+    _unregisterDevice(device);
+    _midi.disconnectDevice(device);
+    _devices.add(await _midi.devices ?? []);
+  }
+
+  void _unregisterDevice(MidiDevice device) {
     _pressedContinuousControllers.remove(device.id);
     _midiMappings.remove(device.id);
     cancelRegisterNextPage(device);
     cancelRegisterPrevPage(device);
-    _midi.disconnectDevice(device);
-    _devices.add(await _midi.devices ?? []);
   }
 
   Future<void> _checkForNewDevices() async {

@@ -89,7 +89,7 @@ class _EditScorePreviewState extends State<EditScorePreview> {
                   Future<void> save() async {
                     if (!await viewModel.save()) return;
                     if (!context.mounted) return;
-                    Toast.show(context, "Successfully saved score file!");
+                    Toast.show("Successfully saved score file!");
                   }
 
                   Future<void> share() async {

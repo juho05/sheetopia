@@ -48,7 +48,7 @@ class IntegrateAppImage extends StatelessWidget {
             } on Exception catch (e, st) {
               Log.error("Failed to integrate AppImage", e: e, st: st);
               if (!context.mounted) return;
-              Toast.show(context, "Failed to integrate AppImage!");
+              Toast.show("Failed to integrate AppImage!");
               return;
             }
             Restart.restart();

@@ -50,14 +50,12 @@ class HomePage extends StatelessWidget {
                   context.go("/scores/$firstScoreId/edit");
                 } on InvalidFileTypeException catch (e, st) {
                   Toast.exception(
-                    context,
                     e,
                     st: st,
                     errorMsg: "Unsupported file type!",
                   );
                 } catch (e, st) {
                   Toast.exception(
-                    context,
                     e,
                     st: st,
                     errorMsg: "Failed to import scores!",
@@ -121,14 +119,12 @@ class HomePage extends StatelessWidget {
                                         st
                                       ) {
                                         Toast.exception(
-                                          context,
                                           e,
                                           st: st,
                                           errorMsg: "Unsupported file type!",
                                         );
                                       } catch (e, st) {
                                         Toast.exception(
-                                          context,
                                           e,
                                           st: st,
                                           errorMsg: "Failed to import scores!",

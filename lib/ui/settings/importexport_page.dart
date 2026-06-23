@@ -49,11 +49,11 @@ class ImportExportPage extends StatelessWidget {
                           try {
                             final success = await viewModel.import(
                               onSelected: () {
-                                Toast.show(context, "Importing…");
+                                Toast.show("Importing…");
                               },
                             );
                             if (!success || !context.mounted) return;
-                            Toast.show(context, "Import successful!");
+                            Toast.show("Import successful!");
                           } on InvalidFileException catch (e, st) {
                             Log.warn(
                               "tried to import invalid file",
@@ -62,14 +62,12 @@ class ImportExportPage extends StatelessWidget {
                             );
                             if (!context.mounted) return;
                             Toast.show(
-                              context,
                               "The selected file is not a valid sheetopia archive!",
                             );
                           } on Exception catch (e, st) {
                             Log.error("failed to import scores", e: e, st: st);
                             if (!context.mounted) return;
                             Toast.show(
-                              context,
                               "An unexpected error occurred!",
                             );
                           }
@@ -100,15 +98,15 @@ class ImportExportPage extends StatelessWidget {
                       child: Button(
                         enabled: viewModel.status == ImportExportStatus.idle,
                         onPressed: () async {
-                          Toast.show(context, "Exporting…");
+                          Toast.show("Exporting…");
                           try {
                             final success = await viewModel.export();
                             if (!success || !context.mounted) return;
-                            Toast.show(context, "Export successful!");
+                            Toast.show("Export successful!");
                           } on Exception catch (e, st) {
                             Log.error("Export failed", e: e, st: st);
                             if (!context.mounted) return;
-                            Toast.show(context, "Export failed!");
+                            Toast.show("Export failed!");
                           }
                         },
                         child: Row(
@@ -154,7 +152,6 @@ class ImportExportPage extends StatelessWidget {
                             await viewModel.deleteLocalData();
                             if (!context.mounted) return;
                             Toast.show(
-                              context,
                               "Successfully deleted all local data!",
                             );
                           } on Exception catch (e, st) {
@@ -164,7 +161,7 @@ class ImportExportPage extends StatelessWidget {
                               st: st,
                             );
                             if (!context.mounted) return;
-                            Toast.show(context, "An unexpected error occurred");
+                            Toast.show("An unexpected error occurred");
                           }
                         },
                         child: const Text("Delete local data"),

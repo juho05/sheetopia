@@ -31,7 +31,6 @@ class VersionChecker extends StatelessWidget {
           SchedulerBinding.instance.addPostFrameCallback((_) {
             viewModel.showUpdateSuccessful = false;
             Toast.show(
-              context,
               "Successfully updated to v${viewModel.current}!",
             );
           });
@@ -81,7 +80,6 @@ class VersionChecker extends StatelessWidget {
                   await viewModel.ignoreVersion();
                   if (context.mounted) {
                     Toast.show(
-                      context,
                       "You won't be reminded about this version again",
                     );
                   }

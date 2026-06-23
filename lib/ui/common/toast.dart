@@ -9,9 +9,12 @@
 import 'package:flutter/material.dart';
 
 class Toast {
-  static void show(BuildContext context, String message) {
-    if (!context.mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
+  static final GlobalKey<ScaffoldMessengerState> messengerKey =
+      GlobalKey<ScaffoldMessengerState>();
+
+  static void show(String message) {
+    final messenger = messengerKey.currentState;
+    if (messenger == null) return;
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
       SnackBar(
@@ -26,12 +29,11 @@ class Toast {
   }
 
   static void exception(
-    BuildContext context,
     Object e, {
     StackTrace? st,
     String errorMsg = "An unexpected error occurred",
   }) {
     print("$e\n$st");
-    show(context, errorMsg);
+    show(errorMsg);
   }
 }

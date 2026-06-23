@@ -87,7 +87,7 @@ class LogMessageDetailsField extends StatelessWidget {
             try {
               await Clipboard.setData(ClipboardData(text: content));
               if (!context.mounted) return;
-              Toast.show(context, "Copied ${label.toLowerCase()}!");
+              Toast.show("Copied ${label.toLowerCase()}!");
             } catch (e, st) {
               Log.error(
                 "failed to add log message field ($label) content to clipboard",
@@ -95,7 +95,7 @@ class LogMessageDetailsField extends StatelessWidget {
                 st: st,
               );
               if (!context.mounted) return;
-              Toast.show(context, "Failed to copy ${label.toLowerCase()}!");
+              Toast.show("Failed to copy ${label.toLowerCase()}!");
             }
           },
           icon: const Icon(Icons.copy),

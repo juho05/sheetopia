@@ -495,36 +495,11 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: b321dbd755bfadb35a75f9330eb57acdaeb09555
-      resolved-ref: b321dbd755bfadb35a75f9330eb57acdaeb09555
+      ref: bca4a5d5aa8d8e6a995be4fbb973051d1a0ab879
+      resolved-ref: bca4a5d5aa8d8e6a995be4fbb973051d1a0ab879
       url: "https://github.com/juho05/FlutterMidiCommand"
     source: git
-    version: "0.5.4"
-  flutter_midi_command_linux:
-    dependency: transitive
-    description:
-      path: "."
-      ref: b39f630fb5783efd890c5c9689fd31d3f628fb81
-      resolved-ref: b39f630fb5783efd890c5c9689fd31d3f628fb81
-      url: "https://github.com/InvisibleWrench/flutter_midi_command_linux"
-    source: git
-    version: "0.3.0"
-  flutter_midi_command_platform_interface:
-    dependency: transitive
-    description:
-      name: flutter_midi_command_platform_interface
-      sha256: "905ebe90f56af5e9e376688d6baedd94d5378c788d302a141da283dd329dc2ce"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.4.3"
-  flutter_midi_command_windows:
-    dependency: transitive
-    description:
-      name: flutter_midi_command_windows
-      sha256: bae63c4f51fc03f57d46abdea66ea58cb9f21f5e56eea116b47102e1994152a2
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.3.0"
+    version: "0.6.0"
   flutter_native_splash:
     dependency: "direct dev"
     description:
@@ -829,14 +804,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.18.0"
-  midi:
-    dependency: transitive
-    description:
-      name: midi
-      sha256: f0a0782e1e999a423dbebcb04cca7f857c3fc5171660f2ce86e7077bb3e1b5b9
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.1"
   mime:
     dependency: transitive
     description:
@@ -1393,14 +1360,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.11"
-  tuple:
-    dependency: transitive
-    description:
-      name: tuple
-      sha256: a97ce2013f240b2f3807bcbaf218765b6f301c3eff91092bcfa23a039e7dd151
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.2"
   typed_data:
     dependency: transitive
     description:

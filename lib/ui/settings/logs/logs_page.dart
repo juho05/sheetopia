@@ -70,7 +70,7 @@ class _LogsPageState extends State<LogsPage> {
                       // user canceled save
                       return;
                     }
-                    Toast.show(context, "Successfully saved log!");
+                    Toast.show("Successfully saved log!");
                   },
                 ),
                 ContextMenuOption(
@@ -82,7 +82,7 @@ class _LogsPageState extends State<LogsPage> {
                       // user canceled save
                       return;
                     }
-                    Toast.show(context, "Successfully saved log!");
+                    Toast.show("Successfully saved log!");
                   },
                 ),
               ],
@@ -101,7 +101,7 @@ class _LogsPageState extends State<LogsPage> {
                       // user canceled share
                       return;
                     }
-                    Toast.show(context, "Successfully shared log!");
+                    Toast.show("Successfully shared log!");
                   },
                 ),
                 ContextMenuOption(
@@ -113,7 +113,7 @@ class _LogsPageState extends State<LogsPage> {
                       // user canceled share
                       return;
                     }
-                    Toast.show(context, "Successfully shared log!");
+                    Toast.show("Successfully shared log!");
                   },
                 ),
               ],

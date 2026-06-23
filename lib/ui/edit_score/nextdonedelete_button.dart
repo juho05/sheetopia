@@ -39,7 +39,6 @@ class NextDoneDeleteButton extends StatelessWidget {
               await viewModel.delete();
               if (context.mounted) {
                 Toast.show(
-                  context,
                   "Successfully deleted score '${viewModel.score!.title}'!",
                 );
               }
