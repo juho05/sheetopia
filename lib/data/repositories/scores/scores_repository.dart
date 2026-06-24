@@ -635,17 +635,19 @@ class ScoresRepository {
     return scores;
   }
 
-  Future<void> updateScoreFile(String scoreId, String filePath) async {
+  Future<void> updateScoreFile(String scoreId, XFile file) async {
     final score = (await getScore(scoreId))!;
 
-    final fileType = fileTypeFromExtension(path.extension(filePath));
+    final fileType =
+        fileTypeFromMimeType(file.mimeType) ??
+        fileTypeFromExtension(path.extension(file.name));
     if (fileType == null) {
-      throw InvalidFileTypeException(filePath: filePath);
+      throw InvalidFileTypeException(filePath: file.path);
     }
 
-    final file = await scoreFile(scoreId, fileType);
+    final targetFile = await scoreFile(scoreId, fileType);
 
-    await File(filePath).copy(file.path);
+    await file.saveTo(targetFile.path);
 
     if (fileType != score.fileType) {
       try {

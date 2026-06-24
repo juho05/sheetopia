@@ -13,27 +13,23 @@ import 'package:file_selector/file_selector.dart';
 
 import 'data/repositories/scores/scores_repository.dart';
 
-Future<File?> selectScoreFile() async {
+Future<XFile?> selectScoreFile() async {
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
     final XFile? file = await openFile(
       acceptedTypeGroups: ScoresRepository.scoreFileTypeGroup,
       confirmButtonText: "Import",
     );
     if (file == null) return null;
-    return File(file.path);
+    return XFile(file.path);
   }
-  FilePickerResult? result = await FilePicker.platform.pickFiles(
-    allowMultiple: false,
+  PlatformFile? file = await FilePicker.pickFile(
     type: FileType.custom,
     allowedExtensions: ScoresRepository.scoreFileTypeGroup
         .map((e) => e.extensions)
         .expand<String>((e) => e ?? [])
         .toList(),
-    withData: false,
-    withReadStream: false,
   );
-  if (result == null || result.paths.firstOrNull == null) return null;
-  return File(result.paths.first!);
+  return file?.xFile;
 }
 
 Future<List<XFile>> selectScoreFiles() async {
@@ -44,16 +40,12 @@ Future<List<XFile>> selectScoreFiles() async {
     );
     return files;
   }
-  FilePickerResult? result = await FilePicker.platform.pickFiles(
-    allowMultiple: true,
+  FilePickerResult? result = await FilePicker.pickFiles(
     type: FileType.custom,
     allowedExtensions: ScoresRepository.scoreFileTypeGroup
         .map((e) => e.extensions)
         .expand<String>((e) => e ?? [])
         .toList(),
-    withData: false,
-    withReadStream: false,
   );
-  if (result == null || result.paths.firstOrNull == null) return [];
-  return result.xFiles;
+  return result?.xFiles ?? [];
 }

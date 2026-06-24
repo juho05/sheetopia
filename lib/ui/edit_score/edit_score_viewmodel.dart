@@ -24,11 +24,13 @@ class EditScoreViewModel extends ChangeNotifier {
   final ScoresRepository _repo;
 
   Score? _score;
+
   Score? get score => _score;
 
   StreamSubscription? _updatedScoresSub;
 
   late final Queue<String> _freshImports;
+
   bool get hasNext => _freshImports.isNotEmpty;
 
   late final bool isImport;
@@ -60,7 +62,7 @@ class EditScoreViewModel extends ChangeNotifier {
   Future<void> changeFile() async {
     final file = await selectScoreFile();
     if (file == null) return;
-    await _repo.updateScoreFile(score!.id, file.path);
+    await _repo.updateScoreFile(score!.id, file);
   }
 
   Future<void> next() async {
@@ -124,7 +126,7 @@ class EditScoreViewModel extends ChangeNotifier {
   Future<bool> saveMobile() async {
     if (score?.file == null) return false;
     final bytes = await score!.file!.readAsBytes();
-    final result = await fp.FilePicker.platform.saveFile(
+    final result = await fp.FilePicker.saveFile(
       allowedExtensions: ["pdf"],
       type: fp.FileType.custom,
       dialogTitle: "Save score file",
