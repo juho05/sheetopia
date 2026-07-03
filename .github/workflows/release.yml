@@ -291,6 +291,24 @@ jobs:
       - name: Compile for macOS
         run: flutter build macos
 
+      - name: Fix embedded PDFium framework
+        run: |
+          APP="build/macos/Build/Products/Release/Sheetopia.app"
+          SRC="build/macos/Build/Products/Release/PDFium.framework"
+          if [ ! -d "$SRC/Versions/A" ] || [ ! -f "$SRC/Versions/A/PDFium" ]; then
+            echo "::error::Expected linked PDFium.framework not found at $SRC"
+            exit 1
+          fi
+          rm -rf "$APP/Contents/Frameworks/PDFium.framework"
+          cp -R "$SRC" "$APP/Contents/Frameworks/PDFium.framework"
+          EXE=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" \
+            "$APP/Contents/Frameworks/PDFium.framework/Resources/Info.plist")
+          if [ "$EXE" != "PDFium" ]; then
+            echo "::error::Embedded PDFium framework has CFBundleExecutable=$EXE (expected PDFium)"
+            exit 1
+          fi
+          echo "Embedded PDFium.framework normalized (CFBundleExecutable=$EXE)"
+
       - name: Codesign app bundle
         env:
           MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
