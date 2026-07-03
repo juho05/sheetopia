@@ -86,7 +86,9 @@ class _AppState extends State<App> {
     }
     shareImport.value = const ShareImport.importing();
     final repo = context.read<ScoresRepository>();
-    final scores = await repo.importAll(files.map((f) => XFile(f.value!)));
+    final scores = await repo.importAll(
+      files.map((f) => XFile(f.value!, mimeType: f.mimeType)),
+    );
     final first = scores.firstOrNull;
     if (first == null) {
       shareImport.value = const ShareImport.empty();

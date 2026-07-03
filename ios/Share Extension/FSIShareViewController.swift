@@ -112,7 +112,7 @@ open class FSIShareViewController: SLComposeServiceViewController {
                 provider.loadItem(forTypeIdentifier: UType.fileURL, options: nil) { [weak self] data, error in
                     defer { group.leave() }
                     guard let self = self, error == nil else { self?.dismissWithError(); return }
-                    self.handleFileItem(data: data, index: index, total: attachments.count)
+                    self.handleFileItem(data: data, provider: provider, index: index, total: attachments.count)
                 }
                 continue
             }
@@ -142,7 +142,7 @@ open class FSIShareViewController: SLComposeServiceViewController {
                 provider.loadItem(forTypeIdentifier: UType.data, options: nil) { [weak self] data, error in
                     defer { group.leave() }
                     guard let self = self, error == nil else { self?.dismissWithError(); return }
-                    self.handleFileItem(data: data, index: index, total: attachments.count)
+                    self.handleFileItem(data: data, provider: provider, index: index, total: attachments.count)
                 }
                 continue
             }
@@ -151,7 +151,7 @@ open class FSIShareViewController: SLComposeServiceViewController {
                 provider.loadItem(forTypeIdentifier: UType.item, options: nil) { [weak self] data, error in
                     defer { group.leave() }
                     guard let self = self, error == nil else { self?.dismissWithError(); return }
-                    self.handleFileItem(data: data, index: index, total: attachments.count)
+                    self.handleFileItem(data: data, provider: provider, index: index, total: attachments.count)
                 }
                 continue
             }
@@ -228,7 +228,7 @@ open class FSIShareViewController: SLComposeServiceViewController {
         
     }
     
-    private func handleFileItem(data: NSSecureCoding?, index: Int, total: Int) {
+    private func handleFileItem(data: NSSecureCoding?, provider: NSItemProvider?, index: Int, total: Int) {
         if let url = data as? URL {
             let filename = getFileName(from: url, type: .file)
             if let dst = containerURL()?.appendingPathComponent(filename) {
@@ -238,16 +238,56 @@ open class FSIShareViewController: SLComposeServiceViewController {
             }
         }
         else if let raw = data as? Data {
-            let filename = "File_\(UUID().uuidString)"
+            // Items shared as a data representation (rather than a file URL) carry
+            // no name, so we derive a filename with the correct extension from the
+            // provider's suggested name / registered type. Without this the file is
+            // written with no extension and the host app can't detect its type.
+            let filename = fallbackFileName(for: provider)
             if let dst = containerURL()?.appendingPathComponent(filename) {
                 do {
                     try raw.write(to: dst)
-                    sharedMedia.append(SharingFile(value: dst.absoluteString, mimeType: "application/octet-stream", thumbnail: nil, duration: nil, type: .file))
+                    sharedMedia.append(SharingFile(value: dst.absoluteString, mimeType: dst.mimeType(), thumbnail: nil, duration: nil, type: .file))
                 } catch {}
             }
         }
-        
-        
+
+
+    }
+
+    // Builds a filename (with extension) for data-representation items, using the
+    // provider's suggested name when available and otherwise the preferred
+    // extension of its registered UTType.
+    private func fallbackFileName(for provider: NSItemProvider?) -> String {
+        if let suggested = provider?.suggestedName,
+           !suggested.isEmpty,
+           !(suggested as NSString).pathExtension.isEmpty {
+            return suggested
+        }
+        let base = provider?.suggestedName?.isEmpty == false
+            ? provider!.suggestedName!
+            : "File_\(UUID().uuidString)"
+        if let ext = preferredExtension(for: provider) {
+            return "\(base).\(ext)"
+        }
+        return base
+    }
+
+    private func preferredExtension(for provider: NSItemProvider?) -> String? {
+        guard let provider = provider else { return nil }
+        if #available(iOS 14.0, *) {
+            for id in provider.registeredTypeIdentifiers {
+                if let ext = UTType(id)?.preferredFilenameExtension {
+                    return ext
+                }
+            }
+        } else {
+            for id in provider.registeredTypeIdentifiers {
+                if let uti = UTTypeCopyPreferredTagWithClass(id as CFString, kUTTagClassFilenameExtension)?.takeRetainedValue() {
+                    return uti as String
+                }
+            }
+        }
+        return nil
     }
     
     // MARK: - Helpers: write temp image

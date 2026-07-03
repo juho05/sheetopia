@@ -24,8 +24,17 @@ class SceneDelegate: FlutterSceneDelegate {
   }
 
   override func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
-    super.scene(scene, openURLContexts: URLContexts)
     // Warm launch: the app was already running when the share happened.
+    //
+    // We deliberately do NOT call `super.scene(_:openURLContexts:)` here.
+    // FlutterSceneDelegate forwards incoming URL contexts to every plugin
+    // registered as a UIApplicationDelegate — including flutter_sharing_intent —
+    // so calling super would deliver the share URL to the plugin a second time
+    // (on top of our manual `forward` below) and the shared file would be
+    // imported twice. `scene(_:openURLContexts:)` only forwards URLs to plugins,
+    // so skipping super loses nothing else. We keep the manual forwarding because
+    // the cold-launch path (`willConnectTo`) relies on it to populate
+    // `initialSharing`, giving every share URL a single, consistent delivery path.
     forward(urlContexts: URLContexts, isInitial: false)
   }
 
