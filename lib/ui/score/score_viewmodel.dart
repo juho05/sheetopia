@@ -21,6 +21,8 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
 
   final String _scoreId;
 
+  String get scoreId => _scoreId;
+
   Score? _score;
 
   File? get file => _score?.file;

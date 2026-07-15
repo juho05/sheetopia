@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sheetopia/data/repositories/logger/log_message.dart';
 import 'package:sheetopia/routing/loading_page.dart';
+import 'package:sheetopia/ui/annotate/annotate_page.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_page.dart';
 import 'package:sheetopia/ui/home/home_page.dart';
 import 'package:sheetopia/ui/install_update/install_update_page.dart';
@@ -89,6 +90,11 @@ GoRouter get goRouter {
             path: 'scores/:scoreId/edit',
             builder: (context, state) =>
                 EditScorePage(scoreId: state.pathParameters["scoreId"]!),
+          ),
+          GoRoute(
+            path: 'scores/:scoreId/annotate',
+            builder: (context, state) =>
+                AnnotatePage(scoreId: state.pathParameters["scoreId"]!),
           ),
           GoRoute(
             path: "settings",

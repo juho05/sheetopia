@@ -14,7 +14,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/ui/annotate/annotation_painter.dart';
 import 'package:sheetopia/ui/score/pdf_viewmodel.dart';
+import 'package:sheetopia/ui/score/score_viewmodel.dart';
 
 class PdfView extends StatefulWidget {
   final File file;
@@ -31,10 +33,13 @@ class _PdfViewState extends State<PdfView> {
   @override
   void initState() {
     super.initState();
+    final scoreViewModel = context.read<ScoreViewModel>();
     _viewModel = PdfViewModel(
       file: widget.file,
       midiRepository: context.read(),
-      scoreViewModel: context.read(),
+      scoreViewModel: scoreViewModel,
+      annotationsRepository: context.read(),
+      scoreId: scoreViewModel.scoreId,
     );
   }
 
@@ -219,17 +224,32 @@ class _PdfViewState extends State<PdfView> {
                                           constraints.maxHeight *
                                           (page.width / page.height),
                                     ),
-                                    child: MediaQuery(
-                                      data: mediaQuery.copyWith(
-                                        devicePixelRatio: max(
-                                          mediaQuery.devicePixelRatio,
-                                          2.0,
+                                    child: Stack(
+                                      fit: StackFit.passthrough,
+                                      children: [
+                                        MediaQuery(
+                                          data: mediaQuery.copyWith(
+                                            devicePixelRatio: max(
+                                              mediaQuery.devicePixelRatio,
+                                              2.0,
+                                            ),
+                                          ),
+                                          child: PdfPageView(
+                                            document: _viewModel.document!,
+                                            pageNumber: page.pageNumber,
+                                          ),
                                         ),
-                                      ),
-                                      child: PdfPageView(
-                                        document: _viewModel.document!,
-                                        pageNumber: page.pageNumber,
-                                      ),
+                                        Positioned.fill(
+                                          child: CustomPaint(
+                                            painter: AnnotationPainter(
+                                              strokes: _viewModel
+                                                  .strokesForPage(
+                                                    page.pageNumber,
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),

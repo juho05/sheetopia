@@ -6,17 +6,26 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:sheetopia/data/repositories/annotations/annotations_repository.dart';
+import 'package:sheetopia/data/repositories/annotations/stroke.dart';
 import 'package:sheetopia/data/repositories/midi/midi_repository.dart';
 import 'package:sheetopia/ui/score/score_viewmodel.dart';
 
 class PdfViewModel extends ChangeNotifier {
   final MidiRepository _midiRepository;
   final ScoreViewModel _scoreViewModel;
+  final AnnotationsRepository _annotationsRepository;
+  final String _scoreId;
+
+  final Map<int, List<Stroke>> _annotations = {};
+
+  StreamSubscription? _annotationsSub;
 
   File _file;
 
@@ -35,12 +44,32 @@ class PdfViewModel extends ChangeNotifier {
     required File file,
     required MidiRepository midiRepository,
     required ScoreViewModel scoreViewModel,
+    required AnnotationsRepository annotationsRepository,
+    required String scoreId,
   }) : _file = file,
        _midiRepository = midiRepository,
-       _scoreViewModel = scoreViewModel {
+       _scoreViewModel = scoreViewModel,
+       _annotationsRepository = annotationsRepository,
+       _scoreId = scoreId {
     _midiRepository.addActionListener(_midiActionListener);
     _loadDocument();
+    _loadAnnotations();
+    _annotationsSub = _annotationsRepository.updatedAnnotationScoreIds
+        .where((id) => id == _scoreId)
+        .listen((_) => _loadAnnotations());
   }
+
+  Future<void> _loadAnnotations() async {
+    final pages = await _annotationsRepository.getAnnotations(_scoreId);
+    _annotations.clear();
+    for (final page in pages) {
+      _annotations[page.pageIndex] = page.strokes;
+    }
+    notifyListeners();
+  }
+
+  List<Stroke> strokesForPage(int pageNumber) =>
+      _annotations[pageNumber - 1] ?? const [];
 
   void _midiActionListener(MidiAction action) {
     switch (action) {
@@ -67,6 +96,7 @@ class PdfViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _midiRepository.removeActionListener(_midiActionListener);
+    _annotationsSub?.cancel();
     _document?.dispose();
     super.dispose();
   }

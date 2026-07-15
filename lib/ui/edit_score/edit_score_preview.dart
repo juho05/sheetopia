@@ -6,14 +6,19 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/annotations/annotations_repository.dart';
+import 'package:sheetopia/data/repositories/annotations/stroke.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/ui/annotate/annotation_painter.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_viewmodel.dart';
 
@@ -29,6 +34,10 @@ class EditScorePreview extends StatefulWidget {
 class _EditScorePreviewState extends State<EditScorePreview> {
   PdfDocumentRefFile? pdfRef;
 
+  late final AnnotationsRepository _annotationsRepo;
+  final Map<int, List<Stroke>> _annotations = {};
+  StreamSubscription? _annotationsSub;
+
   @override
   void initState() {
     super.initState();
@@ -41,6 +50,31 @@ class _EditScorePreviewState extends State<EditScorePreview> {
         ),
       );
     }
+    _annotationsRepo = context.read<AnnotationsRepository>();
+    _loadAnnotations();
+    _annotationsSub = _annotationsRepo.updatedAnnotationScoreIds
+        .where((id) => id == widget.score.id)
+        .listen((_) => _loadAnnotations());
+  }
+
+  Future<void> _loadAnnotations() async {
+    final pages = await _annotationsRepo.getAnnotations(widget.score.id);
+    if (!mounted) return;
+    setState(() {
+      _annotations.clear();
+      for (final page in pages) {
+        _annotations[page.pageIndex] = page.strokes;
+      }
+    });
+  }
+
+  void _paintPage(Canvas canvas, Rect pageRect, PdfPage page) {
+    final strokes = _annotations[page.pageNumber - 1];
+    if (strokes == null || strokes.isEmpty) return;
+    canvas.save();
+    canvas.translate(pageRect.left, pageRect.top);
+    AnnotationPainter(strokes: strokes).paint(canvas, pageRect.size);
+    canvas.restore();
   }
 
   @override
@@ -58,6 +92,19 @@ class _EditScorePreviewState extends State<EditScorePreview> {
         ),
       );
     }
+    if (oldWidget.score.id != widget.score.id) {
+      _annotationsSub?.cancel();
+      _annotationsSub = _annotationsRepo.updatedAnnotationScoreIds
+          .where((id) => id == widget.score.id)
+          .listen((_) => _loadAnnotations());
+      _loadAnnotations();
+    }
+  }
+
+  @override
+  void dispose() {
+    _annotationsSub?.cancel();
+    super.dispose();
   }
 
   @override
@@ -70,12 +117,13 @@ class _EditScorePreviewState extends State<EditScorePreview> {
         switch (widget.score.fileType) {
           FileType.pdf => PdfViewer(
             pdfRef!,
-            params: const PdfViewerParams(
+            params: PdfViewerParams(
               interactionDelegateProvider:
-                  PdfViewerScrollInteractionDelegateProviderPhysics(),
-              scrollPhysics: ClampingScrollPhysics(),
+                  const PdfViewerScrollInteractionDelegateProviderPhysics(),
+              scrollPhysics: const ClampingScrollPhysics(),
               scrollByMouseWheel: 1,
               scaleByPointerScale: 0.8,
+              pagePaintCallbacks: [_paintPage],
             ),
           ),
         },
@@ -188,6 +236,27 @@ class _EditScorePreviewState extends State<EditScorePreview> {
                       context.read<EditScoreViewModel>().changeFile(),
                   icon: const Icon(Icons.edit),
                   label: const Text("Change"),
+                ),
+              ),
+            );
+          },
+        ),
+        Consumer<EditScoreViewModel>(
+          builder: (context, viewModel, _) {
+            if (viewModel.isImport ||
+                widget.score.file == null ||
+                widget.score.fileType != FileType.pdf) {
+              return const SizedBox.shrink();
+            }
+            return Align(
+              alignment: Alignment.bottomLeft,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: FilledButton.icon(
+                  onPressed: () =>
+                      context.push('/scores/${widget.score.id}/annotate'),
+                  icon: const Icon(Icons.draw),
+                  label: const Text("Annotate"),
                 ),
               ),
             );

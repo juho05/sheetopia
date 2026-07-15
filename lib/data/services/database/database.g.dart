@@ -2901,6 +2901,372 @@ class LogMessageTableCompanion extends UpdateCompanion<LogMessageTableData> {
   }
 }
 
+class $AnnotationsTableTable extends AnnotationsTable
+    with TableInfo<$AnnotationsTableTable, AnnotationsTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AnnotationsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _scoreMeta = const VerificationMeta('score');
+  @override
+  late final GeneratedColumn<String> score = GeneratedColumn<String>(
+    'score',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES scores (id) ON UPDATE CASCADE ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _pageIndexMeta = const VerificationMeta(
+    'pageIndex',
+  );
+  @override
+  late final GeneratedColumn<int> pageIndex = GeneratedColumn<int>(
+    'page_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dataMeta = const VerificationMeta('data');
+  @override
+  late final GeneratedColumn<String> data = GeneratedColumn<String>(
+    'data',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    clientDefault: () => DateTime.now().toUtc(),
+  );
+  static const VerificationMeta _uploadedMeta = const VerificationMeta(
+    'uploaded',
+  );
+  @override
+  late final GeneratedColumn<bool> uploaded = GeneratedColumn<bool>(
+    'uploaded',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("uploaded" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    score,
+    pageIndex,
+    data,
+    updatedAt,
+    uploaded,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'annotations';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AnnotationsTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('score')) {
+      context.handle(
+        _scoreMeta,
+        score.isAcceptableOrUnknown(data['score']!, _scoreMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_scoreMeta);
+    }
+    if (data.containsKey('page_index')) {
+      context.handle(
+        _pageIndexMeta,
+        pageIndex.isAcceptableOrUnknown(data['page_index']!, _pageIndexMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pageIndexMeta);
+    }
+    if (data.containsKey('data')) {
+      context.handle(
+        _dataMeta,
+        this.data.isAcceptableOrUnknown(data['data']!, _dataMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dataMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('uploaded')) {
+      context.handle(
+        _uploadedMeta,
+        uploaded.isAcceptableOrUnknown(data['uploaded']!, _uploadedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {score, pageIndex};
+  @override
+  AnnotationsTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AnnotationsTableData(
+      score: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}score'],
+      )!,
+      pageIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}page_index'],
+      )!,
+      data: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}data'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      uploaded: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}uploaded'],
+      )!,
+    );
+  }
+
+  @override
+  $AnnotationsTableTable createAlias(String alias) {
+    return $AnnotationsTableTable(attachedDatabase, alias);
+  }
+}
+
+class AnnotationsTableData extends DataClass
+    implements Insertable<AnnotationsTableData> {
+  final String score;
+  final int pageIndex;
+  final String data;
+  final DateTime updatedAt;
+  final bool uploaded;
+  const AnnotationsTableData({
+    required this.score,
+    required this.pageIndex,
+    required this.data,
+    required this.updatedAt,
+    required this.uploaded,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['score'] = Variable<String>(score);
+    map['page_index'] = Variable<int>(pageIndex);
+    map['data'] = Variable<String>(data);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['uploaded'] = Variable<bool>(uploaded);
+    return map;
+  }
+
+  AnnotationsTableCompanion toCompanion(bool nullToAbsent) {
+    return AnnotationsTableCompanion(
+      score: Value(score),
+      pageIndex: Value(pageIndex),
+      data: Value(data),
+      updatedAt: Value(updatedAt),
+      uploaded: Value(uploaded),
+    );
+  }
+
+  factory AnnotationsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AnnotationsTableData(
+      score: serializer.fromJson<String>(json['score']),
+      pageIndex: serializer.fromJson<int>(json['pageIndex']),
+      data: serializer.fromJson<String>(json['data']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      uploaded: serializer.fromJson<bool>(json['uploaded']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'score': serializer.toJson<String>(score),
+      'pageIndex': serializer.toJson<int>(pageIndex),
+      'data': serializer.toJson<String>(data),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'uploaded': serializer.toJson<bool>(uploaded),
+    };
+  }
+
+  AnnotationsTableData copyWith({
+    String? score,
+    int? pageIndex,
+    String? data,
+    DateTime? updatedAt,
+    bool? uploaded,
+  }) => AnnotationsTableData(
+    score: score ?? this.score,
+    pageIndex: pageIndex ?? this.pageIndex,
+    data: data ?? this.data,
+    updatedAt: updatedAt ?? this.updatedAt,
+    uploaded: uploaded ?? this.uploaded,
+  );
+  AnnotationsTableData copyWithCompanion(AnnotationsTableCompanion data) {
+    return AnnotationsTableData(
+      score: data.score.present ? data.score.value : this.score,
+      pageIndex: data.pageIndex.present ? data.pageIndex.value : this.pageIndex,
+      data: data.data.present ? data.data.value : this.data,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      uploaded: data.uploaded.present ? data.uploaded.value : this.uploaded,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnnotationsTableData(')
+          ..write('score: $score, ')
+          ..write('pageIndex: $pageIndex, ')
+          ..write('data: $data, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('uploaded: $uploaded')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(score, pageIndex, data, updatedAt, uploaded);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AnnotationsTableData &&
+          other.score == this.score &&
+          other.pageIndex == this.pageIndex &&
+          other.data == this.data &&
+          other.updatedAt == this.updatedAt &&
+          other.uploaded == this.uploaded);
+}
+
+class AnnotationsTableCompanion extends UpdateCompanion<AnnotationsTableData> {
+  final Value<String> score;
+  final Value<int> pageIndex;
+  final Value<String> data;
+  final Value<DateTime> updatedAt;
+  final Value<bool> uploaded;
+  final Value<int> rowid;
+  const AnnotationsTableCompanion({
+    this.score = const Value.absent(),
+    this.pageIndex = const Value.absent(),
+    this.data = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.uploaded = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AnnotationsTableCompanion.insert({
+    required String score,
+    required int pageIndex,
+    required String data,
+    this.updatedAt = const Value.absent(),
+    this.uploaded = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : score = Value(score),
+       pageIndex = Value(pageIndex),
+       data = Value(data);
+  static Insertable<AnnotationsTableData> custom({
+    Expression<String>? score,
+    Expression<int>? pageIndex,
+    Expression<String>? data,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? uploaded,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (score != null) 'score': score,
+      if (pageIndex != null) 'page_index': pageIndex,
+      if (data != null) 'data': data,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (uploaded != null) 'uploaded': uploaded,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AnnotationsTableCompanion copyWith({
+    Value<String>? score,
+    Value<int>? pageIndex,
+    Value<String>? data,
+    Value<DateTime>? updatedAt,
+    Value<bool>? uploaded,
+    Value<int>? rowid,
+  }) {
+    return AnnotationsTableCompanion(
+      score: score ?? this.score,
+      pageIndex: pageIndex ?? this.pageIndex,
+      data: data ?? this.data,
+      updatedAt: updatedAt ?? this.updatedAt,
+      uploaded: uploaded ?? this.uploaded,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (score.present) {
+      map['score'] = Variable<String>(score.value);
+    }
+    if (pageIndex.present) {
+      map['page_index'] = Variable<int>(pageIndex.value);
+    }
+    if (data.present) {
+      map['data'] = Variable<String>(data.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (uploaded.present) {
+      map['uploaded'] = Variable<bool>(uploaded.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnnotationsTableCompanion(')
+          ..write('score: $score, ')
+          ..write('pageIndex: $pageIndex, ')
+          ..write('data: $data, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('uploaded: $uploaded, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$Database extends GeneratedDatabase {
   _$Database(QueryExecutor e) : super(e);
   $DatabaseManager get managers => $DatabaseManager(this);
@@ -2918,6 +3284,9 @@ abstract class _$Database extends GeneratedDatabase {
   late final $DeletedScoresTableTable deletedScoresTable =
       $DeletedScoresTableTable(this);
   late final $LogMessageTableTable logMessageTable = $LogMessageTableTable(
+    this,
+  );
+  late final $AnnotationsTableTable annotationsTable = $AnnotationsTableTable(
     this,
   );
   late final Index searchTextIndex = Index(
@@ -2942,6 +3311,7 @@ abstract class _$Database extends GeneratedDatabase {
     deletedTagsTable,
     deletedScoresTable,
     logMessageTable,
+    annotationsTable,
     searchTextIndex,
     recentTimeIndex,
   ];
@@ -3003,6 +3373,20 @@ abstract class _$Database extends GeneratedDatabase {
       ),
       result: [TableUpdate('score_tags', kind: UpdateKind.update)],
     ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'scores',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('annotations', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'scores',
+        limitUpdateKind: UpdateKind.update,
+      ),
+      result: [TableUpdate('annotations', kind: UpdateKind.update)],
+    ),
   ]);
   @override
   DriftDatabaseOptions get options =>
@@ -3049,7 +3433,7 @@ final class $$ScoresTableTableReferences
   static MultiTypedResultKey<$GenresTableTable, List<GenresTableData>>
   _genresTableRefsTable(_$Database db) => MultiTypedResultKey.fromTable(
     db.genresTable,
-    aliasName: $_aliasNameGenerator(db.scoresTable.id, db.genresTable.score),
+    aliasName: 'scores__id__genres__score',
   );
 
   $$GenresTableTableProcessedTableManager get genresTableRefs {
@@ -3067,10 +3451,7 @@ final class $$ScoresTableTableReferences
   static MultiTypedResultKey<$InstrumentsTableTable, List<InstrumentsTableData>>
   _instrumentsTableRefsTable(_$Database db) => MultiTypedResultKey.fromTable(
     db.instrumentsTable,
-    aliasName: $_aliasNameGenerator(
-      db.scoresTable.id,
-      db.instrumentsTable.score,
-    ),
+    aliasName: 'scores__id__instruments__score',
   );
 
   $$InstrumentsTableTableProcessedTableManager get instrumentsTableRefs {
@@ -3090,7 +3471,7 @@ final class $$ScoresTableTableReferences
   static MultiTypedResultKey<$ScoreTagsTableTable, List<ScoreTagsTableData>>
   _scoreTagsTableRefsTable(_$Database db) => MultiTypedResultKey.fromTable(
     db.scoreTagsTable,
-    aliasName: $_aliasNameGenerator(db.scoresTable.id, db.scoreTagsTable.score),
+    aliasName: 'scores__id__score_tags__score',
   );
 
   $$ScoreTagsTableTableProcessedTableManager get scoreTagsTableRefs {
@@ -3100,6 +3481,26 @@ final class $$ScoresTableTableReferences
     ).filter((f) => f.score.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_scoreTagsTableRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$AnnotationsTableTable, List<AnnotationsTableData>>
+  _annotationsTableRefsTable(_$Database db) => MultiTypedResultKey.fromTable(
+    db.annotationsTable,
+    aliasName: 'scores__id__annotations__score',
+  );
+
+  $$AnnotationsTableTableProcessedTableManager get annotationsTableRefs {
+    final manager = $$AnnotationsTableTableTableManager(
+      $_db,
+      $_db.annotationsTable,
+    ).filter((f) => f.score.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _annotationsTableRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -3247,6 +3648,31 @@ class $$ScoresTableTableFilterComposer
           }) => $$ScoreTagsTableTableFilterComposer(
             $db: $db,
             $table: $db.scoreTagsTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> annotationsTableRefs(
+    Expression<bool> Function($$AnnotationsTableTableFilterComposer f) f,
+  ) {
+    final $$AnnotationsTableTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.annotationsTable,
+      getReferencedColumn: (t) => t.score,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationsTableTableFilterComposer(
+            $db: $db,
+            $table: $db.annotationsTable,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -3470,6 +3896,31 @@ class $$ScoresTableTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> annotationsTableRefs<T extends Object>(
+    Expression<T> Function($$AnnotationsTableTableAnnotationComposer a) f,
+  ) {
+    final $$AnnotationsTableTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.annotationsTable,
+      getReferencedColumn: (t) => t.score,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationsTableTableAnnotationComposer(
+            $db: $db,
+            $table: $db.annotationsTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ScoresTableTableTableManager
@@ -3489,6 +3940,7 @@ class $$ScoresTableTableTableManager
             bool genresTableRefs,
             bool instrumentsTableRefs,
             bool scoreTagsTableRefs,
+            bool annotationsTableRefs,
           })
         > {
   $$ScoresTableTableTableManager(_$Database db, $ScoresTableTable table)
@@ -3575,6 +4027,7 @@ class $$ScoresTableTableTableManager
                 genresTableRefs = false,
                 instrumentsTableRefs = false,
                 scoreTagsTableRefs = false,
+                annotationsTableRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -3582,6 +4035,7 @@ class $$ScoresTableTableTableManager
                     if (genresTableRefs) db.genresTable,
                     if (instrumentsTableRefs) db.instrumentsTable,
                     if (scoreTagsTableRefs) db.scoreTagsTable,
+                    if (annotationsTableRefs) db.annotationsTable,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -3649,6 +4103,27 @@ class $$ScoresTableTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (annotationsTableRefs)
+                        await $_getPrefetchedData<
+                          ScoresTableData,
+                          $ScoresTableTable,
+                          AnnotationsTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ScoresTableTableReferences
+                              ._annotationsTableRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ScoresTableTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).annotationsTableRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.score == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -3673,6 +4148,7 @@ typedef $$ScoresTableTableProcessedTableManager =
         bool genresTableRefs,
         bool instrumentsTableRefs,
         bool scoreTagsTableRefs,
+        bool annotationsTableRefs,
       })
     >;
 typedef $$GenresTableTableCreateCompanionBuilder =
@@ -3693,9 +4169,7 @@ final class $$GenresTableTableReferences
   $$GenresTableTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $ScoresTableTable _scoreTable(_$Database db) =>
-      db.scoresTable.createAlias(
-        $_aliasNameGenerator(db.genresTable.score, db.scoresTable.id),
-      );
+      db.scoresTable.createAlias('genres__score__scores__id');
 
   $$ScoresTableTableProcessedTableManager get score {
     final $_column = $_itemColumn<String>('score')!;
@@ -3964,9 +4438,7 @@ final class $$InstrumentsTableTableReferences
   );
 
   static $ScoresTableTable _scoreTable(_$Database db) =>
-      db.scoresTable.createAlias(
-        $_aliasNameGenerator(db.instrumentsTable.score, db.scoresTable.id),
-      );
+      db.scoresTable.createAlias('instruments__score__scores__id');
 
   $$ScoresTableTableProcessedTableManager get score {
     final $_column = $_itemColumn<String>('score')!;
@@ -4240,7 +4712,7 @@ final class $$TagsTableTableReferences
   static MultiTypedResultKey<$ScoreTagsTableTable, List<ScoreTagsTableData>>
   _scoreTagsTableRefsTable(_$Database db) => MultiTypedResultKey.fromTable(
     db.scoreTagsTable,
-    aliasName: $_aliasNameGenerator(db.tagsTable.id, db.scoreTagsTable.tag),
+    aliasName: 'tags__id__score_tags__tag',
   );
 
   $$ScoreTagsTableTableProcessedTableManager get scoreTagsTableRefs {
@@ -4540,9 +5012,7 @@ final class $$ScoreTagsTableTableReferences
   );
 
   static $ScoresTableTable _scoreTable(_$Database db) =>
-      db.scoresTable.createAlias(
-        $_aliasNameGenerator(db.scoreTagsTable.score, db.scoresTable.id),
-      );
+      db.scoresTable.createAlias('score_tags__score__scores__id');
 
   $$ScoresTableTableProcessedTableManager get score {
     final $_column = $_itemColumn<String>('score')!;
@@ -4558,9 +5028,8 @@ final class $$ScoreTagsTableTableReferences
     );
   }
 
-  static $TagsTableTable _tagTable(_$Database db) => db.tagsTable.createAlias(
-    $_aliasNameGenerator(db.scoreTagsTable.tag, db.tagsTable.id),
-  );
+  static $TagsTableTable _tagTable(_$Database db) =>
+      db.tagsTable.createAlias('score_tags__tag__tags__id');
 
   $$TagsTableTableProcessedTableManager get tag {
     final $_column = $_itemColumn<String>('tag')!;
@@ -5579,6 +6048,336 @@ typedef $$LogMessageTableTableProcessedTableManager =
       LogMessageTableData,
       PrefetchHooks Function()
     >;
+typedef $$AnnotationsTableTableCreateCompanionBuilder =
+    AnnotationsTableCompanion Function({
+      required String score,
+      required int pageIndex,
+      required String data,
+      Value<DateTime> updatedAt,
+      Value<bool> uploaded,
+      Value<int> rowid,
+    });
+typedef $$AnnotationsTableTableUpdateCompanionBuilder =
+    AnnotationsTableCompanion Function({
+      Value<String> score,
+      Value<int> pageIndex,
+      Value<String> data,
+      Value<DateTime> updatedAt,
+      Value<bool> uploaded,
+      Value<int> rowid,
+    });
+
+final class $$AnnotationsTableTableReferences
+    extends
+        BaseReferences<
+          _$Database,
+          $AnnotationsTableTable,
+          AnnotationsTableData
+        > {
+  $$AnnotationsTableTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ScoresTableTable _scoreTable(_$Database db) =>
+      db.scoresTable.createAlias('annotations__score__scores__id');
+
+  $$ScoresTableTableProcessedTableManager get score {
+    final $_column = $_itemColumn<String>('score')!;
+
+    final manager = $$ScoresTableTableTableManager(
+      $_db,
+      $_db.scoresTable,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_scoreTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$AnnotationsTableTableFilterComposer
+    extends Composer<_$Database, $AnnotationsTableTable> {
+  $$AnnotationsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get pageIndex => $composableBuilder(
+    column: $table.pageIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get data => $composableBuilder(
+    column: $table.data,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get uploaded => $composableBuilder(
+    column: $table.uploaded,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ScoresTableTableFilterComposer get score {
+    final $$ScoresTableTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.score,
+      referencedTable: $db.scoresTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ScoresTableTableFilterComposer(
+            $db: $db,
+            $table: $db.scoresTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AnnotationsTableTableOrderingComposer
+    extends Composer<_$Database, $AnnotationsTableTable> {
+  $$AnnotationsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get pageIndex => $composableBuilder(
+    column: $table.pageIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get data => $composableBuilder(
+    column: $table.data,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get uploaded => $composableBuilder(
+    column: $table.uploaded,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ScoresTableTableOrderingComposer get score {
+    final $$ScoresTableTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.score,
+      referencedTable: $db.scoresTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ScoresTableTableOrderingComposer(
+            $db: $db,
+            $table: $db.scoresTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AnnotationsTableTableAnnotationComposer
+    extends Composer<_$Database, $AnnotationsTableTable> {
+  $$AnnotationsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get pageIndex =>
+      $composableBuilder(column: $table.pageIndex, builder: (column) => column);
+
+  GeneratedColumn<String> get data =>
+      $composableBuilder(column: $table.data, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get uploaded =>
+      $composableBuilder(column: $table.uploaded, builder: (column) => column);
+
+  $$ScoresTableTableAnnotationComposer get score {
+    final $$ScoresTableTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.score,
+      referencedTable: $db.scoresTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ScoresTableTableAnnotationComposer(
+            $db: $db,
+            $table: $db.scoresTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AnnotationsTableTableTableManager
+    extends
+        RootTableManager<
+          _$Database,
+          $AnnotationsTableTable,
+          AnnotationsTableData,
+          $$AnnotationsTableTableFilterComposer,
+          $$AnnotationsTableTableOrderingComposer,
+          $$AnnotationsTableTableAnnotationComposer,
+          $$AnnotationsTableTableCreateCompanionBuilder,
+          $$AnnotationsTableTableUpdateCompanionBuilder,
+          (AnnotationsTableData, $$AnnotationsTableTableReferences),
+          AnnotationsTableData,
+          PrefetchHooks Function({bool score})
+        > {
+  $$AnnotationsTableTableTableManager(
+    _$Database db,
+    $AnnotationsTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AnnotationsTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AnnotationsTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AnnotationsTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> score = const Value.absent(),
+                Value<int> pageIndex = const Value.absent(),
+                Value<String> data = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> uploaded = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AnnotationsTableCompanion(
+                score: score,
+                pageIndex: pageIndex,
+                data: data,
+                updatedAt: updatedAt,
+                uploaded: uploaded,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String score,
+                required int pageIndex,
+                required String data,
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> uploaded = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AnnotationsTableCompanion.insert(
+                score: score,
+                pageIndex: pageIndex,
+                data: data,
+                updatedAt: updatedAt,
+                uploaded: uploaded,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$AnnotationsTableTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({score = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (score) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.score,
+                                referencedTable:
+                                    $$AnnotationsTableTableReferences
+                                        ._scoreTable(db),
+                                referencedColumn:
+                                    $$AnnotationsTableTableReferences
+                                        ._scoreTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$AnnotationsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$Database,
+      $AnnotationsTableTable,
+      AnnotationsTableData,
+      $$AnnotationsTableTableFilterComposer,
+      $$AnnotationsTableTableOrderingComposer,
+      $$AnnotationsTableTableAnnotationComposer,
+      $$AnnotationsTableTableCreateCompanionBuilder,
+      $$AnnotationsTableTableUpdateCompanionBuilder,
+      (AnnotationsTableData, $$AnnotationsTableTableReferences),
+      AnnotationsTableData,
+      PrefetchHooks Function({bool score})
+    >;
 
 class $DatabaseManager {
   final _$Database _db;
@@ -5601,4 +6400,6 @@ class $DatabaseManager {
       $$DeletedScoresTableTableTableManager(_db, _db.deletedScoresTable);
   $$LogMessageTableTableTableManager get logMessageTable =>
       $$LogMessageTableTableTableManager(_db, _db.logMessageTable);
+  $$AnnotationsTableTableTableManager get annotationsTable =>
+      $$AnnotationsTableTableTableManager(_db, _db.annotationsTable);
 }

@@ -11,6 +11,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:sheetopia/data/services/database/annotations_table.dart';
 import 'package:sheetopia/data/services/database/deleted_scores_table.dart';
 import 'package:sheetopia/data/services/database/deleted_tags_table.dart';
 import 'package:sheetopia/data/services/database/genres_table.dart';
@@ -38,13 +39,14 @@ part 'database.g.dart';
     DeletedTagsTable,
     DeletedScoresTable,
     LogMessageTable,
+    AnnotationsTable,
   ],
 )
 class Database extends _$Database {
   Database([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -79,6 +81,9 @@ class Database extends _$Database {
                   'CREATE INDEX recent_time_index ON scores (recent_time)',
                 ),
               );
+            },
+            from4To5: (m, schema) async {
+              await m.createTable(schema.annotations);
             },
           ),
         ),
