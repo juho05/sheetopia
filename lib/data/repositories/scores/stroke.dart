@@ -29,11 +29,30 @@ class Stroke {
   final double width;
   final List<StrokePoint> points;
 
-  const Stroke({
+  Stroke({
     required this.colorValue,
     required this.width,
     required this.points,
   });
+
+  ({double minX, double minY, double maxX, double maxY})? _bounds;
+
+  // Raw normalized coords (no aspect correction, no width inflation).
+  ({double minX, double minY, double maxX, double maxY}) get bounds {
+    final cached = _bounds;
+    if (cached != null) return cached;
+    var minX = double.infinity;
+    var minY = double.infinity;
+    var maxX = double.negativeInfinity;
+    var maxY = double.negativeInfinity;
+    for (final p in points) {
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
+    }
+    return _bounds = (minX: minX, minY: minY, maxX: maxX, maxY: maxY);
+  }
 
   Map<String, dynamic> toJson() => {
     'c': colorValue,

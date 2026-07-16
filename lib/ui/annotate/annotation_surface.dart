@@ -51,16 +51,20 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
     );
   }
 
+  double get _aspect => _size.width <= 0 ? 1.0 : _size.height / _size.width;
+
   void _onStart(PointerDownEvent event) {
     widget.viewModel.startStroke(
       widget.pageIndex,
       _normalize(event.localPosition, event.pressure),
+      _aspect,
     );
   }
 
   void _onUpdate(PointerMoveEvent event) {
     widget.viewModel.appendPoint(
       _normalize(event.localPosition, event.pressure),
+      _aspect,
     );
   }
 
@@ -96,6 +100,10 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
                 painter: AnnotationPainter(
                   strokes: widget.viewModel.strokesFor(widget.pageIndex),
                   liveStroke: widget.viewModel.liveStrokeFor(widget.pageIndex),
+                  eraserCursor: widget.viewModel.eraserCursorFor(
+                    widget.pageIndex,
+                  ),
+                  eraserWidth: widget.viewModel.width,
                 ),
               );
             },

@@ -12,6 +12,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
@@ -193,8 +194,9 @@ class _PanZoomOverlayState extends State<_PanZoomOverlay>
   PointerDeviceKind? _lastDownKind;
 
   // Ballistic pan/fling driven by the same simulation Android scroll views use.
-  late final AnimationController _fling =
-      AnimationController.unbounded(vsync: this)..addListener(_onFlingTick);
+  late final AnimationController _fling = AnimationController.unbounded(
+    vsync: this,
+  )..addListener(_onFlingTick);
   ClampingScrollSimulation? _simX;
   ClampingScrollSimulation? _simY;
   double _lastFlingX = 0;
@@ -408,7 +410,7 @@ class _Toolbar extends StatelessWidget {
                       isSelected: viewModel.drawMode,
                       onPressed: viewModel.toggleDrawMode,
                       icon: Icon(
-                        viewModel.drawMode ? Icons.edit : Icons.back_hand,
+                        viewModel.drawMode ? Symbols.stylus : Icons.back_hand,
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -422,17 +424,51 @@ class _Toolbar extends StatelessWidget {
                             height: 26,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Color(color),
+                              color: Color.alphaBlend(
+                                Color(color),
+                                Colors.white,
+                              ),
                               border: Border.all(
-                                color: viewModel.colorValue == color
+                                color:
+                                    !viewModel.eraser &&
+                                        viewModel.colorValue == color
                                     ? theme.colorScheme.primary
                                     : theme.colorScheme.outline,
-                                width: viewModel.colorValue == color ? 3 : 1,
+                                width:
+                                    !viewModel.eraser &&
+                                        viewModel.colorValue == color
+                                    ? 3
+                                    : 1,
                               ),
                             ),
                           ),
                         ),
                       ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      child: GestureDetector(
+                        onTap: viewModel.setEraser,
+                        child: Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            border: Border.all(
+                              color: viewModel.eraser
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.outline,
+                              width: viewModel.eraser ? 3 : 1,
+                            ),
+                          ),
+                          child: Icon(
+                            Symbols.ink_eraser,
+                            size: 16,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ),
                     SizedBox(
                       width: 110,
                       height: 40,

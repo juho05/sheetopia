@@ -7,14 +7,21 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:perfect_freehand/perfect_freehand.dart';
+import 'package:perfect_freehand/perfect_freehand.dart' hide StrokePoint;
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
 
 class AnnotationPainter extends CustomPainter {
   final List<Stroke> strokes;
   final Stroke? liveStroke;
+  final StrokePoint? eraserCursor;
+  final double eraserWidth;
 
-  AnnotationPainter({required this.strokes, this.liveStroke});
+  AnnotationPainter({
+    required this.strokes,
+    this.liveStroke,
+    this.eraserCursor,
+    this.eraserWidth = 0,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -24,6 +31,31 @@ class AnnotationPainter extends CustomPainter {
     if (liveStroke != null) {
       _paintStroke(canvas, size, liveStroke!, isComplete: false);
     }
+    if (eraserCursor != null) {
+      _paintEraserCursor(canvas, size, eraserCursor!);
+    }
+  }
+
+  void _paintEraserCursor(Canvas canvas, Size size, StrokePoint p) {
+    final center = Offset(p.x * size.width, p.y * size.height);
+    final radius = eraserWidth / 2 * size.width;
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.1)
+        ..style = PaintingStyle.fill
+        ..isAntiAlias = true,
+    );
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = Colors.black54
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..isAntiAlias = true,
+    );
   }
 
   void _paintStroke(
@@ -69,6 +101,8 @@ class AnnotationPainter extends CustomPainter {
   bool shouldRepaint(covariant AnnotationPainter oldDelegate) {
     return oldDelegate.strokes != strokes ||
         oldDelegate.liveStroke != liveStroke ||
-        oldDelegate.strokes.length != strokes.length;
+        oldDelegate.strokes.length != strokes.length ||
+        oldDelegate.eraserCursor != eraserCursor ||
+        oldDelegate.eraserWidth != eraserWidth;
   }
 }

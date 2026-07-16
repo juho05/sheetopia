@@ -6,15 +6,29 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
 
-class _UndoOp {
+sealed class _UndoOp {
   final int pageIndex;
+
+  const _UndoOp({required this.pageIndex});
+}
+
+class _AddOp extends _UndoOp {
   final Stroke stroke;
 
-  const _UndoOp({required this.pageIndex, required this.stroke});
+  const _AddOp({required super.pageIndex, required this.stroke});
+}
+
+class _EraseOp extends _UndoOp {
+  // (index in the pre-erase snapshot, stroke), ascending by index.
+  final List<(int, Stroke)> removed;
+
+  const _EraseOp({required super.pageIndex, required this.removed});
 }
 
 class AnnotateViewModel extends ChangeNotifier {
@@ -42,6 +56,10 @@ class AnnotateViewModel extends ChangeNotifier {
 
   int get colorValue => _colorValue;
 
+  bool _eraser = false;
+
+  bool get eraser => _eraser;
+
   double _width = 0.004;
 
   double get width => _width;
@@ -55,6 +73,11 @@ class AnnotateViewModel extends ChangeNotifier {
 
   int? _activePageIndex;
   List<StrokePoint>? _activePoints;
+
+  List<Stroke>? _eraseSnapshot;
+  List<(int, Stroke)>? _erasePending;
+  StrokePoint? _lastErasePoint;
+  double _eraseAspect = 1.0;
 
   AnnotateViewModel({
     required ScoresRepository repo,
@@ -71,6 +94,12 @@ class AnnotateViewModel extends ChangeNotifier {
 
   void setColor(int color) {
     _colorValue = color;
+    _eraser = false;
+    notifyListeners();
+  }
+
+  void setEraser() {
+    _eraser = true;
     notifyListeners();
   }
 
@@ -86,6 +115,11 @@ class AnnotateViewModel extends ChangeNotifier {
 
   List<Stroke> strokesFor(int pageIndex) => _pages[pageIndex] ?? const [];
 
+  StrokePoint? eraserCursorFor(int pageIndex) {
+    if (_activePageIndex != pageIndex || _eraseSnapshot == null) return null;
+    return _lastErasePoint;
+  }
+
   Stroke? liveStrokeFor(int pageIndex) {
     if (_activePageIndex != pageIndex || _activePoints == null) return null;
     return Stroke(
@@ -95,13 +129,30 @@ class AnnotateViewModel extends ChangeNotifier {
     );
   }
 
-  void startStroke(int pageIndex, StrokePoint p) {
+  void startStroke(int pageIndex, StrokePoint p, double aspect) {
     _activePageIndex = pageIndex;
+    if (_eraser) {
+      _eraseSnapshot = List.of(_pages[pageIndex] ?? const <Stroke>[]);
+      _erasePending = [];
+      _lastErasePoint = p;
+      _eraseAspect = aspect;
+      _eraseSegment(p, p);
+      notifyListeners();
+      return;
+    }
     _activePoints = [p];
     notifyListeners();
   }
 
-  void appendPoint(StrokePoint p) {
+  void appendPoint(StrokePoint p, double aspect) {
+    if (_eraseSnapshot != null) {
+      final last = _lastErasePoint ?? p;
+      _lastErasePoint = p;
+      _eraseAspect = aspect;
+      _eraseSegment(last, p);
+      notifyListeners();
+      return;
+    }
     if (_activePoints == null) return;
     _activePoints!.add(p);
     notifyListeners();
@@ -110,8 +161,22 @@ class AnnotateViewModel extends ChangeNotifier {
   void endStroke() {
     final pageIndex = _activePageIndex;
     final points = _activePoints;
+    final erased = _erasePending;
     _activePageIndex = null;
     _activePoints = null;
+    _eraseSnapshot = null;
+    _erasePending = null;
+    _lastErasePoint = null;
+
+    if (erased != null) {
+      if (pageIndex != null && erased.isNotEmpty) {
+        erased.sort((a, b) => a.$1.compareTo(b.$1));
+        _undoStack.add(_EraseOp(pageIndex: pageIndex, removed: erased));
+        _redoStack.clear();
+      }
+      notifyListeners();
+      return;
+    }
 
     if (pageIndex == null || points == null || points.isEmpty) {
       notifyListeners();
@@ -127,11 +192,138 @@ class AnnotateViewModel extends ChangeNotifier {
     pageStrokes.add(stroke);
     _pages[pageIndex] = pageStrokes;
 
-    _undoStack.add(_UndoOp(pageIndex: pageIndex, stroke: stroke));
+    _undoStack.add(_AddOp(pageIndex: pageIndex, stroke: stroke));
     _redoStack.clear();
     _dirty = true;
 
     notifyListeners();
+  }
+
+  // a/b are the eraser segment endpoints in raw normalized coords. Distances
+  // are computed in page-width units (y scaled by aspect = height / width) so
+  // the width threshold is isotropic.
+  void _eraseSegment(StrokePoint a, StrokePoint b) {
+    final pageIndex = _activePageIndex;
+    final snapshot = _eraseSnapshot;
+    final pending = _erasePending;
+    if (pageIndex == null || snapshot == null || pending == null) return;
+
+    final strokes = _pages[pageIndex];
+    if (strokes == null || strokes.isEmpty) return;
+
+    final aspect = _eraseAspect;
+    final ax = a.x, ay = a.y * aspect;
+    final bx = b.x, by = b.y * aspect;
+    final eraserHalf = _width / 2;
+    final segMinX = min(ax, bx) - eraserHalf;
+    final segMinY = min(ay, by) - eraserHalf;
+    final segMaxX = max(ax, bx) + eraserHalf;
+    final segMaxY = max(ay, by) + eraserHalf;
+
+    List<Stroke>? remaining;
+    for (final stroke in strokes) {
+      final half = stroke.width / 2;
+      final box = stroke.bounds;
+      if (box.minX - half > segMaxX ||
+          box.maxX + half < segMinX ||
+          box.minY * aspect - half > segMaxY ||
+          box.maxY * aspect + half < segMinY) {
+        continue;
+      }
+      if (!_strokeHit(stroke, ax, ay, bx, by, aspect)) continue;
+      final snapshotIndex = snapshot.indexOf(stroke);
+      if (snapshotIndex < 0) continue;
+      pending.add((snapshotIndex, stroke));
+      remaining ??= List.of(strokes);
+      remaining.removeWhere((s) => identical(s, stroke));
+    }
+    if (remaining != null) {
+      _pages[pageIndex] = remaining;
+      _dirty = true;
+    }
+  }
+
+  bool _strokeHit(
+    Stroke stroke,
+    double ax,
+    double ay,
+    double bx,
+    double by,
+    double aspect,
+  ) {
+    final threshold = (stroke.width + _width) / 2;
+    final points = stroke.points;
+    var px = points[0].x;
+    var py = points[0].y * aspect;
+    if (points.length == 1) {
+      return _segSegDist(ax, ay, bx, by, px, py, px, py) < threshold;
+    }
+    for (var i = 1; i < points.length; i++) {
+      final qx = points[i].x;
+      final qy = points[i].y * aspect;
+      if (_segSegDist(ax, ay, bx, by, px, py, qx, qy) < threshold) return true;
+      px = qx;
+      py = qy;
+    }
+    return false;
+  }
+
+  static double _segSegDist(
+    double ax,
+    double ay,
+    double bx,
+    double by,
+    double px,
+    double py,
+    double qx,
+    double qy,
+  ) {
+    final d1 = _cross(px, py, qx, qy, ax, ay);
+    final d2 = _cross(px, py, qx, qy, bx, by);
+    final d3 = _cross(ax, ay, bx, by, px, py);
+    final d4 = _cross(ax, ay, bx, by, qx, qy);
+    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+        ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+      return 0;
+    }
+    return min(
+      min(
+        _pointSegDist(ax, ay, px, py, qx, qy),
+        _pointSegDist(bx, by, px, py, qx, qy),
+      ),
+      min(
+        _pointSegDist(px, py, ax, ay, bx, by),
+        _pointSegDist(qx, qy, ax, ay, bx, by),
+      ),
+    );
+  }
+
+  static double _cross(
+    double ax,
+    double ay,
+    double bx,
+    double by,
+    double cx,
+    double cy,
+  ) => (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+
+  static double _pointSegDist(
+    double px,
+    double py,
+    double ax,
+    double ay,
+    double bx,
+    double by,
+  ) {
+    final dx = bx - ax;
+    final dy = by - ay;
+    final len2 = dx * dx + dy * dy;
+    final t = len2 == 0
+        ? 0.0
+        : (((px - ax) * dx + (py - ay) * dy) / len2).clamp(0.0, 1.0);
+    final cx = ax + t * dx - px;
+    final cy = ay + t * dy - py;
+    return sqrt(cx * cx + cy * cy);
   }
 
   bool get hasAnnotations => _pages.values.any((s) => s.isNotEmpty);
@@ -143,6 +335,9 @@ class AnnotateViewModel extends ChangeNotifier {
     _redoStack.clear();
     _activePageIndex = null;
     _activePoints = null;
+    _eraseSnapshot = null;
+    _erasePending = null;
+    _lastErasePoint = null;
     notifyListeners();
   }
 
@@ -155,7 +350,14 @@ class AnnotateViewModel extends ChangeNotifier {
     final op = _undoStack.removeLast();
 
     final pageStrokes = List.of(_pages[op.pageIndex] ?? const <Stroke>[]);
-    pageStrokes.removeWhere((s) => identical(s, op.stroke));
+    switch (op) {
+      case _AddOp():
+        pageStrokes.removeWhere((s) => identical(s, op.stroke));
+      case _EraseOp():
+        for (final (index, stroke) in op.removed) {
+          pageStrokes.insert(min(index, pageStrokes.length), stroke);
+        }
+    }
     _pages[op.pageIndex] = pageStrokes;
 
     _redoStack.add(op);
@@ -169,7 +371,14 @@ class AnnotateViewModel extends ChangeNotifier {
     final op = _redoStack.removeLast();
 
     final pageStrokes = List.of(_pages[op.pageIndex] ?? const <Stroke>[]);
-    pageStrokes.add(op.stroke);
+    switch (op) {
+      case _AddOp():
+        pageStrokes.add(op.stroke);
+      case _EraseOp():
+        for (final (_, stroke) in op.removed) {
+          pageStrokes.removeWhere((s) => identical(s, stroke));
+        }
+    }
     _pages[op.pageIndex] = pageStrokes;
 
     _undoStack.add(op);
