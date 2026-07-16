@@ -8,7 +8,6 @@
 
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
-import 'package:sheetopia/data/repositories/annotations/annotations_repository.dart';
 import 'package:sheetopia/data/repositories/appimage/appimage_repository.dart';
 import 'package:sheetopia/data/repositories/auto_update/auto_update_repository.dart';
 import 'package:sheetopia/data/repositories/importexport/importexport_repository.dart';
@@ -69,7 +68,6 @@ Future<List<SingleChildWidget>> createProviders({
         thumbnailService: context.read(),
       ),
     ),
-    Provider(create: (context) => AnnotationsRepository(db: context.read())),
     Provider(
       create: (context) => SyncRepository(
         scoresRepo: context.read(),

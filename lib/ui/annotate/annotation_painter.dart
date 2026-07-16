@@ -8,7 +8,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:perfect_freehand/perfect_freehand.dart';
-import 'package:sheetopia/data/repositories/annotations/stroke.dart';
+import 'package:sheetopia/data/repositories/scores/stroke.dart';
 
 class AnnotationPainter extends CustomPainter {
   final List<Stroke> strokes;

@@ -19,12 +19,14 @@ class ScoreMetadataModel {
   final String? notes;
   final List<String>? instruments;
   final List<String>? genres;
+  final Map<String, dynamic>? annotations;
 
   ScoreMetadataModel({
     required this.composer,
     required this.notes,
     required this.instruments,
     required this.genres,
+    required this.annotations,
   });
 
   factory ScoreMetadataModel.fromJson(Map<String, dynamic> json) =>

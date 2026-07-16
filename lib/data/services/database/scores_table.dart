@@ -41,6 +41,8 @@ class ScoresTable extends Table {
 
   late final fileType = textEnum<FileType>()();
 
+  late final annotations = text().nullable()();
+
   @override
   Set<Column<Object>>? get primaryKey => {id};
 

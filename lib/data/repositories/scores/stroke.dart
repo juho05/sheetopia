@@ -50,21 +50,25 @@ class Stroke {
   );
 }
 
-class PageAnnotations {
-  final int pageIndex;
-  final List<Stroke> strokes;
+String? encodeAnnotations(Map<int, List<Stroke>> pages) {
+  final result = <String, dynamic>{};
+  for (final entry in pages.entries) {
+    if (entry.value.isEmpty) continue;
+    result['${entry.key}'] = entry.value.map((s) => s.toJson()).toList();
+  }
+  if (result.isEmpty) return null;
+  return jsonEncode(result);
+}
 
-  const PageAnnotations({required this.pageIndex, required this.strokes});
-
-  String encode() => jsonEncode(strokes.map((s) => s.toJson()).toList());
-
-  factory PageAnnotations.decode(int pageIndex, String data) {
-    final list = jsonDecode(data) as List<dynamic>;
-    return PageAnnotations(
-      pageIndex: pageIndex,
-      strokes: list
+Map<int, List<Stroke>> decodeAnnotations(String? data) {
+  if (data == null || data.isEmpty) return {};
+  final json = jsonDecode(data) as Map<String, dynamic>;
+  return json.map(
+    (key, value) => MapEntry(
+      int.parse(key),
+      (value as List<dynamic>)
           .map((e) => Stroke.fromJson(e as Map<String, dynamic>))
           .toList(),
-    );
-  }
+    ),
+  );
 }

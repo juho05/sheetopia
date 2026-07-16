@@ -434,6 +434,9 @@ class SyncRepository {
             instruments: (refs.instrumentsTableRefs.prefetchedData ?? [])
                 .map((i) => i.instrument)
                 .toList(),
+            annotations: s.annotations == null
+                ? {}
+                : jsonDecode(s.annotations!) as Map<String, dynamic>,
           ),
         );
       } on ConflictException catch (_) {
@@ -499,6 +502,7 @@ class SyncRepository {
               title: s.title,
               composer: _optionalStringValue(s.metadata.composer),
               notes: _optionalStringValue(s.metadata.notes),
+              annotations: _annotationsColumnValue(s.metadata.annotations),
               metadataUploaded: const Value(true),
               metadataUpdatedAt: Value(s.metadataUpdatedAt.toUtc()),
               lastOpened: Value(
@@ -531,6 +535,9 @@ class SyncRepository {
                       : const Value.absent(),
                   notes: metadataChanged
                       ? _optionalStringValue(s.metadata.notes)
+                      : const Value.absent(),
+                  annotations: metadataChanged
+                      ? _annotationsColumnValue(s.metadata.annotations)
                       : const Value.absent(),
                   searchText: metadataChanged
                       ? Value(
@@ -645,5 +652,11 @@ class SyncRepository {
     if (str == null) return const Value.absent();
     if (str == "") return const Value(null);
     return Value(str);
+  }
+
+  Value<String?> _annotationsColumnValue(Map<String, dynamic>? a) {
+    if (a == null) return const Value.absent();
+    if (a.isEmpty) return const Value(null);
+    return Value(jsonEncode(a));
   }
 }

@@ -14,9 +14,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:provider/provider.dart';
-import 'package:sheetopia/data/repositories/annotations/annotations_repository.dart';
-import 'package:sheetopia/data/repositories/annotations/stroke.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
+import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/data/repositories/scores/stroke.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/ui/annotate/annotation_painter.dart';
 import 'package:sheetopia/ui/common/toast.dart';
@@ -34,7 +34,7 @@ class EditScorePreview extends StatefulWidget {
 class _EditScorePreviewState extends State<EditScorePreview> {
   PdfDocumentRefFile? pdfRef;
 
-  late final AnnotationsRepository _annotationsRepo;
+  late final ScoresRepository _scoresRepo;
   final Map<int, List<Stroke>> _annotations = {};
   StreamSubscription? _annotationsSub;
 
@@ -50,21 +50,20 @@ class _EditScorePreviewState extends State<EditScorePreview> {
         ),
       );
     }
-    _annotationsRepo = context.read<AnnotationsRepository>();
+    _scoresRepo = context.read<ScoresRepository>();
     _loadAnnotations();
-    _annotationsSub = _annotationsRepo.updatedAnnotationScoreIds
-        .where((id) => id == widget.score.id)
+    _annotationsSub = _scoresRepo.updatedScoreIds
+        .where((s) => s.any((id) => id == widget.score.id))
         .listen((_) => _loadAnnotations());
   }
 
   Future<void> _loadAnnotations() async {
-    final pages = await _annotationsRepo.getAnnotations(widget.score.id);
+    final pages = await _scoresRepo.getAnnotations(widget.score.id);
     if (!mounted) return;
     setState(() {
-      _annotations.clear();
-      for (final page in pages) {
-        _annotations[page.pageIndex] = page.strokes;
-      }
+      _annotations
+        ..clear()
+        ..addAll(pages);
     });
   }
 
@@ -94,8 +93,8 @@ class _EditScorePreviewState extends State<EditScorePreview> {
     }
     if (oldWidget.score.id != widget.score.id) {
       _annotationsSub?.cancel();
-      _annotationsSub = _annotationsRepo.updatedAnnotationScoreIds
-          .where((id) => id == widget.score.id)
+      _annotationsSub = _scoresRepo.updatedScoreIds
+          .where((s) => s.any((id) => id == widget.score.id))
           .listen((_) => _loadAnnotations());
       _loadAnnotations();
     }

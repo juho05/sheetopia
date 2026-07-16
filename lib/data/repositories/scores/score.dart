@@ -16,6 +16,7 @@ class Score {
   final String title;
   final String? composer;
   final String? notes;
+  final String? annotations;
 
   final List<String> genres;
   final List<String> instruments;
@@ -32,6 +33,7 @@ class Score {
     required this.title,
     required this.composer,
     required this.notes,
+    required this.annotations,
     required this.genres,
     required this.instruments,
     required this.tags,

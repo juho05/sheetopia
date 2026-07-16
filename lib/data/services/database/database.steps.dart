@@ -1039,11 +1039,202 @@ i1.GeneratedColumn<String> _column_35(String aliasedName) =>
       type: i1.DriftSqlType.string,
       $customConstraints: 'NOT NULL',
     );
+
+final class Schema6 extends i0.VersionedSchema {
+  Schema6({required super.database}) : super(version: 6);
+  @override
+  late final List<i1.DatabaseSchemaEntity> entities = [
+    scores,
+    genres,
+    instruments,
+    tags,
+    scoreTags,
+    keyValue,
+    deletedTags,
+    deletedScores,
+    logMessage,
+    searchTextIndex,
+    recentTimeIndex,
+  ];
+  late final Shape11 scores = Shape11(
+    source: i0.VersionedTable(
+      entityName: 'scores',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_32,
+        _column_33,
+        _column_5,
+        _column_6,
+        _column_7,
+        _column_8,
+        _column_9,
+        _column_10,
+        _column_36,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape1 genres = Shape1(
+    source: i0.VersionedTable(
+      entityName: 'genres',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(score, genre)'],
+      columns: [_column_11, _column_12],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape2 instruments = Shape2(
+    source: i0.VersionedTable(
+      entityName: 'instruments',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(score, instrument)'],
+      columns: [_column_11, _column_13],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape3 tags = Shape3(
+    source: i0.VersionedTable(
+      entityName: 'tags',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [_column_0, _column_14, _column_15, _column_16, _column_17],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape4 scoreTags = Shape4(
+    source: i0.VersionedTable(
+      entityName: 'score_tags',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(score, tag)'],
+      columns: [_column_11, _column_18],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape5 keyValue = Shape5(
+    source: i0.VersionedTable(
+      entityName: 'key_value',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY("key")'],
+      columns: [_column_19, _column_20],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape6 deletedTags = Shape6(
+    source: i0.VersionedTable(
+      entityName: 'deleted_tags',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(tag_id)'],
+      columns: [_column_21, _column_22],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape7 deletedScores = Shape7(
+    source: i0.VersionedTable(
+      entityName: 'deleted_scores',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(score_id)'],
+      columns: [_column_23, _column_22],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape8 logMessage = Shape8(
+    source: i0.VersionedTable(
+      entityName: 'log_message',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [
+        _column_24,
+        _column_25,
+        _column_26,
+        _column_27,
+        _column_28,
+        _column_29,
+        _column_30,
+        _column_31,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  final i1.Index searchTextIndex = i1.Index(
+    'search_text_index',
+    'CREATE INDEX search_text_index ON scores (search_text)',
+  );
+  final i1.Index recentTimeIndex = i1.Index(
+    'recent_time_index',
+    'CREATE INDEX recent_time_index ON scores (recent_time)',
+  );
+}
+
+class Shape11 extends i0.VersionedTable {
+  Shape11({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<String> get id =>
+      columnsByName['id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get title =>
+      columnsByName['title']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get composer =>
+      columnsByName['composer']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get notes =>
+      columnsByName['notes']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get searchText =>
+      columnsByName['search_text']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get recentTime =>
+      columnsByName['recent_time']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get lastOpened =>
+      columnsByName['last_opened']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get metadataUpdatedAt =>
+      columnsByName['metadata_updated_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get fileUpdatedAt =>
+      columnsByName['file_updated_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get metadataUploaded =>
+      columnsByName['metadata_uploaded']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get fileUploaded =>
+      columnsByName['file_uploaded']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get fileDownloaded =>
+      columnsByName['file_downloaded']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get fileType =>
+      columnsByName['file_type']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get annotations =>
+      columnsByName['annotations']! as i1.GeneratedColumn<String>;
+}
+
+i1.GeneratedColumn<String> _column_36(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'annotations',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NULL',
+    );
 i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,
   required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,
   required Future<void> Function(i1.Migrator m, Schema4 schema) from3To4,
   required Future<void> Function(i1.Migrator m, Schema5 schema) from4To5,
+  required Future<void> Function(i1.Migrator m, Schema6 schema) from5To6,
 }) {
   return (currentVersion, database) async {
     switch (currentVersion) {
@@ -1067,6 +1258,11 @@ i0.MigrationStepWithVersion migrationSteps({
         final migrator = i1.Migrator(database, schema);
         await from4To5(migrator, schema);
         return 5;
+      case 5:
+        final schema = Schema6(database: database);
+        final migrator = i1.Migrator(database, schema);
+        await from5To6(migrator, schema);
+        return 6;
       default:
         throw ArgumentError.value('Unknown migration from $currentVersion');
     }
@@ -1078,11 +1274,13 @@ i1.OnUpgrade stepByStep({
   required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,
   required Future<void> Function(i1.Migrator m, Schema4 schema) from3To4,
   required Future<void> Function(i1.Migrator m, Schema5 schema) from4To5,
+  required Future<void> Function(i1.Migrator m, Schema6 schema) from5To6,
 }) => i0.VersionedSchema.stepByStepHelper(
   step: migrationSteps(
     from1To2: from1To2,
     from2To3: from2To3,
     from3To4: from3To4,
     from4To5: from4To5,
+    from5To6: from5To6,
   ),
 );

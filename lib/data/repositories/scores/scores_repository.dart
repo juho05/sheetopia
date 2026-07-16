@@ -18,6 +18,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
+import 'package:sheetopia/data/repositories/scores/stroke.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/instr_expression.dart';
@@ -104,6 +105,7 @@ class ScoresRepository {
       title: score.title,
       composer: score.composer,
       notes: score.notes,
+      annotations: score.annotations,
       genres:
           (data.genresTableRefs.prefetchedData ?? [])
               .map((e) => e.genre)
@@ -264,6 +266,7 @@ class ScoresRepository {
           title: s.score.title,
           composer: s.score.composer,
           notes: s.score.notes,
+          annotations: s.score.annotations,
           genres: s.genres.toList(),
           instruments: s.instruments.toList(),
           tags: tags[s.score.id] ?? [],
@@ -349,6 +352,30 @@ class ScoresRepository {
         .filter((f) => f.id(scoreId))
         .update((o) => o(lastOpened: Value(DateTime.now().toUtc())));
     _lastOpenedChanged.add(scoreId);
+  }
+
+  Future<Map<int, List<Stroke>>> getAnnotations(String scoreId) async {
+    final query = _db.selectOnly(_db.scoresTable)
+      ..addColumns([_db.scoresTable.annotations])
+      ..where(_db.scoresTable.id.equals(scoreId));
+    final row = await query.getSingleOrNull();
+    return decodeAnnotations(row?.read(_db.scoresTable.annotations));
+  }
+
+  Future<void> saveAnnotations(
+    String scoreId,
+    Map<int, List<Stroke>> pages,
+  ) async {
+    await _db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .update(
+          (o) => o(
+            annotations: Value(encodeAnnotations(pages)),
+            metadataUpdatedAt: Value(DateTime.now().toUtc()),
+            metadataUploaded: const Value(false),
+          ),
+        );
+    _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
   Future<Tag> createTag({required String name, required Color color}) async {
@@ -594,6 +621,7 @@ class ScoresRepository {
             title: title,
             composer: null,
             notes: null,
+            annotations: null,
             genres: const [],
             instruments: const [],
             tags: const [],

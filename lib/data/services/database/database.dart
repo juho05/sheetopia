@@ -11,7 +11,6 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:sheetopia/data/services/database/annotations_table.dart';
 import 'package:sheetopia/data/services/database/deleted_scores_table.dart';
 import 'package:sheetopia/data/services/database/deleted_tags_table.dart';
 import 'package:sheetopia/data/services/database/genres_table.dart';
@@ -39,14 +38,13 @@ part 'database.g.dart';
     DeletedTagsTable,
     DeletedScoresTable,
     LogMessageTable,
-    AnnotationsTable,
   ],
 )
 class Database extends _$Database {
   Database([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -66,10 +64,13 @@ class Database extends _$Database {
             from3To4: (m, schema) async {
               await m.alterTable(
                 TableMigration(
-                  scoresTable,
-                  newColumns: [scoresTable.lastOpened, scoresTable.recentTime],
+                  schema.scores,
+                  newColumns: [
+                    schema.scores.lastOpened,
+                    schema.scores.recentTime,
+                  ],
                   columnTransformer: {
-                    scoresTable.lastOpened: const CustomExpression(
+                    schema.scores.lastOpened: const CustomExpression(
                       "MAX(metadata_updated_at,file_updated_at)",
                     ),
                   },
@@ -84,6 +85,10 @@ class Database extends _$Database {
             },
             from4To5: (m, schema) async {
               await m.createTable(schema.annotations);
+            },
+            from5To6: (m, schema) async {
+              await m.addColumn(schema.scores, schema.scores.annotations);
+              await m.deleteTable('annotations');
             },
           ),
         ),

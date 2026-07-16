@@ -38,7 +38,7 @@ class _PdfViewState extends State<PdfView> {
       file: widget.file,
       midiRepository: context.read(),
       scoreViewModel: scoreViewModel,
-      annotationsRepository: context.read(),
+      scoresRepository: context.read(),
       scoreId: scoreViewModel.scoreId,
     );
   }

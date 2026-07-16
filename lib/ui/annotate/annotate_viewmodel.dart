@@ -7,8 +7,8 @@
  */
 
 import 'package:flutter/foundation.dart';
-import 'package:sheetopia/data/repositories/annotations/annotations_repository.dart';
-import 'package:sheetopia/data/repositories/annotations/stroke.dart';
+import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/data/repositories/scores/stroke.dart';
 
 class _UndoOp {
   final int pageIndex;
@@ -29,11 +29,11 @@ class AnnotateViewModel extends ChangeNotifier {
   static const double minWidth = 0.0015;
   static const double maxWidth = 0.02;
 
-  final AnnotationsRepository _repo;
+  final ScoresRepository _repo;
   final String _scoreId;
 
   final Map<int, List<Stroke>> _pages = {};
-  final Set<int> _dirtyPages = {};
+  bool _dirty = false;
 
   final List<_UndoOp> _undoStack = [];
   final List<_UndoOp> _redoStack = [];
@@ -57,7 +57,7 @@ class AnnotateViewModel extends ChangeNotifier {
   List<StrokePoint>? _activePoints;
 
   AnnotateViewModel({
-    required AnnotationsRepository repo,
+    required ScoresRepository repo,
     required String scoreId,
   }) : _repo = repo,
        _scoreId = scoreId {
@@ -65,10 +65,7 @@ class AnnotateViewModel extends ChangeNotifier {
   }
 
   Future<void> _load() async {
-    final pages = await _repo.getAnnotations(_scoreId);
-    for (final page in pages) {
-      _pages[page.pageIndex] = List.of(page.strokes);
-    }
+    _pages.addAll(await _repo.getAnnotations(_scoreId));
     notifyListeners();
   }
 
@@ -132,7 +129,7 @@ class AnnotateViewModel extends ChangeNotifier {
 
     _undoStack.add(_UndoOp(pageIndex: pageIndex, stroke: stroke));
     _redoStack.clear();
-    _dirtyPages.add(pageIndex);
+    _dirty = true;
 
     notifyListeners();
   }
@@ -140,7 +137,7 @@ class AnnotateViewModel extends ChangeNotifier {
   bool get hasAnnotations => _pages.values.any((s) => s.isNotEmpty);
 
   void clearAll() {
-    _dirtyPages.addAll(_pages.keys);
+    _dirty = true;
     _pages.clear();
     _undoStack.clear();
     _redoStack.clear();
@@ -162,7 +159,7 @@ class AnnotateViewModel extends ChangeNotifier {
     _pages[op.pageIndex] = pageStrokes;
 
     _redoStack.add(op);
-    _dirtyPages.add(op.pageIndex);
+    _dirty = true;
 
     notifyListeners();
   }
@@ -176,19 +173,14 @@ class AnnotateViewModel extends ChangeNotifier {
     _pages[op.pageIndex] = pageStrokes;
 
     _undoStack.add(op);
-    _dirtyPages.add(op.pageIndex);
+    _dirty = true;
 
     notifyListeners();
   }
 
   Future<void> saveAll() async {
-    final pageIndices = List.of(_dirtyPages);
-    for (final pageIndex in pageIndices) {
-      await _repo.savePage(
-        _scoreId,
-        PageAnnotations(pageIndex: pageIndex, strokes: strokesFor(pageIndex)),
-      );
-    }
-    _dirtyPages.clear();
+    if (!_dirty) return;
+    await _repo.saveAnnotations(_scoreId, _pages);
+    _dirty = false;
   }
 }

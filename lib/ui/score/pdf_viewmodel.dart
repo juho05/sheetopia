@@ -12,15 +12,15 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
-import 'package:sheetopia/data/repositories/annotations/annotations_repository.dart';
-import 'package:sheetopia/data/repositories/annotations/stroke.dart';
 import 'package:sheetopia/data/repositories/midi/midi_repository.dart';
+import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/data/repositories/scores/stroke.dart';
 import 'package:sheetopia/ui/score/score_viewmodel.dart';
 
 class PdfViewModel extends ChangeNotifier {
   final MidiRepository _midiRepository;
   final ScoreViewModel _scoreViewModel;
-  final AnnotationsRepository _annotationsRepository;
+  final ScoresRepository _scoresRepository;
   final String _scoreId;
 
   final Map<int, List<Stroke>> _annotations = {};
@@ -44,27 +44,26 @@ class PdfViewModel extends ChangeNotifier {
     required File file,
     required MidiRepository midiRepository,
     required ScoreViewModel scoreViewModel,
-    required AnnotationsRepository annotationsRepository,
+    required ScoresRepository scoresRepository,
     required String scoreId,
   }) : _file = file,
        _midiRepository = midiRepository,
        _scoreViewModel = scoreViewModel,
-       _annotationsRepository = annotationsRepository,
+       _scoresRepository = scoresRepository,
        _scoreId = scoreId {
     _midiRepository.addActionListener(_midiActionListener);
     _loadDocument();
     _loadAnnotations();
-    _annotationsSub = _annotationsRepository.updatedAnnotationScoreIds
-        .where((id) => id == _scoreId)
+    _annotationsSub = _scoresRepository.updatedScoreIds
+        .where((s) => s.any((id) => id == _scoreId))
         .listen((_) => _loadAnnotations());
   }
 
   Future<void> _loadAnnotations() async {
-    final pages = await _annotationsRepository.getAnnotations(_scoreId);
-    _annotations.clear();
-    for (final page in pages) {
-      _annotations[page.pageIndex] = page.strokes;
-    }
+    final pages = await _scoresRepository.getAnnotations(_scoreId);
+    _annotations
+      ..clear()
+      ..addAll(pages);
     notifyListeners();
   }
 

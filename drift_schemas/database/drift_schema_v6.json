@@ -1,0 +1,824 @@
+{
+  "_meta": {
+    "description": "This file contains a serialized version of schema entities for drift.",
+    "version": "1.3.0"
+  },
+  "options": {
+    "store_date_time_values_as_text": true
+  },
+  "entities": [
+    {
+      "id": 0,
+      "references": [],
+      "type": "table",
+      "data": {
+        "name": "scores",
+        "was_declared_in_moor": false,
+        "columns": [
+          {
+            "name": "id",
+            "getter_name": "id",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "title",
+            "getter_name": "title",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "composer",
+            "getter_name": "composer",
+            "moor_type": "string",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "notes",
+            "getter_name": "notes",
+            "moor_type": "string",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "search_text",
+            "getter_name": "searchText",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "recent_time",
+            "getter_name": "recentTime",
+            "moor_type": "dateTime",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": [
+              {
+                "generated_as": {
+                  "dart_expression": {
+                    "elements": [
+                      {
+                        "lexeme": "CustomExpression",
+                        "import_uri": "package:drift/src/runtime/query_builder/query_builder.dart"
+                      },
+                      "(\"MAX(${",
+                      {
+                        "lexeme": "lastOpened",
+                        "tag": "lastOpened"
+                      },
+                      ".name}, ${",
+                      {
+                        "lexeme": "metadataUpdatedAt",
+                        "tag": "metadataUpdatedAt"
+                      },
+                      ".name}, ${",
+                      {
+                        "lexeme": "fileUpdatedAt",
+                        "tag": "fileUpdatedAt"
+                      },
+                      ".name})\")"
+                    ]
+                  },
+                  "stored": false
+                }
+              }
+            ]
+          },
+          {
+            "name": "last_opened",
+            "getter_name": "lastOpened",
+            "moor_type": "dateTime",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": "() => DateTime.now().toUtc()",
+            "dsl_features": []
+          },
+          {
+            "name": "metadata_updated_at",
+            "getter_name": "metadataUpdatedAt",
+            "moor_type": "dateTime",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": "() => DateTime.now().toUtc()",
+            "dsl_features": []
+          },
+          {
+            "name": "file_updated_at",
+            "getter_name": "fileUpdatedAt",
+            "moor_type": "dateTime",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": "() => DateTime.now().toUtc()",
+            "dsl_features": []
+          },
+          {
+            "name": "metadata_uploaded",
+            "getter_name": "metadataUploaded",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"metadata_uploaded\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"metadata_uploaded\" IN (0, 1))"
+            },
+            "default_dart": "const CustomExpression('0')",
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "file_uploaded",
+            "getter_name": "fileUploaded",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"file_uploaded\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"file_uploaded\" IN (0, 1))"
+            },
+            "default_dart": "const CustomExpression('0')",
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "file_downloaded",
+            "getter_name": "fileDownloaded",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"file_downloaded\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"file_downloaded\" IN (0, 1))"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "file_type",
+            "getter_name": "fileType",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": [],
+            "type_converter": {
+              "dart_expr": "const EnumNameConverter<FileType>(FileType.values)",
+              "dart_type_name": "FileType"
+            }
+          },
+          {
+            "name": "annotations",
+            "getter_name": "annotations",
+            "moor_type": "string",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          }
+        ],
+        "is_virtual": false,
+        "without_rowid": false,
+        "constraints": [],
+        "explicit_pk": [
+          "id"
+        ]
+      }
+    },
+    {
+      "id": 1,
+      "references": [
+        0
+      ],
+      "type": "table",
+      "data": {
+        "name": "genres",
+        "was_declared_in_moor": false,
+        "columns": [
+          {
+            "name": "score",
+            "getter_name": "score",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "REFERENCES scores (id) ON UPDATE CASCADE ON DELETE CASCADE",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "REFERENCES scores (id) ON UPDATE CASCADE ON DELETE CASCADE"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": [
+              {
+                "foreign_key": {
+                  "to": {
+                    "table": "scores",
+                    "column": "id"
+                  },
+                  "initially_deferred": false,
+                  "on_update": "cascade",
+                  "on_delete": "cascade"
+                }
+              }
+            ]
+          },
+          {
+            "name": "genre",
+            "getter_name": "genre",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          }
+        ],
+        "is_virtual": false,
+        "without_rowid": false,
+        "constraints": [],
+        "explicit_pk": [
+          "score",
+          "genre"
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "references": [
+        0
+      ],
+      "type": "table",
+      "data": {
+        "name": "instruments",
+        "was_declared_in_moor": false,
+        "columns": [
+          {
+            "name": "score",
+            "getter_name": "score",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "REFERENCES scores (id) ON UPDATE CASCADE ON DELETE CASCADE",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "REFERENCES scores (id) ON UPDATE CASCADE ON DELETE CASCADE"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": [
+              {
+                "foreign_key": {
+                  "to": {
+                    "table": "scores",
+                    "column": "id"
+                  },
+                  "initially_deferred": false,
+                  "on_update": "cascade",
+                  "on_delete": "cascade"
+                }
+              }
+            ]
+          },
+          {
+            "name": "instrument",
+            "getter_name": "instrument",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          }
+        ],
+        "is_virtual": false,
+        "without_rowid": false,
+        "constraints": [],
+        "explicit_pk": [
+          "score",
+          "instrument"
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "references": [],
+      "type": "table",
+      "data": {
+        "name": "tags",
+        "was_declared_in_moor": false,
+        "columns": [
+          {
+            "name": "id",
+            "getter_name": "id",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "name",
+            "getter_name": "name",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "color",
+            "getter_name": "color",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "updated_at",
+            "getter_name": "updatedAt",
+            "moor_type": "dateTime",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": "() => DateTime.now().toUtc()",
+            "dsl_features": []
+          },
+          {
+            "name": "uploaded",
+            "getter_name": "uploaded",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"uploaded\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"uploaded\" IN (0, 1))"
+            },
+            "default_dart": "const CustomExpression('0')",
+            "default_client_dart": null,
+            "dsl_features": []
+          }
+        ],
+        "is_virtual": false,
+        "without_rowid": false,
+        "constraints": [],
+        "explicit_pk": [
+          "id"
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "references": [
+        0,
+        3
+      ],
+      "type": "table",
+      "data": {
+        "name": "score_tags",
+        "was_declared_in_moor": false,
+        "columns": [
+          {
+            "name": "score",
+            "getter_name": "score",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "REFERENCES scores (id) ON UPDATE CASCADE ON DELETE CASCADE",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "REFERENCES scores (id) ON UPDATE CASCADE ON DELETE CASCADE"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": [
+              {
+                "foreign_key": {
+                  "to": {
+                    "table": "scores",
+                    "column": "id"
+                  },
+                  "initially_deferred": false,
+                  "on_update": "cascade",
+                  "on_delete": "cascade"
+                }
+              }
+            ]
+          },
+          {
+            "name": "tag",
+            "getter_name": "tag",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "REFERENCES tags (id) ON UPDATE CASCADE ON DELETE CASCADE",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "REFERENCES tags (id) ON UPDATE CASCADE ON DELETE CASCADE"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": [
+              {
+                "foreign_key": {
+                  "to": {
+                    "table": "tags",
+                    "column": "id"
+                  },
+                  "initially_deferred": false,
+                  "on_update": "cascade",
+                  "on_delete": "cascade"
+                }
+              }
+            ]
+          }
+        ],
+        "is_virtual": false,
+        "without_rowid": false,
+        "constraints": [],
+        "explicit_pk": [
+          "score",
+          "tag"
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "references": [],
+      "type": "table",
+      "data": {
+        "name": "key_value",
+        "was_declared_in_moor": false,
+        "columns": [
+          {
+            "name": "key",
+            "getter_name": "key",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "value",
+            "getter_name": "value",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          }
+        ],
+        "is_virtual": false,
+        "without_rowid": false,
+        "constraints": [],
+        "explicit_pk": [
+          "key"
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "references": [],
+      "type": "table",
+      "data": {
+        "name": "deleted_tags",
+        "was_declared_in_moor": false,
+        "columns": [
+          {
+            "name": "tag_id",
+            "getter_name": "tagId",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "deleted_at",
+            "getter_name": "deletedAt",
+            "moor_type": "dateTime",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": "() => DateTime.now().toUtc()",
+            "dsl_features": []
+          }
+        ],
+        "is_virtual": false,
+        "without_rowid": false,
+        "constraints": [],
+        "explicit_pk": [
+          "tag_id"
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "references": [],
+      "type": "table",
+      "data": {
+        "name": "deleted_scores",
+        "was_declared_in_moor": false,
+        "columns": [
+          {
+            "name": "score_id",
+            "getter_name": "scoreId",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "deleted_at",
+            "getter_name": "deletedAt",
+            "moor_type": "dateTime",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": "() => DateTime.now().toUtc()",
+            "dsl_features": []
+          }
+        ],
+        "is_virtual": false,
+        "without_rowid": false,
+        "constraints": [],
+        "explicit_pk": [
+          "score_id"
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "references": [],
+      "type": "table",
+      "data": {
+        "name": "log_message",
+        "was_declared_in_moor": false,
+        "columns": [
+          {
+            "name": "id",
+            "getter_name": "id",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "PRIMARY KEY AUTOINCREMENT",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "PRIMARY KEY AUTOINCREMENT"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": [
+              "auto-increment"
+            ]
+          },
+          {
+            "name": "session_start_time",
+            "getter_name": "sessionStartTime",
+            "moor_type": "dateTime",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "time",
+            "getter_name": "time",
+            "moor_type": "dateTime",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "level",
+            "getter_name": "level",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": [],
+            "type_converter": {
+              "dart_expr": "const LogLevelConverter()",
+              "dart_type_name": "Level"
+            }
+          },
+          {
+            "name": "tag",
+            "getter_name": "tag",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "message",
+            "getter_name": "message",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "stack_trace",
+            "getter_name": "stackTrace",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "exception",
+            "getter_name": "exception",
+            "moor_type": "string",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          }
+        ],
+        "is_virtual": false,
+        "without_rowid": false,
+        "constraints": []
+      }
+    },
+    {
+      "id": 9,
+      "references": [
+        0
+      ],
+      "type": "index",
+      "data": {
+        "on": 0,
+        "name": "search_text_index",
+        "sql": null,
+        "unique": false,
+        "columns": [
+          {
+            "column": "search_text",
+            "order_by": null
+          }
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "references": [
+        0
+      ],
+      "type": "index",
+      "data": {
+        "on": 0,
+        "name": "recent_time_index",
+        "sql": null,
+        "unique": false,
+        "columns": [
+          {
+            "column": "recent_time",
+            "order_by": null
+          }
+        ]
+      }
+    }
+  ],
+  "fixed_sql": [
+    {
+      "name": "scores",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"scores\" (\"id\" TEXT NOT NULL, \"title\" TEXT NOT NULL, \"composer\" TEXT NULL, \"notes\" TEXT NULL, \"search_text\" TEXT NOT NULL, \"recent_time\" TEXT NOT NULL GENERATED ALWAYS AS (MAX(last_opened, metadata_updated_at, file_updated_at)) VIRTUAL, \"last_opened\" TEXT NOT NULL, \"metadata_updated_at\" TEXT NOT NULL, \"file_updated_at\" TEXT NOT NULL, \"metadata_uploaded\" INTEGER NOT NULL DEFAULT 0 CHECK (\"metadata_uploaded\" IN (0, 1)), \"file_uploaded\" INTEGER NOT NULL DEFAULT 0 CHECK (\"file_uploaded\" IN (0, 1)), \"file_downloaded\" INTEGER NOT NULL CHECK (\"file_downloaded\" IN (0, 1)), \"file_type\" TEXT NOT NULL, \"annotations\" TEXT NULL, PRIMARY KEY (\"id\"));"
+        }
+      ]
+    },
+    {
+      "name": "genres",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"genres\" (\"score\" TEXT NOT NULL REFERENCES scores (id) ON UPDATE CASCADE ON DELETE CASCADE, \"genre\" TEXT NOT NULL, PRIMARY KEY (\"score\", \"genre\"));"
+        }
+      ]
+    },
+    {
+      "name": "instruments",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"instruments\" (\"score\" TEXT NOT NULL REFERENCES scores (id) ON UPDATE CASCADE ON DELETE CASCADE, \"instrument\" TEXT NOT NULL, PRIMARY KEY (\"score\", \"instrument\"));"
+        }
+      ]
+    },
+    {
+      "name": "tags",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"tags\" (\"id\" TEXT NOT NULL, \"name\" TEXT NOT NULL, \"color\" INTEGER NOT NULL, \"updated_at\" TEXT NOT NULL, \"uploaded\" INTEGER NOT NULL DEFAULT 0 CHECK (\"uploaded\" IN (0, 1)), PRIMARY KEY (\"id\"));"
+        }
+      ]
+    },
+    {
+      "name": "score_tags",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"score_tags\" (\"score\" TEXT NOT NULL REFERENCES scores (id) ON UPDATE CASCADE ON DELETE CASCADE, \"tag\" TEXT NOT NULL REFERENCES tags (id) ON UPDATE CASCADE ON DELETE CASCADE, PRIMARY KEY (\"score\", \"tag\"));"
+        }
+      ]
+    },
+    {
+      "name": "key_value",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"key_value\" (\"key\" TEXT NOT NULL, \"value\" TEXT NOT NULL, PRIMARY KEY (\"key\"));"
+        }
+      ]
+    },
+    {
+      "name": "deleted_tags",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"deleted_tags\" (\"tag_id\" TEXT NOT NULL, \"deleted_at\" TEXT NOT NULL, PRIMARY KEY (\"tag_id\"));"
+        }
+      ]
+    },
+    {
+      "name": "deleted_scores",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"deleted_scores\" (\"score_id\" TEXT NOT NULL, \"deleted_at\" TEXT NOT NULL, PRIMARY KEY (\"score_id\"));"
+        }
+      ]
+    },
+    {
+      "name": "log_message",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"log_message\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"session_start_time\" TEXT NOT NULL, \"time\" TEXT NOT NULL, \"level\" TEXT NOT NULL, \"tag\" TEXT NOT NULL, \"message\" TEXT NOT NULL, \"stack_trace\" TEXT NOT NULL, \"exception\" TEXT NULL);"
+        }
+      ]
+    },
+    {
+      "name": "search_text_index",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE INDEX search_text_index ON scores (search_text)"
+        }
+      ]
+    },
+    {
+      "name": "recent_time_index",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE INDEX recent_time_index ON scores (recent_time)"
+        }
+      ]
+    }
+  ]
+}

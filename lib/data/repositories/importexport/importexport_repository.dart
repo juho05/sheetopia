@@ -153,6 +153,9 @@ class ImportExportRepository extends ChangeNotifier {
                 genres: s.genres,
                 instruments: s.instruments,
                 notes: s.notes,
+                annotations: s.annotations == null
+                    ? {}
+                    : jsonDecode(s.annotations!) as Map<String, dynamic>,
               ),
               metadataUpdatedAt: s.metadataUpdatedAt,
               tagIds: s.tags.map((t) => t.id).toList(),
@@ -303,6 +306,7 @@ class ImportExportRepository extends ChangeNotifier {
               title: s.title,
               composer: _optionalStringValue(s.metadata.composer),
               notes: _optionalStringValue(s.metadata.notes),
+              annotations: _annotationsColumnValue(s.metadata.annotations),
               metadataUploaded: const Value(true),
               metadataUpdatedAt: Value(s.metadataUpdatedAt.toUtc()),
               lastOpened: Value(
@@ -335,6 +339,9 @@ class ImportExportRepository extends ChangeNotifier {
                   : const Value.absent(),
               notes: metadataChanged
                   ? _optionalStringValue(s.metadata.notes)
+                  : const Value.absent(),
+              annotations: metadataChanged
+                  ? _annotationsColumnValue(s.metadata.annotations)
                   : const Value.absent(),
               searchText: metadataChanged
                   ? Value(
@@ -468,5 +475,11 @@ class ImportExportRepository extends ChangeNotifier {
     if (str == null) return const Value.absent();
     if (str == "") return const Value(null);
     return Value(str);
+  }
+
+  Value<String?> _annotationsColumnValue(Map<String, dynamic>? a) {
+    if (a == null) return const Value.absent();
+    if (a.isEmpty) return const Value(null);
+    return Value(jsonEncode(a));
   }
 }

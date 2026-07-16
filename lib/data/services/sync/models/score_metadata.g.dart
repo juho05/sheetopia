@@ -19,6 +19,10 @@ ScoreMetadataModel _$ScoreMetadataModelFromJson(Map<String, dynamic> json) =>
           'genres',
           (v) => (v as List<dynamic>?)?.map((e) => e as String).toList(),
         ),
+        annotations: $checkedConvert(
+          'annotations',
+          (v) => v as Map<String, dynamic>?,
+        ),
       );
       return val;
     });
@@ -29,4 +33,5 @@ Map<String, dynamic> _$ScoreMetadataModelToJson(ScoreMetadataModel instance) =>
       'notes': instance.notes,
       'instruments': instance.instruments,
       'genres': instance.genres,
+      'annotations': instance.annotations,
     };
