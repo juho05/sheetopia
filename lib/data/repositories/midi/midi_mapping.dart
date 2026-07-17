@@ -21,6 +21,20 @@ class MidiMappings {
   MidiMappings withPrevPage(MidiMapping? prevPage) {
     return MidiMappings(nextPage: nextPage, prevPage: prevPage);
   }
+
+  Map<String, dynamic> toJson() => {
+    "nextPage": nextPage?.toJson(),
+    "prevPage": prevPage?.toJson(),
+  };
+
+  factory MidiMappings.fromJson(Map<String, dynamic> json) => MidiMappings(
+    nextPage: json["nextPage"] == null
+        ? null
+        : MidiMapping.fromJson((json["nextPage"] as Map).cast<String, dynamic>()),
+    prevPage: json["prevPage"] == null
+        ? null
+        : MidiMapping.fromJson((json["prevPage"] as Map).cast<String, dynamic>()),
+  );
 }
 
 class MidiMapping {
@@ -29,6 +43,18 @@ class MidiMapping {
   final int? minValue;
 
   MidiMapping({required this.command, this.param, this.minValue});
+
+  Map<String, dynamic> toJson() => {
+    "command": command,
+    "param": param,
+    "minValue": minValue,
+  };
+
+  factory MidiMapping.fromJson(Map<String, dynamic> json) => MidiMapping(
+    command: json["command"] as int,
+    param: json["param"] as int?,
+    minValue: json["minValue"] as int?,
+  );
 
   bool matches(Uint8List data) {
     if (data.firstOrNull != command ||

@@ -10,17 +10,28 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/midi/midi_mapping.dart';
+import 'package:sheetopia/data/repositories/midi/remembered_device.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 
 enum MidiAction { nextPage, prevPage }
 
 typedef MidiActionListener = void Function(MidiAction action);
 
-class MidiRepository {
-  final _midi = MidiCommand();
+class MidiRepository with WidgetsBindingObserver {
+  static const _rememberedDevicesKey = "midi.remembered_devices";
+  static const _connectTimeout = Duration(seconds: 15);
+  static const _reconnectScanTimeout = Duration(seconds: 20);
+  static const _reconnectStartupScanTimeout = Duration(minutes: 1);
+  static const _reconnectBackoff = Duration(seconds: 5);
+  static const _devicePollInterval = Duration(seconds: 5);
+
+  final MidiCommand _midi = MidiCommand();
+  final KeyValueRepository _keyValue;
 
   final int _minContinuousValue = 40;
 
@@ -30,23 +41,41 @@ class MidiRepository {
 
   ValueStream<List<MidiDevice>> get devices => _devices.stream;
 
-  // device id -> mappings
-  final Map<String, MidiMappings> _midiMappings = {};
+  final BehaviorSubject<Set<MidiDeviceKey>> _rememberedKeys =
+      BehaviorSubject.seeded(const {});
+
+  ValueStream<Set<MidiDeviceKey>> get rememberedKeys => _rememberedKeys.stream;
+
+  final Map<MidiDeviceKey, MidiMappings> _midiMappings = {};
 
   final Set<MidiActionListener> _actionListeners = {};
 
-  final Map<String, Completer<void>> _registerNextPageDeviceIds = {};
-  final Map<String, Completer<void>> _registerPrevPageDeviceIds = {};
+  final Map<MidiDeviceKey, Completer<void>> _registerNextPageKeys = {};
+  final Map<MidiDeviceKey, Completer<void>> _registerPrevPageKeys = {};
 
-  MidiRepository() {
+  final Map<MidiDeviceKey, Set<int>> _pressedContinuousControllers = {};
+
+  MidiRepository({required KeyValueRepository keyValue})
+    : _keyValue = keyValue {
     // TODO init only when midi is enabled in settings
+    WidgetsBinding.instance.addObserver(this);
     _init();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _scanToReconnect(timeout: _reconnectStartupScanTimeout);
+    }
+  }
+
   Future<void> _init() async {
+    await _loadRememberedDevices();
     _devices.add(await _midi.devices ?? []);
     _midi.onMidiDataReceived?.listen(_onData);
     _midi.onMidiDeviceDisconnected?.listen(_onDeviceDisconnected);
+    _midi.onMidiSetupChanged?.listen(_onSetupChanged);
+    _midi.onBluetoothStateChanged.listen(_onBluetoothStateChanged);
     await _midi
         .startBluetoothCentral()
         .catchError((e, st) {
@@ -60,30 +89,69 @@ class MidiRepository {
             },
           );
         });
+    await _scanToReconnect(timeout: _reconnectStartupScanTimeout);
   }
 
-  // device id -> controller ids
-  final Map<String, Set<int>> _pressedContinuousControllers = {};
+  Future<void> _loadRememberedDevices() async {
+    final remembered = (await _keyValue.loadObjectList(
+      _rememberedDevicesKey,
+      RememberedDevice.fromJson,
+    ))?.toList();
+    if (remembered == null) return;
+    for (final device in remembered) {
+      _midiMappings[device.key] = device.mappings;
+    }
+    _rememberedKeys.add(remembered.map((d) => d.key).toSet());
+  }
+
+  Future<void> _persistRememberedDevices() async {
+    final devices = _rememberedKeys.value
+        .map(
+          (key) => RememberedDevice(
+            name: key.name,
+            type: key.type,
+            mappings: _midiMappings[key] ?? MidiMappings(),
+          ).toJson(),
+        )
+        .toList();
+    await _keyValue.store(_rememberedDevicesKey, devices);
+  }
+
+  Future<void> _rememberAndPersist(MidiDeviceKey key) async {
+    if (!_rememberedKeys.value.contains(key)) {
+      _rememberedKeys.add({..._rememberedKeys.value, key});
+    }
+    await _persistRememberedDevices();
+  }
+
+  Future<void> forgetDevice(MidiDeviceKey key) async {
+    if (!_rememberedKeys.value.contains(key)) return;
+    _rememberedKeys.add({..._rememberedKeys.value}..remove(key));
+    _midiMappings.remove(key);
+    await _persistRememberedDevices();
+  }
 
   Future<void> _onData(MidiPacket? packet) async {
     if (packet == null) return;
 
+    final key = MidiDeviceKey.fromDevice(packet.device);
+
     final mapping = _createMappingsFromData(packet.data);
     if (mapping != null) {
-      if (_registerNextPageDeviceIds.containsKey(packet.device.id)) {
-        _midiMappings[packet.device.id] ??= MidiMappings();
-        _midiMappings[packet.device.id] = _midiMappings[packet.device.id]!
+      if (_registerNextPageKeys.containsKey(key)) {
+        _midiMappings[key] = (_midiMappings[key] ?? MidiMappings())
             .withNextPage(mapping);
-        _registerNextPageDeviceIds[packet.device.id]!.complete();
-        _registerNextPageDeviceIds.remove(packet.device.id);
+        await _rememberAndPersist(key);
+        _registerNextPageKeys[key]!.complete();
+        _registerNextPageKeys.remove(key);
         return;
       }
-      if (_registerPrevPageDeviceIds.containsKey(packet.device.id)) {
-        _midiMappings[packet.device.id] ??= MidiMappings();
-        _midiMappings[packet.device.id] = _midiMappings[packet.device.id]!
+      if (_registerPrevPageKeys.containsKey(key)) {
+        _midiMappings[key] = (_midiMappings[key] ?? MidiMappings())
             .withPrevPage(mapping);
-        _registerPrevPageDeviceIds[packet.device.id]!.complete();
-        _registerPrevPageDeviceIds.remove(packet.device.id);
+        await _rememberAndPersist(key);
+        _registerPrevPageKeys[key]!.complete();
+        _registerPrevPageKeys.remove(key);
         return;
       }
     }
@@ -92,20 +160,18 @@ class MidiRepository {
         packet.data.first < 0xC0 &&
         packet.data.length >= 3) {
       if (packet.data[2] == 0) {
-        _pressedContinuousControllers[packet.device.id]?.remove(packet.data[1]);
-      } else if (_pressedContinuousControllers[packet.device.id]?.contains(
-            packet.data[1],
-          ) ??
+        _pressedContinuousControllers[key]?.remove(packet.data[1]);
+      } else if (_pressedContinuousControllers[key]?.contains(packet.data[1]) ??
           false) {
         return;
       }
       if (packet.data[2] >= _minContinuousValue) {
-        _pressedContinuousControllers[packet.device.id] ??= {};
-        _pressedContinuousControllers[packet.device.id]!.add(packet.data[1]);
+        _pressedContinuousControllers[key] ??= {};
+        _pressedContinuousControllers[key]!.add(packet.data[1]);
       }
     }
 
-    final mappings = _midiMappings[packet.device.id];
+    final mappings = _midiMappings[key];
     if (mappings == null) return;
 
     if (mappings.nextPage?.matches(packet.data) ?? false) {
@@ -137,49 +203,55 @@ class MidiRepository {
   }
 
   void removeNextPageMapping(MidiDevice device) async {
-    final mappings = _midiMappings[device.id];
+    final key = MidiDeviceKey.fromDevice(device);
+    final mappings = _midiMappings[key];
     if (mappings == null) return;
-    _midiMappings[device.id] = mappings.withNextPage(null);
+    _midiMappings[key] = mappings.withNextPage(null);
+    await _persistRememberedDevices();
   }
 
   void removePrevPageMapping(MidiDevice device) async {
-    final mappings = _midiMappings[device.id];
+    final key = MidiDeviceKey.fromDevice(device);
+    final mappings = _midiMappings[key];
     if (mappings == null) return;
-    _midiMappings[device.id] = mappings.withPrevPage(null);
+    _midiMappings[key] = mappings.withPrevPage(null);
+    await _persistRememberedDevices();
   }
 
   MidiMappings getMidiMappings(MidiDevice device) {
-    return _midiMappings[device.id] ?? MidiMappings();
+    return _midiMappings[MidiDeviceKey.fromDevice(device)] ?? MidiMappings();
   }
 
   Future<void> registerNextPage(MidiDevice device) async {
     final completer = Completer<void>();
-    _registerNextPageDeviceIds[device.id] = completer;
+    _registerNextPageKeys[MidiDeviceKey.fromDevice(device)] = completer;
     return completer.future;
   }
 
   void cancelRegisterNextPage(MidiDevice device) async {
-    final completer = _registerNextPageDeviceIds[device.id];
+    final key = MidiDeviceKey.fromDevice(device);
+    final completer = _registerNextPageKeys[key];
     if (completer == null) return;
     if (!completer.isCompleted) {
       completer.complete();
     }
-    _registerNextPageDeviceIds.remove(device.id);
+    _registerNextPageKeys.remove(key);
   }
 
   Future<void> registerPrevPage(MidiDevice device) async {
     final completer = Completer<void>();
-    _registerPrevPageDeviceIds[device.id] = completer;
+    _registerPrevPageKeys[MidiDeviceKey.fromDevice(device)] = completer;
     return completer.future;
   }
 
   void cancelRegisterPrevPage(MidiDevice device) async {
-    final completer = _registerPrevPageDeviceIds[device.id];
+    final key = MidiDeviceKey.fromDevice(device);
+    final completer = _registerPrevPageKeys[key];
     if (completer == null) return;
     if (!completer.isCompleted) {
       completer.complete();
     }
-    _registerPrevPageDeviceIds.remove(device.id);
+    _registerPrevPageKeys.remove(key);
   }
 
   void addActionListener(MidiActionListener listener) {
@@ -190,60 +262,213 @@ class MidiRepository {
     _actionListeners.remove(listener);
   }
 
-  bool _scanning = false;
+  int _scanRefCount = 0;
+  bool _bleScanActive = false;
+  bool _pollScheduled = false;
+
+  final Set<MidiDeviceKey> _reconnecting = {};
+  final Map<MidiDeviceKey, DateTime> _reconnectBackoffUntil = {};
+
+  bool _reconnectScanActive = false;
+  Timer? _reconnectScanTimer;
 
   Future<void> startScanning() async {
-    if (_scanning) return;
-    _scanning = true;
+    _scanRefCount++;
+    if (_scanRefCount > 1) return;
+    await _startBleScan();
+    _startPollLoop();
+  }
 
+  void stopScanning() {
+    if (_scanRefCount == 0) return;
+    _scanRefCount--;
+    if (_scanRefCount > 0) return;
+    _bleScanActive = false;
+    _midi.stopScanningForBluetoothDevices();
+  }
+
+  Future<void> _startBleScan() async {
     if (_midi.bluetoothState == BluetoothState.poweredOn) {
+      _bleScanActive = true;
       await _midi.startScanningForBluetoothDevices();
     } else {
       print("bluetooth not powered on: ${_midi.bluetoothState.name}");
     }
-
-    await _checkForNewDevices();
   }
 
-  void stopScanning() async {
-    if (!_scanning) return;
-    _scanning = false;
-    _midi.stopScanningForBluetoothDevices();
+  // Event-driven refresh comes from onMidiSetupChanged; this slow poll is only a
+  // fallback for platforms/paths that miss a setup event.
+  void _startPollLoop() {
+    if (_pollScheduled) return;
+    _pollScheduled = true;
+    _pollDevices();
+  }
+
+  Future<void> _pollDevices() async {
+    if (_scanRefCount == 0) {
+      _pollScheduled = false;
+      return;
+    }
+    await _refreshDevices();
+    Future.delayed(_devicePollInterval, _pollDevices);
+  }
+
+  Future<void> _refreshDevices() async {
+    final devices = await _midi.devices ?? [];
+    if (!const ListEquality().equals(_devices.value, devices)) {
+      _devices.add(devices);
+      _maybeAutoReconnect();
+    }
+  }
+
+  Future<void> _onSetupChanged(String event) async {
+    _devices.add(await _midi.devices ?? []);
+    _maybeAutoReconnect();
+  }
+
+  Future<void> _onBluetoothStateChanged(BluetoothState state) async {
+    switch (state) {
+      case BluetoothState.poweredOn:
+        if (_scanRefCount > 0 && !_bleScanActive) {
+          await _startBleScan();
+        }
+        await _scanToReconnect();
+      case BluetoothState.poweredOff:
+        _bleScanActive = false;
+        _stopReconnectScan();
+        _devices.add(await _midi.devices ?? []);
+        Toast.show("Bluetooth is off");
+      case BluetoothState.unauthorized:
+        _bleScanActive = false;
+        _stopReconnectScan();
+        _devices.add(await _midi.devices ?? []);
+        Toast.show("Bluetooth permission denied");
+      case BluetoothState.resetting:
+        _bleScanActive = false;
+        _stopReconnectScan();
+      default:
+        break;
+    }
+  }
+
+  void _maybeAutoReconnect() {
+    if (_hasReconnectableDisconnected()) {
+      _reconnectMatching(_devices.value);
+    } else {
+      _stopReconnectScan();
+    }
+  }
+
+  bool _hasReconnectableDisconnected() {
+    final remembered = _rememberedKeys.value;
+    if (remembered.isEmpty) return false;
+    final connected = _devices.value
+        .where((d) => d.connected)
+        .map(MidiDeviceKey.fromDevice)
+        .toSet();
+    return remembered.any((k) => !connected.contains(k));
+  }
+
+  // Bounded scan that connects remembered devices as they appear, then stops
+  // once all are connected or the timeout elapses.
+  Future<void> _scanToReconnect({
+    Duration timeout = _reconnectScanTimeout,
+  }) async {
+    if (_midi.bluetoothState != BluetoothState.poweredOn) return;
+    if (!_hasReconnectableDisconnected()) return;
+    if (_reconnectScanActive) {
+      _reconnectScanTimer?.cancel();
+      _reconnectScanTimer = Timer(timeout, _stopReconnectScan);
+      await _reconnectMatching(_devices.value);
+      return;
+    }
+    _reconnectScanActive = true;
+    await startScanning();
+    _reconnectScanTimer = Timer(timeout, _stopReconnectScan);
+    await _reconnectMatching(_devices.value);
+  }
+
+  void _stopReconnectScan() {
+    if (!_reconnectScanActive) return;
+    _reconnectScanActive = false;
+    _reconnectScanTimer?.cancel();
+    _reconnectScanTimer = null;
+    stopScanning();
+  }
+
+  Future<void> _reconnectMatching(List<MidiDevice> devices) async {
+    if (_midi.bluetoothState != BluetoothState.poweredOn) return;
+    final remembered = _rememberedKeys.value;
+    if (remembered.isEmpty) return;
+    for (final device in devices) {
+      final key = MidiDeviceKey.fromDevice(device);
+      if (!remembered.contains(key)) continue;
+      if (device.connected) continue;
+      if (_reconnecting.contains(key)) continue;
+      final until = _reconnectBackoffUntil[key];
+      if (until != null && DateTime.now().isBefore(until)) continue;
+      _reconnecting.add(key);
+      unawaited(_autoConnect(device, key));
+    }
+  }
+
+  Future<void> _autoConnect(MidiDevice device, MidiDeviceKey key) async {
+    try {
+      await _midi.connectToDevice(device).timeout(_connectTimeout);
+      _reconnectBackoffUntil.remove(key);
+      _devices.add(await _midi.devices ?? []);
+      Toast.show("Reconnected to ${device.name}");
+    } catch (_) {
+      _midi.disconnectDevice(device);
+      _reconnectBackoffUntil[key] = DateTime.now().add(_reconnectBackoff);
+    } finally {
+      _reconnecting.remove(key);
+      if (!_hasReconnectableDisconnected()) _stopReconnectScan();
+    }
   }
 
   Future<void> _onDeviceDisconnected(MidiDevice device) async {
+    final key = MidiDeviceKey.fromDevice(device);
     _unregisterDevice(device);
     _devices.add(await _midi.devices ?? []);
-    Toast.show("${device.name} disconnected!");
+    Toast.show("${device.name} disconnected");
+    if (_rememberedKeys.value.contains(key)) {
+      await _scanToReconnect();
+    }
   }
 
   Future<void> connectDevice(MidiDevice device) async {
-    await _midi.connectToDevice(device);
-    _devices.add(await _midi.devices ?? []);
+    final key = MidiDeviceKey.fromDevice(device);
+    try {
+      await _midi.connectToDevice(device).timeout(_connectTimeout);
+      await _rememberAndPersist(key);
+    } catch (_) {
+      _midi.disconnectDevice(device);
+      Toast.show("Could not connect to ${device.name}");
+    } finally {
+      _devices.add(await _midi.devices ?? []);
+    }
   }
 
   Future<void> disconnectDevice(MidiDevice device) async {
+    final key = MidiDeviceKey.fromDevice(device);
     _unregisterDevice(device);
+    await forgetDevice(key);
     _midi.disconnectDevice(device);
     _devices.add(await _midi.devices ?? []);
   }
 
+  // Only clears transient runtime state; mappings survive for reconnect.
   void _unregisterDevice(MidiDevice device) {
-    _pressedContinuousControllers.remove(device.id);
-    _midiMappings.remove(device.id);
+    final key = MidiDeviceKey.fromDevice(device);
+    _pressedContinuousControllers.remove(key);
     cancelRegisterNextPage(device);
     cancelRegisterPrevPage(device);
   }
 
-  Future<void> _checkForNewDevices() async {
-    if (!_scanning) return;
-
-    final devices = await _midi.devices ?? [];
-    if (!const ListEquality().equals(_devices.value, devices)) {
-      _devices.add(devices);
-    }
-    Future.delayed(const Duration(seconds: 2)).then((value) {
-      _checkForNewDevices();
-    });
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _devices.close();
+    _rememberedKeys.close();
   }
 }

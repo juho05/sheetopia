@@ -82,7 +82,10 @@ Future<List<SingleChildWidget>> createProviders({
     ChangeNotifierProvider(
       create: (context) => ImportExportRepository(scoresRepo: context.read(), db: context.read()),
     ),
-    Provider(create: (context) => MidiRepository(), lazy: false),
+    Provider(
+      create: (context) => MidiRepository(keyValue: context.read()),
+      lazy: false,
+    ),
     if (AppImageRepository.isAppImage)
       Provider(
         create: (context) => AppImageRepository(keyValue: context.read()),

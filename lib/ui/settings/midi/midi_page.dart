@@ -42,12 +42,7 @@ class MidiPage extends StatelessWidget {
                       children: connectedDevices
                           .map(
                             (device) => ListTile(
-                              leading: Icon(switch (device.type) {
-                                "native" => Icons.devices,
-                                "network" => Icons.wifi,
-                                "BLE" || "bonded" => Icons.bluetooth,
-                                _ => Icons.device_unknown,
-                              }),
+                              leading: Icon(_deviceIcon(device.type)),
                               title: Text(device.name),
                               trailing: const Icon(Icons.arrow_forward_ios),
                               onTap: () {
@@ -81,12 +76,7 @@ class MidiPage extends StatelessWidget {
                       children: disconnectedDevices
                           .map(
                             (device) => ListTile(
-                              leading: Icon(switch (device.type) {
-                                "native" => Icons.devices,
-                                "network" => Icons.wifi,
-                                "BLE" || "bonded" => Icons.bluetooth,
-                                _ => Icons.device_unknown,
-                              }),
+                              leading: Icon(_deviceIcon(device.type)),
                               title: Text(device.name),
                               trailing: FilledButton(
                                 onPressed:
@@ -105,6 +95,26 @@ class MidiPage extends StatelessWidget {
                           )
                           .toList(),
                     ),
+                    if (viewModel.rememberedAbsent.isNotEmpty)
+                      const SliverHeading(
+                        text: "Remembered",
+                        padding: EdgeInsets.all(8),
+                      ),
+                    SliverList.list(
+                      children: viewModel.rememberedAbsent
+                          .map(
+                            (key) => ListTile(
+                              leading: Icon(_deviceIcon(key.type)),
+                              title: Text(key.name),
+                              subtitle: const Text("Reconnects automatically"),
+                              trailing: TextButton(
+                                onPressed: () => viewModel.forget(key),
+                                child: const Text("Forget"),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
                   ],
                 );
               },
@@ -115,3 +125,10 @@ class MidiPage extends StatelessWidget {
     );
   }
 }
+
+IconData _deviceIcon(String type) => switch (type) {
+  "native" => Icons.devices,
+  "network" => Icons.wifi,
+  "BLE" || "bonded" || "bluetooth" => Icons.bluetooth,
+  _ => Icons.device_unknown,
+};
