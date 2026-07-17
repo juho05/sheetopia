@@ -9,6 +9,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/midi/remembered_device.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/settings/midi/midi_viewmodel.dart';
 
@@ -28,8 +29,11 @@ class MidiPage extends StatelessWidget {
                 final connectedDevices = viewModel.devices.where(
                   (device) => device.connected,
                 );
+                final remembered = viewModel.rememberedDisconnected.toSet();
                 final disconnectedDevices = viewModel.devices.where(
-                  (device) => !device.connected,
+                  (device) =>
+                      !device.connected &&
+                      !remembered.contains(MidiDeviceKey.fromDevice(device)),
                 );
                 return CustomScrollView(
                   slivers: [
@@ -95,13 +99,13 @@ class MidiPage extends StatelessWidget {
                           )
                           .toList(),
                     ),
-                    if (viewModel.rememberedAbsent.isNotEmpty)
+                    if (viewModel.rememberedDisconnected.isNotEmpty)
                       const SliverHeading(
                         text: "Remembered",
                         padding: EdgeInsets.all(8),
                       ),
                     SliverList.list(
-                      children: viewModel.rememberedAbsent
+                      children: viewModel.rememberedDisconnected
                           .map(
                             (key) => ListTile(
                               leading: Icon(_deviceIcon(key.type)),

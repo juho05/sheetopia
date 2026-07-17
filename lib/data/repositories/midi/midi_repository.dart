@@ -9,7 +9,6 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:rxdart/rxdart.dart';
@@ -24,7 +23,7 @@ typedef MidiActionListener = void Function(MidiAction action);
 
 class MidiRepository with WidgetsBindingObserver {
   static const _rememberedDevicesKey = "midi.remembered_devices";
-  static const _connectTimeout = Duration(seconds: 15);
+  static const _connectTimeout = Duration(seconds: 20);
   static const _reconnectScanTimeout = Duration(seconds: 20);
   static const _reconnectStartupScanTimeout = Duration(minutes: 1);
   static const _reconnectBackoff = Duration(seconds: 5);
@@ -65,6 +64,9 @@ class MidiRepository with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      if (_scanRefCount > 0) {
+        unawaited(_startBleScan());
+      }
       _scanToReconnect(timeout: _reconnectStartupScanTimeout);
     }
   }
@@ -266,7 +268,7 @@ class MidiRepository with WidgetsBindingObserver {
   bool _bleScanActive = false;
   bool _pollScheduled = false;
 
-  final Set<MidiDeviceKey> _reconnecting = {};
+  final Map<MidiDeviceKey, Future<void>> _connectsInFlight = {};
   final Map<MidiDeviceKey, DateTime> _reconnectBackoffUntil = {};
 
   bool _reconnectScanActive = false;
@@ -288,11 +290,31 @@ class MidiRepository with WidgetsBindingObserver {
   }
 
   Future<void> _startBleScan() async {
-    if (_midi.bluetoothState == BluetoothState.poweredOn) {
-      _bleScanActive = true;
-      await _midi.startScanningForBluetoothDevices();
-    } else {
+    if (_midi.bluetoothState != BluetoothState.poweredOn) {
       print("bluetooth not powered on: ${_midi.bluetoothState.name}");
+      return;
+    }
+    try {
+      await _midi.startScanningForBluetoothDevices();
+      _bleScanActive = true;
+    } catch (e) {
+      print("failed to start BLE scan: $e");
+    }
+  }
+
+  Future<void> _connect(MidiDevice device) {
+    final key = MidiDeviceKey.fromDevice(device);
+    return _connectsInFlight[key] ??= _doConnect(device, key);
+  }
+
+  Future<void> _doConnect(MidiDevice device, MidiDeviceKey key) async {
+    try {
+      await _midi.connectToDevice(device).timeout(_connectTimeout);
+    } catch (_) {
+      _midi.disconnectDevice(device);
+      rethrow;
+    } finally {
+      _connectsInFlight.remove(key);
     }
   }
 
@@ -315,10 +337,23 @@ class MidiRepository with WidgetsBindingObserver {
 
   Future<void> _refreshDevices() async {
     final devices = await _midi.devices ?? [];
-    if (!const ListEquality().equals(_devices.value, devices)) {
+    if (!_sameDevices(_devices.value, devices)) {
       _devices.add(devices);
       _maybeAutoReconnect();
     }
+  }
+
+  bool _sameDevices(List<MidiDevice> a, List<MidiDevice> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].id != b[i].id ||
+          a[i].name != b[i].name ||
+          a[i].type != b[i].type ||
+          a[i].connected != b[i].connected) {
+        return false;
+      }
+    }
+    return true;
   }
 
   Future<void> _onSetupChanged(String event) async {
@@ -404,25 +439,22 @@ class MidiRepository with WidgetsBindingObserver {
       final key = MidiDeviceKey.fromDevice(device);
       if (!remembered.contains(key)) continue;
       if (device.connected) continue;
-      if (_reconnecting.contains(key)) continue;
+      if (_connectsInFlight.containsKey(key)) continue;
       final until = _reconnectBackoffUntil[key];
       if (until != null && DateTime.now().isBefore(until)) continue;
-      _reconnecting.add(key);
       unawaited(_autoConnect(device, key));
     }
   }
 
   Future<void> _autoConnect(MidiDevice device, MidiDeviceKey key) async {
     try {
-      await _midi.connectToDevice(device).timeout(_connectTimeout);
+      await _connect(device);
       _reconnectBackoffUntil.remove(key);
       _devices.add(await _midi.devices ?? []);
       Toast.show("Reconnected to ${device.name}");
     } catch (_) {
-      _midi.disconnectDevice(device);
       _reconnectBackoffUntil[key] = DateTime.now().add(_reconnectBackoff);
     } finally {
-      _reconnecting.remove(key);
       if (!_hasReconnectableDisconnected()) _stopReconnectScan();
     }
   }
@@ -430,7 +462,11 @@ class MidiRepository with WidgetsBindingObserver {
   Future<void> _onDeviceDisconnected(MidiDevice device) async {
     final key = MidiDeviceKey.fromDevice(device);
     _unregisterDevice(device);
-    _devices.add(await _midi.devices ?? []);
+    final devices = await _midi.devices ?? [];
+    for (final d in devices) {
+      if (device.id == d.id) d.connected = false;
+    }
+    _devices.add(devices);
     Toast.show("${device.name} disconnected");
     if (_rememberedKeys.value.contains(key)) {
       await _scanToReconnect();
@@ -440,10 +476,9 @@ class MidiRepository with WidgetsBindingObserver {
   Future<void> connectDevice(MidiDevice device) async {
     final key = MidiDeviceKey.fromDevice(device);
     try {
-      await _midi.connectToDevice(device).timeout(_connectTimeout);
+      await _connect(device);
       await _rememberAndPersist(key);
     } catch (_) {
-      _midi.disconnectDevice(device);
       Toast.show("Could not connect to ${device.name}");
     } finally {
       _devices.add(await _midi.devices ?? []);

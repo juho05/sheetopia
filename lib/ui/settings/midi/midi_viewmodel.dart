@@ -18,23 +18,30 @@ class MidiViewModel extends ChangeNotifier {
   final MidiRepository _repo;
 
   List<MidiDevice> _devices = [];
+
   UnmodifiableListView<MidiDevice> get devices =>
       UnmodifiableListView(_devices);
 
   Set<MidiDeviceKey> _remembered = {};
 
   final Set<String> _connectingIds = {};
+
   UnmodifiableSetView<String> get connectingIds =>
       UnmodifiableSetView(_connectingIds);
 
-  // Remembered devices that are not currently visible in the scan.
-  List<MidiDeviceKey> get rememberedAbsent {
-    final present = _devices.map(MidiDeviceKey.fromDevice).toSet();
-    return _remembered.where((k) => !present.contains(k)).toList();
+  // Remembered devices that are not currently connected. These
+  // auto-reconnect, so they belong in the "Remembered" section, not "Discovered".
+  List<MidiDeviceKey> get rememberedDisconnected {
+    final connected = _devices
+        .where((d) => d.connected)
+        .map(MidiDeviceKey.fromDevice)
+        .toSet();
+    return _remembered.where((k) => !connected.contains(k)).toList();
   }
 
   StreamSubscription? _devicesSub;
   StreamSubscription? _rememberedSub;
+
   MidiViewModel({required MidiRepository midiRepository})
     : _repo = midiRepository {
     _devicesSub = _repo.devices.listen((devices) {
