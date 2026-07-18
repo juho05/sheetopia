@@ -54,6 +54,7 @@ class _LibraryViewState extends State<LibraryView> {
 
   ScrollDirection? _lastDirection;
   Timer? _onScrollChangedDebounce;
+
   void _onScrollChanged(ScrollDirection direction) {
     if (direction == _lastDirection) return;
     _lastDirection = direction;
@@ -130,71 +131,100 @@ class _LibraryViewState extends State<LibraryView> {
                     padding: const EdgeInsets.only(
                       left: 12,
                       right: 12,
-                      bottom: 16,
+                      bottom: 8,
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: SearchInput(
-                            label: "Search",
-                            debounce: null,
-                            onSearch: (query) {
-                              _viewModel.filterSearch = query;
-                            },
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8),
-                          child: ListenableBuilder(
-                            listenable: _viewModel,
-                            builder: (context, _) {
-                              final filterActive =
-                                  _viewModel.filterComposer.isNotEmpty ||
-                                  _viewModel.filterInstruments.isNotEmpty ||
-                                  _viewModel.filterGenres.isNotEmpty ||
-                                  _viewModel.filterTags.isNotEmpty;
-                              final icon = filterActive
-                                  ? const Icon(Icons.filter_alt)
-                                  : const Icon(Icons.filter_alt_outlined);
-                              return Builder(
-                                builder: (context) {
-                                  if (constraints.crossAxisExtent < 500) {
-                                    return IconButton(
-                                      icon: icon,
-                                      onPressed: () {
-                                        FilterDialog.show(
-                                          context,
-                                          viewModel: _viewModel,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SearchInput(
+                                label: "Search",
+                                debounce: null,
+                                onSearch: (query) {
+                                  _viewModel.filterSearch = query;
+                                },
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: ListenableBuilder(
+                                listenable: _viewModel,
+                                builder: (context, _) {
+                                  final filterActive =
+                                      _viewModel.filterComposer.isNotEmpty ||
+                                      _viewModel.filterInstruments.isNotEmpty ||
+                                      _viewModel.filterGenres.isNotEmpty ||
+                                      _viewModel.filterTags.isNotEmpty;
+                                  final icon = filterActive
+                                      ? const Icon(Icons.filter_alt)
+                                      : const Icon(Icons.filter_alt_outlined);
+                                  return Builder(
+                                    builder: (context) {
+                                      if (constraints.crossAxisExtent < 500) {
+                                        return IconButton(
+                                          icon: icon,
+                                          onPressed: () {
+                                            FilterDialog.show(
+                                              context,
+                                              viewModel: _viewModel,
+                                            );
+                                          },
                                         );
-                                      },
-                                    );
-                                  }
-                                  if (filterActive) {
-                                    return FilledButton.icon(
-                                      icon: icon,
-                                      label: const Text("Filter"),
-                                      onPressed: () {
-                                        FilterDialog.show(
-                                          context,
-                                          viewModel: _viewModel,
+                                      }
+                                      if (filterActive) {
+                                        return FilledButton.icon(
+                                          icon: icon,
+                                          label: const Text("Filter"),
+                                          onPressed: () {
+                                            FilterDialog.show(
+                                              context,
+                                              viewModel: _viewModel,
+                                            );
+                                          },
                                         );
-                                      },
-                                    );
-                                  }
-                                  return OutlinedButton.icon(
-                                    icon: icon,
-                                    label: const Text("Filter"),
-                                    onPressed: () {
-                                      FilterDialog.show(
-                                        context,
-                                        viewModel: _viewModel,
+                                      }
+                                      return OutlinedButton.icon(
+                                        icon: icon,
+                                        label: const Text("Filter"),
+                                        onPressed: () {
+                                          FilterDialog.show(
+                                            context,
+                                            viewModel: _viewModel,
+                                          );
+                                        },
                                       );
                                     },
                                   );
                                 },
-                              );
-                            },
-                          ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        ListenableBuilder(
+                          listenable: _viewModel,
+                          builder: (context, _) {
+                            final count = _viewModel.resultCount;
+                            if (count == null) return const SizedBox.shrink();
+                            final total = _viewModel.totalCount;
+                            final label =
+                                _viewModel.isFiltered &&
+                                    total != null &&
+                                    total != count
+                                ? "$count of $total"
+                                : "$count ${count == 1 ? "score" : "scores"}";
+                            final theme = Theme.of(context);
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                label,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),

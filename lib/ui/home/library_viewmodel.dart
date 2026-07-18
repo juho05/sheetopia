@@ -28,6 +28,38 @@ class LibraryViewModel extends ChangeNotifier {
   bool _hasNextPage = true;
   bool get hasNextPage => _hasNextPage;
 
+  int? _resultCount;
+  int? get resultCount => _resultCount;
+
+  int? _totalCount;
+  int? get totalCount => _totalCount;
+
+  bool get isFiltered =>
+      _filterSearch.isNotEmpty ||
+      _filterComposer.isNotEmpty ||
+      _filterInstruments.isNotEmpty ||
+      _filterGenres.isNotEmpty ||
+      _filterTags.isNotEmpty;
+
+  Future<void> _refreshCounts() async {
+    final total = await _repo.countScores();
+    final result = isFiltered
+        ? await _repo.countScores(
+            filter: _filterSearch,
+            instruments: _filterInstruments,
+            genres: _filterGenres,
+            composer: _filterComposer,
+            tagIds: _filterTags.map((t) => t.id),
+            genreMatch: _genreMatch,
+            instrumentMatch: _instrumentMatch,
+            tagMatch: _tagMatch,
+          )
+        : total;
+    _totalCount = total;
+    _resultCount = result;
+    notifyListeners();
+  }
+
   String _filterSearch = "";
   set filterSearch(String filter) {
     if (_filterSearch == filter) return;
@@ -91,6 +123,7 @@ class LibraryViewModel extends ChangeNotifier {
     _updatedTagsSub = _repo.updatedTagIds
         .where((ids) => ids.intersection(_filterTags).isNotEmpty)
         .listen((_) => _refreshFilterTags());
+    _refreshCounts();
   }
 
   Future<void> loadNextPage() async {
@@ -112,6 +145,7 @@ class LibraryViewModel extends ChangeNotifier {
     _scores = scores.toList();
     _hasNextPage = scores.length == totalCount;
     notifyListeners();
+    _refreshCounts();
   }
 
   Future<Iterable<Score>> _loadScores({
@@ -147,6 +181,7 @@ class LibraryViewModel extends ChangeNotifier {
       _hasNextPage = true;
       _resetDebounce?.cancel();
       await loadNextPage();
+      _refreshCounts();
     });
   }
 

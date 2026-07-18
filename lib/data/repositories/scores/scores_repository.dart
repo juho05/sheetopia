@@ -144,20 +144,14 @@ class ScoresRepository {
     }
   }
 
-  Future<Iterable<Score>> getScores({
-    required int size,
-    int offset = 0,
-    String filter = "",
-    String composer = "",
-    Iterable<String> instruments = const [],
-    Iterable<String> genres = const [],
-    Iterable<String> tagIds = const [],
-    FilterMatchType genreMatch = FilterMatchType.any,
-    FilterMatchType instrumentMatch = FilterMatchType.exact,
-    FilterMatchType tagMatch = FilterMatchType.all,
-  }) async {
-    final searchFields = _generateSearchFields(filter);
-
+  List<Join> _filterJoins({
+    required Iterable<String> instruments,
+    required Iterable<String> genres,
+    required Iterable<String> tagIds,
+    required FilterMatchType genreMatch,
+    required FilterMatchType instrumentMatch,
+    required FilterMatchType tagMatch,
+  }) {
     final tagsSubQ = _db.selectOnly(_db.scoreTagsTable).join([]);
     tagsSubQ.addColumns([_db.scoreTagsTable.score]);
     tagsSubQ.groupBy(
@@ -206,7 +200,7 @@ class ScoresRepository {
     );
     final assignedToGenres = Subquery(genresSubQ, 'assigned_to_genres');
 
-    final q = _db.select(_db.scoresTable).join([
+    return [
       if (tagIds.isNotEmpty)
         innerJoin(
           assignedToTags,
@@ -231,6 +225,73 @@ class ScoresRepository {
               .equalsExp(_db.scoresTable.id),
           useColumns: false,
         ),
+    ];
+  }
+
+  void _applyScoreFilters(
+    JoinedSelectStatement q,
+    Iterable<String> searchFields,
+    String composer,
+  ) {
+    for (final s in searchFields) {
+      q.where(_db.scoresTable.searchText.contains(s));
+    }
+    if (composer.isNotEmpty) {
+      q.where(_db.scoresTable.composer.equals(composer));
+    }
+  }
+
+  Future<int> countScores({
+    String filter = "",
+    String composer = "",
+    Iterable<String> instruments = const [],
+    Iterable<String> genres = const [],
+    Iterable<String> tagIds = const [],
+    FilterMatchType genreMatch = FilterMatchType.any,
+    FilterMatchType instrumentMatch = FilterMatchType.exact,
+    FilterMatchType tagMatch = FilterMatchType.all,
+  }) async {
+    final searchFields = _generateSearchFields(filter);
+    final countExpr = _db.scoresTable.id.count(distinct: true);
+    final q = _db.selectOnly(_db.scoresTable).join(
+      _filterJoins(
+        instruments: instruments,
+        genres: genres,
+        tagIds: tagIds,
+        genreMatch: genreMatch,
+        instrumentMatch: instrumentMatch,
+        tagMatch: tagMatch,
+      ),
+    );
+    q.addColumns([countExpr]);
+    _applyScoreFilters(q, searchFields, composer);
+    final row = await q.getSingle();
+    return row.read(countExpr) ?? 0;
+  }
+
+  Future<Iterable<Score>> getScores({
+    required int size,
+    int offset = 0,
+    String filter = "",
+    String composer = "",
+    Iterable<String> instruments = const [],
+    Iterable<String> genres = const [],
+    Iterable<String> tagIds = const [],
+    FilterMatchType genreMatch = FilterMatchType.any,
+    FilterMatchType instrumentMatch = FilterMatchType.exact,
+    FilterMatchType tagMatch = FilterMatchType.all,
+  }) async {
+    final searchFields = _generateSearchFields(filter);
+
+    final q = _db.select(_db.scoresTable).join([
+      ..._filterJoins(
+        instruments: instruments,
+        genres: genres,
+        tagIds: tagIds,
+        genreMatch: genreMatch,
+        instrumentMatch: instrumentMatch,
+        tagMatch: tagMatch,
+      ),
       leftOuterJoin(
         _db.genresTable,
         _db.genresTable.score.equalsExp(_db.scoresTable.id),
@@ -244,14 +305,7 @@ class ScoresRepository {
         _db.scoreTagsTable.score.equalsExp(_db.scoresTable.id),
       ),
     ]);
-    if (searchFields.isNotEmpty) {
-      for (final s in searchFields) {
-        q.where(_db.scoresTable.searchText.contains(s));
-      }
-    }
-    if (composer.isNotEmpty) {
-      q.where(_db.scoresTable.composer.equals(composer));
-    }
+    _applyScoreFilters(q, searchFields, composer);
     q.orderBy([
       ...searchFields
           .take(3)
