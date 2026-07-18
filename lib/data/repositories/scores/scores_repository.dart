@@ -17,6 +17,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
@@ -126,6 +127,23 @@ class ScoresRepository {
     );
   }
 
+  Expression<bool> _matchHaving(
+    FilterMatchType type,
+    Expression<int> matchingCount,
+    Expression<int> totalCount,
+    int selectedLen,
+  ) {
+    switch (type) {
+      case FilterMatchType.any:
+        return matchingCount.isBiggerThanValue(0);
+      case FilterMatchType.all:
+        return matchingCount.equals(selectedLen);
+      case FilterMatchType.exact:
+        return matchingCount.equals(selectedLen) &
+            totalCount.equals(selectedLen);
+    }
+  }
+
   Future<Iterable<Score>> getScores({
     required int size,
     int offset = 0,
@@ -134,17 +152,25 @@ class ScoresRepository {
     Iterable<String> instruments = const [],
     Iterable<String> genres = const [],
     Iterable<String> tagIds = const [],
+    FilterMatchType genreMatch = FilterMatchType.any,
+    FilterMatchType instrumentMatch = FilterMatchType.exact,
+    FilterMatchType tagMatch = FilterMatchType.all,
   }) async {
     final searchFields = _generateSearchFields(filter);
 
     final tagsSubQ = _db.selectOnly(_db.scoreTagsTable).join([]);
     tagsSubQ.addColumns([_db.scoreTagsTable.score]);
-    tagsSubQ.where(_db.scoreTagsTable.tag.isIn(tagIds));
     tagsSubQ.groupBy(
       [_db.scoreTagsTable.score],
-      having: _db.scoreTagsTable.tag
-          .count(distinct: true)
-          .equals(tagIds.length),
+      having: _matchHaving(
+        tagMatch,
+        _db.scoreTagsTable.tag.count(
+          distinct: true,
+          filter: _db.scoreTagsTable.tag.isIn(tagIds),
+        ),
+        _db.scoreTagsTable.tag.count(distinct: true),
+        tagIds.length,
+      ),
     );
     final assignedToTags = Subquery(tagsSubQ, 'assigned_to_tags');
 
@@ -152,18 +178,33 @@ class ScoresRepository {
     instrumentsSubQ.addColumns([_db.instrumentsTable.score]);
     instrumentsSubQ.groupBy(
       [_db.instrumentsTable.score],
-      having:
-          _db.instrumentsTable.instrument
-              .count(
-                distinct: true,
-                filter: _db.instrumentsTable.instrument.isIn(instruments),
-              )
-              .equals(instruments.length) &
-          _db.instrumentsTable.instrument
-              .count(distinct: true)
-              .equals(instruments.length),
+      having: _matchHaving(
+        instrumentMatch,
+        _db.instrumentsTable.instrument.count(
+          distinct: true,
+          filter: _db.instrumentsTable.instrument.isIn(instruments),
+        ),
+        _db.instrumentsTable.instrument.count(distinct: true),
+        instruments.length,
+      ),
     );
     final hasInstruments = Subquery(instrumentsSubQ, 'has_instruments');
+
+    final genresSubQ = _db.selectOnly(_db.genresTable).join([]);
+    genresSubQ.addColumns([_db.genresTable.score]);
+    genresSubQ.groupBy(
+      [_db.genresTable.score],
+      having: _matchHaving(
+        genreMatch,
+        _db.genresTable.genre.count(
+          distinct: true,
+          filter: _db.genresTable.genre.isIn(genres),
+        ),
+        _db.genresTable.genre.count(distinct: true),
+        genres.length,
+      ),
+    );
+    final assignedToGenres = Subquery(genresSubQ, 'assigned_to_genres');
 
     final q = _db.select(_db.scoresTable).join([
       if (tagIds.isNotEmpty)
@@ -179,6 +220,14 @@ class ScoresRepository {
           hasInstruments,
           hasInstruments
               .ref(_db.instrumentsTable.score)
+              .equalsExp(_db.scoresTable.id),
+          useColumns: false,
+        ),
+      if (genres.isNotEmpty)
+        innerJoin(
+          assignedToGenres,
+          assignedToGenres
+              .ref(_db.genresTable.score)
               .equalsExp(_db.scoresTable.id),
           useColumns: false,
         ),
@@ -199,9 +248,6 @@ class ScoresRepository {
       for (final s in searchFields) {
         q.where(_db.scoresTable.searchText.contains(s));
       }
-    }
-    if (genres.isNotEmpty) {
-      q.where(_db.genresTable.genre.isIn(genres));
     }
     if (composer.isNotEmpty) {
       q.where(_db.scoresTable.composer.equals(composer));

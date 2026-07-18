@@ -9,6 +9,7 @@
 import 'package:flutter/material.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/heading.dart';
+import 'package:sheetopia/ui/common/match_type_selector.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/common/tag_badge.dart';
 import 'package:sheetopia/ui/edit_score/add_tags_dialog.dart';
@@ -104,9 +105,18 @@ class FilterDialog extends StatelessWidget {
                         },
                   ),
                 ),
-                const Padding(
-                  padding: EdgeInsets.only(top: 12, bottom: 4),
-                  child: Heading(text: "Instruments"),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12, bottom: 4),
+                  child: Row(
+                    children: [
+                      const Expanded(child: Heading(text: "Instruments")),
+                      if (_viewModel.filterInstruments.isNotEmpty)
+                        MatchTypeSelector(
+                          value: _viewModel.instrumentMatch,
+                          onChanged: (v) => _viewModel.instrumentMatch = v,
+                        ),
+                    ],
+                  ),
                 ),
                 SelectTagsList(
                   tags: _viewModel.filterInstruments.map(
@@ -131,9 +141,18 @@ class FilterDialog extends StatelessWidget {
                     _viewModel.addFilterInstrument(instrument);
                   },
                 ),
-                const Padding(
-                  padding: EdgeInsets.only(top: 12, bottom: 4),
-                  child: Heading(text: "Genres"),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12, bottom: 4),
+                  child: Row(
+                    children: [
+                      const Expanded(child: Heading(text: "Genres")),
+                      if (_viewModel.filterGenres.isNotEmpty)
+                        MatchTypeSelector(
+                          value: _viewModel.genreMatch,
+                          onChanged: (v) => _viewModel.genreMatch = v,
+                        ),
+                    ],
+                  ),
                 ),
                 SelectTagsList(
                   tags: _viewModel.filterGenres.map(
@@ -158,9 +177,18 @@ class FilterDialog extends StatelessWidget {
                     _viewModel.addFilterGenre(genre);
                   },
                 ),
-                const Padding(
-                  padding: EdgeInsets.only(top: 12, bottom: 4),
-                  child: Heading(text: "Tags"),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12, bottom: 4),
+                  child: Row(
+                    children: [
+                      const Expanded(child: Heading(text: "Tags")),
+                      if (_viewModel.filterTags.isNotEmpty)
+                        MatchTypeSelector(
+                          value: _viewModel.tagMatch,
+                          onChanged: (v) => _viewModel.tagMatch = v,
+                        ),
+                    ],
+                  ),
                 ),
                 SelectTagsList(
                   tags: _viewModel.filterTags.map(

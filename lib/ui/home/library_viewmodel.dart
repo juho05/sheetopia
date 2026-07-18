@@ -10,6 +10,7 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/material.dart';
+import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
@@ -53,6 +54,33 @@ class LibraryViewModel extends ChangeNotifier {
 
   final SplayTreeSet<String> _filterGenres = SplayTreeSet();
   Iterable<String> get filterGenres => _filterGenres;
+
+  FilterMatchType _genreMatch = FilterMatchType.any;
+  FilterMatchType get genreMatch => _genreMatch;
+  set genreMatch(FilterMatchType value) {
+    if (_genreMatch == value) return;
+    _genreMatch = value;
+    notifyListeners();
+    _reset();
+  }
+
+  FilterMatchType _instrumentMatch = FilterMatchType.exact;
+  FilterMatchType get instrumentMatch => _instrumentMatch;
+  set instrumentMatch(FilterMatchType value) {
+    if (_instrumentMatch == value) return;
+    _instrumentMatch = value;
+    notifyListeners();
+    _reset();
+  }
+
+  FilterMatchType _tagMatch = FilterMatchType.all;
+  FilterMatchType get tagMatch => _tagMatch;
+  set tagMatch(FilterMatchType value) {
+    if (_tagMatch == value) return;
+    _tagMatch = value;
+    notifyListeners();
+    _reset();
+  }
 
   StreamSubscription? _updatedScoresSub;
   StreamSubscription? _updatedTagsSub;
@@ -98,6 +126,9 @@ class LibraryViewModel extends ChangeNotifier {
       genres: _filterGenres,
       composer: _filterComposer,
       tagIds: _filterTags.map((t) => t.id),
+      genreMatch: _genreMatch,
+      instrumentMatch: _instrumentMatch,
+      tagMatch: _tagMatch,
     );
   }
 
@@ -180,6 +211,9 @@ class LibraryViewModel extends ChangeNotifier {
     _filterComposer = "";
     _filterGenres.clear();
     _filterInstruments.clear();
+    _genreMatch = FilterMatchType.any;
+    _instrumentMatch = FilterMatchType.exact;
+    _tagMatch = FilterMatchType.all;
     notifyListeners();
     _reset();
   }
