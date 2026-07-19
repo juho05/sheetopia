@@ -38,16 +38,15 @@ class _Notifier extends ChangeNotifier {
 }
 
 class AnnotateViewModel extends ChangeNotifier {
-  static const int black = 0xFF000000;
   static const int red = 0xFFFF0000;
   static const int blue = 0xFF2196F3;
   static const int green = 0xFF4CAF50;
   static const int highlighterYellow = 0x88FFEB3B;
 
-  static const List<int> palette = [black, red, blue, green, highlighterYellow];
+  static const List<int> palette = [red, blue, green, highlighterYellow];
 
-  static const double minWidth = 0.0015;
-  static const double maxWidth = 0.02;
+  static const double minWidth = 0.0008;
+  static const double maxWidth = 0.05;
 
   final ScoresRepository _repo;
   final String _scoreId;
@@ -62,7 +61,7 @@ class AnnotateViewModel extends ChangeNotifier {
   final List<_UndoOp> _undoStack = [];
   final List<_UndoOp> _redoStack = [];
 
-  int _colorValue = black;
+  int _colorValue = red;
 
   int get colorValue => _colorValue;
 
@@ -89,11 +88,9 @@ class AnnotateViewModel extends ChangeNotifier {
   StrokePoint? _lastErasePoint;
   double _eraseAspect = 1.0;
 
-  AnnotateViewModel({
-    required ScoresRepository repo,
-    required String scoreId,
-  }) : _repo = repo,
-       _scoreId = scoreId {
+  AnnotateViewModel({required ScoresRepository repo, required String scoreId})
+    : _repo = repo,
+      _scoreId = scoreId {
     _load();
   }
 
@@ -113,8 +110,11 @@ class AnnotateViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setWidth(double width) {
-    _width = width;
+  double get widthFraction =>
+      (log(_width / minWidth) / log(maxWidth / minWidth)).clamp(0.0, 1.0);
+
+  void setWidthFraction(double t) {
+    _width = minWidth * pow(maxWidth / minWidth, t.clamp(0.0, 1.0));
     notifyListeners();
   }
 
@@ -223,9 +223,10 @@ class AnnotateViewModel extends ChangeNotifier {
     if (strokes == null || strokes.isEmpty) return;
 
     final aspect = _eraseAspect;
+    final k = max(1.0, aspect);
     final ax = a.x, ay = a.y * aspect;
     final bx = b.x, by = b.y * aspect;
-    final eraserHalf = _width / 2;
+    final eraserHalf = _width / 2 * k;
     final segMinX = min(ax, bx) - eraserHalf;
     final segMinY = min(ay, by) - eraserHalf;
     final segMaxX = max(ax, bx) + eraserHalf;
@@ -233,7 +234,7 @@ class AnnotateViewModel extends ChangeNotifier {
 
     List<Stroke>? remaining;
     for (final stroke in strokes) {
-      final half = stroke.width / 2;
+      final half = stroke.width / 2 * k;
       final box = stroke.bounds;
       if (box.minX - half > segMaxX ||
           box.maxX + half < segMinX ||
@@ -262,7 +263,7 @@ class AnnotateViewModel extends ChangeNotifier {
     double by,
     double aspect,
   ) {
-    final threshold = (stroke.width + _width) / 2;
+    final threshold = (stroke.width + _width) / 2 * max(1.0, aspect);
     final points = stroke.points;
     var px = points[0].x;
     var py = points[0].y * aspect;

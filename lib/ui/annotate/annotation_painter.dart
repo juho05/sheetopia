@@ -6,6 +6,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:perfect_freehand/perfect_freehand.dart' hide StrokePoint;
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
@@ -27,7 +29,7 @@ Path _strokePath(Stroke stroke, Size size, {required bool isComplete}) {
   final outline = getStroke(
     points,
     options: StrokeOptions(
-      size: stroke.width * size.width,
+      size: stroke.width * max(size.width, size.height),
       isComplete: isComplete,
       simulatePressure: false,
     ),
@@ -87,7 +89,7 @@ class AnnotationPainter extends CustomPainter {
 
   void _paintEraserCursor(Canvas canvas, Size size, StrokePoint p) {
     final center = Offset(p.x * size.width, p.y * size.height);
-    final radius = eraserWidth / 2 * size.width;
+    final radius = eraserWidth / 2 * max(size.width, size.height);
     canvas.drawCircle(
       center,
       radius,
@@ -132,7 +134,7 @@ class LiveStrokePainter extends CustomPainter {
 
     final paint = Paint()
       ..color = Color(stroke.colorValue)
-      ..strokeWidth = stroke.width * size.width
+      ..strokeWidth = stroke.width * max(size.width, size.height)
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round

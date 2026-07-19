@@ -34,7 +34,13 @@ class _AnnotatePageState extends State<AnnotatePage> {
 
   final PdfViewerController _controller = PdfViewerController();
 
+  final GlobalKey _stackKey = GlobalKey();
+
   PdfDocumentRefFile? _pdfRef;
+
+  // Finger position (in _stackKey-local coords) while dragging the width slider;
+  // null hides the floating stroke-width preview.
+  Offset? _widthPreviewAt;
 
   @override
   void initState() {
@@ -70,6 +76,25 @@ class _AnnotatePageState extends State<AnnotatePage> {
     if (mounted) context.pop();
   }
 
+  void _showWidthPreview(Offset globalPosition) {
+    final box = _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    setState(() => _widthPreviewAt = box.globalToLocal(globalPosition));
+  }
+
+  void _hideWidthPreview() {
+    if (_widthPreviewAt != null) setState(() => _widthPreviewAt = null);
+  }
+
+  double _currentPageMaxSidePx() {
+    if (!_controller.isReady) return 0;
+    final page = _controller.pageNumber;
+    final pages = _controller.layout.pageLayouts;
+    if (page == null || page < 1 || page > pages.length) return 0;
+    final rect = pages[page - 1];
+    return max(rect.width, rect.height) * _controller.value.getMaxScaleOnAxis();
+  }
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
@@ -83,6 +108,7 @@ class _AnnotatePageState extends State<AnnotatePage> {
         child: Scaffold(
           body: SafeArea(
             child: Stack(
+              key: _stackKey,
               children: [
                 if (_pdfRef == null)
                   const Center(child: CircularProgressIndicator.adaptive())
@@ -123,7 +149,11 @@ class _AnnotatePageState extends State<AnnotatePage> {
                   alignment: Alignment.bottomCenter,
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: _Toolbar(viewModel: _viewModel),
+                    child: _Toolbar(
+                      viewModel: _viewModel,
+                      onWidthPreview: _showWidthPreview,
+                      onWidthPreviewEnd: _hideWidthPreview,
+                    ),
                   ),
                 ),
                 Padding(
@@ -144,6 +174,12 @@ class _AnnotatePageState extends State<AnnotatePage> {
                     ),
                   ),
                 ),
+                if (_widthPreviewAt != null)
+                  _WidthPreview(
+                    viewModel: _viewModel,
+                    at: _widthPreviewAt!,
+                    pageMaxSidePx: _currentPageMaxSidePx(),
+                  ),
               ],
             ),
           ),
@@ -194,9 +230,7 @@ class _PanZoomOverlayState extends State<_PanZoomOverlay>
   PointerDeviceKind? _lastDownKind;
 
   // Ballistic pan/fling driven by the same simulation Android scroll views use.
-  late final AnimationController _fling = AnimationController.unbounded(
-    vsync: this,
-  )..addListener(_onFlingTick);
+  late final AnimationController _fling;
   ClampingScrollSimulation? _simX;
   ClampingScrollSimulation? _simY;
   double _lastFlingX = 0;
@@ -208,6 +242,13 @@ class _PanZoomOverlayState extends State<_PanZoomOverlay>
   final Stopwatch _panClock = Stopwatch();
   VelocityTracker? _panVelocity;
   Offset _panAccum = Offset.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _fling = AnimationController.unbounded(vsync: this)
+      ..addListener(_onFlingTick);
+  }
 
   @override
   void dispose() {
@@ -367,10 +408,64 @@ class _PanZoomOverlayState extends State<_PanZoomOverlay>
   }
 }
 
+// A bare circle at the true on-screen stroke size, floating just above the
+// finger while the width slider is dragged, horizontally centered on it.
+class _WidthPreview extends StatelessWidget {
+  final AnnotateViewModel viewModel;
+  final Offset at;
+  final double pageMaxSidePx;
+
+  static const double _gap = 36;
+
+  const _WidthPreview({
+    required this.viewModel,
+    required this.at,
+    required this.pageMaxSidePx,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: viewModel,
+      builder: (context, _) {
+        final d = max(viewModel.width * pageMaxSidePx, 2.0);
+        final fill = viewModel.eraser
+            ? Colors.black.withValues(alpha: 0.1)
+            : Color.alphaBlend(Color(viewModel.colorValue), Colors.white);
+        return Positioned(
+          left: at.dx - d / 2,
+          top: at.dy - _gap - d,
+          child: IgnorePointer(
+            child: Container(
+              width: d,
+              height: d,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: fill,
+                border: Border.all(
+                  color: Colors.black,
+                  width: 1,
+                  strokeAlign: BorderSide.strokeAlignOutside,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _Toolbar extends StatelessWidget {
   final AnnotateViewModel viewModel;
+  final void Function(Offset globalPosition) onWidthPreview;
+  final VoidCallback onWidthPreviewEnd;
 
-  const _Toolbar({required this.viewModel});
+  const _Toolbar({
+    required this.viewModel,
+    required this.onWidthPreview,
+    required this.onWidthPreviewEnd,
+  });
 
   Future<void> _clear(BuildContext context) async {
     final confirmed = await ConfirmationDialog.showYesNo(
@@ -395,107 +490,125 @@ class _Toolbar extends StatelessWidget {
             constraints: BoxConstraints(
               maxWidth: min(MediaQuery.of(context).size.width - 32, 560),
             ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      tooltip: viewModel.drawMode ? "Draw" : "Move",
-                      isSelected: viewModel.drawMode,
-                      onPressed: viewModel.toggleDrawMode,
-                      icon: Icon(
-                        viewModel.drawMode ? Symbols.stylus : Icons.back_hand,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                runSpacing: 4,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: viewModel.drawMode ? "Draw" : "Move",
+                        isSelected: viewModel.drawMode,
+                        onPressed: viewModel.toggleDrawMode,
+                        icon: Icon(
+                          viewModel.drawMode ? Symbols.stylus : Icons.back_hand,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    for (final color in AnnotateViewModel.palette)
+                      const SizedBox(width: 4),
+                      for (final color in AnnotateViewModel.palette)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 3),
+                          child: GestureDetector(
+                            onTap: () => viewModel.setColor(color),
+                            child: Container(
+                              width: 26,
+                              height: 26,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Color.alphaBlend(
+                                  Color(color),
+                                  Colors.white,
+                                ),
+                                border: Border.all(
+                                  color:
+                                      !viewModel.eraser &&
+                                          viewModel.colorValue == color
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.outline,
+                                  width:
+                                      !viewModel.eraser &&
+                                          viewModel.colorValue == color
+                                      ? 3
+                                      : 1,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 3),
                         child: GestureDetector(
-                          onTap: () => viewModel.setColor(color),
+                          onTap: viewModel.setEraser,
                           child: Container(
                             width: 26,
                             height: 26,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Color.alphaBlend(
-                                Color(color),
-                                Colors.white,
-                              ),
-                              border: Border.all(
-                                color:
-                                    !viewModel.eraser &&
-                                        viewModel.colorValue == color
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.outline,
-                                width:
-                                    !viewModel.eraser &&
-                                        viewModel.colorValue == color
-                                    ? 3
-                                    : 1,
-                              ),
+                              border: viewModel.eraser
+                                  ? Border.all(
+                                      color: theme.colorScheme.primary,
+                                      width: 3,
+                                    )
+                                  : null,
                             ),
+                            child: const Icon(Symbols.ink_eraser, size: 20),
                           ),
                         ),
                       ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 3),
-                      child: GestureDetector(
-                        onTap: viewModel.setEraser,
-                        child: Container(
-                          width: 26,
-                          height: 26,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: viewModel.eraser
-                                ? Border.all(
-                                    color: theme.colorScheme.primary,
-                                    width: 3,
-                                  )
-                                : null,
+                    ],
+                  ),
+                  SizedBox(
+                    width: 110,
+                    height: 40,
+                    child: Listener(
+                      onPointerDown: (e) => onWidthPreview(e.position),
+                      onPointerMove: (e) => onWidthPreview(e.position),
+                      onPointerUp: (_) => onWidthPreviewEnd(),
+                      onPointerCancel: (_) => onWidthPreviewEnd(),
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 8,
                           ),
-                          child: const Icon(Symbols.ink_eraser, size: 20),
+                          overlayShape: const RoundSliderOverlayShape(
+                            overlayRadius: 12,
+                          ),
+                          trackHeight: 4,
+                        ),
+                        child: Slider(
+                          value: viewModel.widthFraction,
+                          onChanged: viewModel.setWidthFraction,
                         ),
                       ),
                     ),
-                    SizedBox(
-                      width: 110,
-                      height: 40,
-                      child: Slider(
-                        min: AnnotateViewModel.minWidth,
-                        max: AnnotateViewModel.maxWidth,
-                        value: viewModel.width.clamp(
-                          AnnotateViewModel.minWidth,
-                          AnnotateViewModel.maxWidth,
-                        ),
-                        onChanged: viewModel.setWidth,
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: "Undo",
+                        icon: const Icon(Icons.undo),
+                        onPressed: viewModel.canUndo ? viewModel.undo : null,
                       ),
-                    ),
-                    IconButton(
-                      tooltip: "Undo",
-                      icon: const Icon(Icons.undo),
-                      onPressed: viewModel.canUndo ? viewModel.undo : null,
-                    ),
-                    IconButton(
-                      tooltip: "Redo",
-                      icon: const Icon(Icons.redo),
-                      onPressed: viewModel.canRedo ? viewModel.redo : null,
-                    ),
-                    IconButton(
-                      tooltip: "Clear all",
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: viewModel.hasAnnotations
-                          ? () => _clear(context)
-                          : null,
-                    ),
-                  ],
-                ),
+                      IconButton(
+                        tooltip: "Redo",
+                        icon: const Icon(Icons.redo),
+                        onPressed: viewModel.canRedo ? viewModel.redo : null,
+                      ),
+                      IconButton(
+                        tooltip: "Clear all",
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: viewModel.hasAnnotations
+                            ? () => _clear(context)
+                            : null,
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
