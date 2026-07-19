@@ -92,21 +92,36 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
                   },
                 ),
           },
-          child: ListenableBuilder(
-            listenable: widget.viewModel,
-            builder: (context, _) {
-              return CustomPaint(
-                size: Size.infinite,
-                painter: AnnotationPainter(
-                  strokes: widget.viewModel.strokesFor(widget.pageIndex),
-                  liveStroke: widget.viewModel.liveStrokeFor(widget.pageIndex),
-                  eraserCursor: widget.viewModel.eraserCursorFor(
-                    widget.pageIndex,
-                  ),
-                  eraserWidth: widget.viewModel.width,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              RepaintBoundary(
+                child: ListenableBuilder(
+                  listenable: widget.viewModel,
+                  builder: (context, _) {
+                    return CustomPaint(
+                      size: Size.infinite,
+                      painter: AnnotationPainter(
+                        strokes: widget.viewModel.strokesFor(widget.pageIndex),
+                        eraserCursor: widget.viewModel.eraserCursorFor(
+                          widget.pageIndex,
+                        ),
+                        eraserWidth: widget.viewModel.width,
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
+              ),
+              RepaintBoundary(
+                child: CustomPaint(
+                  size: Size.infinite,
+                  painter: LiveStrokePainter(
+                    viewModel: widget.viewModel,
+                    pageIndex: widget.pageIndex,
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },

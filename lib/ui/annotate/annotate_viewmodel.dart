@@ -31,6 +31,12 @@ class _EraseOp extends _UndoOp {
   const _EraseOp({required super.pageIndex, required this.removed});
 }
 
+// Fires on every live-stroke sample so only the live layer repaints, without
+// rebuilding the widget tree or the static (committed) strokes layer.
+class _Notifier extends ChangeNotifier {
+  void ping() => notifyListeners();
+}
+
 class AnnotateViewModel extends ChangeNotifier {
   static const int black = 0xFF000000;
   static const int red = 0xFFFF0000;
@@ -48,6 +54,10 @@ class AnnotateViewModel extends ChangeNotifier {
 
   final Map<int, List<Stroke>> _pages = {};
   bool _dirty = false;
+
+  final _liveRepaint = _Notifier();
+
+  Listenable get liveRepaint => _liveRepaint;
 
   final List<_UndoOp> _undoStack = [];
   final List<_UndoOp> _redoStack = [];
@@ -141,7 +151,7 @@ class AnnotateViewModel extends ChangeNotifier {
       return;
     }
     _activePoints = [p];
-    notifyListeners();
+    _liveRepaint.ping();
   }
 
   void appendPoint(StrokePoint p, double aspect) {
@@ -155,7 +165,7 @@ class AnnotateViewModel extends ChangeNotifier {
     }
     if (_activePoints == null) return;
     _activePoints!.add(p);
-    notifyListeners();
+    _liveRepaint.ping();
   }
 
   void endStroke() {
@@ -167,6 +177,7 @@ class AnnotateViewModel extends ChangeNotifier {
     _eraseSnapshot = null;
     _erasePending = null;
     _lastErasePoint = null;
+    _liveRepaint.ping();
 
     if (erased != null) {
       if (pageIndex != null && erased.isNotEmpty) {
@@ -391,5 +402,11 @@ class AnnotateViewModel extends ChangeNotifier {
     if (!_dirty) return;
     await _repo.saveAnnotations(_scoreId, _pages);
     _dirty = false;
+  }
+
+  @override
+  void dispose() {
+    _liveRepaint.dispose();
+    super.dispose();
   }
 }

@@ -453,19 +453,14 @@ class _Toolbar extends StatelessWidget {
                           height: 26,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: theme.colorScheme.surfaceContainerHighest,
-                            border: Border.all(
-                              color: viewModel.eraser
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.outline,
-                              width: viewModel.eraser ? 3 : 1,
-                            ),
+                            border: viewModel.eraser
+                                ? Border.all(
+                                    color: theme.colorScheme.primary,
+                                    width: 3,
+                                  )
+                                : null,
                           ),
-                          child: Icon(
-                            Symbols.ink_eraser,
-                            size: 16,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+                          child: const Icon(Symbols.ink_eraser, size: 20),
                         ),
                       ),
                     ),
