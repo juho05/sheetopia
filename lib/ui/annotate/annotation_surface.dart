@@ -41,13 +41,13 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
     }
   }
 
-  StrokePoint _normalize(Offset local, double pressure) {
+  StrokePoint _normalize(Offset local) {
     final w = _size.width <= 0 ? 1.0 : _size.width;
     final h = _size.height <= 0 ? 1.0 : _size.height;
     return StrokePoint(
       x: (local.dx / w).clamp(0.0, 1.0),
       y: (local.dy / h).clamp(0.0, 1.0),
-      pressure: pressure > 0 ? pressure : 0.5,
+      pressure: 0.5, // disable pressure-sensitivity
     );
   }
 
@@ -56,14 +56,14 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
   void _onStart(PointerDownEvent event) {
     widget.viewModel.startStroke(
       widget.pageIndex,
-      _normalize(event.localPosition, event.pressure),
+      _normalize(event.localPosition),
       _aspect,
     );
   }
 
   void _onUpdate(PointerMoveEvent event) {
     widget.viewModel.appendPoint(
-      _normalize(event.localPosition, event.pressure),
+      _normalize(event.localPosition),
       _aspect,
     );
   }

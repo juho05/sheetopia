@@ -11,6 +11,14 @@ import 'package:perfect_freehand/perfect_freehand.dart' hide StrokePoint;
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
 import 'package:sheetopia/ui/annotate/annotate_viewmodel.dart';
 
+// The outline is built in a fixed-size reference space and the canvas is scaled
+// to the real size instead of feeding the zoomed size to perfect_freehand. Its
+// sharp-corner threshold is `size / 128` compared against a unit-vector dot
+// product (max 1.0), so a large `size` at high zoom flags every point as a
+// corner and turns the stroke into a chain of caps. Keeping `size` fixed avoids
+// that and makes rendering scale-invariant; the vector path stays crisp.
+const double _refWidth = 1000.0;
+
 Path _strokePath(Stroke stroke, Size size, {required bool isComplete}) {
   final points = stroke.points
       .map((p) => PointVector(p.x * size.width, p.y * size.height, p.pressure))
@@ -28,16 +36,23 @@ Path _strokePath(Stroke stroke, Size size, {required bool isComplete}) {
   final path = Path();
   if (outline.isEmpty) return path;
   path.moveTo(outline.first.dx, outline.first.dy);
-  for (final point in outline.skip(1)) {
-    path.lineTo(point.dx, point.dy);
+  for (var i = 0; i < outline.length - 1; i++) {
+    final p0 = outline[i];
+    final p1 = outline[i + 1];
+    path.quadraticBezierTo(
+      p0.dx,
+      p0.dy,
+      (p0.dx + p1.dx) / 2,
+      (p0.dy + p1.dy) / 2,
+    );
   }
   path.close();
   return path;
 }
 
 // Paints the committed strokes plus the eraser cursor. Repaints only when a
-// stroke is committed/erased or the eraser cursor moves -- never per live pen
-// sample -- so completed strokes are not re-tessellated while drawing.
+// stroke is committed/erased or the eraser cursor moves, not per live pen
+// sample, so completed strokes are not re-tessellated while drawing.
 class AnnotationPainter extends CustomPainter {
   final List<Stroke> strokes;
   final StrokePoint? eraserCursor;
@@ -54,10 +69,16 @@ class AnnotationPainter extends CustomPainter {
     final paint = Paint()
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
-    for (final stroke in strokes) {
-      if (stroke.points.isEmpty) continue;
-      paint.color = Color(stroke.colorValue);
-      canvas.drawPath(_strokePath(stroke, size, isComplete: true), paint);
+    if (size.width > 0 && strokes.isNotEmpty) {
+      final refSize = Size(_refWidth, _refWidth * (size.height / size.width));
+      canvas.save();
+      canvas.scale(size.width / _refWidth);
+      for (final stroke in strokes) {
+        if (stroke.points.isEmpty) continue;
+        paint.color = Color(stroke.colorValue);
+        canvas.drawPath(_strokePath(stroke, refSize, isComplete: true), paint);
+      }
+      canvas.restore();
     }
     if (eraserCursor != null) {
       _paintEraserCursor(canvas, size, eraserCursor!);
@@ -101,10 +122,8 @@ class LiveStrokePainter extends CustomPainter {
   final AnnotateViewModel viewModel;
   final int pageIndex;
 
-  LiveStrokePainter({
-    required this.viewModel,
-    required this.pageIndex,
-  }) : super(repaint: viewModel.liveRepaint);
+  LiveStrokePainter({required this.viewModel, required this.pageIndex})
+    : super(repaint: viewModel.liveRepaint);
 
   @override
   void paint(Canvas canvas, Size size) {
