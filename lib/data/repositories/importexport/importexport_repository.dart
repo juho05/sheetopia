@@ -238,7 +238,7 @@ class ImportExportRepository extends ChangeNotifier {
           name: t.name,
           color: t.color,
           updatedAt: Value(t.updatedAt.toUtc()),
-          uploaded: const Value(true),
+          uploaded: const Value(false),
         ),
         onConflict: DoUpdate.withExcluded(
               (old, excluded) => TagsTableCompanion.custom(
@@ -307,7 +307,7 @@ class ImportExportRepository extends ChangeNotifier {
               composer: _optionalStringValue(s.metadata.composer),
               notes: _optionalStringValue(s.metadata.notes),
               annotations: _annotationsColumnValue(s.metadata.annotations),
-              metadataUploaded: const Value(true),
+              metadataUploaded: const Value(false),
               metadataUpdatedAt: Value(s.metadataUpdatedAt.toUtc()),
               lastOpened: Value(
                 s.metadataUpdatedAt.isAfter(s.fileUpdatedAt)
@@ -317,7 +317,7 @@ class ImportExportRepository extends ChangeNotifier {
               fileType: s.fileType,
               fileUpdatedAt: Value(s.fileUpdatedAt.toUtc()),
               fileDownloaded: true,
-              fileUploaded: const Value(true),
+              fileUploaded: const Value(false),
             ),
           );
         } else if (metadataChanged || fileChanged) {
@@ -332,7 +332,7 @@ class ImportExportRepository extends ChangeNotifier {
                   ? Value(s.metadataUpdatedAt.toUtc())
                   : const Value.absent(),
               metadataUploaded: metadataChanged
-                  ? const Value(true)
+                  ? const Value(false)
                   : const Value.absent(),
               composer: metadataChanged
                   ? _optionalStringValue(s.metadata.composer)
@@ -355,7 +355,7 @@ class ImportExportRepository extends ChangeNotifier {
                   ? Value(s.fileUpdatedAt.toUtc())
                   : const Value.absent(),
               fileUploaded: fileChanged
-                  ? const Value(true)
+                  ? const Value(false)
                   : const Value.absent(),
               fileDownloaded: fileChanged
                   ? const Value(true)
