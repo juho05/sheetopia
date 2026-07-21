@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/midi/remembered_device.dart';
+import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/settings/midi/midi_viewmodel.dart';
 
@@ -112,7 +113,16 @@ class MidiPage extends StatelessWidget {
                               title: Text(key.name),
                               subtitle: const Text("Reconnects automatically"),
                               trailing: TextButton(
-                                onPressed: () => viewModel.forget(key),
+                                onPressed: () async {
+                                  final confirmation =
+                                      await ConfirmationDialog.showCancel(
+                                        context,
+                                        message:
+                                            "This will remove the MIDI mapping and stop this device from reconnecting automatically.",
+                                      );
+                                  if (confirmation != true) return;
+                                  viewModel.forget(key);
+                                },
                                 child: const Text("Forget"),
                               ),
                             ),

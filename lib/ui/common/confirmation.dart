@@ -15,6 +15,7 @@ class ConfirmationDialog extends StatelessWidget {
   final String? message;
   final String noBtnTitle;
   final String? cancelBtnTitle;
+
   const ConfirmationDialog._({
     required this.title,
     required this.message,
@@ -23,10 +24,10 @@ class ConfirmationDialog extends StatelessWidget {
   });
 
   static Future<bool> showCancel(
-    BuildContext context, [
+    BuildContext context, {
     String title = "Are you sure?",
     String? message,
-  ]) async {
+  }) async {
     final result = await showSheetopiaDialog<bool>(
       context: context,
       builder: (context) {
