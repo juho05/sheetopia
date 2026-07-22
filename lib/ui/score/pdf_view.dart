@@ -20,8 +20,20 @@ import 'package:sheetopia/ui/score/score_viewmodel.dart';
 
 class PdfView extends StatefulWidget {
   final File file;
+  final String scoreId;
+  final int switchToken;
+  final int switchSettleCount;
 
-  const PdfView({super.key, required this.file});
+  final void Function()? onOpenSetlist;
+
+  const PdfView({
+    super.key,
+    required this.file,
+    required this.scoreId,
+    required this.switchToken,
+    required this.switchSettleCount,
+    this.onOpenSetlist,
+  });
 
   @override
   State<PdfView> createState() => _PdfViewState();
@@ -39,15 +51,22 @@ class _PdfViewState extends State<PdfView> {
       midiRepository: context.read(),
       scoreViewModel: scoreViewModel,
       scoresRepository: context.read(),
-      scoreId: scoreViewModel.scoreId,
+      scoreId: widget.scoreId,
     );
   }
 
   @override
   void didUpdateWidget(covariant PdfView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.file != oldWidget.file) {
+    if (widget.switchToken != oldWidget.switchToken ||
+        widget.file.path != oldWidget.file.path) {
       _viewModel.updateFile(widget.file);
+    }
+    if (widget.scoreId != oldWidget.scoreId) {
+      _viewModel.updateScoreId(widget.scoreId);
+    }
+    if (widget.switchSettleCount != oldWidget.switchSettleCount) {
+      _viewModel.clearSwitchInFlight();
     }
   }
 
@@ -118,6 +137,19 @@ class _PdfViewState extends State<PdfView> {
             _viewModel.updateForwardPageCount(pageCount);
             _viewModel.updateBackwardPageCount(prevPageCount);
 
+            var loading = _viewModel.document == null || _viewModel.switching;
+
+            if (_viewModel.needsLastSpreadStart && pages.isNotEmpty) {
+              final (lastSpreadCount, _) = calcPageCountAndGap(
+                pages.length - 1,
+                reverse: true,
+              );
+              final start = max(0, pages.length - lastSpreadCount);
+              final moving = start != _viewModel.currentPageIndex;
+              _viewModel.updateLastSpreadStart(start);
+              if (moving) loading = true;
+            }
+
             return CallbackShortcuts(
               bindings: <ShortcutActivator, VoidCallback>{
                 const SingleActivator(LogicalKeyboardKey.arrowUp):
@@ -151,6 +183,14 @@ class _PdfViewState extends State<PdfView> {
                   }
                 },
                 child: GestureDetector(
+                  onVerticalDragEnd: widget.onOpenSetlist == null
+                      ? null
+                      : (details) {
+                          final velocity = details.primaryVelocity;
+                          if (velocity != null && velocity < -300) {
+                            widget.onOpenSetlist!();
+                          }
+                        },
                   onTapUp: (details) {
                     if (details.localPosition.dx < constraints.maxWidth / 2) {
                       _viewModel.prevPage();
@@ -165,11 +205,15 @@ class _PdfViewState extends State<PdfView> {
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
+                          if (loading)
+                            const Center(
+                              child: CircularProgressIndicator.adaptive(),
+                            ),
                           // back layer
-                          if (pageCount > 0 && nextPageCount > 0)
+                          if (!loading && pageCount > 0 && nextPageCount > 0)
                             Row(
                               key: ValueKey(
-                                "${_viewModel.currentPageIndex + pageCount}-${widget.file.path}",
+                                "${_viewModel.currentPageIndex + pageCount}-${_viewModel.documentPath}",
                               ),
                               mainAxisAlignment: MainAxisAlignment.center,
                               spacing: nextGap,
@@ -204,58 +248,58 @@ class _PdfViewState extends State<PdfView> {
                                 );
                               }),
                             ),
-                          //const Material(),
                           // front layer
-                          Row(
-                            key: ValueKey(
-                              "${_viewModel.currentPageIndex}-${widget.file.path}",
-                            ),
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            spacing: gap,
-                            children: List.generate(pageCount, (index) {
-                              final page =
-                                  pages[_viewModel.currentPageIndex + index];
-                              return Flexible(
-                                child: Opacity(
-                                  opacity: 1,
-                                  child: ConstrainedBox(
-                                    constraints: BoxConstraints(
-                                      maxWidth:
-                                          constraints.maxHeight *
-                                          (page.width / page.height),
-                                    ),
-                                    child: Stack(
-                                      fit: StackFit.passthrough,
-                                      children: [
-                                        MediaQuery(
-                                          data: mediaQuery.copyWith(
-                                            devicePixelRatio: max(
-                                              mediaQuery.devicePixelRatio,
-                                              2.0,
+                          if (!loading)
+                            Row(
+                              key: ValueKey(
+                                "${_viewModel.currentPageIndex}-${_viewModel.documentPath}",
+                              ),
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              spacing: gap,
+                              children: List.generate(pageCount, (index) {
+                                final page =
+                                    pages[_viewModel.currentPageIndex + index];
+                                return Flexible(
+                                  child: Opacity(
+                                    opacity: 1,
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxWidth:
+                                            constraints.maxHeight *
+                                            (page.width / page.height),
+                                      ),
+                                      child: Stack(
+                                        fit: StackFit.passthrough,
+                                        children: [
+                                          MediaQuery(
+                                            data: mediaQuery.copyWith(
+                                              devicePixelRatio: max(
+                                                mediaQuery.devicePixelRatio,
+                                                2.0,
+                                              ),
+                                            ),
+                                            child: PdfPageView(
+                                              document: _viewModel.document!,
+                                              pageNumber: page.pageNumber,
                                             ),
                                           ),
-                                          child: PdfPageView(
-                                            document: _viewModel.document!,
-                                            pageNumber: page.pageNumber,
-                                          ),
-                                        ),
-                                        Positioned.fill(
-                                          child: CustomPaint(
-                                            painter: AnnotationPainter(
-                                              strokes: _viewModel
-                                                  .strokesForPage(
-                                                    page.pageNumber,
-                                                  ),
+                                          Positioned.fill(
+                                            child: CustomPaint(
+                                              painter: AnnotationPainter(
+                                                strokes: _viewModel
+                                                    .strokesForPage(
+                                                      page.pageNumber,
+                                                    ),
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
-                              );
-                            }),
-                          ),
+                                );
+                              }),
+                            ),
                         ],
                       ),
                     ),

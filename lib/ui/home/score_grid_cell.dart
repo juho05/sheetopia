@@ -23,13 +23,21 @@ class ScoreGridCell extends StatelessWidget {
   static final int thumbnailHeight = (height / 2.1).toInt();
 
   final Score score;
+  final void Function(Score score)? onScoreTap;
+  final bool selected;
 
-  const ScoreGridCell({super.key, required this.score});
+  const ScoreGridCell({
+    super.key,
+    required this.score,
+    this.onScoreTap,
+    this.selected = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final picking = onScoreTap != null;
     return SizedBox(
       width: width.toDouble(),
       height: height.toDouble(),
@@ -40,6 +48,10 @@ class ScoreGridCell extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () {
+            if (picking) {
+              onScoreTap!(score);
+              return;
+            }
             context.go("/scores/${score.id}");
           },
           child: Builder(
@@ -75,7 +87,7 @@ class ScoreGridCell extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       spacing: 4,
                       children: [
-                        if (Platform.isAndroid)
+                        if (Platform.isAndroid && !picking)
                           Row(
                             children: [
                               Expanded(child: title),
@@ -145,6 +157,29 @@ class ScoreGridCell extends StatelessWidget {
                   ),
                 ],
               );
+              if (picking) {
+                return Stack(
+                  children: [
+                    widget,
+                    if (selected)
+                      Align(
+                        alignment: Alignment.topLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: CircleAvatar(
+                            radius: 14,
+                            backgroundColor: theme.colorScheme.primary,
+                            child: Icon(
+                              Icons.check,
+                              size: 18,
+                              color: theme.colorScheme.onPrimary,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              }
               // android really struggles with transparent overlays on images
               if (Platform.isAndroid) {
                 return widget;

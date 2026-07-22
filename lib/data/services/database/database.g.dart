@@ -2952,6 +2952,815 @@ class LogMessageTableCompanion extends UpdateCompanion<LogMessageTableData> {
   }
 }
 
+class $SetlistsTableTable extends SetlistsTable
+    with TableInfo<$SetlistsTableTable, SetlistsTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SetlistsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    clientDefault: () => DateTime.now().toUtc(),
+  );
+  static const VerificationMeta _uploadedMeta = const VerificationMeta(
+    'uploaded',
+  );
+  @override
+  late final GeneratedColumn<bool> uploaded = GeneratedColumn<bool>(
+    'uploaded',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("uploaded" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, updatedAt, uploaded];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'setlists';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SetlistsTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('uploaded')) {
+      context.handle(
+        _uploadedMeta,
+        uploaded.isAcceptableOrUnknown(data['uploaded']!, _uploadedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SetlistsTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SetlistsTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      uploaded: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}uploaded'],
+      )!,
+    );
+  }
+
+  @override
+  $SetlistsTableTable createAlias(String alias) {
+    return $SetlistsTableTable(attachedDatabase, alias);
+  }
+}
+
+class SetlistsTableData extends DataClass
+    implements Insertable<SetlistsTableData> {
+  final String id;
+  final String name;
+  final DateTime updatedAt;
+  final bool uploaded;
+  const SetlistsTableData({
+    required this.id,
+    required this.name,
+    required this.updatedAt,
+    required this.uploaded,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['uploaded'] = Variable<bool>(uploaded);
+    return map;
+  }
+
+  SetlistsTableCompanion toCompanion(bool nullToAbsent) {
+    return SetlistsTableCompanion(
+      id: Value(id),
+      name: Value(name),
+      updatedAt: Value(updatedAt),
+      uploaded: Value(uploaded),
+    );
+  }
+
+  factory SetlistsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SetlistsTableData(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      uploaded: serializer.fromJson<bool>(json['uploaded']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'uploaded': serializer.toJson<bool>(uploaded),
+    };
+  }
+
+  SetlistsTableData copyWith({
+    String? id,
+    String? name,
+    DateTime? updatedAt,
+    bool? uploaded,
+  }) => SetlistsTableData(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    updatedAt: updatedAt ?? this.updatedAt,
+    uploaded: uploaded ?? this.uploaded,
+  );
+  SetlistsTableData copyWithCompanion(SetlistsTableCompanion data) {
+    return SetlistsTableData(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      uploaded: data.uploaded.present ? data.uploaded.value : this.uploaded,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SetlistsTableData(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('uploaded: $uploaded')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, updatedAt, uploaded);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SetlistsTableData &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.updatedAt == this.updatedAt &&
+          other.uploaded == this.uploaded);
+}
+
+class SetlistsTableCompanion extends UpdateCompanion<SetlistsTableData> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<DateTime> updatedAt;
+  final Value<bool> uploaded;
+  final Value<int> rowid;
+  const SetlistsTableCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.uploaded = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SetlistsTableCompanion.insert({
+    required String id,
+    required String name,
+    this.updatedAt = const Value.absent(),
+    this.uploaded = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name);
+  static Insertable<SetlistsTableData> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? uploaded,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (uploaded != null) 'uploaded': uploaded,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SetlistsTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<DateTime>? updatedAt,
+    Value<bool>? uploaded,
+    Value<int>? rowid,
+  }) {
+    return SetlistsTableCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      updatedAt: updatedAt ?? this.updatedAt,
+      uploaded: uploaded ?? this.uploaded,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (uploaded.present) {
+      map['uploaded'] = Variable<bool>(uploaded.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SetlistsTableCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('uploaded: $uploaded, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SetlistEntriesTableTable extends SetlistEntriesTable
+    with TableInfo<$SetlistEntriesTableTable, SetlistEntriesTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SetlistEntriesTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _setlistMeta = const VerificationMeta(
+    'setlist',
+  );
+  @override
+  late final GeneratedColumn<String> setlist = GeneratedColumn<String>(
+    'setlist',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES setlists (id) ON UPDATE CASCADE ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _scoreMeta = const VerificationMeta('score');
+  @override
+  late final GeneratedColumn<String> score = GeneratedColumn<String>(
+    'score',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _positionMeta = const VerificationMeta(
+    'position',
+  );
+  @override
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+    'position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [setlist, score, position];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'setlist_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SetlistEntriesTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('setlist')) {
+      context.handle(
+        _setlistMeta,
+        setlist.isAcceptableOrUnknown(data['setlist']!, _setlistMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_setlistMeta);
+    }
+    if (data.containsKey('score')) {
+      context.handle(
+        _scoreMeta,
+        score.isAcceptableOrUnknown(data['score']!, _scoreMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_scoreMeta);
+    }
+    if (data.containsKey('position')) {
+      context.handle(
+        _positionMeta,
+        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_positionMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {setlist, position};
+  @override
+  SetlistEntriesTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SetlistEntriesTableData(
+      setlist: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}setlist'],
+      )!,
+      score: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}score'],
+      )!,
+      position: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position'],
+      )!,
+    );
+  }
+
+  @override
+  $SetlistEntriesTableTable createAlias(String alias) {
+    return $SetlistEntriesTableTable(attachedDatabase, alias);
+  }
+}
+
+class SetlistEntriesTableData extends DataClass
+    implements Insertable<SetlistEntriesTableData> {
+  final String setlist;
+  final String score;
+  final int position;
+  const SetlistEntriesTableData({
+    required this.setlist,
+    required this.score,
+    required this.position,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['setlist'] = Variable<String>(setlist);
+    map['score'] = Variable<String>(score);
+    map['position'] = Variable<int>(position);
+    return map;
+  }
+
+  SetlistEntriesTableCompanion toCompanion(bool nullToAbsent) {
+    return SetlistEntriesTableCompanion(
+      setlist: Value(setlist),
+      score: Value(score),
+      position: Value(position),
+    );
+  }
+
+  factory SetlistEntriesTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SetlistEntriesTableData(
+      setlist: serializer.fromJson<String>(json['setlist']),
+      score: serializer.fromJson<String>(json['score']),
+      position: serializer.fromJson<int>(json['position']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'setlist': serializer.toJson<String>(setlist),
+      'score': serializer.toJson<String>(score),
+      'position': serializer.toJson<int>(position),
+    };
+  }
+
+  SetlistEntriesTableData copyWith({
+    String? setlist,
+    String? score,
+    int? position,
+  }) => SetlistEntriesTableData(
+    setlist: setlist ?? this.setlist,
+    score: score ?? this.score,
+    position: position ?? this.position,
+  );
+  SetlistEntriesTableData copyWithCompanion(SetlistEntriesTableCompanion data) {
+    return SetlistEntriesTableData(
+      setlist: data.setlist.present ? data.setlist.value : this.setlist,
+      score: data.score.present ? data.score.value : this.score,
+      position: data.position.present ? data.position.value : this.position,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SetlistEntriesTableData(')
+          ..write('setlist: $setlist, ')
+          ..write('score: $score, ')
+          ..write('position: $position')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(setlist, score, position);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SetlistEntriesTableData &&
+          other.setlist == this.setlist &&
+          other.score == this.score &&
+          other.position == this.position);
+}
+
+class SetlistEntriesTableCompanion
+    extends UpdateCompanion<SetlistEntriesTableData> {
+  final Value<String> setlist;
+  final Value<String> score;
+  final Value<int> position;
+  final Value<int> rowid;
+  const SetlistEntriesTableCompanion({
+    this.setlist = const Value.absent(),
+    this.score = const Value.absent(),
+    this.position = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SetlistEntriesTableCompanion.insert({
+    required String setlist,
+    required String score,
+    required int position,
+    this.rowid = const Value.absent(),
+  }) : setlist = Value(setlist),
+       score = Value(score),
+       position = Value(position);
+  static Insertable<SetlistEntriesTableData> custom({
+    Expression<String>? setlist,
+    Expression<String>? score,
+    Expression<int>? position,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (setlist != null) 'setlist': setlist,
+      if (score != null) 'score': score,
+      if (position != null) 'position': position,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SetlistEntriesTableCompanion copyWith({
+    Value<String>? setlist,
+    Value<String>? score,
+    Value<int>? position,
+    Value<int>? rowid,
+  }) {
+    return SetlistEntriesTableCompanion(
+      setlist: setlist ?? this.setlist,
+      score: score ?? this.score,
+      position: position ?? this.position,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (setlist.present) {
+      map['setlist'] = Variable<String>(setlist.value);
+    }
+    if (score.present) {
+      map['score'] = Variable<String>(score.value);
+    }
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SetlistEntriesTableCompanion(')
+          ..write('setlist: $setlist, ')
+          ..write('score: $score, ')
+          ..write('position: $position, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DeletedSetlistsTableTable extends DeletedSetlistsTable
+    with TableInfo<$DeletedSetlistsTableTable, DeletedSetlistsTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DeletedSetlistsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _setlistIdMeta = const VerificationMeta(
+    'setlistId',
+  );
+  @override
+  late final GeneratedColumn<String> setlistId = GeneratedColumn<String>(
+    'setlist_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    clientDefault: () => DateTime.now().toUtc(),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [setlistId, deletedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'deleted_setlists';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DeletedSetlistsTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('setlist_id')) {
+      context.handle(
+        _setlistIdMeta,
+        setlistId.isAcceptableOrUnknown(data['setlist_id']!, _setlistIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_setlistIdMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {setlistId};
+  @override
+  DeletedSetlistsTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DeletedSetlistsTableData(
+      setlistId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}setlist_id'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DeletedSetlistsTableTable createAlias(String alias) {
+    return $DeletedSetlistsTableTable(attachedDatabase, alias);
+  }
+}
+
+class DeletedSetlistsTableData extends DataClass
+    implements Insertable<DeletedSetlistsTableData> {
+  final String setlistId;
+  final DateTime deletedAt;
+  const DeletedSetlistsTableData({
+    required this.setlistId,
+    required this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['setlist_id'] = Variable<String>(setlistId);
+    map['deleted_at'] = Variable<DateTime>(deletedAt);
+    return map;
+  }
+
+  DeletedSetlistsTableCompanion toCompanion(bool nullToAbsent) {
+    return DeletedSetlistsTableCompanion(
+      setlistId: Value(setlistId),
+      deletedAt: Value(deletedAt),
+    );
+  }
+
+  factory DeletedSetlistsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DeletedSetlistsTableData(
+      setlistId: serializer.fromJson<String>(json['setlistId']),
+      deletedAt: serializer.fromJson<DateTime>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'setlistId': serializer.toJson<String>(setlistId),
+      'deletedAt': serializer.toJson<DateTime>(deletedAt),
+    };
+  }
+
+  DeletedSetlistsTableData copyWith({String? setlistId, DateTime? deletedAt}) =>
+      DeletedSetlistsTableData(
+        setlistId: setlistId ?? this.setlistId,
+        deletedAt: deletedAt ?? this.deletedAt,
+      );
+  DeletedSetlistsTableData copyWithCompanion(
+    DeletedSetlistsTableCompanion data,
+  ) {
+    return DeletedSetlistsTableData(
+      setlistId: data.setlistId.present ? data.setlistId.value : this.setlistId,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeletedSetlistsTableData(')
+          ..write('setlistId: $setlistId, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(setlistId, deletedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DeletedSetlistsTableData &&
+          other.setlistId == this.setlistId &&
+          other.deletedAt == this.deletedAt);
+}
+
+class DeletedSetlistsTableCompanion
+    extends UpdateCompanion<DeletedSetlistsTableData> {
+  final Value<String> setlistId;
+  final Value<DateTime> deletedAt;
+  final Value<int> rowid;
+  const DeletedSetlistsTableCompanion({
+    this.setlistId = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DeletedSetlistsTableCompanion.insert({
+    required String setlistId,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : setlistId = Value(setlistId);
+  static Insertable<DeletedSetlistsTableData> custom({
+    Expression<String>? setlistId,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (setlistId != null) 'setlist_id': setlistId,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DeletedSetlistsTableCompanion copyWith({
+    Value<String>? setlistId,
+    Value<DateTime>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return DeletedSetlistsTableCompanion(
+      setlistId: setlistId ?? this.setlistId,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (setlistId.present) {
+      map['setlist_id'] = Variable<String>(setlistId.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeletedSetlistsTableCompanion(')
+          ..write('setlistId: $setlistId, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$Database extends GeneratedDatabase {
   _$Database(QueryExecutor e) : super(e);
   $DatabaseManager get managers => $DatabaseManager(this);
@@ -2971,6 +3780,11 @@ abstract class _$Database extends GeneratedDatabase {
   late final $LogMessageTableTable logMessageTable = $LogMessageTableTable(
     this,
   );
+  late final $SetlistsTableTable setlistsTable = $SetlistsTableTable(this);
+  late final $SetlistEntriesTableTable setlistEntriesTable =
+      $SetlistEntriesTableTable(this);
+  late final $DeletedSetlistsTableTable deletedSetlistsTable =
+      $DeletedSetlistsTableTable(this);
   late final Index searchTextIndex = Index(
     'search_text_index',
     'CREATE INDEX search_text_index ON scores (search_text)',
@@ -2993,6 +3807,9 @@ abstract class _$Database extends GeneratedDatabase {
     deletedTagsTable,
     deletedScoresTable,
     logMessageTable,
+    setlistsTable,
+    setlistEntriesTable,
+    deletedSetlistsTable,
     searchTextIndex,
     recentTimeIndex,
   ];
@@ -3053,6 +3870,20 @@ abstract class _$Database extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.update,
       ),
       result: [TableUpdate('score_tags', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'setlists',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('setlist_entries', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'setlists',
+        limitUpdateKind: UpdateKind.update,
+      ),
+      result: [TableUpdate('setlist_entries', kind: UpdateKind.update)],
     ),
   ]);
   @override
@@ -5641,6 +6472,757 @@ typedef $$LogMessageTableTableProcessedTableManager =
       LogMessageTableData,
       PrefetchHooks Function()
     >;
+typedef $$SetlistsTableTableCreateCompanionBuilder =
+    SetlistsTableCompanion Function({
+      required String id,
+      required String name,
+      Value<DateTime> updatedAt,
+      Value<bool> uploaded,
+      Value<int> rowid,
+    });
+typedef $$SetlistsTableTableUpdateCompanionBuilder =
+    SetlistsTableCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<DateTime> updatedAt,
+      Value<bool> uploaded,
+      Value<int> rowid,
+    });
+
+final class $$SetlistsTableTableReferences
+    extends BaseReferences<_$Database, $SetlistsTableTable, SetlistsTableData> {
+  $$SetlistsTableTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<
+    $SetlistEntriesTableTable,
+    List<SetlistEntriesTableData>
+  >
+  _setlistEntriesTableRefsTable(_$Database db) => MultiTypedResultKey.fromTable(
+    db.setlistEntriesTable,
+    aliasName: 'setlists__id__setlist_entries__setlist',
+  );
+
+  $$SetlistEntriesTableTableProcessedTableManager get setlistEntriesTableRefs {
+    final manager = $$SetlistEntriesTableTableTableManager(
+      $_db,
+      $_db.setlistEntriesTable,
+    ).filter((f) => f.setlist.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _setlistEntriesTableRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$SetlistsTableTableFilterComposer
+    extends Composer<_$Database, $SetlistsTableTable> {
+  $$SetlistsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get uploaded => $composableBuilder(
+    column: $table.uploaded,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> setlistEntriesTableRefs(
+    Expression<bool> Function($$SetlistEntriesTableTableFilterComposer f) f,
+  ) {
+    final $$SetlistEntriesTableTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.setlistEntriesTable,
+      getReferencedColumn: (t) => t.setlist,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SetlistEntriesTableTableFilterComposer(
+            $db: $db,
+            $table: $db.setlistEntriesTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$SetlistsTableTableOrderingComposer
+    extends Composer<_$Database, $SetlistsTableTable> {
+  $$SetlistsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get uploaded => $composableBuilder(
+    column: $table.uploaded,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SetlistsTableTableAnnotationComposer
+    extends Composer<_$Database, $SetlistsTableTable> {
+  $$SetlistsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get uploaded =>
+      $composableBuilder(column: $table.uploaded, builder: (column) => column);
+
+  Expression<T> setlistEntriesTableRefs<T extends Object>(
+    Expression<T> Function($$SetlistEntriesTableTableAnnotationComposer a) f,
+  ) {
+    final $$SetlistEntriesTableTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.setlistEntriesTable,
+          getReferencedColumn: (t) => t.setlist,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SetlistEntriesTableTableAnnotationComposer(
+                $db: $db,
+                $table: $db.setlistEntriesTable,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$SetlistsTableTableTableManager
+    extends
+        RootTableManager<
+          _$Database,
+          $SetlistsTableTable,
+          SetlistsTableData,
+          $$SetlistsTableTableFilterComposer,
+          $$SetlistsTableTableOrderingComposer,
+          $$SetlistsTableTableAnnotationComposer,
+          $$SetlistsTableTableCreateCompanionBuilder,
+          $$SetlistsTableTableUpdateCompanionBuilder,
+          (SetlistsTableData, $$SetlistsTableTableReferences),
+          SetlistsTableData,
+          PrefetchHooks Function({bool setlistEntriesTableRefs})
+        > {
+  $$SetlistsTableTableTableManager(_$Database db, $SetlistsTableTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SetlistsTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SetlistsTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SetlistsTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> uploaded = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SetlistsTableCompanion(
+                id: id,
+                name: name,
+                updatedAt: updatedAt,
+                uploaded: uploaded,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> uploaded = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SetlistsTableCompanion.insert(
+                id: id,
+                name: name,
+                updatedAt: updatedAt,
+                uploaded: uploaded,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SetlistsTableTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({setlistEntriesTableRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (setlistEntriesTableRefs) db.setlistEntriesTable,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (setlistEntriesTableRefs)
+                    await $_getPrefetchedData<
+                      SetlistsTableData,
+                      $SetlistsTableTable,
+                      SetlistEntriesTableData
+                    >(
+                      currentTable: table,
+                      referencedTable: $$SetlistsTableTableReferences
+                          ._setlistEntriesTableRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$SetlistsTableTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).setlistEntriesTableRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.setlist == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SetlistsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$Database,
+      $SetlistsTableTable,
+      SetlistsTableData,
+      $$SetlistsTableTableFilterComposer,
+      $$SetlistsTableTableOrderingComposer,
+      $$SetlistsTableTableAnnotationComposer,
+      $$SetlistsTableTableCreateCompanionBuilder,
+      $$SetlistsTableTableUpdateCompanionBuilder,
+      (SetlistsTableData, $$SetlistsTableTableReferences),
+      SetlistsTableData,
+      PrefetchHooks Function({bool setlistEntriesTableRefs})
+    >;
+typedef $$SetlistEntriesTableTableCreateCompanionBuilder =
+    SetlistEntriesTableCompanion Function({
+      required String setlist,
+      required String score,
+      required int position,
+      Value<int> rowid,
+    });
+typedef $$SetlistEntriesTableTableUpdateCompanionBuilder =
+    SetlistEntriesTableCompanion Function({
+      Value<String> setlist,
+      Value<String> score,
+      Value<int> position,
+      Value<int> rowid,
+    });
+
+final class $$SetlistEntriesTableTableReferences
+    extends
+        BaseReferences<
+          _$Database,
+          $SetlistEntriesTableTable,
+          SetlistEntriesTableData
+        > {
+  $$SetlistEntriesTableTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SetlistsTableTable _setlistTable(_$Database db) =>
+      db.setlistsTable.createAlias('setlist_entries__setlist__setlists__id');
+
+  $$SetlistsTableTableProcessedTableManager get setlist {
+    final $_column = $_itemColumn<String>('setlist')!;
+
+    final manager = $$SetlistsTableTableTableManager(
+      $_db,
+      $_db.setlistsTable,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_setlistTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SetlistEntriesTableTableFilterComposer
+    extends Composer<_$Database, $SetlistEntriesTableTable> {
+  $$SetlistEntriesTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get score => $composableBuilder(
+    column: $table.score,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SetlistsTableTableFilterComposer get setlist {
+    final $$SetlistsTableTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.setlist,
+      referencedTable: $db.setlistsTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SetlistsTableTableFilterComposer(
+            $db: $db,
+            $table: $db.setlistsTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SetlistEntriesTableTableOrderingComposer
+    extends Composer<_$Database, $SetlistEntriesTableTable> {
+  $$SetlistEntriesTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get score => $composableBuilder(
+    column: $table.score,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SetlistsTableTableOrderingComposer get setlist {
+    final $$SetlistsTableTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.setlist,
+      referencedTable: $db.setlistsTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SetlistsTableTableOrderingComposer(
+            $db: $db,
+            $table: $db.setlistsTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SetlistEntriesTableTableAnnotationComposer
+    extends Composer<_$Database, $SetlistEntriesTableTable> {
+  $$SetlistEntriesTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get score =>
+      $composableBuilder(column: $table.score, builder: (column) => column);
+
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+
+  $$SetlistsTableTableAnnotationComposer get setlist {
+    final $$SetlistsTableTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.setlist,
+      referencedTable: $db.setlistsTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SetlistsTableTableAnnotationComposer(
+            $db: $db,
+            $table: $db.setlistsTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SetlistEntriesTableTableTableManager
+    extends
+        RootTableManager<
+          _$Database,
+          $SetlistEntriesTableTable,
+          SetlistEntriesTableData,
+          $$SetlistEntriesTableTableFilterComposer,
+          $$SetlistEntriesTableTableOrderingComposer,
+          $$SetlistEntriesTableTableAnnotationComposer,
+          $$SetlistEntriesTableTableCreateCompanionBuilder,
+          $$SetlistEntriesTableTableUpdateCompanionBuilder,
+          (SetlistEntriesTableData, $$SetlistEntriesTableTableReferences),
+          SetlistEntriesTableData,
+          PrefetchHooks Function({bool setlist})
+        > {
+  $$SetlistEntriesTableTableTableManager(
+    _$Database db,
+    $SetlistEntriesTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SetlistEntriesTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SetlistEntriesTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SetlistEntriesTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> setlist = const Value.absent(),
+                Value<String> score = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SetlistEntriesTableCompanion(
+                setlist: setlist,
+                score: score,
+                position: position,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String setlist,
+                required String score,
+                required int position,
+                Value<int> rowid = const Value.absent(),
+              }) => SetlistEntriesTableCompanion.insert(
+                setlist: setlist,
+                score: score,
+                position: position,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SetlistEntriesTableTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({setlist = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (setlist) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.setlist,
+                                referencedTable:
+                                    $$SetlistEntriesTableTableReferences
+                                        ._setlistTable(db),
+                                referencedColumn:
+                                    $$SetlistEntriesTableTableReferences
+                                        ._setlistTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SetlistEntriesTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$Database,
+      $SetlistEntriesTableTable,
+      SetlistEntriesTableData,
+      $$SetlistEntriesTableTableFilterComposer,
+      $$SetlistEntriesTableTableOrderingComposer,
+      $$SetlistEntriesTableTableAnnotationComposer,
+      $$SetlistEntriesTableTableCreateCompanionBuilder,
+      $$SetlistEntriesTableTableUpdateCompanionBuilder,
+      (SetlistEntriesTableData, $$SetlistEntriesTableTableReferences),
+      SetlistEntriesTableData,
+      PrefetchHooks Function({bool setlist})
+    >;
+typedef $$DeletedSetlistsTableTableCreateCompanionBuilder =
+    DeletedSetlistsTableCompanion Function({
+      required String setlistId,
+      Value<DateTime> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$DeletedSetlistsTableTableUpdateCompanionBuilder =
+    DeletedSetlistsTableCompanion Function({
+      Value<String> setlistId,
+      Value<DateTime> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$DeletedSetlistsTableTableFilterComposer
+    extends Composer<_$Database, $DeletedSetlistsTableTable> {
+  $$DeletedSetlistsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get setlistId => $composableBuilder(
+    column: $table.setlistId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DeletedSetlistsTableTableOrderingComposer
+    extends Composer<_$Database, $DeletedSetlistsTableTable> {
+  $$DeletedSetlistsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get setlistId => $composableBuilder(
+    column: $table.setlistId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DeletedSetlistsTableTableAnnotationComposer
+    extends Composer<_$Database, $DeletedSetlistsTableTable> {
+  $$DeletedSetlistsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get setlistId =>
+      $composableBuilder(column: $table.setlistId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$DeletedSetlistsTableTableTableManager
+    extends
+        RootTableManager<
+          _$Database,
+          $DeletedSetlistsTableTable,
+          DeletedSetlistsTableData,
+          $$DeletedSetlistsTableTableFilterComposer,
+          $$DeletedSetlistsTableTableOrderingComposer,
+          $$DeletedSetlistsTableTableAnnotationComposer,
+          $$DeletedSetlistsTableTableCreateCompanionBuilder,
+          $$DeletedSetlistsTableTableUpdateCompanionBuilder,
+          (
+            DeletedSetlistsTableData,
+            BaseReferences<
+              _$Database,
+              $DeletedSetlistsTableTable,
+              DeletedSetlistsTableData
+            >,
+          ),
+          DeletedSetlistsTableData,
+          PrefetchHooks Function()
+        > {
+  $$DeletedSetlistsTableTableTableManager(
+    _$Database db,
+    $DeletedSetlistsTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DeletedSetlistsTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DeletedSetlistsTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$DeletedSetlistsTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> setlistId = const Value.absent(),
+                Value<DateTime> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DeletedSetlistsTableCompanion(
+                setlistId: setlistId,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String setlistId,
+                Value<DateTime> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DeletedSetlistsTableCompanion.insert(
+                setlistId: setlistId,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DeletedSetlistsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$Database,
+      $DeletedSetlistsTableTable,
+      DeletedSetlistsTableData,
+      $$DeletedSetlistsTableTableFilterComposer,
+      $$DeletedSetlistsTableTableOrderingComposer,
+      $$DeletedSetlistsTableTableAnnotationComposer,
+      $$DeletedSetlistsTableTableCreateCompanionBuilder,
+      $$DeletedSetlistsTableTableUpdateCompanionBuilder,
+      (
+        DeletedSetlistsTableData,
+        BaseReferences<
+          _$Database,
+          $DeletedSetlistsTableTable,
+          DeletedSetlistsTableData
+        >,
+      ),
+      DeletedSetlistsTableData,
+      PrefetchHooks Function()
+    >;
 
 class $DatabaseManager {
   final _$Database _db;
@@ -5663,4 +7245,10 @@ class $DatabaseManager {
       $$DeletedScoresTableTableTableManager(_db, _db.deletedScoresTable);
   $$LogMessageTableTableTableManager get logMessageTable =>
       $$LogMessageTableTableTableManager(_db, _db.logMessageTable);
+  $$SetlistsTableTableTableManager get setlistsTable =>
+      $$SetlistsTableTableTableManager(_db, _db.setlistsTable);
+  $$SetlistEntriesTableTableTableManager get setlistEntriesTable =>
+      $$SetlistEntriesTableTableTableManager(_db, _db.setlistEntriesTable);
+  $$DeletedSetlistsTableTableTableManager get deletedSetlistsTable =>
+      $$DeletedSetlistsTableTableTableManager(_db, _db.deletedSetlistsTable);
 }

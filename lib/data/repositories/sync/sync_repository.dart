@@ -18,6 +18,8 @@ import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage_
 import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage_secure_storage.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
+import 'package:sheetopia/data/repositories/version/version.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/sync/exceptions.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
@@ -30,7 +32,10 @@ enum SyncState { none, failure, syncing, success }
 class SyncRepository {
   static const _defaultSyncDelay = Duration(seconds: 30);
 
+  static const minAPIVersionSetlist = Version(major: 0, minor: 2);
+
   final ScoresRepository _scoresRepo;
+  final SetlistsRepository _setlistsRepo;
   final KeyValueRepository _keyValue;
   final Database _db;
   final SyncService _service;
@@ -46,6 +51,7 @@ class SyncRepository {
 
   Set<String> _changedScores = {};
   Set<String> _changedTags = {};
+  Set<String> _changedSetlists = {};
 
   static const String _userKey = "auth.user";
   static const String _conKey = "sheetopia/auth.con";
@@ -63,11 +69,13 @@ class SyncRepository {
 
   SyncRepository({
     required ScoresRepository scoresRepo,
+    required SetlistsRepository setlistsRepo,
     required KeyValueRepository keyValue,
     required Database db,
     required SyncService syncService,
     required ThumbnailService thumbnailService,
   }) : _scoresRepo = scoresRepo,
+       _setlistsRepo = setlistsRepo,
        _keyValue = keyValue,
        _db = db,
        _service = syncService,
@@ -78,6 +86,7 @@ class SyncRepository {
     _load().then((value) {
       _scoresRepo.locallyUpdatedScoreIds.listen((event) => _requestSync());
       _scoresRepo.locallyUpdatedTagIds.listen((event) => _requestSync());
+      _setlistsRepo.locallyUpdatedSetlistIds.listen((event) => _requestSync());
       _listener = AppLifecycleListener(
         onDetach: _disableSyncing,
         onPause: _disableSyncing,
@@ -142,6 +151,7 @@ class SyncRepository {
 
     await _db.managers.deletedScoresTable.delete();
     await _db.managers.deletedTagsTable.delete();
+    await _db.managers.deletedSetlistsTable.delete();
 
     _sync();
   }
@@ -165,6 +175,9 @@ class SyncRepository {
       ),
     );
     await _db.managers.tagsTable.update((o) => o(uploaded: const Value(false)));
+    await _db.managers.setlistsTable.update(
+      (o) => o(uploaded: const Value(false)),
+    );
   }
 
   Future<void> _load() async {
@@ -233,10 +246,15 @@ class SyncRepository {
         await _loadLastSync();
       }
 
-      final syncTime = (await _service.getServerInfo(_con!.baseUri)).time;
+      final serverInfo = await _service.getServerInfo(_con!.baseUri);
+      final syncTime = serverInfo.time;
+      final apiVersion = Version.parse(serverInfo.apiVersion);
 
       await _uploadDeletedTags();
       await _uploadDeletedScores();
+      if (apiVersion >= minAPIVersionSetlist) {
+        await _uploadDeletedSetlists();
+      }
 
       await _downloadDeletedTags();
 
@@ -251,6 +269,12 @@ class SyncRepository {
       await _downloadMetadataChanges();
       await _downloadFileChanges();
 
+      if (apiVersion >= minAPIVersionSetlist) {
+        await _downloadDeletedSetlists();
+        await _uploadSetlistChanges();
+        await _downloadSetlistChanges();
+      }
+
       await _updateLastSync(syncTime);
 
       state.value = SyncState.success;
@@ -264,8 +288,10 @@ class SyncRepository {
     } finally {
       _scoresRepo.remoteChangedTags(_changedTags);
       _scoresRepo.remoteChangedScores(_changedScores);
+      _setlistsRepo.remoteChangedSetlists(_changedSetlists);
       _changedTags = {};
       _changedScores = {};
+      _changedSetlists = {};
       _scheduleSync();
     }
   }
@@ -306,6 +332,105 @@ class SyncRepository {
     await _db.managers.deletedScoresTable
         .filter((f) => f.deletedAt.isBeforeOrOn(startTime))
         .delete();
+  }
+
+  Future<void> _uploadDeletedSetlists() async {
+    final startTime = DateTime.now();
+    final deletedSetlistIds = (await _db.managers.deletedSetlistsTable.get())
+        .map((s) => s.setlistId);
+
+    for (final setlistId in deletedSetlistIds) {
+      try {
+        await _service.deleteSetlist(_con!, setlistId);
+      } on NotFoundException catch (_) {
+        // already deleted on the server or never synced
+      }
+    }
+
+    await _db.managers.deletedSetlistsTable
+        .filter((f) => f.deletedAt.isBeforeOrOn(startTime))
+        .delete();
+  }
+
+  Future<void> _downloadDeletedSetlists() async {
+    final deletedSetlistIds = await _service.getDeletedSetlistIds(
+      _con!,
+      since: lastSync.value,
+    );
+    for (final s in deletedSetlistIds) {
+      final count = await _db.managers.setlistsTable
+          .filter((f) => f.id(s))
+          .delete();
+      if (count > 0) {
+        _changedSetlists.add(s);
+      }
+    }
+  }
+
+  Future<void> _uploadSetlistChanges() async {
+    final changedSetlists = await _db.managers.setlistsTable
+        .filter((f) => f.uploaded.isFalse())
+        .get();
+
+    for (final s in changedSetlists) {
+      final entries =
+          await (_db.select(_db.setlistEntriesTable)
+                ..where((t) => t.setlist.equals(s.id))
+                ..orderBy([(t) => OrderingTerm.asc(t.position)]))
+              .get();
+      try {
+        await _service.updateSetlist(
+          _con!,
+          s.id,
+          name: s.name,
+          scoreIds: entries.map((e) => e.score).toList(),
+          updatedAt: s.updatedAt.toUtc(),
+        );
+        await _db.managers.setlistsTable
+            .filter((f) => f.id(s.id) & f.updatedAt.equals(s.updatedAt))
+            .update((o) => o(uploaded: const Value(true)));
+      } on ConflictException catch (_) {
+        // local changes aren't the latest version
+      }
+    }
+  }
+
+  Future<void> _downloadSetlistChanges() async {
+    final setlists = await _service.getSetlists(
+      _con!,
+      changedAfter: lastSync.value,
+    );
+    for (final s in setlists) {
+      await _db.transaction(() async {
+        final result = await _db.managers.setlistsTable.createReturningOrNull(
+          (o) => o(
+            id: s.id,
+            name: s.name,
+            updatedAt: Value(s.updatedAt.toUtc()),
+            uploaded: const Value(true),
+          ),
+          onConflict: DoUpdate.withExcluded(
+            (old, excluded) => SetlistsTableCompanion.custom(
+              name: excluded.name,
+              uploaded: excluded.uploaded,
+              updatedAt: excluded.updatedAt,
+            ),
+            where: (old, excluded) =>
+                old.updatedAt.isSmallerThan(excluded.updatedAt),
+          ),
+        );
+        if (result == null) return;
+        await _db.managers.setlistEntriesTable
+            .filter((f) => f.setlist.id(s.id))
+            .delete();
+        await _db.managers.setlistEntriesTable.bulkCreate(
+          (o) => s.scoreIds.indexed.map(
+            (e) => o(setlist: s.id, score: e.$2, position: e.$1),
+          ),
+        );
+        _changedSetlists.add(s.id);
+      });
+    }
   }
 
   Future<void> _downloadDeletedTags() async {
@@ -392,6 +517,7 @@ class SyncRepository {
       _con!,
       since: lastSync.value,
     );
+    final actuallyDeleted = <String>{};
     for (final s in deletedScores) {
       final count = await _db.managers.scoresTable
           .filter((f) => f.id(s))
@@ -399,8 +525,10 @@ class SyncRepository {
       await _scoresRepo.cleanupScoreFilesAfterDelete(s);
       if (count > 0) {
         _changedScores.add(s);
+        actuallyDeleted.add(s);
       }
     }
+    _scoresRepo.announceDeletedScores(actuallyDeleted);
   }
 
   Future<void> _uploadMetadataChanges() async {

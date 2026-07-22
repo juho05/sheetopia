@@ -20,6 +20,7 @@ import 'package:sheetopia/data/services/database/log_interceptor.dart';
 import 'package:sheetopia/data/services/database/log_level_converter.dart';
 import 'package:sheetopia/data/services/database/log_message.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/database/setlists_table.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:uuid/uuid.dart';
 
@@ -38,13 +39,16 @@ part 'database.g.dart';
     DeletedTagsTable,
     DeletedScoresTable,
     LogMessageTable,
+    SetlistsTable,
+    SetlistEntriesTable,
+    DeletedSetlistsTable,
   ],
 )
 class Database extends _$Database {
   Database([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -89,6 +93,11 @@ class Database extends _$Database {
             from5To6: (m, schema) async {
               await m.addColumn(schema.scores, schema.scores.annotations);
               await m.deleteTable('annotations');
+            },
+            from6To7: (m, schema) async {
+              await m.createTable(schema.setlists);
+              await m.createTable(schema.setlistEntries);
+              await m.createTable(schema.deletedSetlists);
             },
           ),
         ),

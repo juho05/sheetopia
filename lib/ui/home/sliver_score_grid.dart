@@ -16,8 +16,15 @@ class SliverScoreGrid extends StatelessWidget {
   static const double _gap = 12;
 
   final List<Score> scores;
+  final void Function(Score score)? onScoreTap;
+  final Set<String> selected;
 
-  const SliverScoreGrid({super.key, required this.scores});
+  const SliverScoreGrid({
+    super.key,
+    required this.scores,
+    this.onScoreTap,
+    this.selected = const {},
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +61,11 @@ class SliverScoreGrid extends StatelessWidget {
                 spacing: _gap,
                 children: List.generate(count, (i) {
                   i += columns * index;
-                  return ScoreGridCell(score: scores[i]);
+                  return ScoreGridCell(
+                    score: scores[i],
+                    onScoreTap: onScoreTap,
+                    selected: selected.contains(scores[i].id),
+                  );
                 }),
               ),
             );

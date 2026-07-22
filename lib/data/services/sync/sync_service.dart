@@ -14,10 +14,12 @@ import 'package:sheetopia/data/services/sync/exceptions.dart';
 import 'package:sheetopia/data/services/sync/models/auth_key.dart';
 import 'package:sheetopia/data/services/sync/models/datetime_converter.dart';
 import 'package:sheetopia/data/services/sync/models/deleted_scores.dart';
+import 'package:sheetopia/data/services/sync/models/deleted_setlists.dart';
 import 'package:sheetopia/data/services/sync/models/deleted_tags.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/server_info.dart';
+import 'package:sheetopia/data/services/sync/models/setlists.dart';
 import 'package:sheetopia/data/services/sync/models/tags.dart';
 import 'package:sheetopia/data/services/sync/models/user.dart';
 import 'package:sheetopia/data/services/sync/sync_connection.dart';
@@ -97,6 +99,69 @@ class SyncService {
       },
     );
     return scores.scores;
+  }
+
+  Future<List<SetlistModel>> getSetlists(
+    SyncConnection con, {
+    DateTime? changedAfter,
+  }) async {
+    final setlists = await _requestObject(
+      con.baseUri,
+      "GET",
+      "setlist",
+      SetlistsModel.fromJson,
+      authKey: con.authKey,
+      queryParams: {
+        if (changedAfter != null) "changedAfter": [changedAfter.toRFC3339()],
+      },
+    );
+    return setlists.setlists;
+  }
+
+  Future<void> updateSetlist(
+    SyncConnection con,
+    String setlistId, {
+    required String name,
+    required List<String> scoreIds,
+    required DateTime updatedAt,
+  }) async {
+    await _request(
+      con.baseUri,
+      "POST",
+      "setlist/$setlistId",
+      authKey: con.authKey,
+      data: {
+        "name": name,
+        "scoreIds": scoreIds,
+        "updatedAt": updatedAt.toUtc().toIso8601String(),
+      },
+    );
+  }
+
+  Future<void> deleteSetlist(SyncConnection con, String setlistId) async {
+    await _request(
+      con.baseUri,
+      "DELETE",
+      "setlist/$setlistId",
+      authKey: con.authKey,
+    );
+  }
+
+  Future<List<String>> getDeletedSetlistIds(
+    SyncConnection con, {
+    DateTime? since,
+  }) async {
+    final result = await _requestObject<DeletedSetlistsModel>(
+      con.baseUri,
+      "GET",
+      "setlist/deleted",
+      DeletedSetlistsModel.fromJson,
+      queryParams: {
+        if (since != null) "since": [since.toRFC3339()],
+      },
+      authKey: con.authKey,
+    );
+    return result.setlistIds;
   }
 
   Future<void> deleteTag(SyncConnection con, String tagId) async {

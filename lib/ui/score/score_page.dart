@@ -17,14 +17,19 @@ import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/settings/appearance.dart';
 import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/ui/common/fading_overlay.dart';
 import 'package:sheetopia/ui/score/pdf_view.dart';
 import 'package:sheetopia/ui/score/score_viewmodel.dart';
+import 'package:sheetopia/ui/score/setlist_bubble.dart';
+import 'package:sheetopia/ui/score/setlist_sheet.dart';
+import 'package:sheetopia/ui/setlists/setlist_navigation_viewmodel.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 class ScorePage extends StatefulWidget {
   final String scoreId;
+  final SetlistNavigationViewModel? setlistNavigation;
 
-  const ScorePage({super.key, required this.scoreId});
+  const ScorePage({super.key, required this.scoreId, this.setlistNavigation});
 
   @override
   State<ScorePage> createState() => _ScorePageState();
@@ -44,16 +49,21 @@ class _ScorePageState extends State<ScorePage>
 
   StreamSubscription? _pageChangeSub;
 
+  bool _bubbleTransientVisible = false;
+  Timer? _bubbleTimer;
+
   @override
   void initState() {
     super.initState();
 
     WakelockPlus.enable();
 
-    _viewModel = ScoreViewModel(repo: context.read(), scoreId: widget.scoreId);
-    _appearanceSettings = context
-        .read<SettingsRepository>()
-        .appearanceSettings;
+    _viewModel = ScoreViewModel(
+      repo: context.read(),
+      scoreId: widget.scoreId,
+      setlistNavigation: widget.setlistNavigation,
+    );
+    _appearanceSettings = context.read<SettingsRepository>().appearanceSettings;
     _pageTurnHighlightController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -61,6 +71,23 @@ class _ScorePageState extends State<ScorePage>
     _pageChangeSub = _viewModel.pageChangedStream.listen((forward) {
       _triggerPageTurnHighlight(forward);
     });
+    widget.setlistNavigation?.addListener(_onSetlistChanged);
+  }
+
+  void _onSetlistChanged() {
+    if (!mounted) return;
+    setState(() => _bubbleTransientVisible = true);
+    _bubbleTimer?.cancel();
+    _bubbleTimer = Timer(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      setState(() => _bubbleTransientVisible = false);
+    });
+  }
+
+  void _openSetlistSheet() {
+    final navigation = widget.setlistNavigation;
+    if (navigation == null) return;
+    SetlistSheet.show(context, navigation: navigation);
   }
 
   @override
@@ -86,6 +113,8 @@ class _ScorePageState extends State<ScorePage>
       FullScreen.setFullScreen(false);
     }
     _pageChangeSub?.cancel();
+    _bubbleTimer?.cancel();
+    widget.setlistNavigation?.removeListener(_onSetlistChanged);
     _viewModel.dispose();
     _pageTurnHighlightController.dispose();
     super.dispose();
@@ -123,6 +152,9 @@ class _ScorePageState extends State<ScorePage>
               final backButtonVisible =
                   !_viewModel.isFullScreen ||
                   (Platform.isMacOS && _viewModel.overlayVisible);
+              final navigation = _viewModel.setlistNavigation;
+              final bubbleVisible =
+                  _viewModel.overlayVisible || _bubbleTransientVisible;
               return MouseRegion(
                 cursor: !_viewModel.isFullScreen || _viewModel.overlayVisible
                     ? SystemMouseCursors.basic
@@ -150,11 +182,18 @@ class _ScorePageState extends State<ScorePage>
                             ),
                           if (_viewModel.file != null)
                             switch (_viewModel.fileType!) {
-                              FileType.pdf => PdfView(file: _viewModel.file!),
+                              FileType.pdf => PdfView(
+                                file: _viewModel.file!,
+                                scoreId: _viewModel.scoreId,
+                                switchToken: _viewModel.switchToken,
+                                switchSettleCount: _viewModel.switchSettleCount,
+                                onOpenSetlist: navigation == null
+                                    ? null
+                                    : _openSetlistSheet,
+                              ),
                             },
-                          AnimatedOpacity(
-                            opacity: backButtonVisible ? 1 : 0,
-                            duration: const Duration(milliseconds: 50),
+                          FadingOverlay(
+                            visible: backButtonVisible,
                             child: Padding(
                               padding: const EdgeInsets.all(4),
                               child: SizedBox.square(
@@ -176,12 +215,19 @@ class _ScorePageState extends State<ScorePage>
                               ),
                             ),
                           ),
+                          if (navigation != null)
+                            SetlistBubble(
+                              visible: bubbleVisible,
+                              name: navigation.name,
+                              index: navigation.index,
+                              length: navigation.length,
+                              onTap: _openSetlistSheet,
+                            ),
                           if (Platform.isWindows ||
                               Platform.isMacOS ||
                               Platform.isLinux)
-                            AnimatedOpacity(
-                              opacity: _viewModel.overlayVisible ? 1 : 0,
-                              duration: const Duration(milliseconds: 50),
+                            FadingOverlay(
+                              visible: _viewModel.overlayVisible,
                               child: Align(
                                 alignment: Alignment.bottomRight,
                                 child: Padding(

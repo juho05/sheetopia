@@ -20,15 +20,15 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/scores.dart';
+import 'package:sheetopia/data/services/sync/models/setlists.dart';
 import 'package:sheetopia/data/services/sync/models/tags.dart';
 
-enum ImportExportStatus {
-  idle, importing, exporting
-}
+enum ImportExportStatus { idle, importing, exporting }
 
 class InvalidFileException implements Exception {
   final String message;
@@ -43,17 +43,31 @@ class InvalidFileException implements Exception {
 
 class ImportExportRepository extends ChangeNotifier {
   final ScoresRepository _scoresRepo;
+  final SetlistsRepository _setlistsRepo;
   final Database _db;
 
-  final zipTypeGroup = const XTypeGroup(label: "ZIP", extensions: [".zip"], mimeTypes: ["application/zip"], uniformTypeIdentifiers: ["public.zip-archive"]);
+  final zipTypeGroup = const XTypeGroup(
+    label: "ZIP",
+    extensions: [".zip"],
+    mimeTypes: ["application/zip"],
+    uniformTypeIdentifiers: ["public.zip-archive"],
+  );
 
   ImportExportStatus _status = ImportExportStatus.idle;
+
   ImportExportStatus get status => _status;
 
-  ImportExportRepository({required ScoresRepository scoresRepo, required Database db}) : _scoresRepo = scoresRepo, _db = db;
+  ImportExportRepository({
+    required ScoresRepository scoresRepo,
+    required SetlistsRepository setlistsRepo,
+    required Database db,
+  }) : _scoresRepo = scoresRepo,
+       _setlistsRepo = setlistsRepo,
+       _db = db;
 
   Set<String> _changedScores = {};
   Set<String> _changedTags = {};
+  Set<String> _changedSetlists = {};
 
   Future<bool> import({void Function()? onSelected}) async {
     if (_status != ImportExportStatus.idle) {
@@ -84,18 +98,22 @@ class ImportExportRepository extends ChangeNotifier {
 
         final tags = result["tags"] as List<TagModel>;
         final scores = result["scores"] as List<ScoreModel>;
+        final setlists = result["setlists"] as List<SetlistModel>;
         final scoresDir = result["scoresDir"] as String;
 
         await _importTags(tags);
         await _importScores(scores, scoresDir);
+        await _importSetlists(setlists);
       } finally {
         await dir.delete(recursive: true);
       }
     } finally {
       _scoresRepo.remoteChangedTags(_changedTags);
       _scoresRepo.remoteChangedScores(_changedScores);
+      _setlistsRepo.remoteChangedSetlists(_changedSetlists);
       _changedScores = {};
       _changedTags = {};
+      _changedSetlists = {};
       _status = ImportExportStatus.idle;
       notifyListeners();
     }
@@ -116,21 +134,23 @@ class ImportExportRepository extends ChangeNotifier {
       final scoresTargetDir = Directory(path.join(dir.path, "scores"));
       await scoresTargetDir.create();
 
-
       try {
-
         final scoresDir = await _scoresRepo.scoresDir;
 
         await copyPath(scoresDir.path, scoresTargetDir.path);
 
         {
           final tags = await _scoresRepo.getTags();
-          final tagModels = tags.map((t) => TagModel(
-            id: t.id,
-            name: t.name,
-            color: t.color.toARGB32(),
-            updatedAt: t.updatedAt.toUtc(),
-          )).toList();
+          final tagModels = tags
+              .map(
+                (t) => TagModel(
+                  id: t.id,
+                  name: t.name,
+                  color: t.color.toARGB32(),
+                  updatedAt: t.updatedAt.toUtc(),
+                ),
+              )
+              .toList();
           await compute(_saveTagsJson, {
             "dir": dir.path,
             "tagModels": tagModels,
@@ -142,30 +162,58 @@ class ImportExportRepository extends ChangeNotifier {
 
           int offset = 0;
           while (true) {
-            final scores = await _scoresRepo.getScores(size: 500, offset: offset);
-            scoreModels.addAll(scores.map((s) => ScoreModel(
-              id: s.id,
-              title: s.title,
-              fileType: s.fileType,
-              fileUpdatedAt: s.fileUpdatedAt,
-              metadata: ScoreMetadataModel(
-                composer: s.composer,
-                genres: s.genres,
-                instruments: s.instruments,
-                notes: s.notes,
-                annotations: s.annotations == null
-                    ? {}
-                    : jsonDecode(s.annotations!) as Map<String, dynamic>,
+            final scores = await _scoresRepo.getScores(
+              size: 500,
+              offset: offset,
+            );
+            scoreModels.addAll(
+              scores.map(
+                (s) => ScoreModel(
+                  id: s.id,
+                  title: s.title,
+                  fileType: s.fileType,
+                  fileUpdatedAt: s.fileUpdatedAt,
+                  metadata: ScoreMetadataModel(
+                    composer: s.composer,
+                    genres: s.genres,
+                    instruments: s.instruments,
+                    notes: s.notes,
+                    annotations: s.annotations == null
+                        ? {}
+                        : jsonDecode(s.annotations!) as Map<String, dynamic>,
+                  ),
+                  metadataUpdatedAt: s.metadataUpdatedAt,
+                  tagIds: s.tags.map((t) => t.id).toList(),
+                ),
               ),
-              metadataUpdatedAt: s.metadataUpdatedAt,
-              tagIds: s.tags.map((t) => t.id).toList(),
-            )));
+            );
             if (scores.length < 500) break;
+            offset += scores.length;
           }
 
           await compute(_saveScoresJson, {
             "scoreModels": scoreModels,
             "dir": dir.path,
+          });
+        }
+
+        {
+          final setlistModels = <SetlistModel>[];
+          for (final s in await _setlistsRepo.getSetlists()) {
+            final full = await _setlistsRepo.getSetlist(s.id);
+            if (full == null) continue;
+            setlistModels.add(
+              SetlistModel(
+                id: full.id,
+                name: full.name,
+                scoreIds: full.entries.map((e) => e.scoreId).toList(),
+                updatedAt: full.updatedAt.toUtc(),
+              ),
+            );
+          }
+          await compute(_saveSetlistsJson, {
+            "dir": dir.path,
+            "setlistModels": setlistModels,
           });
         }
 
@@ -177,7 +225,8 @@ class ImportExportRepository extends ChangeNotifier {
         try {
           final datetime = DateTime.now();
 
-          final fileName = "sheetopia-export-${DateFormat("yyyy-MM-dd_HH-mm-ss").format(datetime)}.zip";
+          final fileName =
+              "sheetopia-export-${DateFormat("yyyy-MM-dd_HH-mm-ss").format(datetime)}.zip";
 
           final zipFile = File(path.join(zipFileDir.path, fileName));
 
@@ -190,24 +239,28 @@ class ImportExportRepository extends ChangeNotifier {
 
           if (Platform.isIOS || Platform.isAndroid) {
             // TODO provide an option for android users to save file locally
-            final result = await SharePlus.instance.share(ShareParams(
-              title: "Export scores",
-              fileNameOverrides: [fileName],
-              files: [
-                XFile(
-                  zipFile.path,
-                  name: fileName,
-                  mimeType: "application/zip",
-                )
-              ],
-              sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
-            ));
+            final result = await SharePlus.instance.share(
+              ShareParams(
+                title: "Export scores",
+                fileNameOverrides: [fileName],
+                files: [
+                  XFile(
+                    zipFile.path,
+                    name: fileName,
+                    mimeType: "application/zip",
+                  ),
+                ],
+                sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
+              ),
+            );
             return result.status != ShareResultStatus.dismissed;
           }
 
-          final result = await getSaveLocation(suggestedName: path.basename(zipFile.path), acceptedTypeGroups: [
-            zipTypeGroup
-          ], canCreateDirectories: true);
+          final result = await getSaveLocation(
+            suggestedName: path.basename(zipFile.path),
+            acceptedTypeGroups: [zipTypeGroup],
+            canCreateDirectories: true,
+          );
 
           if (result == null) {
             return false;
@@ -217,7 +270,6 @@ class ImportExportRepository extends ChangeNotifier {
         } finally {
           await zipFileDir.delete(recursive: true);
         }
-
       } finally {
         if (dir.existsSync()) {
           await dir.delete(recursive: true);
@@ -233,7 +285,7 @@ class ImportExportRepository extends ChangeNotifier {
   Future<void> _importTags(List<TagModel> tags) async {
     for (final t in tags) {
       final result = await _db.managers.tagsTable.createReturningOrNull(
-            (o) => o(
+        (o) => o(
           id: t.id,
           name: t.name,
           color: t.color,
@@ -241,7 +293,7 @@ class ImportExportRepository extends ChangeNotifier {
           uploaded: const Value(false),
         ),
         onConflict: DoUpdate.withExcluded(
-              (old, excluded) => TagsTableCompanion.custom(
+          (old, excluded) => TagsTableCompanion.custom(
             name: excluded.name,
             color: excluded.color,
             uploaded: excluded.uploaded,
@@ -262,6 +314,40 @@ class ImportExportRepository extends ChangeNotifier {
     }
   }
 
+  Future<void> _importSetlists(List<SetlistModel> setlists) async {
+    for (final s in setlists) {
+      await _db.transaction(() async {
+        final result = await _db.managers.setlistsTable.createReturningOrNull(
+          (o) => o(
+            id: s.id,
+            name: s.name,
+            updatedAt: Value(s.updatedAt.toUtc()),
+            uploaded: const Value(false),
+          ),
+          onConflict: DoUpdate.withExcluded(
+            (old, excluded) => SetlistsTableCompanion.custom(
+              name: excluded.name,
+              uploaded: excluded.uploaded,
+              updatedAt: excluded.updatedAt,
+            ),
+            where: (old, excluded) =>
+                old.updatedAt.isSmallerThan(excluded.updatedAt),
+          ),
+        );
+        if (result == null) return;
+        await _db.managers.setlistEntriesTable
+            .filter((f) => f.setlist.id(s.id))
+            .delete();
+        await _db.managers.setlistEntriesTable.bulkCreate(
+          (o) => s.scoreIds.indexed.map(
+            (e) => o(setlist: s.id, score: e.$2, position: e.$1),
+          ),
+        );
+        _changedSetlists.add(s.id);
+      });
+    }
+  }
+
   Future<void> _importScores(List<ScoreModel> scores, String scoresDir) async {
     for (final s in scores) {
       File? deleteFile;
@@ -272,7 +358,7 @@ class ImportExportRepository extends ChangeNotifier {
 
         final metadataChanged =
             score != null &&
-                score.metadataUpdatedAt.isBefore(s.metadataUpdatedAt);
+            score.metadataUpdatedAt.isBefore(s.metadataUpdatedAt);
         final fileChanged =
             score != null && score.fileUpdatedAt.isBefore(s.fileUpdatedAt);
 
@@ -282,7 +368,8 @@ class ImportExportRepository extends ChangeNotifier {
               scoresDir,
               s.id,
               "score${fileTypeToExtension(s.fileType)}",
-            ));
+            ),
+          );
           if (!await scoreFile.exists()) {
             throw InvalidFileException("missing score file for ${s.id}");
           }
@@ -297,7 +384,7 @@ class ImportExportRepository extends ChangeNotifier {
 
         if (score == null) {
           await _db.managers.scoresTable.create(
-                (o) => o(
+            (o) => o(
               id: s.id,
               searchText: ScoresRepository.generateSearchText([
                 s.title,
@@ -325,46 +412,46 @@ class ImportExportRepository extends ChangeNotifier {
               .filter((f) => f.id(s.id))
               .update(
                 (o) => o(
-              title: metadataChanged
-                  ? Value(s.title)
-                  : const Value.absent(),
-              metadataUpdatedAt: metadataChanged
-                  ? Value(s.metadataUpdatedAt.toUtc())
-                  : const Value.absent(),
-              metadataUploaded: metadataChanged
-                  ? const Value(false)
-                  : const Value.absent(),
-              composer: metadataChanged
-                  ? _optionalStringValue(s.metadata.composer)
-                  : const Value.absent(),
-              notes: metadataChanged
-                  ? _optionalStringValue(s.metadata.notes)
-                  : const Value.absent(),
-              annotations: metadataChanged
-                  ? _annotationsColumnValue(s.metadata.annotations)
-                  : const Value.absent(),
-              searchText: metadataChanged
-                  ? Value(
-                ScoresRepository.generateSearchText([
-                  s.title,
-                  s.metadata.composer,
-                ]),
-              )
-                  : const Value.absent(),
-              fileUpdatedAt: fileChanged
-                  ? Value(s.fileUpdatedAt.toUtc())
-                  : const Value.absent(),
-              fileUploaded: fileChanged
-                  ? const Value(false)
-                  : const Value.absent(),
-              fileDownloaded: fileChanged
-                  ? const Value(true)
-                  : const Value.absent(),
-              fileType: fileChanged
-                  ? Value(s.fileType)
-                  : const Value.absent(),
-            ),
-          );
+                  title: metadataChanged
+                      ? Value(s.title)
+                      : const Value.absent(),
+                  metadataUpdatedAt: metadataChanged
+                      ? Value(s.metadataUpdatedAt.toUtc())
+                      : const Value.absent(),
+                  metadataUploaded: metadataChanged
+                      ? const Value(false)
+                      : const Value.absent(),
+                  composer: metadataChanged
+                      ? _optionalStringValue(s.metadata.composer)
+                      : const Value.absent(),
+                  notes: metadataChanged
+                      ? _optionalStringValue(s.metadata.notes)
+                      : const Value.absent(),
+                  annotations: metadataChanged
+                      ? _annotationsColumnValue(s.metadata.annotations)
+                      : const Value.absent(),
+                  searchText: metadataChanged
+                      ? Value(
+                          ScoresRepository.generateSearchText([
+                            s.title,
+                            s.metadata.composer,
+                          ]),
+                        )
+                      : const Value.absent(),
+                  fileUpdatedAt: fileChanged
+                      ? Value(s.fileUpdatedAt.toUtc())
+                      : const Value.absent(),
+                  fileUploaded: fileChanged
+                      ? const Value(false)
+                      : const Value.absent(),
+                  fileDownloaded: fileChanged
+                      ? const Value(true)
+                      : const Value.absent(),
+                  fileType: fileChanged
+                      ? Value(s.fileType)
+                      : const Value.absent(),
+                ),
+              );
         }
         if (metadataChanged) {
           await _db.managers.scoreTagsTable
@@ -384,19 +471,19 @@ class ImportExportRepository extends ChangeNotifier {
         if (score == null || metadataChanged) {
           if (s.tagIds.isNotEmpty) {
             await _db.managers.scoreTagsTable.bulkCreate(
-                  (o) => s.tagIds.map((t) => o(score: s.id, tag: t)),
+              (o) => s.tagIds.map((t) => o(score: s.id, tag: t)),
             );
           }
           if ((s.metadata.instruments ?? []).isNotEmpty) {
             await _db.managers.instrumentsTable.bulkCreate(
-                  (o) => s.metadata.instruments!.map(
-                    (i) => o(score: s.id, instrument: i),
+              (o) => s.metadata.instruments!.map(
+                (i) => o(score: s.id, instrument: i),
               ),
             );
           }
           if ((s.metadata.genres ?? []).isNotEmpty) {
             await _db.managers.genresTable.bulkCreate(
-                  (o) => s.metadata.genres!.map((g) => o(score: s.id, genre: g)),
+              (o) => s.metadata.genres!.map((g) => o(score: s.id, genre: g)),
             );
           }
           _changedScores.add(s.id);
@@ -413,21 +500,49 @@ class ImportExportRepository extends ChangeNotifier {
 
   static Future<void> _saveTagsJson(Map params) async {
     final tagsJson = jsonEncode(params["tagModels"]);
-    await File(path.join(params["dir"], "tags.json")).writeAsString(tagsJson, encoding: utf8, flush: true, mode: FileMode.write);
+    await File(path.join(params["dir"], "tags.json")).writeAsString(
+      tagsJson,
+      encoding: utf8,
+      flush: true,
+      mode: FileMode.write,
+    );
+  }
+
+  static Future<void> _saveSetlistsJson(Map params) async {
+    final setlistsJson = jsonEncode(params["setlistModels"]);
+    await File(path.join(params["dir"], "setlists.json")).writeAsString(
+      setlistsJson,
+      encoding: utf8,
+      flush: true,
+      mode: FileMode.write,
+    );
   }
 
   static Future<void> _saveScoresJson(Map params) async {
     final scoresJson = jsonEncode(params["scoreModels"]);
-    await File(path.join(params["dir"], "scores.json")).writeAsString(scoresJson, encoding: utf8, flush: true, mode: FileMode.write);
+    await File(path.join(params["dir"], "scores.json")).writeAsString(
+      scoresJson,
+      encoding: utf8,
+      flush: true,
+      mode: FileMode.write,
+    );
   }
 
   static Future<void> _createZipFileFromDir(Map params) async {
-    final archive = createArchiveFromDirectory(Directory(params["dir"]), includeDirName: false);
+    final archive = createArchiveFromDirectory(
+      Directory(params["dir"]),
+      includeDirName: false,
+    );
 
     final outStream = OutputFileStream(params["path"]);
 
     try {
-      ZipEncoder().encodeStream(archive, outStream, autoClose: true, level: DeflateLevel.defaultCompression);
+      ZipEncoder().encodeStream(
+        archive,
+        outStream,
+        autoClose: true,
+        level: DeflateLevel.defaultCompression,
+      );
     } finally {
       outStream.close();
     }
@@ -446,14 +561,39 @@ class ImportExportRepository extends ChangeNotifier {
     try {
       List<TagModel> tags;
       {
-        final tagsJson = jsonDecode(await File(path.join(outputPath, "tags.json")).readAsString(encoding: utf8)) as List<dynamic>;
+        final tagsJson =
+            jsonDecode(
+                  await File(
+                    path.join(outputPath, "tags.json"),
+                  ).readAsString(encoding: utf8),
+                )
+                as List<dynamic>;
         tags = tagsJson.map((tag) => TagModel.fromJson(tag)).toList();
       }
 
       List<ScoreModel> scores;
       {
-        final scoresJson = jsonDecode(await File(path.join(outputPath, "scores.json")).readAsString(encoding: utf8)) as List<dynamic>;
+        final scoresJson =
+            jsonDecode(
+                  await File(
+                    path.join(outputPath, "scores.json"),
+                  ).readAsString(encoding: utf8),
+                )
+                as List<dynamic>;
         scores = scoresJson.map((score) => ScoreModel.fromJson(score)).toList();
+      }
+
+      List<SetlistModel> setlists = const [];
+      {
+        final setlistsFile = File(path.join(outputPath, "setlists.json"));
+        if (await setlistsFile.exists()) {
+          final setlistsJson =
+              jsonDecode(await setlistsFile.readAsString(encoding: utf8))
+                  as List<dynamic>;
+          setlists = setlistsJson
+              .map((setlist) => SetlistModel.fromJson(setlist))
+              .toList();
+        }
       }
 
       final scoresDir = Directory(path.join(outputPath, "scores"));
@@ -464,9 +604,10 @@ class ImportExportRepository extends ChangeNotifier {
       return {
         "scores": scores,
         "tags": tags,
+        "setlists": setlists,
         "scoresDir": scoresDir.path,
       };
-    } on Exception catch (e, st) {
+    } on Exception catch (e) {
       throw InvalidFileException(e.toString());
     }
   }

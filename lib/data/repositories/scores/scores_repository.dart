@@ -71,6 +71,10 @@ class ScoresRepository {
       .where((event) => !event.remoteTriggered)
       .map((event) => event.changed);
 
+  final BehaviorSubject<Set<String>> _deletedScoreIds = BehaviorSubject();
+
+  Stream<Set<String>> get deletedScoreIds => _deletedScoreIds.stream;
+
   final BehaviorSubject<String> _lastOpenedChanged = BehaviorSubject();
 
   Stream<String> get lastOpenedChanged => _lastOpenedChanged.stream;
@@ -512,7 +516,7 @@ class ScoresRepository {
     if (size != null) {
       q.limit(size, offset: offset);
     }
-    q.orderBy([(t) => OrderingTerm.asc(t.name)]);
+    q.orderBy([(t) => OrderingTerm.asc(t.name.lower())]);
     final rows = await q.get();
     return rows
         .map(
@@ -530,7 +534,7 @@ class ScoresRepository {
     if (tagIds.isEmpty) return [];
     final q = _db.select(_db.tagsTable);
     q.where((tbl) => tbl.id.isIn(tagIds));
-    q.orderBy([(t) => OrderingTerm.asc(t.name)]);
+    q.orderBy([(t) => OrderingTerm.asc(t.name.lower())]);
     final rows = await q.get();
     return rows
         .map(
@@ -811,7 +815,7 @@ class ScoresRepository {
     if (exclude.isNotEmpty) {
       query.where(_db.instrumentsTable.instrument.isNotIn(exclude));
     }
-    query.orderBy([OrderingTerm.asc(_db.instrumentsTable.instrument)]);
+    query.orderBy([OrderingTerm.asc(_db.instrumentsTable.instrument.lower())]);
     if (size != null) {
       query.limit(size, offset: offset);
     }
@@ -834,7 +838,7 @@ class ScoresRepository {
     if (exclude.isNotEmpty) {
       query.where(_db.genresTable.genre.isNotIn(exclude));
     }
-    query.orderBy([OrderingTerm.asc(_db.genresTable.genre)]);
+    query.orderBy([OrderingTerm.asc(_db.genresTable.genre.lower())]);
     if (size != null) {
       query.limit(size, offset: offset);
     }
@@ -856,7 +860,7 @@ class ScoresRepository {
             _db.scoresTable.composer.contains(filter),
       );
     }
-    query.orderBy([OrderingTerm.asc(_db.scoresTable.composer)]);
+    query.orderBy([OrderingTerm.asc(_db.scoresTable.composer.lower())]);
     if (size != null) {
       query.limit(size, offset: offset);
     }
@@ -876,6 +880,7 @@ class ScoresRepository {
     });
     await cleanupScoreFilesAfterDelete(scoreId);
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
+    _deletedScoreIds.add({scoreId});
   }
 
   Future<void> cleanupScoreFilesAfterDelete(String scoreId) async {
@@ -891,6 +896,8 @@ class ScoresRepository {
 
   Future<void> deleteAll() async {
     await _db.transaction(() async {
+      await _db.managers.deletedScoresTable.delete();
+      await _db.managers.deletedTagsTable.delete();
       await _db.managers.scoresTable.delete();
       await _db.managers.tagsTable.delete();
       await _db.managers.instrumentsTable.delete();
@@ -911,6 +918,11 @@ class ScoresRepository {
   void remoteChangedScores(Set<String> scoreIds) {
     if (scoreIds.isEmpty) return;
     _updatedScoreIds.add((changed: scoreIds, remoteTriggered: true));
+  }
+
+  void announceDeletedScores(Set<String> scoreIds) {
+    if (scoreIds.isEmpty) return;
+    _deletedScoreIds.add(scoreIds);
   }
 
   Directory? _cachedScoresDir;

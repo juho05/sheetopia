@@ -12,6 +12,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/ui/common/search_input.dart';
 import 'package:sheetopia/ui/home/filter_dialog.dart';
 import 'package:sheetopia/ui/home/library_viewmodel.dart';
@@ -22,7 +23,16 @@ class LibraryView extends StatefulWidget {
   final void Function()? onScrollDown;
   final void Function()? onScrollUp;
 
-  const LibraryView({super.key, this.onScrollDown, this.onScrollUp});
+  final void Function(Score score)? onScoreTap;
+  final Set<String> selected;
+
+  const LibraryView({
+    super.key,
+    this.onScrollDown,
+    this.onScrollUp,
+    this.onScoreTap,
+    this.selected = const {},
+  });
 
   @override
   State<LibraryView> createState() => _LibraryViewState();
@@ -235,7 +245,11 @@ class _LibraryViewState extends State<LibraryView> {
             ListenableBuilder(
               listenable: _viewModel,
               builder: (context, _) {
-                return SliverScoreGrid(scores: _viewModel.scores);
+                return SliverScoreGrid(
+                  scores: _viewModel.scores,
+                  onScoreTap: widget.onScoreTap,
+                  selected: widget.selected,
+                );
               },
             ),
           ],

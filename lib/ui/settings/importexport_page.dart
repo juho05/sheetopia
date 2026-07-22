@@ -26,6 +26,7 @@ class ImportExportPage extends StatelessWidget {
       create: (context) => ImportExportViewModel(
         syncRepo: context.read(),
         scoresRepo: context.read(),
+        setlistsRepo: context.read(),
         importExportRepo: context.read(),
       ),
       builder: (context, _) {

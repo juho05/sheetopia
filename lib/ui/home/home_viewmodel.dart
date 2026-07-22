@@ -28,6 +28,16 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  int _tabIndex = 0;
+
+  int get tabIndex => _tabIndex;
+
+  set tabIndex(int index) {
+    if (_tabIndex == index) return;
+    _tabIndex = index;
+    notifyListeners();
+  }
+
   bool _dragging = false;
 
   bool get dragging => _dragging;

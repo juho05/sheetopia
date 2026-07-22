@@ -16,12 +16,13 @@ import 'package:sheetopia/data/repositories/midi/midi_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
 import 'package:sheetopia/ui/score/score_viewmodel.dart';
+import 'package:sheetopia/ui/setlists/setlist_navigation_viewmodel.dart';
 
 class PdfViewModel extends ChangeNotifier {
   final MidiRepository _midiRepository;
   final ScoreViewModel _scoreViewModel;
   final ScoresRepository _scoresRepository;
-  final String _scoreId;
+  String _scoreId;
 
   final Map<int, List<Stroke>> _annotations = {};
 
@@ -33,12 +34,30 @@ class PdfViewModel extends ChangeNotifier {
 
   PdfDocument? get document => _document;
 
+  String? _documentPath;
+
+  String? get documentPath => _documentPath;
+
   int _currentPageIndex = 0;
 
   int get currentPageIndex => _currentPageIndex;
 
   int _forwardPageCount = 1;
   int _backwardPageCount = 1;
+
+  bool _pendingLandOnLastPage = false;
+
+  bool _needsLastSpreadStart = false;
+
+  bool get needsLastSpreadStart => _needsLastSpreadStart;
+
+  bool _switchInFlight = false;
+
+  bool _switching = false;
+
+  bool get switching => _switching;
+
+  bool _loadInProgress = false;
 
   PdfViewModel({
     required File file,
@@ -67,6 +86,9 @@ class PdfViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  SetlistNavigationViewModel? get setlistNavigation =>
+      _scoreViewModel.setlistNavigation;
+
   List<Stroke> strokesForPage(int pageNumber) =>
       _annotations[pageNumber - 1] ?? const [];
 
@@ -84,12 +106,48 @@ class PdfViewModel extends ChangeNotifier {
     await _loadDocument();
   }
 
+  Future<void> updateScoreId(String scoreId) async {
+    if (_scoreId == scoreId) return;
+    _scoreId = scoreId;
+    _annotations.clear();
+    await _loadAnnotations();
+  }
+
+  void clearSwitchInFlight() {
+    _switchInFlight = false;
+    if (!_loadInProgress) {
+      _switching = false;
+      _pendingLandOnLastPage = false;
+    }
+  }
+
   Future<void> _loadDocument() async {
-    final document = await PdfDocument.openFile(_file.path);
-    _document?.dispose();
-    _document = document;
-    _currentPageIndex = 0;
-    notifyListeners();
+    _loadInProgress = true;
+    try {
+      final document = await PdfDocument.openFile(_file.path);
+      _document?.dispose();
+      _document = document;
+      _documentPath = _file.path;
+      final landOnLastPage = _pendingLandOnLastPage;
+      _pendingLandOnLastPage = false;
+      _needsLastSpreadStart = landOnLastPage;
+      _currentPageIndex = landOnLastPage ? document.pages.length - 1 : 0;
+      _switchInFlight = false;
+      _switching = false;
+      notifyListeners();
+    } finally {
+      _loadInProgress = false;
+    }
+  }
+
+  void updateLastSpreadStart(int start) {
+    if (!_needsLastSpreadStart) return;
+    _needsLastSpreadStart = false;
+    if (start == _currentPageIndex) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _currentPageIndex = start;
+      notifyListeners();
+    });
   }
 
   @override
@@ -101,8 +159,16 @@ class PdfViewModel extends ChangeNotifier {
   }
 
   void nextPage() {
+    if (_document == null || _switchInFlight) return;
     final newIndex = _currentPageIndex + _forwardPageCount;
-    if (newIndex >= (_document?.pages.length ?? 0)) {
+    if (newIndex >= _document!.pages.length) {
+      if (_scoreViewModel.setlistNavigation?.advance() ?? false) {
+        _pendingLandOnLastPage = false;
+        _switchInFlight = true;
+        _switching = true;
+        _scoreViewModel.onNextPage();
+        notifyListeners();
+      }
       return;
     }
     _currentPageIndex = newIndex;
@@ -111,7 +177,17 @@ class PdfViewModel extends ChangeNotifier {
   }
 
   void prevPage() {
-    if (_currentPageIndex == 0) return;
+    if (_document == null || _switchInFlight) return;
+    if (_currentPageIndex == 0) {
+      if (_scoreViewModel.setlistNavigation?.goBack() ?? false) {
+        _pendingLandOnLastPage = true;
+        _switchInFlight = true;
+        _switching = true;
+        _scoreViewModel.onPrevPage();
+        notifyListeners();
+      }
+      return;
+    }
     _currentPageIndex = max(_currentPageIndex - _backwardPageCount, 0);
     _scoreViewModel.onPrevPage();
     notifyListeners();

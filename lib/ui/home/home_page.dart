@@ -11,15 +11,59 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/integrate_appimage.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/home/home_viewmodel.dart';
 import 'package:sheetopia/ui/home/library_view.dart';
 import 'package:sheetopia/ui/home/sync_icon.dart';
+import 'package:sheetopia/ui/setlists/setlist_name_dialog.dart';
+import 'package:sheetopia/ui/setlists/setlists_view.dart';
 import 'package:sheetopia/version_checker.dart';
 
 class HomePage extends StatelessWidget {
+  static const double _railBreakpoint = 700;
+
+  static const List<({IconData icon, IconData selectedIcon, String label})>
+  _tabs = [
+    (
+      icon: Icons.library_music_outlined,
+      selectedIcon: Icons.library_music,
+      label: "Library",
+    ),
+    (
+      icon: Icons.queue_music_outlined,
+      selectedIcon: Icons.queue_music,
+      label: "Setlists",
+    ),
+  ];
+
   const HomePage({super.key});
+
+  Future<void> _importScores(BuildContext context) async {
+    try {
+      final firstScoreId = await context.read<HomeViewModel>().importScores();
+      if (!context.mounted || firstScoreId == null) {
+        return;
+      }
+      context.go("/scores/$firstScoreId/edit");
+    } on InvalidFileTypeException catch (e, st) {
+      Toast.exception(e, st: st, errorMsg: "Unsupported file type!");
+    } catch (e, st) {
+      Toast.exception(e, st: st, errorMsg: "Failed to import scores!");
+    }
+  }
+
+  Future<void> _createSetlist(BuildContext context) async {
+    final repo = context.read<SetlistsRepository>();
+    final name = await SetlistNameDialog.show(
+      context,
+      title: "New setlist",
+      confirmLabel: "Create",
+    );
+    if (name == null) return;
+    await repo.createSetlist(name: name);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +85,7 @@ class HomePage extends StatelessWidget {
               onDragExited: (_) => viewModel.dragging = false,
               onDragDone: (details) async {
                 viewModel.dragging = false;
+                viewModel.tabIndex = 0;
 
                 try {
                   final firstScoreId = await viewModel.receiveDrop(details);
@@ -62,129 +107,164 @@ class HomePage extends StatelessWidget {
                   );
                 }
               },
-              child: Stack(
-                children: [
-                  Scaffold(
-                    appBar: AppBar(
-                      title: const Text("Library"),
-                      actions: [
-                        const SyncIcon(),
-                        const SizedBox(width: 4),
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: IconButton(
-                            onPressed: () {
-                              context.go("/settings");
-                            },
-                            icon: const Icon(Icons.settings),
-                          ),
-                        ),
-                      ],
-                    ),
-                    body: SafeArea(
-                      child: LibraryView(
-                        onScrollUp: () => viewModel.importButtonVisible = true,
-                        onScrollDown: () =>
-                            viewModel.importButtonVisible = false,
-                      ),
-                    ),
-                    floatingActionButton: Consumer<HomeViewModel>(
-                      builder: (context, viewModel, _) {
-                        final duration = const Duration(milliseconds: 200);
-                        return AnimatedSlide(
-                          duration: duration,
-                          offset: viewModel.importButtonVisible
-                              ? Offset.zero
-                              : const Offset(0, 2),
-                          child: AnimatedOpacity(
-                            duration: duration,
-                            opacity: viewModel.importButtonVisible ? 1 : 0,
-                            child: FloatingActionButton(
-                              onPressed: viewModel.importing
-                                  ? null
-                                  : () async {
-                                      try {
-                                        final firstScoreId = await context
-                                            .read<HomeViewModel>()
-                                            .importScores();
-                                        if (!context.mounted ||
-                                            firstScoreId == null) {
-                                          return;
-                                        }
-                                        context.go(
-                                          "/scores/$firstScoreId/edit",
-                                        );
-                                      } on InvalidFileTypeException catch (
-                                        e,
-                                        st
-                                      ) {
-                                        Toast.exception(
-                                          e,
-                                          st: st,
-                                          errorMsg: "Unsupported file type!",
-                                        );
-                                      } catch (e, st) {
-                                        Toast.exception(
-                                          e,
-                                          st: st,
-                                          errorMsg: "Failed to import scores!",
-                                        );
-                                      }
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final rail = constraints.maxWidth >= _railBreakpoint;
+                  return Stack(
+                    children: [
+                      Consumer<HomeViewModel>(
+                        builder: (context, viewModel, _) {
+                          final library = viewModel.tabIndex == 0;
+                          final body = SafeArea(
+                            child: IndexedStack(
+                              index: viewModel.tabIndex,
+                              children: [
+                                LibraryView(
+                                  onScrollUp: () =>
+                                      viewModel.importButtonVisible = true,
+                                  onScrollDown: () =>
+                                      viewModel.importButtonVisible = false,
+                                ),
+                                const SetlistsView(),
+                              ],
+                            ),
+                          );
+                          final fabVisible =
+                              !library || viewModel.importButtonVisible;
+                          final importing = library && viewModel.importing;
+                          return Scaffold(
+                            appBar: AppBar(
+                              title: Text(_tabs[viewModel.tabIndex].label),
+                              actions: [
+                                const SyncIcon(),
+                                const SizedBox(width: 4),
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: IconButton(
+                                    onPressed: () {
+                                      context.go("/settings");
                                     },
-                              backgroundColor: viewModel.importing
-                                  ? disabledColor
-                                  : null,
-                              tooltip: "Import score",
-                              child: viewModel.importing
-                                  ? const Padding(
-                                      padding: EdgeInsets.all(16),
-                                      child:
-                                          CircularProgressIndicator.adaptive(),
-                                    )
-                                  : const Icon(Icons.add),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  Consumer<HomeViewModel>(
-                    builder: (context, viewModel, _) {
-                      final labelColor = theme.brightness == Brightness.dark
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onPrimary;
-                      return IgnorePointer(
-                        child: AnimatedOpacity(
-                          duration: const Duration(milliseconds: 150),
-                          opacity: viewModel.dragging ? 1 : 0,
-                          child: Container(
-                            color: theme.colorScheme.scrim.withValues(
-                              alpha: 0.8,
-                            ),
-                            child: Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.file_download_outlined,
-                                    size: 96,
-                                    color: labelColor,
+                                    icon: const Icon(Icons.settings),
                                   ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    "Drop to import",
-                                    style: theme.textTheme.headlineSmall
-                                        ?.copyWith(color: labelColor),
+                                ),
+                              ],
+                            ),
+                            body: rail
+                                ? Row(
+                                    children: [
+                                      SafeArea(
+                                        child: NavigationRail(
+                                          selectedIndex: viewModel.tabIndex,
+                                          onDestinationSelected: (index) =>
+                                              viewModel.tabIndex = index,
+                                          labelType:
+                                              NavigationRailLabelType.all,
+                                          destinations: _tabs
+                                              .map(
+                                                (t) =>
+                                                    NavigationRailDestination(
+                                                      icon: Icon(t.icon),
+                                                      selectedIcon: Icon(
+                                                        t.selectedIcon,
+                                                      ),
+                                                      label: Text(t.label),
+                                                    ),
+                                              )
+                                              .toList(),
+                                        ),
+                                      ),
+                                      Expanded(child: body),
+                                    ],
+                                  )
+                                : body,
+                            bottomNavigationBar: rail
+                                ? null
+                                : NavigationBar(
+                                    selectedIndex: viewModel.tabIndex,
+                                    onDestinationSelected: (index) =>
+                                        viewModel.tabIndex = index,
+                                    destinations: _tabs
+                                        .map(
+                                          (t) => NavigationDestination(
+                                            icon: Icon(t.icon),
+                                            selectedIcon: Icon(t.selectedIcon),
+                                            label: t.label,
+                                          ),
+                                        )
+                                        .toList(),
                                   ),
-                                ],
+                            floatingActionButton: AnimatedSlide(
+                              duration: const Duration(milliseconds: 200),
+                              offset: fabVisible
+                                  ? Offset.zero
+                                  : const Offset(0, 2),
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 200),
+                                opacity: fabVisible ? 1 : 0,
+                                child: FloatingActionButton(
+                                  onPressed: importing
+                                      ? null
+                                      : () => library
+                                            ? _importScores(context)
+                                            : _createSetlist(context),
+                                  backgroundColor: importing
+                                      ? disabledColor
+                                      : null,
+                                  tooltip: library
+                                      ? "Import score"
+                                      : "New setlist",
+                                  child: importing
+                                      ? const Padding(
+                                          padding: EdgeInsets.all(16),
+                                          child:
+                                              CircularProgressIndicator.adaptive(),
+                                        )
+                                      : const Icon(Icons.add),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
+                          );
+                        },
+                      ),
+                      Consumer<HomeViewModel>(
+                        builder: (context, viewModel, _) {
+                          final labelColor = theme.brightness == Brightness.dark
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onPrimary;
+                          return IgnorePointer(
+                            child: AnimatedOpacity(
+                              duration: const Duration(milliseconds: 150),
+                              opacity: viewModel.dragging ? 1 : 0,
+                              child: Container(
+                                color: theme.colorScheme.scrim.withValues(
+                                  alpha: 0.8,
+                                ),
+                                child: Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.file_download_outlined,
+                                        size: 96,
+                                        color: labelColor,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        "Drop to import",
+                                        style: theme.textTheme.headlineSmall
+                                            ?.copyWith(color: labelColor),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  );
+                },
               ),
             );
           },
