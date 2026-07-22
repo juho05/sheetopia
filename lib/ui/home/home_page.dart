@@ -147,34 +147,31 @@ class HomePage extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            body: rail
-                                ? Row(
-                                    children: [
-                                      SafeArea(
-                                        child: NavigationRail(
-                                          selectedIndex: viewModel.tabIndex,
-                                          onDestinationSelected: (index) =>
-                                              viewModel.tabIndex = index,
-                                          labelType:
-                                              NavigationRailLabelType.all,
-                                          destinations: _tabs
-                                              .map(
-                                                (t) =>
-                                                    NavigationRailDestination(
-                                                      icon: Icon(t.icon),
-                                                      selectedIcon: Icon(
-                                                        t.selectedIcon,
-                                                      ),
-                                                      label: Text(t.label),
-                                                    ),
-                                              )
-                                              .toList(),
-                                        ),
-                                      ),
-                                      Expanded(child: body),
-                                    ],
-                                  )
-                                : body,
+                            body: Row(
+                              children: [
+                                if (rail)
+                                  SafeArea(
+                                    child: NavigationRail(
+                                      selectedIndex: viewModel.tabIndex,
+                                      onDestinationSelected: (index) =>
+                                          viewModel.tabIndex = index,
+                                      labelType: NavigationRailLabelType.all,
+                                      destinations: _tabs
+                                          .map(
+                                            (t) => NavigationRailDestination(
+                                              icon: Icon(t.icon),
+                                              selectedIcon: Icon(
+                                                t.selectedIcon,
+                                              ),
+                                              label: Text(t.label),
+                                            ),
+                                          )
+                                          .toList(),
+                                    ),
+                                  ),
+                                Expanded(child: body),
+                              ],
+                            ),
                             bottomNavigationBar: rail
                                 ? null
                                 : NavigationBar(
