@@ -59,6 +59,11 @@ class PdfViewModel extends ChangeNotifier {
 
   bool _loadInProgress = false;
 
+  final Map<String, Future<PdfDocument>> _preloadedDocuments = {};
+
+  bool _isPreloaded(File? file) =>
+      file != null && _preloadedDocuments.containsKey(file.path);
+
   PdfViewModel({
     required File file,
     required MidiRepository midiRepository,
@@ -124,7 +129,8 @@ class PdfViewModel extends ChangeNotifier {
   Future<void> _loadDocument() async {
     _loadInProgress = true;
     try {
-      final document = await PdfDocument.openFile(_file.path);
+      final preloaded = _preloadedDocuments.remove(_file.path);
+      final document = await (preloaded ?? PdfDocument.openFile(_file.path));
       _document?.dispose();
       _document = document;
       _documentPath = _file.path;
@@ -155,6 +161,10 @@ class PdfViewModel extends ChangeNotifier {
     _midiRepository.removeActionListener(_midiActionListener);
     _annotationsSub?.cancel();
     _document?.dispose();
+    for (final document in _preloadedDocuments.values) {
+      _disposeWhenReady(document);
+    }
+    _preloadedDocuments.clear();
     super.dispose();
   }
 
@@ -162,10 +172,12 @@ class PdfViewModel extends ChangeNotifier {
     if (_document == null || _switchInFlight) return;
     final newIndex = _currentPageIndex + _forwardPageCount;
     if (newIndex >= _document!.pages.length) {
-      if (_scoreViewModel.setlistNavigation?.advance() ?? false) {
+      final navigation = _scoreViewModel.setlistNavigation;
+      final preloaded = _isPreloaded(navigation?.nextPlayableEntry?.score?.file);
+      if (navigation?.advance() ?? false) {
         _pendingLandOnLastPage = false;
         _switchInFlight = true;
-        _switching = true;
+        _switching = !preloaded;
         _scoreViewModel.onNextPage();
         notifyListeners();
       }
@@ -179,10 +191,14 @@ class PdfViewModel extends ChangeNotifier {
   void prevPage() {
     if (_document == null || _switchInFlight) return;
     if (_currentPageIndex == 0) {
-      if (_scoreViewModel.setlistNavigation?.goBack() ?? false) {
+      final navigation = _scoreViewModel.setlistNavigation;
+      final preloaded = _isPreloaded(
+        navigation?.previousPlayableEntry?.score?.file,
+      );
+      if (navigation?.goBack() ?? false) {
         _pendingLandOnLastPage = true;
         _switchInFlight = true;
-        _switching = true;
+        _switching = !preloaded;
         _scoreViewModel.onPrevPage();
         notifyListeners();
       }
@@ -195,9 +211,45 @@ class PdfViewModel extends ChangeNotifier {
 
   void updateForwardPageCount(int forwardPageCount) {
     _forwardPageCount = forwardPageCount;
+    _syncPreloadedDocuments();
   }
 
   void updateBackwardPageCount(int backwardPageCount) {
     _backwardPageCount = backwardPageCount;
+  }
+
+  void _syncPreloadedDocuments() {
+    final navigation = _scoreViewModel.setlistNavigation;
+    final document = _document;
+    if (navigation == null ||
+        document == null ||
+        _switchInFlight ||
+        _switching ||
+        _loadInProgress) {
+      return;
+    }
+
+    final wanted = <String>{};
+    if (_currentPageIndex + _forwardPageCount >= document.pages.length) {
+      final file = navigation.nextPlayableEntry?.score?.file;
+      if (file != null) wanted.add(file.path);
+    }
+    if (_currentPageIndex == 0) {
+      final file = navigation.previousPlayableEntry?.score?.file;
+      if (file != null) wanted.add(file.path);
+    }
+    wanted.remove(_documentPath);
+
+    for (final path in _preloadedDocuments.keys.toList()) {
+      if (wanted.contains(path)) continue;
+      _disposeWhenReady(_preloadedDocuments.remove(path)!);
+    }
+    for (final path in wanted) {
+      _preloadedDocuments.putIfAbsent(path, () => PdfDocument.openFile(path));
+    }
+  }
+
+  void _disposeWhenReady(Future<PdfDocument> document) {
+    document.then((d) => d.dispose()).ignore();
   }
 }

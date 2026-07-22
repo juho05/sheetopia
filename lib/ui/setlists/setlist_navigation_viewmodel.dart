@@ -62,6 +62,16 @@ class SetlistNavigationViewModel extends ChangeNotifier {
 
   Set<String> get _scoreIds => _setlist.entries.map((e) => e.scoreId).toSet();
 
+  SetlistEntry? get nextPlayableEntry {
+    final next = _nextPlayable();
+    return next == null ? null : _setlist.entries[next];
+  }
+
+  SetlistEntry? get previousPlayableEntry {
+    final previous = _previousPlayable();
+    return previous == null ? null : _setlist.entries[previous];
+  }
+
   bool advance() {
     final next = _nextPlayable();
     if (next == null) return false;

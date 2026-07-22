@@ -72,6 +72,9 @@ class _ScorePageState extends State<ScorePage>
       _triggerPageTurnHighlight(forward);
     });
     widget.setlistNavigation?.addListener(_onSetlistChanged);
+    if (widget.setlistNavigation != null) {
+      _onSetlistChanged();
+    }
   }
 
   void _onSetlistChanged() {
@@ -154,7 +157,9 @@ class _ScorePageState extends State<ScorePage>
                   (Platform.isMacOS && _viewModel.overlayVisible);
               final navigation = _viewModel.setlistNavigation;
               final bubbleVisible =
-                  _viewModel.overlayVisible || _bubbleTransientVisible;
+                  (_viewModel.supportsFullScreen &&
+                      _viewModel.overlayVisible) ||
+                  _bubbleTransientVisible;
               return MouseRegion(
                 cursor: !_viewModel.isFullScreen || _viewModel.overlayVisible
                     ? SystemMouseCursors.basic

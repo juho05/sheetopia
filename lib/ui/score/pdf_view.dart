@@ -121,34 +121,32 @@ class _PdfViewState extends State<PdfView> {
               return (pageCount, gap);
             }
 
-            final (pageCount, gap) = calcPageCountAndGap(
-              _viewModel.currentPageIndex,
-            );
-
-            final (nextPageCount, nextGap) = calcPageCountAndGap(
-              _viewModel.currentPageIndex + pageCount,
-            );
-
-            final (prevPageCount, _) = calcPageCountAndGap(
-              _viewModel.currentPageIndex - 1,
-              reverse: true,
-            );
-
-            _viewModel.updateForwardPageCount(pageCount);
-            _viewModel.updateBackwardPageCount(prevPageCount);
-
-            var loading = _viewModel.document == null || _viewModel.switching;
+            var pageIndex = _viewModel.currentPageIndex;
 
             if (_viewModel.needsLastSpreadStart && pages.isNotEmpty) {
               final (lastSpreadCount, _) = calcPageCountAndGap(
                 pages.length - 1,
                 reverse: true,
               );
-              final start = max(0, pages.length - lastSpreadCount);
-              final moving = start != _viewModel.currentPageIndex;
-              _viewModel.updateLastSpreadStart(start);
-              if (moving) loading = true;
+              pageIndex = max(0, pages.length - lastSpreadCount);
+              _viewModel.updateLastSpreadStart(pageIndex);
             }
+
+            final (pageCount, gap) = calcPageCountAndGap(pageIndex);
+
+            final (nextPageCount, nextGap) = calcPageCountAndGap(
+              pageIndex + pageCount,
+            );
+
+            final (prevPageCount, _) = calcPageCountAndGap(
+              pageIndex - 1,
+              reverse: true,
+            );
+
+            _viewModel.updateForwardPageCount(pageCount);
+            _viewModel.updateBackwardPageCount(prevPageCount);
+
+            final loading = _viewModel.document == null || _viewModel.switching;
 
             return CallbackShortcuts(
               bindings: <ShortcutActivator, VoidCallback>{
@@ -213,15 +211,13 @@ class _PdfViewState extends State<PdfView> {
                           if (!loading && pageCount > 0 && nextPageCount > 0)
                             Row(
                               key: ValueKey(
-                                "${_viewModel.currentPageIndex + pageCount}-${_viewModel.documentPath}",
+                                "${pageIndex + pageCount}-${_viewModel.documentPath}",
                               ),
                               mainAxisAlignment: MainAxisAlignment.center,
                               spacing: nextGap,
                               children: List.generate(nextPageCount, (index) {
                                 final page =
-                                    pages[_viewModel.currentPageIndex +
-                                        pageCount +
-                                        index];
+                                    pages[pageIndex + pageCount + index];
                                 return Flexible(
                                   child: Opacity(
                                     opacity: 0,
@@ -267,13 +263,12 @@ class _PdfViewState extends State<PdfView> {
                           if (!loading)
                             Row(
                               key: ValueKey(
-                                "${_viewModel.currentPageIndex}-${_viewModel.documentPath}",
+                                "$pageIndex-${_viewModel.documentPath}",
                               ),
                               mainAxisAlignment: MainAxisAlignment.center,
                               spacing: gap,
                               children: List.generate(pageCount, (index) {
-                                final page =
-                                    pages[_viewModel.currentPageIndex + index];
+                                final page = pages[pageIndex + index];
                                 return Flexible(
                                   child: Opacity(
                                     opacity: 1,
