@@ -35,7 +35,7 @@ class SetlistsRepository {
     _scoresRepo.deletedScoreIds.listen(removeDeletedScoreEntries);
   }
 
-  Future<List<Setlist>> getSetlists() async {
+  Future<List<Setlist>> getSetlists({String filter = ""}) async {
     final count = _db.setlistEntriesTable.position.count();
     final query =
         _db.selectOnly(_db.setlistsTable).join([
@@ -56,6 +56,9 @@ class SetlistsRepository {
             OrderingTerm.asc(_db.setlistsTable.name.lower()),
             OrderingTerm.asc(_db.setlistsTable.id),
           ]);
+    if (filter.isNotEmpty) {
+      query.where(_db.setlistsTable.name.contains(filter));
+    }
     return (await query.get())
         .map(
           (row) => Setlist(
@@ -66,6 +69,12 @@ class SetlistsRepository {
           ),
         )
         .toList();
+  }
+
+  Future<int> countSetlists() async {
+    final count = _db.setlistsTable.id.count();
+    final query = _db.selectOnly(_db.setlistsTable)..addColumns([count]);
+    return (await query.getSingle()).read(count) ?? 0;
   }
 
   Future<Setlist?> getSetlist(String id) async {

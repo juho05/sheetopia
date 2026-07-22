@@ -13,6 +13,7 @@ import 'package:sheetopia/data/repositories/setlists/setlist.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/menu_button.dart';
+import 'package:sheetopia/ui/common/search_input.dart';
 import 'package:sheetopia/ui/setlists/setlist_name_dialog.dart';
 import 'package:sheetopia/ui/setlists/setlists_viewmodel.dart';
 
@@ -74,63 +75,118 @@ class _SetlistsViewState extends State<SetlistsView> {
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
+          child: SearchInput(
+            label: "Search",
+            debounce: null,
+            onSearch: (query) {
+              _viewModel.filterSearch = query;
+            },
+          ),
+        ),
+        ListenableBuilder(
+          listenable: _viewModel,
+          builder: (context, _) => _buildCountLabel(context),
+        ),
+        Expanded(
+          child: ListenableBuilder(
+            listenable: _viewModel,
+            builder: (context, _) => _buildContent(context),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCountLabel(BuildContext context) {
+    final count = _viewModel.resultCount;
+    if (count == null) return const SizedBox.shrink();
+    final total = _viewModel.totalCount;
+    if (total == 0) return const SizedBox.shrink();
+    final label = _viewModel.isFiltered && total != null && total != count
+        ? "$count of $total"
+        : "$count ${count == 1 ? "setlist" : "setlists"}";
     final theme = Theme.of(context);
-    return ListenableBuilder(
-      listenable: _viewModel,
-      builder: (context, _) {
-        if (_viewModel.loading) {
-          return const Center(child: CircularProgressIndicator.adaptive());
-        }
-        if (_viewModel.setlists.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              spacing: 16,
-              children: [
-                Text(
-                  "No setlists yet.",
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                FilledButton.icon(
-                  onPressed: _create,
-                  icon: const Icon(Icons.add),
-                  label: const Text("New setlist"),
-                ),
-              ],
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
+        child: Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
+    final theme = Theme.of(context);
+    if (_viewModel.loading) {
+      return const Center(child: CircularProgressIndicator.adaptive());
+    }
+    if (_viewModel.setlists.isEmpty) {
+      if (_viewModel.isFiltered) {
+        return Center(
+          child: Text(
+            "No matching setlists.",
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
-          );
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.only(bottom: 88),
-          itemCount: _viewModel.setlists.length,
-          itemBuilder: (context, index) {
-            final setlist = _viewModel.setlists[index];
-            return ListTile(
-              leading: const Icon(Icons.queue_music),
-              title: Text(setlist.name, overflow: TextOverflow.ellipsis),
-              subtitle: Text(
-                "${setlist.entryCount} "
-                "${setlist.entryCount == 1 ? "score" : "scores"}",
+          ),
+        );
+      }
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 16,
+          children: [
+            Text(
+              "No setlists yet.",
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
-              onTap: () => context.go("/setlists/${setlist.id}"),
-              trailing: MenuButton(
-                options: [
-                  ContextMenuOption(
-                    icon: Icons.edit,
-                    title: "Rename",
-                    onSelected: () => _rename(setlist),
-                  ),
-                  ContextMenuOption(
-                    icon: Icons.delete,
-                    title: "Delete",
-                    onSelected: () => _delete(setlist),
-                  ),
-                ],
+            ),
+            FilledButton.icon(
+              onPressed: _create,
+              icon: const Icon(Icons.add),
+              label: const Text("New setlist"),
+            ),
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 88),
+      itemCount: _viewModel.setlists.length,
+      itemBuilder: (context, index) {
+        final setlist = _viewModel.setlists[index];
+        return ListTile(
+          leading: const Icon(Icons.queue_music),
+          title: Text(setlist.name, overflow: TextOverflow.ellipsis),
+          subtitle: Text(
+            "${setlist.entryCount} "
+            "${setlist.entryCount == 1 ? "score" : "scores"}",
+          ),
+          onTap: () => context.go("/setlists/${setlist.id}"),
+          trailing: MenuButton(
+            options: [
+              ContextMenuOption(
+                icon: Icons.edit,
+                title: "Rename",
+                onSelected: () => _rename(setlist),
               ),
-            );
-          },
+              ContextMenuOption(
+                icon: Icons.delete,
+                title: "Delete",
+                onSelected: () => _delete(setlist),
+              ),
+            ],
+          ),
         );
       },
     );

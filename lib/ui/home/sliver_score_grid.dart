@@ -29,10 +29,16 @@ class SliverScoreGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (scores.isEmpty) {
-      return const SliverPadding(
-        padding: EdgeInsets.all(12),
-        sliver: SliverToBoxAdapter(
-          child: Center(child: Text("No scores found.")),
+      final theme = Theme.of(context);
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(
+          child: Text(
+            "No scores found.",
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
         ),
       );
     }
