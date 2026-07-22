@@ -231,17 +231,32 @@ class _PdfViewState extends State<PdfView> {
                                             constraints.maxHeight *
                                             (page.width / page.height),
                                       ),
-                                      child: MediaQuery(
-                                        data: mediaQuery.copyWith(
-                                          devicePixelRatio: max(
-                                            mediaQuery.devicePixelRatio,
-                                            2.0,
+                                      child: Stack(
+                                        fit: StackFit.passthrough,
+                                        children: [
+                                          MediaQuery(
+                                            data: mediaQuery.copyWith(
+                                              devicePixelRatio: max(
+                                                mediaQuery.devicePixelRatio,
+                                                2.0,
+                                              ),
+                                            ),
+                                            child: PdfPageView(
+                                              document: _viewModel.document!,
+                                              pageNumber: page.pageNumber,
+                                            ),
                                           ),
-                                        ),
-                                        child: PdfPageView(
-                                          document: _viewModel.document!,
-                                          pageNumber: page.pageNumber,
-                                        ),
+                                          Positioned.fill(
+                                            child: CustomPaint(
+                                              painter: AnnotationPainter(
+                                                strokes: _viewModel
+                                                    .strokesForPage(
+                                                      page.pageNumber,
+                                                    ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
