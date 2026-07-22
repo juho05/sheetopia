@@ -88,35 +88,51 @@ class _LogsPageState extends State<LogsPage> {
               ],
             ),
           if (shareButton)
-            MenuButton(
-              icon: const Icon(Icons.share),
-              tooltip: "Share log",
-              options: [
-                ContextMenuOption(
-                  title: "Share full log",
-                  onSelected: () async {
-                    final result = await _viewModel.shareLog(filtered: false);
-                    if (!context.mounted) return;
-                    if (!result) {
-                      // user canceled share
-                      return;
-                    }
-                    Toast.show("Successfully shared log!");
-                  },
-                ),
-                ContextMenuOption(
-                  title: "Share filtered log",
-                  onSelected: () async {
-                    final result = await _viewModel.shareLog(filtered: true);
-                    if (!context.mounted) return;
-                    if (!result) {
-                      // user canceled share
-                      return;
-                    }
-                    Toast.show("Successfully shared log!");
-                  },
-                ),
-              ],
+            Builder(
+              builder: (context) {
+                Rect? sharePositionOrigin;
+                if (Platform.isIOS) {
+                  final box = context.findRenderObject() as RenderBox?;
+                  sharePositionOrigin =
+                      box!.localToGlobal(Offset.zero) & box.size;
+                }
+                return MenuButton(
+                  icon: const Icon(Icons.share),
+                  tooltip: "Share log",
+                  options: [
+                    ContextMenuOption(
+                      title: "Share full log",
+                      onSelected: () async {
+                        final result = await _viewModel.shareLog(
+                          filtered: false,
+                          sharePositionOrigin: sharePositionOrigin,
+                        );
+                        if (!context.mounted) return;
+                        if (!result) {
+                          // user canceled share
+                          return;
+                        }
+                        Toast.show("Successfully shared log!");
+                      },
+                    ),
+                    ContextMenuOption(
+                      title: "Share filtered log",
+                      onSelected: () async {
+                        final result = await _viewModel.shareLog(
+                          filtered: true,
+                          sharePositionOrigin: sharePositionOrigin,
+                        );
+                        if (!context.mounted) return;
+                        if (!result) {
+                          // user canceled share
+                          return;
+                        }
+                        Toast.show("Successfully shared log!");
+                      },
+                    ),
+                  ],
+                );
+              },
             ),
         ],
       ),

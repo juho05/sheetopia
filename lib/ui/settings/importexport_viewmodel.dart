@@ -7,6 +7,8 @@
  */
 
 import 'dart:async';
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 import 'package:sheetopia/data/repositories/importexport/importexport_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
@@ -43,8 +45,8 @@ class ImportExportViewModel extends ChangeNotifier {
     return _repo.import(onSelected: onSelected);
   }
 
-  Future<bool> export() async {
-    return _repo.export();
+  Future<bool> export({Rect? sharePositionOrigin}) async {
+    return _repo.export(sharePositionOrigin: sharePositionOrigin);
   }
 
   @override

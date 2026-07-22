@@ -121,7 +121,7 @@ class ImportExportRepository extends ChangeNotifier {
     return true;
   }
 
-  Future<bool> export() async {
+  Future<bool> export({Rect? sharePositionOrigin}) async {
     if (_status != ImportExportStatus.idle) {
       throw Exception("Cannot start export when alreading importing/exporting");
     }
@@ -250,7 +250,7 @@ class ImportExportRepository extends ChangeNotifier {
                     mimeType: "application/zip",
                   ),
                 ],
-                sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
+                sharePositionOrigin: sharePositionOrigin,
               ),
             );
             return result.status != ShareResultStatus.dismissed;

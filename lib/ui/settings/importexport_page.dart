@@ -6,6 +6,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/importexport/importexport_repository.dart';
@@ -68,9 +70,7 @@ class ImportExportPage extends StatelessWidget {
                           } on Exception catch (e, st) {
                             Log.error("failed to import scores", e: e, st: st);
                             if (!context.mounted) return;
-                            Toast.show(
-                              "An unexpected error occurred!",
-                            );
+                            Toast.show("An unexpected error occurred!");
                           }
                         },
                         child: Row(
@@ -96,35 +96,46 @@ class ImportExportPage extends StatelessWidget {
                     ),
                     Align(
                       alignment: AlignmentGeometry.centerLeft,
-                      child: Button(
-                        enabled: viewModel.status == ImportExportStatus.idle,
-                        onPressed: () async {
-                          Toast.show("Exporting…");
-                          try {
-                            final success = await viewModel.export();
-                            if (!success || !context.mounted) return;
-                            Toast.show("Export successful!");
-                          } on Exception catch (e, st) {
-                            Log.error("Export failed", e: e, st: st);
-                            if (!context.mounted) return;
-                            Toast.show("Export failed!");
+                      child: Builder(
+                        builder: (context) {
+                          Rect? sharePositionOrigin;
+                          if (Platform.isIOS) {
+                            final box = context.findRenderObject() as RenderBox?;
+                            sharePositionOrigin =
+                            box!.localToGlobal(Offset.zero) & box.size;
                           }
+                          return Button(
+                            enabled:
+                                viewModel.status == ImportExportStatus.idle,
+                            onPressed: () async {
+                              Toast.show("Exporting…");
+                              try {
+                                final success = await viewModel.export(sharePositionOrigin: sharePositionOrigin);
+                                if (!success || !context.mounted) return;
+                                Toast.show("Export successful!");
+                              } on Exception catch (e, st) {
+                                Log.error("Export failed", e: e, st: st);
+                                if (!context.mounted) return;
+                                Toast.show("Export failed!");
+                              }
+                            },
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              spacing: 8,
+                              children: [
+                                const Text("Export .zip"),
+                                if (viewModel.status ==
+                                    ImportExportStatus.exporting)
+                                  const SizedBox.square(
+                                    dimension: 15,
+                                    child: CircularProgressIndicator.adaptive(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
                         },
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          spacing: 8,
-                          children: [
-                            const Text("Export .zip"),
-                            if (viewModel.status ==
-                                ImportExportStatus.exporting)
-                              const SizedBox.square(
-                                dimension: 15,
-                                child: CircularProgressIndicator.adaptive(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                          ],
-                        ),
                       ),
                     ),
                     const Padding(
@@ -152,9 +163,7 @@ class ImportExportPage extends StatelessWidget {
                           try {
                             await viewModel.deleteLocalData();
                             if (!context.mounted) return;
-                            Toast.show(
-                              "Successfully deleted all local data!",
-                            );
+                            Toast.show("Successfully deleted all local data!");
                           } on Exception catch (e, st) {
                             Log.error(
                               "Failed to delete local data",
