@@ -85,6 +85,33 @@ class _PdfViewState extends State<PdfView> {
           return constraints.maxHeight * (page.width / page.height);
         }
 
+        Widget buildPage(PdfPage page) {
+          return AspectRatio(
+            aspectRatio: page.width / page.height,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                MediaQuery(
+                  data: mediaQuery.copyWith(
+                    devicePixelRatio: max(mediaQuery.devicePixelRatio, 2.0),
+                  ),
+                  child: PdfPageView(
+                    document: _viewModel.document!,
+                    pageNumber: page.pageNumber,
+                  ),
+                ),
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: AnnotationPainter(
+                      strokes: _viewModel.strokesForPage(page.pageNumber),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
         return ListenableBuilder(
           listenable: _viewModel,
           builder: (context, _) {
@@ -221,40 +248,7 @@ class _PdfViewState extends State<PdfView> {
                                 return Flexible(
                                   child: Opacity(
                                     opacity: 0,
-                                    child: ConstrainedBox(
-                                      constraints: BoxConstraints(
-                                        maxWidth:
-                                            constraints.maxHeight *
-                                            (page.width / page.height),
-                                      ),
-                                      child: Stack(
-                                        fit: StackFit.passthrough,
-                                        children: [
-                                          MediaQuery(
-                                            data: mediaQuery.copyWith(
-                                              devicePixelRatio: max(
-                                                mediaQuery.devicePixelRatio,
-                                                2.0,
-                                              ),
-                                            ),
-                                            child: PdfPageView(
-                                              document: _viewModel.document!,
-                                              pageNumber: page.pageNumber,
-                                            ),
-                                          ),
-                                          Positioned.fill(
-                                            child: CustomPaint(
-                                              painter: AnnotationPainter(
-                                                strokes: _viewModel
-                                                    .strokesForPage(
-                                                      page.pageNumber,
-                                                    ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
+                                    child: buildPage(page),
                                   ),
                                 );
                               }),
@@ -272,40 +266,7 @@ class _PdfViewState extends State<PdfView> {
                                 return Flexible(
                                   child: Opacity(
                                     opacity: 1,
-                                    child: ConstrainedBox(
-                                      constraints: BoxConstraints(
-                                        maxWidth:
-                                            constraints.maxHeight *
-                                            (page.width / page.height),
-                                      ),
-                                      child: Stack(
-                                        fit: StackFit.passthrough,
-                                        children: [
-                                          MediaQuery(
-                                            data: mediaQuery.copyWith(
-                                              devicePixelRatio: max(
-                                                mediaQuery.devicePixelRatio,
-                                                2.0,
-                                              ),
-                                            ),
-                                            child: PdfPageView(
-                                              document: _viewModel.document!,
-                                              pageNumber: page.pageNumber,
-                                            ),
-                                          ),
-                                          Positioned.fill(
-                                            child: CustomPaint(
-                                              painter: AnnotationPainter(
-                                                strokes: _viewModel
-                                                    .strokesForPage(
-                                                      page.pageNumber,
-                                                    ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
+                                    child: buildPage(page),
                                   ),
                                 );
                               }),
