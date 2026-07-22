@@ -38,6 +38,7 @@ class AppImageRepository {
   }
 
   static File? _overrideAppImageFile;
+
   static File get appImageFile =>
       _overrideAppImageFile ?? File(Platform.environment["APPIMAGE"]!).absolute;
 
@@ -65,7 +66,7 @@ class AppImageRepository {
       return false;
     }
 
-    if (await _isIntegrated()) {
+    if (await isIntegrated()) {
       return false;
     }
 
@@ -141,7 +142,7 @@ StartupNotify=true
     Log.debug("User disabled AppImage integration for version $version");
   }
 
-  Future<bool> _isIntegrated() async {
+  Future<bool> isIntegrated() async {
     Log.trace("The current AppImage path is: $appImageFile");
 
     final desiredAppImageFile = File(

@@ -8,6 +8,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sheetopia/data/repositories/appimage/appimage_repository.dart';
 import 'package:sheetopia/data/repositories/settings/version_checking.dart';
 import 'package:sheetopia/data/repositories/version/version_repository.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -55,6 +56,12 @@ class SettingsPage extends StatelessWidget {
                 onTap: () {
                   context.go("/settings/versionChecking");
                 },
+              ),
+            if (AppImageRepository.isAppImage)
+              ListTile(
+                title: const Text("AppImage Integration"),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () => context.go("/settings/appimage"),
               ),
             ListTile(
               title: const Text("Debug"),

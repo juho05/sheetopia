@@ -18,6 +18,7 @@ import 'package:sheetopia/ui/score/score_page.dart';
 import 'package:sheetopia/ui/setlists/setlist_detail_page.dart';
 import 'package:sheetopia/ui/setlists/setlist_play_page.dart';
 import 'package:sheetopia/ui/settings/appearance_page.dart';
+import 'package:sheetopia/ui/settings/appimage_page.dart';
 import 'package:sheetopia/ui/settings/debug_page.dart';
 import 'package:sheetopia/ui/settings/importexport_page.dart';
 import 'package:sheetopia/ui/settings/logs/choose_log_session_page.dart';
@@ -137,6 +138,10 @@ GoRouter get goRouter {
               GoRoute(
                 path: "versionChecking",
                 builder: (context, state) => const VersionCheckingPage(),
+              ),
+              GoRoute(
+                path: "appimage",
+                builder: (context, state) => const AppImagePage(),
               ),
               GoRoute(
                 path: "debug",
