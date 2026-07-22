@@ -22,8 +22,6 @@ import 'package:sheetopia/ui/setlists/setlists_view.dart';
 import 'package:sheetopia/version_checker.dart';
 
 class HomePage extends StatelessWidget {
-  static const double _railBreakpoint = 700;
-
   static const List<({IconData icon, IconData selectedIcon, String label})>
   _tabs = [
     (
@@ -109,7 +107,7 @@ class HomePage extends StatelessWidget {
               },
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final rail = constraints.maxWidth >= _railBreakpoint;
+                  final rail = constraints.maxWidth >= constraints.maxHeight;
                   return Stack(
                     children: [
                       Consumer<HomeViewModel>(
