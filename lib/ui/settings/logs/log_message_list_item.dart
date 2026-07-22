@@ -40,7 +40,7 @@ class LogMessageListItem extends StatelessWidget {
             type: MaterialType.transparency,
             child: InkWell(
               onTap: () {
-                context.push("/settings/debug/logs/details", extra: msg);
+                context.go("/settings/debug/logs/details", extra: msg);
               },
               child: Padding(
                 padding: const EdgeInsets.all(8.0),

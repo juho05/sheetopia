@@ -6,11 +6,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
+import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
+import 'package:sheetopia/data/repositories/settings/version_checking.dart';
 import 'package:sheetopia/data/repositories/version/version.dart';
 import 'package:sheetopia/data/repositories/version/version_repository.dart';
 
@@ -21,13 +21,17 @@ class VersionCheckerViewModel extends ChangeNotifier {
 
   final KeyValueRepository _keyValue;
   final VersionRepository _versionRepo;
+  final SettingsRepository _settings;
 
   bool _checked = false;
 
   Version? _current;
+
   Version? get current => _current;
   Version? _latest;
+
   Version? get latest => _latest;
+
   bool get newVersionAvailable => _current != null && _latest != null;
 
   bool isOpen = false;
@@ -36,15 +40,13 @@ class VersionCheckerViewModel extends ChangeNotifier {
   VersionCheckerViewModel({
     required KeyValueRepository keyValue,
     required VersionRepository versionRepo,
+    required SettingsRepository settings,
   }) : _keyValue = keyValue,
-       _versionRepo = versionRepo {
-    if (!kIsWeb) {
-      _checked = Platform.environment["SHEETOPIA_DISABLE_VERSION_CHECK"] == "1";
-    } else {
+       _versionRepo = versionRepo,
+       _settings = settings {
+    _checked = VersionCheckingSettings.externallyDisabled;
+    if (!_settings.versionChecking.enabled) {
       _checked = true;
-    }
-    if (const bool.hasEnvironment("VERSION_CHECK")) {
-      _checked = !const bool.fromEnvironment("VERSION_CHECK");
     }
     if (_checked) {
       Log.info("version checking is disabled");

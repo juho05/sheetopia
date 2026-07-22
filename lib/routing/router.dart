@@ -26,6 +26,7 @@ import 'package:sheetopia/ui/settings/logs/logs_page.dart';
 import 'package:sheetopia/ui/settings/midi/midi_device_page.dart';
 import 'package:sheetopia/ui/settings/midi/midi_page.dart';
 import 'package:sheetopia/ui/settings/settings_page.dart';
+import 'package:sheetopia/ui/settings/version_checking_page.dart';
 
 GoRouter? _goRouter;
 
@@ -92,11 +93,13 @@ GoRouter get goRouter {
             path: 'scores/:scoreId/edit',
             builder: (context, state) =>
                 EditScorePage(scoreId: state.pathParameters["scoreId"]!),
-          ),
-          GoRoute(
-            path: 'scores/:scoreId/annotate',
-            builder: (context, state) =>
-                AnnotatePage(scoreId: state.pathParameters["scoreId"]!),
+            routes: [
+              GoRoute(
+                path: 'annotate',
+                builder: (context, state) =>
+                    AnnotatePage(scoreId: state.pathParameters["scoreId"]!),
+              ),
+            ],
           ),
           GoRoute(
             path: 'setlists/:setlistId',
@@ -130,6 +133,10 @@ GoRouter get goRouter {
               GoRoute(
                 path: "appearance",
                 builder: (context, state) => const AppearancePage(),
+              ),
+              GoRoute(
+                path: "versionChecking",
+                builder: (context, state) => const VersionCheckingPage(),
               ),
               GoRoute(
                 path: "debug",

@@ -8,6 +8,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sheetopia/data/repositories/settings/version_checking.dart';
 import 'package:sheetopia/data/repositories/version/version_repository.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -47,6 +48,14 @@ class SettingsPage extends StatelessWidget {
                 context.go("/settings/importExport");
               },
             ),
+            if (!VersionCheckingSettings.externallyDisabled)
+              ListTile(
+                title: const Text("Version Checking"),
+                trailing: const Icon(Icons.arrow_forward_ios_outlined),
+                onTap: () {
+                  context.go("/settings/versionChecking");
+                },
+              ),
             ListTile(
               title: const Text("Debug"),
               trailing: const Icon(Icons.arrow_forward_ios_outlined),

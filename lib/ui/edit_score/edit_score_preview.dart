@@ -253,7 +253,7 @@ class _EditScorePreviewState extends State<EditScorePreview> {
                 padding: const EdgeInsets.all(8.0),
                 child: FilledButton.icon(
                   onPressed: () =>
-                      context.push('/scores/${widget.score.id}/annotate'),
+                      context.go('/scores/${widget.score.id}/edit/annotate'),
                   icon: const Icon(Icons.draw),
                   label: const Text("Annotate"),
                 ),

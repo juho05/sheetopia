@@ -34,14 +34,15 @@ Future<List<SingleChildWidget>> createProviders({
 
   await logRepository.enablePersistence(database);
 
+  final KeyValueRepository keyValue = KeyValueRepository(database: database);
+  final SettingsRepository settings = SettingsRepository(keyValueRepository: keyValue);
+  await settings.load();
+
   return [
     Provider.value(value: database),
     Provider.value(value: logRepository),
-    Provider(create: (context) => KeyValueRepository(database: context.read())),
-    Provider(
-      create: (context) =>
-          SettingsRepository(keyValueRepository: context.read()),
-    ),
+    Provider.value(value: keyValue),
+    Provider.value(value: settings),
     Provider(create: (context) => GitHubService()),
     Provider(
       create: (context) =>
@@ -51,6 +52,7 @@ Future<List<SingleChildWidget>> createProviders({
       create: (context) => VersionCheckerViewModel(
         keyValue: context.read(),
         versionRepo: context.read(),
+        settings: context.read(),
       )..check(),
     ),
     ChangeNotifierProvider(
