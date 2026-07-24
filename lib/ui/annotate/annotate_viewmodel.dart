@@ -7,6 +7,7 @@
  */
 
 import 'dart:math';
+import 'dart:ui' show Offset, Path;
 
 import 'package:flutter/foundation.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
@@ -60,9 +61,14 @@ class AnnotateViewModel extends ChangeNotifier {
   final Map<int, List<Stroke>> _pages = {};
   bool _dirty = false;
 
-  final _liveRepaint = _Notifier();
+  final Map<int, _Notifier> _liveRepaints = {};
 
-  Listenable get liveRepaint => _liveRepaint;
+  Listenable liveRepaintFor(int pageIndex) =>
+      _liveRepaints.putIfAbsent(pageIndex, _Notifier.new);
+
+  void _pingLive(int? pageIndex) {
+    if (pageIndex != null) _liveRepaints[pageIndex]?.ping();
+  }
 
   final List<_UndoOp> _undoStack = [];
   final List<_UndoOp> _redoStack = [];
@@ -91,6 +97,8 @@ class AnnotateViewModel extends ChangeNotifier {
   StrokePoint? _lastRawPoint;
   double _sx = 0;
   double _sy = 0;
+
+  Path? _livePath;
 
   List<Stroke>? _eraseSnapshot;
   List<(int, Stroke)>? _erasePending;
@@ -140,18 +148,31 @@ class AnnotateViewModel extends ChangeNotifier {
     return _lastErasePoint;
   }
 
+  // Geometry is in page-width units. The painter scales it by size.width.
   ({
     int colorValue,
     double width,
-    List<StrokePoint> points,
-    StrokePoint tip,
+    double aspect,
+    Path path,
+    Offset lastKept,
+    Offset tip,
+    bool isDot,
   })? liveStrokeFor(int pageIndex) {
-    if (_activePageIndex != pageIndex || _activePoints == null) return null;
+    final path = _livePath;
+    final points = _activePoints;
+    if (_activePageIndex != pageIndex || path == null || points == null) {
+      return null;
+    }
+    final last = points.last;
+    final raw = _lastRawPoint ?? last;
     return (
       colorValue: _colorValue,
       width: _width,
-      points: _activePoints!,
-      tip: _lastRawPoint ?? _activePoints!.last,
+      aspect: _drawAspect,
+      path: path,
+      lastKept: Offset(last.x, last.y * _drawAspect),
+      tip: Offset(raw.x, raw.y * _drawAspect),
+      isDot: points.length == 1,
     );
   }
 
@@ -171,7 +192,8 @@ class AnnotateViewModel extends ChangeNotifier {
     _lastRawPoint = p;
     _sx = p.x;
     _sy = p.y;
-    _liveRepaint.ping();
+    _livePath = Path()..moveTo(p.x, p.y * aspect);
+    _pingLive(pageIndex);
   }
 
   void appendPoint(StrokePoint p, double aspect) {
@@ -195,8 +217,9 @@ class AnnotateViewModel extends ChangeNotifier {
     final dy = (_sy - last.y) * aspect;
     if (dx * dx + dy * dy > minD * minD) {
       points.add(StrokePoint(x: _sx, y: _sy, pressure: p.pressure));
+      _livePath?.lineTo(_sx, _sy * aspect);
     }
-    _liveRepaint.ping();
+    _pingLive(_activePageIndex);
   }
 
   void endStroke() {
@@ -207,10 +230,11 @@ class AnnotateViewModel extends ChangeNotifier {
     _activePageIndex = null;
     _activePoints = null;
     _lastRawPoint = null;
+    _livePath = null;
     _eraseSnapshot = null;
     _erasePending = null;
     _lastErasePoint = null;
-    _liveRepaint.ping();
+    _pingLive(pageIndex);
 
     if (erased != null) {
       if (pageIndex != null && erased.isNotEmpty) {
@@ -392,6 +416,7 @@ class AnnotateViewModel extends ChangeNotifier {
     _activePageIndex = null;
     _activePoints = null;
     _lastRawPoint = null;
+    _livePath = null;
     _eraseSnapshot = null;
     _erasePending = null;
     _lastErasePoint = null;
@@ -452,7 +477,9 @@ class AnnotateViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
-    _liveRepaint.dispose();
+    for (final n in _liveRepaints.values) {
+      n.dispose();
+    }
     super.dispose();
   }
 }

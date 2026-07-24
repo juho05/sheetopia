@@ -12,7 +12,35 @@ import 'package:flutter/material.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
 import 'package:sheetopia/ui/annotate/annotate_viewmodel.dart';
 
+class _CachedPath {
+  final Size size;
+  final Path path;
+
+  const _CachedPath(this.size, this.path);
+}
+
+final _pathCache = Expando<_CachedPath>('annotationStrokePath');
+
 Path _strokePath(Stroke stroke, Size size) {
+  final cached = _pathCache[stroke];
+  if (cached != null && cached.size == size) return cached.path;
+  final path = _buildStrokePath(stroke, size);
+  _pathCache[stroke] = _CachedPath(size, path);
+  return path;
+}
+
+Rect? _strokeRect(Stroke stroke, Size size) {
+  if (stroke.points.isEmpty) return null;
+  final b = stroke.bounds;
+  return Rect.fromLTRB(
+    b.minX * size.width,
+    b.minY * size.height,
+    b.maxX * size.width,
+    b.maxY * size.height,
+  ).inflate(stroke.width / 2 * max(size.width, size.height));
+}
+
+Path _buildStrokePath(Stroke stroke, Size size) {
   final outline = stroke.outline;
   final path = Path();
   if (outline.length < 4) return path;
@@ -48,8 +76,11 @@ class AnnotationPainter extends CustomPainter {
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
     if (size.width > 0 && strokes.isNotEmpty) {
+      final clip = canvas.getLocalClipBounds();
       for (final stroke in strokes) {
         if (stroke.outline.isEmpty) continue;
+        final rect = _strokeRect(stroke, size);
+        if (rect != null && !rect.overlaps(clip)) continue;
         paint.color = Color(stroke.colorValue);
         canvas.drawPath(_strokePath(stroke, size), paint);
       }
@@ -97,40 +128,42 @@ class LiveStrokePainter extends CustomPainter {
   final int pageIndex;
 
   LiveStrokePainter({required this.viewModel, required this.pageIndex})
-    : super(repaint: viewModel.liveRepaint);
+    : super(repaint: viewModel.liveRepaintFor(pageIndex));
 
   @override
   void paint(Canvas canvas, Size size) {
     final stroke = viewModel.liveStrokeFor(pageIndex);
-    if (stroke == null || stroke.points.isEmpty) return;
+    if (stroke == null || size.width <= 0) return;
 
+    final color = Color(stroke.colorValue);
+    final strokeWidth = stroke.width * max(1.0, stroke.aspect);
     final paint = Paint()
-      ..color = Color(stroke.colorValue)
-      ..strokeWidth = stroke.width * max(size.width, size.height)
+      ..color = color
+      ..strokeWidth = strokeWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..isAntiAlias = true;
 
-    final points = stroke.points;
-    if (points.length == 1) {
-      final p = points.first;
+    canvas.save();
+    canvas.scale(size.width);
+    if (stroke.isDot) {
       canvas.drawCircle(
-        Offset(p.x * size.width, p.y * size.height),
-        paint.strokeWidth / 2,
-        paint..style = PaintingStyle.fill,
+        stroke.lastKept,
+        strokeWidth / 2,
+        Paint()
+          ..color = color
+          ..isAntiAlias = true,
       );
-      return;
     }
-
-    final path = Path()
-      ..moveTo(points.first.x * size.width, points.first.y * size.height);
-    for (final p in points.skip(1)) {
-      path.lineTo(p.x * size.width, p.y * size.height);
+    canvas.drawPath(stroke.path, paint);
+    // The round cap extends exactly as far as the decimation threshold, so it
+    // already covers the gap to the nib. Only opaque strokes get the extra
+    // segment; on a translucent one its overlap would show as a darker dot.
+    if (color.a == 1.0 && stroke.tip != stroke.lastKept) {
+      canvas.drawLine(stroke.lastKept, stroke.tip, paint);
     }
-    final tip = stroke.tip;
-    path.lineTo(tip.x * size.width, tip.y * size.height);
-    canvas.drawPath(path, paint);
+    canvas.restore();
   }
 
   @override
