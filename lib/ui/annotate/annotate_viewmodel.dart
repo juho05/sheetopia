@@ -50,10 +50,10 @@ class AnnotateViewModel extends ChangeNotifier {
   static const double minWidth = 0.0008;
   static const double maxWidth = 0.05;
 
-  static const double _streamline = 0.5;
+  static const double _streamline = 0.1;
   static const double _streamlineT = 0.15 + (1 - _streamline) * 0.85;
 
-  static const double _smoothing = 0.5;
+  static const double _smoothing = 0.05;
 
   final ScoresRepository _repo;
   final String _scoreId;

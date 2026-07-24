@@ -99,14 +99,19 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
                 child: ListenableBuilder(
                   listenable: widget.viewModel,
                   builder: (context, _) {
+                    final eraserCursor = widget.viewModel.eraserCursorFor(
+                      widget.pageIndex,
+                    );
                     return CustomPaint(
                       size: Size.infinite,
                       painter: AnnotationPainter(
                         strokes: widget.viewModel.strokesFor(widget.pageIndex),
-                        eraserCursor: widget.viewModel.eraserCursorFor(
-                          widget.pageIndex,
-                        ),
-                        eraserWidth: widget.viewModel.width,
+                        eraserCursor: eraserCursor,
+                        // Only track width while it is actually drawn, so the
+                        // width slider does not repaint every committed stroke.
+                        eraserWidth: eraserCursor == null
+                            ? 0
+                            : widget.viewModel.width,
                       ),
                     );
                   },
