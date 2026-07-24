@@ -8,12 +8,17 @@
 
 import 'dart:convert';
 
+double roundCoord(double v) => (v * 100000).roundToDouble() / 100000;
+
 class StrokePoint {
   final double x;
   final double y;
   final double pressure;
 
   const StrokePoint({required this.x, required this.y, required this.pressure});
+
+  StrokePoint rounded() =>
+      StrokePoint(x: roundCoord(x), y: roundCoord(y), pressure: pressure);
 
   List<double> toJson() => [x, y, pressure];
 
@@ -29,10 +34,14 @@ class Stroke {
   final double width;
   final List<StrokePoint> points;
 
+  // Flat normalized x/y pairs of the baked outline.
+  final List<double> outline;
+
   Stroke({
     required this.colorValue,
     required this.width,
     required this.points,
+    required this.outline,
   });
 
   ({double minX, double minY, double maxX, double maxY})? _bounds;
@@ -58,15 +67,21 @@ class Stroke {
     'c': colorValue,
     'w': width,
     'p': points.map((p) => p.toJson()).toList(),
+    'o': outline,
   };
 
-  factory Stroke.fromJson(Map<String, dynamic> json) => Stroke(
-    colorValue: json['c'] as int,
-    width: (json['w'] as num).toDouble(),
-    points: (json['p'] as List<dynamic>)
-        .map((e) => StrokePoint.fromJson(e as List<dynamic>))
-        .toList(),
-  );
+  static Stroke? tryFromJson(Map<String, dynamic> json) {
+    final outline = json['o'] as List<dynamic>?;
+    if (outline == null || outline.isEmpty) return null;
+    return Stroke(
+      colorValue: json['c'] as int,
+      width: (json['w'] as num).toDouble(),
+      points: (json['p'] as List<dynamic>)
+          .map((e) => StrokePoint.fromJson(e as List<dynamic>))
+          .toList(),
+      outline: outline.map((e) => (e as num).toDouble()).toList(),
+    );
+  }
 }
 
 String? encodeAnnotations(Map<int, List<Stroke>> pages) {
@@ -82,12 +97,14 @@ String? encodeAnnotations(Map<int, List<Stroke>> pages) {
 Map<int, List<Stroke>> decodeAnnotations(String? data) {
   if (data == null || data.isEmpty) return {};
   final json = jsonDecode(data) as Map<String, dynamic>;
-  return json.map(
-    (key, value) => MapEntry(
-      int.parse(key),
-      (value as List<dynamic>)
-          .map((e) => Stroke.fromJson(e as Map<String, dynamic>))
-          .toList(),
-    ),
-  );
+  final result = <int, List<Stroke>>{};
+  for (final entry in json.entries) {
+    final strokes = (entry.value as List<dynamic>)
+        .map((e) => Stroke.tryFromJson(e as Map<String, dynamic>))
+        .nonNulls
+        .toList();
+    if (strokes.isEmpty) continue;
+    result[int.parse(entry.key)] = strokes;
+  }
+  return result;
 }

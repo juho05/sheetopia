@@ -9,44 +9,20 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:perfect_freehand/perfect_freehand.dart' hide StrokePoint;
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
 import 'package:sheetopia/ui/annotate/annotate_viewmodel.dart';
 
-// The outline is built in a fixed-size reference space and the canvas is scaled
-// to the real size instead of feeding the zoomed size to perfect_freehand. Its
-// sharp-corner threshold is `size / 128` compared against a unit-vector dot
-// product (max 1.0), so a large `size` at high zoom flags every point as a
-// corner and turns the stroke into a chain of caps. Keeping `size` fixed avoids
-// that and makes rendering scale-invariant; the vector path stays crisp.
-const double _refWidth = 1000.0;
-
-Path _strokePath(Stroke stroke, Size size, {required bool isComplete}) {
-  final points = stroke.points
-      .map((p) => PointVector(p.x * size.width, p.y * size.height, p.pressure))
-      .toList();
-
-  final outline = getStroke(
-    points,
-    options: StrokeOptions(
-      size: stroke.width * max(size.width, size.height),
-      isComplete: isComplete,
-      simulatePressure: false,
-    ),
-  );
-
+Path _strokePath(Stroke stroke, Size size) {
+  final outline = stroke.outline;
   final path = Path();
-  if (outline.isEmpty) return path;
-  path.moveTo(outline.first.dx, outline.first.dy);
-  for (var i = 0; i < outline.length - 1; i++) {
-    final p0 = outline[i];
-    final p1 = outline[i + 1];
-    path.quadraticBezierTo(
-      p0.dx,
-      p0.dy,
-      (p0.dx + p1.dx) / 2,
-      (p0.dy + p1.dy) / 2,
-    );
+  if (outline.length < 4) return path;
+  path.moveTo(outline[0] * size.width, outline[1] * size.height);
+  for (var i = 0; i + 3 < outline.length; i += 2) {
+    final x0 = outline[i] * size.width;
+    final y0 = outline[i + 1] * size.height;
+    final x1 = outline[i + 2] * size.width;
+    final y1 = outline[i + 3] * size.height;
+    path.quadraticBezierTo(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
   }
   path.close();
   return path;
@@ -72,15 +48,11 @@ class AnnotationPainter extends CustomPainter {
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
     if (size.width > 0 && strokes.isNotEmpty) {
-      final refSize = Size(_refWidth, _refWidth * (size.height / size.width));
-      canvas.save();
-      canvas.scale(size.width / _refWidth);
       for (final stroke in strokes) {
-        if (stroke.points.isEmpty) continue;
+        if (stroke.outline.isEmpty) continue;
         paint.color = Color(stroke.colorValue);
-        canvas.drawPath(_strokePath(stroke, refSize, isComplete: true), paint);
+        canvas.drawPath(_strokePath(stroke, size), paint);
       }
-      canvas.restore();
     }
     if (eraserCursor != null) {
       _paintEraserCursor(canvas, size, eraserCursor!);

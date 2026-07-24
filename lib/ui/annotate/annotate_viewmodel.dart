@@ -11,6 +11,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
+import 'package:sheetopia/ui/annotate/stroke_outline.dart';
 
 sealed class _UndoOp {
   final int pageIndex;
@@ -87,6 +88,7 @@ class AnnotateViewModel extends ChangeNotifier {
   List<(int, Stroke)>? _erasePending;
   StrokePoint? _lastErasePoint;
   double _eraseAspect = 1.0;
+  double _drawAspect = 1.0;
 
   AnnotateViewModel({required ScoresRepository repo, required String scoreId})
     : _repo = repo,
@@ -130,13 +132,11 @@ class AnnotateViewModel extends ChangeNotifier {
     return _lastErasePoint;
   }
 
-  Stroke? liveStrokeFor(int pageIndex) {
+  ({int colorValue, double width, List<StrokePoint> points})? liveStrokeFor(
+    int pageIndex,
+  ) {
     if (_activePageIndex != pageIndex || _activePoints == null) return null;
-    return Stroke(
-      colorValue: _colorValue,
-      width: _width,
-      points: _activePoints!,
-    );
+    return (colorValue: _colorValue, width: _width, points: _activePoints!);
   }
 
   void startStroke(int pageIndex, StrokePoint p, double aspect) {
@@ -150,6 +150,7 @@ class AnnotateViewModel extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    _drawAspect = aspect;
     _activePoints = [p];
     _liveRepaint.ping();
   }
@@ -164,6 +165,7 @@ class AnnotateViewModel extends ChangeNotifier {
       return;
     }
     if (_activePoints == null) return;
+    _drawAspect = aspect;
     _activePoints!.add(p);
     _liveRepaint.ping();
   }
@@ -197,8 +199,17 @@ class AnnotateViewModel extends ChangeNotifier {
     final stroke = Stroke(
       colorValue: _colorValue,
       width: _width,
-      points: points,
+      points: points.map((p) => p.rounded()).toList(),
+      outline: buildOutline(
+        points: points,
+        width: _width,
+        aspect: _drawAspect,
+      ),
     );
+    if (stroke.outline.isEmpty) {
+      notifyListeners();
+      return;
+    }
     final pageStrokes = List.of(_pages[pageIndex] ?? const <Stroke>[]);
     pageStrokes.add(stroke);
     _pages[pageIndex] = pageStrokes;
