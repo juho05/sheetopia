@@ -34,6 +34,8 @@ List<double> buildOutline({
       size: width * max(_refWidth, refHeight),
       isComplete: true,
       simulatePressure: false,
+      // points are already streamlined
+      streamline: 0,
     ),
   );
   final result = <double>[];

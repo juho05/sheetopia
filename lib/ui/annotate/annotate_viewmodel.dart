@@ -49,6 +49,11 @@ class AnnotateViewModel extends ChangeNotifier {
   static const double minWidth = 0.0008;
   static const double maxWidth = 0.05;
 
+  static const double _streamline = 0.5;
+  static const double _streamlineT = 0.15 + (1 - _streamline) * 0.85;
+
+  static const double _smoothing = 0.5;
+
   final ScoresRepository _repo;
   final String _scoreId;
 
@@ -83,6 +88,9 @@ class AnnotateViewModel extends ChangeNotifier {
 
   int? _activePageIndex;
   List<StrokePoint>? _activePoints;
+  StrokePoint? _lastRawPoint;
+  double _sx = 0;
+  double _sy = 0;
 
   List<Stroke>? _eraseSnapshot;
   List<(int, Stroke)>? _erasePending;
@@ -132,11 +140,19 @@ class AnnotateViewModel extends ChangeNotifier {
     return _lastErasePoint;
   }
 
-  ({int colorValue, double width, List<StrokePoint> points})? liveStrokeFor(
-    int pageIndex,
-  ) {
+  ({
+    int colorValue,
+    double width,
+    List<StrokePoint> points,
+    StrokePoint tip,
+  })? liveStrokeFor(int pageIndex) {
     if (_activePageIndex != pageIndex || _activePoints == null) return null;
-    return (colorValue: _colorValue, width: _width, points: _activePoints!);
+    return (
+      colorValue: _colorValue,
+      width: _width,
+      points: _activePoints!,
+      tip: _lastRawPoint ?? _activePoints!.last,
+    );
   }
 
   void startStroke(int pageIndex, StrokePoint p, double aspect) {
@@ -152,6 +168,9 @@ class AnnotateViewModel extends ChangeNotifier {
     }
     _drawAspect = aspect;
     _activePoints = [p];
+    _lastRawPoint = p;
+    _sx = p.x;
+    _sy = p.y;
     _liveRepaint.ping();
   }
 
@@ -164,18 +183,30 @@ class AnnotateViewModel extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    if (_activePoints == null) return;
+    final points = _activePoints;
+    if (points == null) return;
     _drawAspect = aspect;
-    _activePoints!.add(p);
+    _lastRawPoint = p;
+    _sx += (p.x - _sx) * _streamlineT;
+    _sy += (p.y - _sy) * _streamlineT;
+    final last = points.last;
+    final minD = _width * _smoothing * max(1.0, aspect);
+    final dx = _sx - last.x;
+    final dy = (_sy - last.y) * aspect;
+    if (dx * dx + dy * dy > minD * minD) {
+      points.add(StrokePoint(x: _sx, y: _sy, pressure: p.pressure));
+    }
     _liveRepaint.ping();
   }
 
   void endStroke() {
     final pageIndex = _activePageIndex;
     final points = _activePoints;
+    final tip = _lastRawPoint;
     final erased = _erasePending;
     _activePageIndex = null;
     _activePoints = null;
+    _lastRawPoint = null;
     _eraseSnapshot = null;
     _erasePending = null;
     _lastErasePoint = null;
@@ -195,6 +226,8 @@ class AnnotateViewModel extends ChangeNotifier {
       notifyListeners();
       return;
     }
+
+    if (tip != null && !identical(tip, points.last)) points.add(tip);
 
     final stroke = Stroke(
       colorValue: _colorValue,
@@ -358,6 +391,7 @@ class AnnotateViewModel extends ChangeNotifier {
     _redoStack.clear();
     _activePageIndex = null;
     _activePoints = null;
+    _lastRawPoint = null;
     _eraseSnapshot = null;
     _erasePending = null;
     _lastErasePoint = null;

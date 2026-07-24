@@ -128,6 +128,8 @@ class LiveStrokePainter extends CustomPainter {
     for (final p in points.skip(1)) {
       path.lineTo(p.x * size.width, p.y * size.height);
     }
+    final tip = stroke.tip;
+    path.lineTo(tip.x * size.width, tip.y * size.height);
     canvas.drawPath(path, paint);
   }
 
