@@ -503,8 +503,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: dd344f53e7582b0c2053c5eaacb87fae0f8a2056
-      resolved-ref: dd344f53e7582b0c2053c5eaacb87fae0f8a2056
+      ref: c089bd188bdf1fed0c0828c56b5662915ed1e9ae
+      resolved-ref: c089bd188bdf1fed0c0828c56b5662915ed1e9ae
       url: "https://github.com/juho05/FlutterMidiCommand"
     source: git
     version: "0.6.0"

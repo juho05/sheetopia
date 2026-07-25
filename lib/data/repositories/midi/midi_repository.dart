@@ -27,7 +27,7 @@ class MidiRepository with WidgetsBindingObserver {
   static const _reconnectScanTimeout = Duration(seconds: 20);
   static const _reconnectStartupScanTimeout = Duration(minutes: 1);
   static const _reconnectBackoff = Duration(seconds: 5);
-  static const _devicePollInterval = Duration(seconds: 5);
+  static const _devicePollInterval = Duration(seconds: 20);
 
   final MidiCommand _midi = MidiCommand();
   final KeyValueRepository _keyValue;
