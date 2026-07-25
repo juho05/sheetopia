@@ -131,15 +131,16 @@ class _LibraryViewState extends State<LibraryView> {
                 : ScrollDirection.reverse,
           );
         },
-        child: CustomScrollView(
-          controller: _scrollController,
-          scrollCacheExtent: const ScrollCacheExtent.pixels(
-            ScoreGridCell.height * 2.0,
-          ),
-          slivers: [
-            SliverLayoutBuilder(
-              builder: (context, constraints) {
-                return SliverToBoxAdapter(
+        child: LayoutBuilder(
+          builder: (context, viewportConstraints) {
+            final crossAxisExtent = viewportConstraints.maxWidth;
+            return CustomScrollView(
+              controller: _scrollController,
+              scrollCacheExtent: const ScrollCacheExtent.pixels(
+                ScoreGridCell.height * 2.0,
+              ),
+              slivers: [
+                SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.only(
                       left: 12,
@@ -175,7 +176,7 @@ class _LibraryViewState extends State<LibraryView> {
                                       : const Icon(Icons.filter_alt_outlined);
                                   return Builder(
                                     builder: (context) {
-                                      if (constraints.crossAxisExtent < 500) {
+                                      if (crossAxisExtent < 500) {
                                         return IconButton(
                                           icon: icon,
                                           onPressed: () {
@@ -242,20 +243,21 @@ class _LibraryViewState extends State<LibraryView> {
                       ],
                     ),
                   ),
-                );
-              },
-            ),
-            ListenableBuilder(
-              listenable: _viewModel,
-              builder: (context, _) {
-                return SliverScoreGrid(
-                  scores: _viewModel.scores,
-                  onScoreTap: widget.onScoreTap,
-                  selected: widget.selected,
-                );
-              },
-            ),
-          ],
+                ),
+                ListenableBuilder(
+                  listenable: _viewModel,
+                  builder: (context, _) {
+                    return SliverScoreGrid(
+                      scores: _viewModel.scores,
+                      crossAxisExtent: crossAxisExtent,
+                      onScoreTap: widget.onScoreTap,
+                      selected: widget.selected,
+                    );
+                  },
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

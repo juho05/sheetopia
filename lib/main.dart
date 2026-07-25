@@ -22,8 +22,8 @@ import 'package:sheetopia/data/repositories/logger/log_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/themeManager/theme_manager.dart';
 import 'package:sheetopia/providers.dart';
-import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/routing/router.dart';
+import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/window_listener.dart';
 import 'package:window_manager/window_manager.dart';
 

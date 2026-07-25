@@ -16,12 +16,14 @@ class SliverScoreGrid extends StatelessWidget {
   static const double _gap = 12;
 
   final List<Score> scores;
+  final double crossAxisExtent;
   final void Function(Score score)? onScoreTap;
   final Set<String> selected;
 
   const SliverScoreGrid({
     super.key,
     required this.scores,
+    required this.crossAxisExtent,
     this.onScoreTap,
     this.selected = const {},
   });
@@ -42,42 +44,31 @@ class SliverScoreGrid extends StatelessWidget {
         ),
       );
     }
-    return SliverLayoutBuilder(
-      builder: (context, constraints) {
-        final columns = max(
-          ((constraints.crossAxisExtent - _gap) / (ScoreGridCell.width + _gap))
-              .floor(),
-          1,
-        );
-        return SliverFixedExtentList.builder(
-          itemExtent: ScoreGridCell.height + _gap,
-          itemCount: (scores.length / columns).ceil(),
-          itemBuilder: (context, index) {
-            final count = min(columns, scores.length - index * columns);
-            return Padding(
-              padding: const EdgeInsets.only(
-                left: _gap,
-                right: _gap,
-                bottom: _gap,
-              ),
-              child: Row(
-                mainAxisAlignment: columns == 1
-                    ? MainAxisAlignment.center
-                    : MainAxisAlignment.start,
-                spacing: _gap,
-                children: List.generate(count, (i) {
-                  i += columns * index;
-                  return RepaintBoundary(
-                    child: ScoreGridCell(
-                      score: scores[i],
-                      onScoreTap: onScoreTap,
-                      selected: selected.contains(scores[i].id),
-                    ),
-                  );
-                }),
-              ),
-            );
-          },
+    final columns = max(
+      ((crossAxisExtent - _gap) / (ScoreGridCell.width + _gap)).floor(),
+      1,
+    );
+    return SliverFixedExtentList.builder(
+      itemExtent: ScoreGridCell.height + _gap,
+      itemCount: (scores.length / columns).ceil(),
+      itemBuilder: (context, index) {
+        final count = min(columns, scores.length - index * columns);
+        return Padding(
+          padding: const EdgeInsets.only(left: _gap, right: _gap, bottom: _gap),
+          child: Row(
+            mainAxisAlignment: columns == 1
+                ? MainAxisAlignment.center
+                : MainAxisAlignment.start,
+            spacing: _gap,
+            children: List.generate(count, (i) {
+              i += columns * index;
+              return ScoreGridCell(
+                score: scores[i],
+                onScoreTap: onScoreTap,
+                selected: selected.contains(scores[i].id),
+              );
+            }),
+          ),
         );
       },
     );

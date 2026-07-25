@@ -144,10 +144,9 @@ class ThumbnailService {
   }
 
   Future<Directory> _scoreDir(String scoreId) async {
-    final cacheDir =
-        _cacheDir ??= Directory(
-          path.join((await getApplicationCacheDirectory()).path, "thumbnails"),
-        );
+    final cacheDir = _cacheDir ??= Directory(
+      path.join((await getApplicationCacheDirectory()).path, "thumbnails"),
+    );
     return Directory(path.join(cacheDir.path, scoreId));
   }
 

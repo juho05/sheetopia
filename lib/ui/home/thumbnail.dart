@@ -84,20 +84,13 @@ class _ThumbnailState extends State<Thumbnail> {
         listenable: _viewModel,
         builder: (context, _) {
           final image = _viewModel.image;
-          final child = image != null
-              ? Image.file(image, fit: BoxFit.cover)
-              : null;
           return Container(
             color: Colors.white,
             width: widget.width.toDouble(),
             height: widget.height.toDouble(),
-            child: _viewModel.fadeIn
-                ? AnimatedOpacity(
-                    opacity: _viewModel.imageOpacity,
-                    duration: const Duration(milliseconds: 100),
-                    child: child,
-                  )
-                : child,
+            child: image != null
+                ? Image.file(image, fit: BoxFit.cover)
+                : null,
           );
         },
       ),

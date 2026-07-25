@@ -11,6 +11,7 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -301,6 +302,16 @@ class _TextScrollState extends State<TextScroll>
   int _counter = 0;
   Object? _runSignature;
 
+  /// only true once [TextScroll.delayBefore] has passed and the text was found
+  /// to overflow, so cells scrolling past never build the marquee at all
+  bool _animating = false;
+
+  TextStyle? _style;
+  TextScaler? _scaler;
+  double? _maxWidth;
+
+  ValueListenable<bool>? _scrolling;
+
   String? _measuredText;
   TextStyle? _measuredStyle;
   TextScaler? _measuredScaler;
@@ -310,10 +321,27 @@ class _TextScrollState extends State<TextScroll>
   double _roundExtent = 0;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final scrolling = Scrollable.maybeOf(context)?.position.isScrollingNotifier;
+    if (scrolling == _scrolling) return;
+    _scrolling?.removeListener(_onScrollingChanged);
+    _scrolling = scrolling?..addListener(_onScrollingChanged);
+  }
+
+  @override
   void dispose() {
     _runId++;
+    _scrolling?.removeListener(_onScrollingChanged);
     _animation?.dispose();
     super.dispose();
+  }
+
+  /// a marquee is decoration, so it never competes with the enclosing list for
+  /// frame time
+  void _onScrollingChanged() {
+    final maxWidth = _maxWidth;
+    if (maxWidth != null) _run(maxWidth);
   }
 
   @override
@@ -331,23 +359,20 @@ class _TextScrollState extends State<TextScroll>
       'fadedBorderInterval must be between 0 and 1 when fadedBorder is true',
     );
 
-    _measure(
-      DefaultTextStyle.of(context).style.merge(widget.style),
-      MediaQuery.textScalerOf(context),
-    );
+    _style = DefaultTextStyle.of(context).style.merge(widget.style);
+    _scaler = MediaQuery.textScalerOf(context);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth;
-        final scrolls =
-            maxWidth.isFinite && _textWidth - maxWidth > _minOverflow;
-        _scheduleRun(scrolls: scrolls, maxWidth: maxWidth);
+        _maxWidth = maxWidth;
+        _scheduleRun(maxWidth);
 
         return _withFadedBorder(
-          scrolls: scrolls,
+          scrolls: _animating,
           child: Directionality(
             textDirection: widget.textDirection,
-            child: scrolls ? _buildScrolling() : _buildStatic(maxWidth),
+            child: _animating ? _buildScrolling() : _buildStatic(maxWidth),
           ),
         );
       },
@@ -355,7 +380,7 @@ class _TextScrollState extends State<TextScroll>
   }
 
   Widget _buildStatic(double maxWidth) {
-    final text = _buildText(widget.text);
+    final text = _buildText(widget.text, clipped: true);
     if (!maxWidth.isFinite) return text;
     return ConstrainedBox(
       constraints: BoxConstraints(minWidth: maxWidth),
@@ -376,7 +401,7 @@ class _TextScrollState extends State<TextScroll>
           fit: OverflowBoxFit.deferToChild,
           child: AnimatedBuilder(
             animation: _controller,
-            child: _buildText(text),
+            child: _buildText(text, clipped: false),
             builder: (context, child) =>
                 Transform.translate(offset: Offset(_offset, 0), child: child),
           ),
@@ -385,15 +410,22 @@ class _TextScrollState extends State<TextScroll>
     );
   }
 
-  Widget _buildText(String text) {
+  Widget _buildText(String text, {required bool clipped}) {
     if (widget.selectable) {
       return SelectableText(
         text,
         style: widget.style,
         textAlign: widget.textAlign,
+        maxLines: clipped ? 1 : null,
       );
     }
-    return Text(text, style: widget.style, textAlign: widget.textAlign);
+    return Text(
+      text,
+      style: widget.style,
+      textAlign: widget.textAlign,
+      maxLines: clipped ? 1 : null,
+      overflow: clipped ? TextOverflow.clip : null,
+    );
   }
 
   double get _offset {
@@ -435,9 +467,8 @@ class _TextScrollState extends State<TextScroll>
     return width;
   }
 
-  void _scheduleRun({required bool scrolls, required double maxWidth}) {
+  void _scheduleRun(double maxWidth) {
     final signature = (
-      scrolls,
       maxWidth,
       widget.text,
       widget.mode,
@@ -451,23 +482,43 @@ class _TextScrollState extends State<TextScroll>
 
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (!mounted || signature != _runSignature) return;
-      _run(scrolls: scrolls, maxWidth: maxWidth);
+      _run(maxWidth);
     });
   }
 
-  Future<void> _run({required bool scrolls, required double maxWidth}) async {
+  void _setAnimating(bool animating) {
+    if (_animating == animating || !mounted) return;
+    _animating = animating;
+    // the scroll position can change dimensions during layout, so a rebuild
+    // requested from its listener has to wait for the frame to finish
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
+      return;
+    }
+    setState(() {});
+  }
+
+  Future<void> _run(double maxWidth) async {
     final runId = ++_runId;
     _from = 0;
     _to = 0;
     _counter = 0;
     _animation?.stop();
     _animation?.value = 0;
-    if (!scrolls) return;
+    _setAnimating(false);
+    if (_scrolling?.value ?? false) return;
 
     if (widget.delayBefore != null) {
       await Future<void>.delayed(widget.delayBefore!);
       if (!_stillRunning(runId)) return;
     }
+
+    _measure(_style!, _scaler!);
+    if (!maxWidth.isFinite || _textWidth - maxWidth <= _minOverflow) return;
+    _setAnimating(true);
 
     while (_stillRunning(runId)) {
       final maxReps = widget.numberOfReps;

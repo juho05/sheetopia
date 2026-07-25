@@ -12,16 +12,24 @@ import 'package:sheetopia/ui/common/common_badge.dart';
 
 class TagBadge extends StatelessWidget {
   final Tag tag;
+  final bool tooltip;
   final void Function()? onTap;
   final void Function()? onRemove;
 
-  const TagBadge({super.key, required this.tag, this.onTap, this.onRemove});
+  const TagBadge({
+    super.key,
+    required this.tag,
+    this.tooltip = true,
+    this.onTap,
+    this.onRemove,
+  });
 
   @override
   Widget build(BuildContext context) {
     return CommonBadge(
       name: tag.name,
       color: tag.color,
+      tooltip: tooltip,
       onTap: onTap,
       onRemove: onRemove,
     );

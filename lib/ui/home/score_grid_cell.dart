@@ -125,6 +125,7 @@ class ScoreGridCell extends StatelessWidget {
                               for (final instrument in score.instruments)
                                 CommonBadge(
                                   name: instrument,
+                                  tooltip: false,
                                   color:
                                       theme.colorScheme.surfaceContainerHighest,
                                 ),
@@ -134,7 +135,8 @@ class ScoreGridCell extends StatelessWidget {
                         if (score.tags.isNotEmpty) const Divider(),
                         _BadgeStrip(
                           badges: [
-                            for (final tag in score.tags) TagBadge(tag: tag),
+                            for (final tag in score.tags)
+                              TagBadge(tag: tag, tooltip: false),
                           ],
                         ),
                       ],

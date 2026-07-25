@@ -14,7 +14,9 @@ void main() {
   Widget wrap(Widget child, {required double width}) {
     return MaterialApp(
       home: Scaffold(
-        body: Center(child: SizedBox(width: width, child: child)),
+        body: Center(
+          child: SizedBox(width: width, child: child),
+        ),
       ),
     );
   }
@@ -72,6 +74,41 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     expect(offset(tester), lessThan(moved));
 
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets("a marquee gives way while the enclosing list scrolls", (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ListView.builder(
+            itemCount: 30,
+            itemExtent: 40,
+            itemBuilder: (context, index) => const SizedBox(
+              width: 60,
+              child: TextScroll(
+                "a title far too long to ever fit into the available space",
+                delayBefore: Duration.zero,
+                pauseBetween: null,
+                numberOfReps: 1,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump(Duration.zero);
+    await tester.pump();
+    expect(find.byType(OverflowBox), findsWidgets);
+
+    final gesture = await tester.startGesture(const Offset(400, 300));
+    await gesture.moveBy(const Offset(0, -80));
+    await tester.pump();
+    expect(find.byType(OverflowBox), findsNothing);
+
+    await gesture.up();
     await tester.pumpAndSettle();
   });
 

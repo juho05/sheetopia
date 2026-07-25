@@ -14,6 +14,8 @@ class CommonBadge extends StatelessWidget {
   final String name;
   final Color? color;
   final bool onDialog;
+
+  final bool tooltip;
   final void Function()? onTap;
   final void Function()? onRemove;
 
@@ -22,6 +24,7 @@ class CommonBadge extends StatelessWidget {
     required this.name,
     this.color,
     this.onDialog = false,
+    this.tooltip = true,
     this.onTap,
     this.onRemove,
   });
@@ -42,22 +45,28 @@ class CommonBadge extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
       ),
     );
+    final backgroundColor =
+        color ??
+        (onDialog
+            ? theme.colorScheme.surfaceContainer
+            : theme.colorScheme.surfaceContainerHigh);
+    const borderRadius = BorderRadius.all(Radius.circular(12));
+
     if (onTap != null) {
-      widget = InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
+      widget = Material(
+        borderRadius: borderRadius,
+        color: backgroundColor,
+        child: InkWell(borderRadius: borderRadius, onTap: onTap, child: widget),
+      );
+    } else {
+      widget = DecoratedBox(
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: borderRadius,
+        ),
         child: widget,
       );
     }
-    widget = Material(
-      borderRadius: BorderRadius.circular(12),
-      color:
-          color ??
-          (onDialog
-              ? theme.colorScheme.surfaceContainer
-              : theme.colorScheme.surfaceContainerHigh),
-      child: widget,
-    );
 
     if (onRemove != null) {
       widget = Stack(
@@ -83,6 +92,7 @@ class CommonBadge extends StatelessWidget {
       );
     }
 
+    if (!tooltip) return widget;
     return OptionalTooltip(message: name, child: widget);
   }
 }

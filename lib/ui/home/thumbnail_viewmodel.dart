@@ -17,11 +17,6 @@ class ThumbnailViewModel extends ChangeNotifier {
 
   File? _image;
   File? get image => _image;
-  double _imageOpacity = 0;
-  double get imageOpacity => _imageOpacity;
-
-  bool _fadeIn = false;
-  bool get fadeIn => _fadeIn;
 
   Score _score;
   int _width;
@@ -39,11 +34,7 @@ class ThumbnailViewModel extends ChangeNotifier {
     _load();
   }
 
-  void update({
-    required Score score,
-    required int width,
-    required int height,
-  }) {
+  void update({required Score score, required int width, required int height}) {
     _score = score;
     _width = width;
     _height = height;
@@ -68,15 +59,11 @@ class ThumbnailViewModel extends ChangeNotifier {
     );
     if (cached != null) {
       _image = File(cached);
-      _imageOpacity = 1;
-      _fadeIn = false;
       notifyListeners();
       return;
     }
 
-    _fadeIn = true;
     if (!keepOldImageDuringLoad) {
-      _imageOpacity = 0;
       _image = null;
       notifyListeners();
     }
@@ -87,14 +74,7 @@ class ThumbnailViewModel extends ChangeNotifier {
       height: _height,
     );
     if (loadId != _loadId) return;
-    if (path == null) {
-      _imageOpacity = 0;
-      _image = null;
-      notifyListeners();
-      return;
-    }
-    _image = File(path);
-    _imageOpacity = 1;
+    _image = path == null ? null : File(path);
     notifyListeners();
   }
 }
