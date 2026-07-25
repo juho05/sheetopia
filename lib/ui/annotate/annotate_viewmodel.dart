@@ -93,6 +93,7 @@ class AnnotateViewModel extends ChangeNotifier {
   bool get drawMode => _drawMode;
 
   int? _activePageIndex;
+  bool _activeIsTouch = false;
   List<StrokePoint>? _activePoints;
   StrokePoint? _lastRawPoint;
   double _sx = 0;
@@ -176,8 +177,14 @@ class AnnotateViewModel extends ChangeNotifier {
     );
   }
 
-  void startStroke(int pageIndex, StrokePoint p, double aspect) {
+  void startStroke(
+    int pageIndex,
+    StrokePoint p,
+    double aspect, {
+    bool isTouch = false,
+  }) {
     _activePageIndex = pageIndex;
+    _activeIsTouch = isTouch;
     if (_eraser) {
       _eraseSnapshot = List.of(_pages[pageIndex] ?? const <Stroke>[]);
       _erasePending = [];
@@ -228,6 +235,7 @@ class AnnotateViewModel extends ChangeNotifier {
     final tip = _lastRawPoint;
     final erased = _erasePending;
     _activePageIndex = null;
+    _activeIsTouch = false;
     _activePoints = null;
     _lastRawPoint = null;
     _livePath = null;
@@ -275,6 +283,25 @@ class AnnotateViewModel extends ChangeNotifier {
     _redoStack.clear();
     _dirty = true;
 
+    notifyListeners();
+  }
+
+  // Drops an in-progress finger stroke without committing it, restoring
+  // anything the eraser already removed. A stylus stroke keeps going.
+  void cancelTouchStroke() {
+    final pageIndex = _activePageIndex;
+    if (pageIndex == null || !_activeIsTouch) return;
+    final snapshot = _eraseSnapshot;
+    if (snapshot != null) _pages[pageIndex] = snapshot;
+    _activePageIndex = null;
+    _activeIsTouch = false;
+    _activePoints = null;
+    _lastRawPoint = null;
+    _livePath = null;
+    _eraseSnapshot = null;
+    _erasePending = null;
+    _lastErasePoint = null;
+    _pingLive(pageIndex);
     notifyListeners();
   }
 
@@ -414,6 +441,7 @@ class AnnotateViewModel extends ChangeNotifier {
     _undoStack.clear();
     _redoStack.clear();
     _activePageIndex = null;
+    _activeIsTouch = false;
     _activePoints = null;
     _lastRawPoint = null;
     _livePath = null;

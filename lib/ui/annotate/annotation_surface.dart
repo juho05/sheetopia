@@ -58,6 +58,7 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
       widget.pageIndex,
       _normalize(event.localPosition),
       _aspect,
+      isTouch: event.kind == PointerDeviceKind.touch,
     );
   }
 

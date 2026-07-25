@@ -6,6 +6,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/gestures.dart';
@@ -97,6 +99,7 @@ class _AnnotatePageState extends State<AnnotatePage> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isApple = Platform.isMacOS || Platform.isIOS;
     return ChangeNotifierProvider.value(
       value: _viewModel,
       child: PopScope(
@@ -105,82 +108,105 @@ class _AnnotatePageState extends State<AnnotatePage> {
           if (didPop) return;
           await _saveAndClose();
         },
-        child: Scaffold(
-          body: SafeArea(
-            child: Stack(
-              key: _stackKey,
-              children: [
-                if (_pdfRef == null)
-                  const Center(child: CircularProgressIndicator.adaptive())
-                else
-                  PdfViewer(
-                    _pdfRef!,
-                    controller: _controller,
-                    params: PdfViewerParams(
-                      interactionDelegateProvider:
-                          const PdfViewerScrollInteractionDelegateProviderPhysics(),
-                      scrollPhysics: const ClampingScrollPhysics(),
-                      // All pan/zoom/wheel is driven by _PanZoomOverlay so a
-                      // stylus can keep drawing while a finger navigates. pdfrx's
-                      // own handling stays off; leaving the wheel enabled would
-                      // double-handle it (pdfrx scrolls a ctrl+wheel while we
-                      // zoom it, since it handles pointer signals directly).
-                      panEnabled: false,
-                      scaleEnabled: false,
-                      textSelectionParams: const PdfTextSelectionParams(
-                        enabled: false,
+        child: CallbackShortcuts(
+          bindings: {
+            SingleActivator(
+              LogicalKeyboardKey.keyZ,
+              control: !isApple,
+              meta: isApple,
+            ): _viewModel.undo,
+            SingleActivator(
+              LogicalKeyboardKey.keyY,
+              control: !isApple,
+              meta: isApple,
+            ): _viewModel.redo,
+            SingleActivator(
+              LogicalKeyboardKey.keyZ,
+              control: !isApple,
+              meta: isApple,
+              shift: true,
+            ): _viewModel.redo,
+          },
+          child: Focus(
+            autofocus: true,
+            child: Scaffold(
+              body: SafeArea(
+                child: Stack(
+                  key: _stackKey,
+                  children: [
+                    if (_pdfRef == null)
+                      const Center(child: CircularProgressIndicator.adaptive())
+                    else
+                      PdfViewer(
+                        _pdfRef!,
+                        controller: _controller,
+                        params: PdfViewerParams(
+                          interactionDelegateProvider:
+                              const PdfViewerScrollInteractionDelegateProviderPhysics(),
+                          scrollPhysics: const ClampingScrollPhysics(),
+                          // All pan/zoom/wheel is driven by _PanZoomOverlay so a
+                          // stylus can keep drawing while a finger navigates. pdfrx's
+                          // own handling stays off; leaving the wheel enabled would
+                          // double-handle it (pdfrx scrolls a ctrl+wheel while we
+                          // zoom it, since it handles pointer signals directly).
+                          panEnabled: false,
+                          scaleEnabled: false,
+                          textSelectionParams: const PdfTextSelectionParams(
+                            enabled: false,
+                          ),
+                          pageOverlaysBuilder: (context, pageRect, page) => [
+                            AnnotationSurface(
+                              viewModel: _viewModel,
+                              pageIndex: page.pageNumber - 1,
+                            ),
+                          ],
+                        ),
                       ),
-                      pageOverlaysBuilder: (context, pageRect, page) => [
-                        AnnotationSurface(
+                    if (_pdfRef != null)
+                      Positioned.fill(
+                        child: _PanZoomOverlay(
+                          controller: _controller,
                           viewModel: _viewModel,
-                          pageIndex: page.pageNumber - 1,
-                        ),
-                      ],
-                    ),
-                  ),
-                if (_pdfRef != null)
-                  Positioned.fill(
-                    child: _PanZoomOverlay(
-                      controller: _controller,
-                      viewModel: _viewModel,
-                    ),
-                  ),
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: _Toolbar(
-                      viewModel: _viewModel,
-                      onWidthPreview: _showWidthPreview,
-                      onWidthPreviewEnd: _hideWidthPreview,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: SizedBox.square(
-                    dimension: 32,
-                    child: IconButton.filled(
-                      color: Colors.white,
-                      style: ButtonStyle(
-                        backgroundColor: WidgetStateProperty.all(
-                          Colors.black.withAlpha(100),
                         ),
                       ),
-                      icon: const BackButtonIcon(),
-                      iconSize: 20,
-                      padding: const EdgeInsets.all(0),
-                      onPressed: _saveAndClose,
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: _Toolbar(
+                          viewModel: _viewModel,
+                          onWidthPreview: _showWidthPreview,
+                          onWidthPreviewEnd: _hideWidthPreview,
+                        ),
+                      ),
                     ),
-                  ),
+                    Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: SizedBox.square(
+                        dimension: 32,
+                        child: IconButton.filled(
+                          color: Colors.white,
+                          style: ButtonStyle(
+                            backgroundColor: WidgetStateProperty.all(
+                              Colors.black.withAlpha(100),
+                            ),
+                          ),
+                          icon: const BackButtonIcon(),
+                          iconSize: 20,
+                          padding: const EdgeInsets.all(0),
+                          onPressed: _saveAndClose,
+                        ),
+                      ),
+                    ),
+                    if (_widthPreviewAt != null)
+                      _WidthPreview(
+                        viewModel: _viewModel,
+                        at: _widthPreviewAt!,
+                        pageMaxSidePx: _currentPageMaxSidePx(),
+                      ),
+                  ],
                 ),
-                if (_widthPreviewAt != null)
-                  _WidthPreview(
-                    viewModel: _viewModel,
-                    at: _widthPreviewAt!,
-                    pageMaxSidePx: _currentPageMaxSidePx(),
-                  ),
-              ],
+              ),
             ),
           ),
         ),
@@ -207,6 +233,80 @@ class _NavScaleGestureRecognizer extends ScaleGestureRecognizer {
         return !isDrawMode() && super.isPointerAllowed(event);
     }
   }
+}
+
+// A stationary two-/three-finger tap: undo/redo. It never competes in the
+// gesture arena, it only watches the touch pointers, so pinch-to-zoom, panning
+// and drawing keep working exactly as before. The tap is discarded as soon as
+// any finger travels beyond the pan slop (that is where a pinch/pan starts) or
+// the fingers stay down longer than _tapTimeout.
+class _MultiFingerTapRecognizer extends OneSequenceGestureRecognizer {
+  static const Duration _tapTimeout = Duration(milliseconds: 400);
+
+  void Function(int fingers)? onMultiFingerTap;
+  VoidCallback? onSecondFingerDown;
+
+  final Map<int, Offset> _origins = {};
+  int _maxFingers = 0;
+  bool _failed = false;
+  Timer? _timeout;
+
+  @override
+  bool isPointerAllowed(PointerDownEvent event) =>
+      event.kind == PointerDeviceKind.touch;
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    startTrackingPointer(event.pointer, event.transform);
+    resolve(GestureDisposition.rejected);
+    if (_origins.isEmpty) {
+      _failed = false;
+      _maxFingers = 0;
+      _timeout = Timer(_tapTimeout, () => _failed = true);
+    }
+    _origins[event.pointer] = event.position;
+    _maxFingers = max(_maxFingers, _origins.length);
+    if (_origins.length == 2 && !_failed) onSecondFingerDown?.call();
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    final origin = _origins[event.pointer];
+    if (origin == null) return;
+    if (event is PointerMoveEvent) {
+      if ((event.position - origin).distance >
+          computePanSlop(event.kind, gestureSettings)) {
+        _failed = true;
+      }
+      return;
+    }
+    if (event is PointerUpEvent || event is PointerCancelEvent) {
+      if (event is PointerCancelEvent) _failed = true;
+      _origins.remove(event.pointer);
+      stopTrackingPointer(event.pointer);
+    }
+  }
+
+  @override
+  void didStopTrackingLastPointer(int pointer) {
+    _timeout?.cancel();
+    _timeout = null;
+    _origins.clear();
+    final fingers = _maxFingers;
+    final failed = _failed;
+    _maxFingers = 0;
+    _failed = false;
+    if (!failed && fingers >= 2) onMultiFingerTap?.call(fingers);
+  }
+
+  @override
+  void dispose() {
+    _timeout?.cancel();
+    super.dispose();
+  }
+
+  @override
+  String get debugDescription => 'annotation_multi_finger_tap';
 }
 
 // Drives the PdfViewer's pan/zoom directly (pdfrx's own pan/scale are disabled)
@@ -347,6 +447,18 @@ class _PanZoomOverlayState extends State<_PanZoomOverlay>
     if (done) _fling.stop();
   }
 
+  void _onMultiFingerTap(int fingers) {
+    final viewModel = widget.viewModel;
+    if (fingers == 2 && viewModel.canUndo) {
+      viewModel.undo();
+    } else if (fingers == 3 && viewModel.canRedo) {
+      viewModel.redo();
+    } else {
+      return;
+    }
+    HapticFeedback.lightImpact();
+  }
+
   void _onPointerSignal(PointerSignalEvent event) {
     if (!widget.controller.isReady || event is! PointerScrollEvent) return;
     if (event.scrollDelta == Offset.zero) return;
@@ -399,6 +511,16 @@ class _PanZoomOverlayState extends State<_PanZoomOverlay>
                         ..onEnd = _onScaleEnd;
                     },
                   ),
+              _MultiFingerTapRecognizer:
+                  GestureRecognizerFactoryWithHandlers<
+                    _MultiFingerTapRecognizer
+                  >(() => _MultiFingerTapRecognizer(), (recognizer) {
+                    recognizer
+                      // In draw mode the first finger already started a
+                      // stroke. A second finger means the user is gesturing.
+                      ..onSecondFingerDown = widget.viewModel.cancelTouchStroke
+                      ..onMultiFingerTap = _onMultiFingerTap;
+                  }),
             },
             child: const SizedBox.expand(),
           ),
