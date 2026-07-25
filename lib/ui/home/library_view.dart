@@ -133,6 +133,9 @@ class _LibraryViewState extends State<LibraryView> {
         },
         child: CustomScrollView(
           controller: _scrollController,
+          scrollCacheExtent: const ScrollCacheExtent.pixels(
+            ScoreGridCell.height * 2.0,
+          ),
           slivers: [
             SliverLayoutBuilder(
               builder: (context, constraints) {

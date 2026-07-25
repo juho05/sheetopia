@@ -126,26 +126,49 @@ class LibraryViewModel extends ChangeNotifier {
     _refreshCounts();
   }
 
-  Future<void> loadNextPage() async {
-    if (!_hasNextPage) return;
-    _currentPage++;
-    final scores = await _loadScores(
-      size: _pageSize,
-      offset: _currentPage * _pageSize,
-    );
-    _hasNextPage = scores.length == _pageSize;
-    _scores.addAll(scores);
-    notifyListeners();
+  int _generation = 0;
+  Future<void>? _pendingLoad;
+
+  Future<void> loadNextPage() {
+    final pending = _pendingLoad;
+    if (pending != null) return pending;
+    if (!_hasNextPage) return Future.value();
+    return _pendingLoad = _loadPage(_currentPage + 1, _generation);
   }
 
-  Future<void> _refresh() async {
+  Future<void> _loadPage(int page, int generation) async {
+    try {
+      final scores = await _loadScores(
+        size: _pageSize,
+        offset: page * _pageSize,
+      );
+      if (generation != _generation) return;
+      _currentPage = page;
+      _hasNextPage = scores.length == _pageSize;
+      _scores.addAll(scores);
+      notifyListeners();
+    } finally {
+      if (generation == _generation) _pendingLoad = null;
+    }
+  }
+
+  Future<void> _refresh() {
     final totalCount = (_currentPage + 1) * _pageSize;
-    if (totalCount == 0) return;
-    final scores = await _loadScores(size: totalCount);
-    _scores = scores.toList();
-    _hasNextPage = scores.length == totalCount;
-    notifyListeners();
-    _refreshCounts();
+    if (totalCount == 0) return Future.value();
+    return _pendingLoad = _refreshPages(totalCount, ++_generation);
+  }
+
+  Future<void> _refreshPages(int totalCount, int generation) async {
+    try {
+      final scores = await _loadScores(size: totalCount);
+      if (generation != _generation) return;
+      _scores = scores.toList();
+      _hasNextPage = scores.length == totalCount;
+      notifyListeners();
+      _refreshCounts();
+    } finally {
+      if (generation == _generation) _pendingLoad = null;
+    }
   }
 
   Future<Iterable<Score>> _loadScores({
@@ -174,12 +197,14 @@ class LibraryViewModel extends ChangeNotifier {
   }
 
   Timer? _resetDebounce;
-  Future<void> _reset() async {
+  void _reset() {
+    _resetDebounce?.cancel();
     _resetDebounce = Timer(const Duration(milliseconds: 250), () async {
+      _generation++;
+      _pendingLoad = null;
       _currentPage = -1;
       _scores = [];
       _hasNextPage = true;
-      _resetDebounce?.cancel();
       await loadNextPage();
       _refreshCounts();
     });

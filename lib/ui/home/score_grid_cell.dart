@@ -120,37 +120,22 @@ class ScoreGridCell extends StatelessWidget {
                         ),
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
-                          child: SizedBox(
-                            height: 24,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: score.instruments.length,
-                              itemBuilder: (context, index) => Padding(
-                                padding: index == 0
-                                    ? EdgeInsets.zero
-                                    : const EdgeInsets.only(left: 4),
-                                child: CommonBadge(
-                                  name: score.instruments[index],
+                          child: _BadgeStrip(
+                            badges: [
+                              for (final instrument in score.instruments)
+                                CommonBadge(
+                                  name: instrument,
                                   color:
                                       theme.colorScheme.surfaceContainerHighest,
                                 ),
-                              ),
-                            ),
+                            ],
                           ),
                         ),
                         if (score.tags.isNotEmpty) const Divider(),
-                        SizedBox(
-                          height: 24,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: score.tags.length,
-                            itemBuilder: (context, index) => Padding(
-                              padding: index == 0
-                                  ? EdgeInsets.zero
-                                  : const EdgeInsets.only(left: 4),
-                              child: TagBadge(tag: score.tags[index]),
-                            ),
-                          ),
+                        _BadgeStrip(
+                          badges: [
+                            for (final tag in score.tags) TagBadge(tag: tag),
+                          ],
                         ),
                       ],
                     ),
@@ -214,6 +199,28 @@ class ScoreGridCell extends StatelessWidget {
               );
             },
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BadgeStrip extends StatelessWidget {
+  final List<Widget> badges;
+
+  const _BadgeStrip({required this.badges});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 24,
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(
+          context,
+        ).copyWith(overscroll: false, scrollbars: false),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(spacing: 4, children: badges),
         ),
       ),
     );

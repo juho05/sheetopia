@@ -63,7 +63,7 @@ Future<List<SingleChildWidget>> createProviders({
             .appearanceSettings,
       ),
     ),
-    Provider(create: (context) => const ThumbnailService()),
+    Provider(create: (context) => ThumbnailService()),
     Provider(create: (context) => SyncService()),
     Provider(
       create: (context) => ScoresRepository(

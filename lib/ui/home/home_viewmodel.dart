@@ -18,15 +18,7 @@ class HomeViewModel extends ChangeNotifier {
 
   bool get importing => _importing;
 
-  bool _importButtonVisible = true;
-
-  bool get importButtonVisible => _importButtonVisible;
-
-  set importButtonVisible(bool visible) {
-    if (_importButtonVisible == visible) return;
-    _importButtonVisible = visible;
-    notifyListeners();
-  }
+  final ValueNotifier<bool> importButtonVisible = ValueNotifier(true);
 
   int _tabIndex = 0;
 
@@ -50,6 +42,12 @@ class HomeViewModel extends ChangeNotifier {
 
   HomeViewModel({required ScoresRepository scoresRepo})
     : _scoresRepo = scoresRepo;
+
+  @override
+  void dispose() {
+    importButtonVisible.dispose();
+    super.dispose();
+  }
 
   Future<String?> importScores() async {
     _importing = true;

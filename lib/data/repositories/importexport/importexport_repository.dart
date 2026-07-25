@@ -374,6 +374,7 @@ class ImportExportRepository extends ChangeNotifier {
             throw InvalidFileException("missing score file for ${s.id}");
           }
 
+          await _scoresRepo.createScoreDir(s.id);
           final targetScoreFile = await _scoresRepo.scoreFile(s.id, s.fileType);
           await scoreFile.copy(targetScoreFile.path);
 

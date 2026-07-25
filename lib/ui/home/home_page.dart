@@ -118,17 +118,17 @@ class HomePage extends StatelessWidget {
                               index: viewModel.tabIndex,
                               children: [
                                 LibraryView(
-                                  onScrollUp: () =>
-                                      viewModel.importButtonVisible = true,
-                                  onScrollDown: () =>
-                                      viewModel.importButtonVisible = false,
+                                  onScrollUp: () => viewModel
+                                      .importButtonVisible
+                                      .value = true,
+                                  onScrollDown: () => viewModel
+                                      .importButtonVisible
+                                      .value = false,
                                 ),
                                 const SetlistsView(),
                               ],
                             ),
                           );
-                          final fabVisible =
-                              !library || viewModel.importButtonVisible;
                           final importing = library && viewModel.importing;
                           return Scaffold(
                             appBar: AppBar(
@@ -188,34 +188,42 @@ class HomePage extends StatelessWidget {
                                         )
                                         .toList(),
                                   ),
-                            floatingActionButton: AnimatedSlide(
-                              duration: const Duration(milliseconds: 200),
-                              offset: fabVisible
-                                  ? Offset.zero
-                                  : const Offset(0, 2),
-                              child: AnimatedOpacity(
-                                duration: const Duration(milliseconds: 200),
-                                opacity: fabVisible ? 1 : 0,
-                                child: FloatingActionButton(
-                                  onPressed: importing
-                                      ? null
-                                      : () => library
-                                            ? _importScores(context)
-                                            : _createSetlist(context),
-                                  backgroundColor: importing
-                                      ? disabledColor
-                                      : null,
-                                  tooltip: library
-                                      ? "Import score"
-                                      : "New setlist",
-                                  child: importing
-                                      ? const Padding(
-                                          padding: EdgeInsets.all(16),
-                                          child:
-                                              CircularProgressIndicator.adaptive(),
-                                        )
-                                      : const Icon(Icons.add),
-                                ),
+                            floatingActionButton: ValueListenableBuilder<bool>(
+                              valueListenable: viewModel.importButtonVisible,
+                              builder: (context, importButtonVisible, child) {
+                                final fabVisible =
+                                    !library || importButtonVisible;
+                                return AnimatedSlide(
+                                  duration: const Duration(milliseconds: 200),
+                                  offset: fabVisible
+                                      ? Offset.zero
+                                      : const Offset(0, 2),
+                                  child: AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 200),
+                                    opacity: fabVisible ? 1 : 0,
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              child: FloatingActionButton(
+                                onPressed: importing
+                                    ? null
+                                    : () => library
+                                          ? _importScores(context)
+                                          : _createSetlist(context),
+                                backgroundColor: importing
+                                    ? disabledColor
+                                    : null,
+                                tooltip: library
+                                    ? "Import score"
+                                    : "New setlist",
+                                child: importing
+                                    ? const Padding(
+                                        padding: EdgeInsets.all(16),
+                                        child:
+                                            CircularProgressIndicator.adaptive(),
+                                      )
+                                    : const Icon(Icons.add),
                               ),
                             ),
                           );

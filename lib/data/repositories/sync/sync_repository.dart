@@ -743,6 +743,7 @@ class SyncRepository {
         .filter((f) => f.fileDownloaded.isFalse())
         .get();
     for (final s in scores) {
+      await _scoresRepo.createScoreDir(s.id);
       final file = await _scoresRepo.scoreFile(s.id, s.fileType);
       final partFile = File("${file.path}.part");
       await _service.downloadScoreFile(

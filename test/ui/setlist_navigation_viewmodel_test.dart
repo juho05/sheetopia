@@ -76,10 +76,7 @@ void main() {
     PathProviderPlatform.instance = _FakePathProvider(tempDir.path);
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
-    scoresRepo = ScoresRepository(
-      db: db,
-      thumbnailService: const ThumbnailService(),
-    );
+    scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
     repo = SetlistsRepository(db: db, scoresRepo: scoresRepo);
     setlistId = (await repo.createSetlist(name: "Set")).id;
   });

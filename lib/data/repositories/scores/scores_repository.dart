@@ -287,8 +287,8 @@ class ScoresRepository {
   }) async {
     final searchFields = _generateSearchFields(filter);
 
-    final q = _db.select(_db.scoresTable).join([
-      ..._filterJoins(
+    final q = _db.select(_db.scoresTable).join(
+      _filterJoins(
         instruments: instruments,
         genres: genres,
         tagIds: tagIds,
@@ -296,19 +296,7 @@ class ScoresRepository {
         instrumentMatch: instrumentMatch,
         tagMatch: tagMatch,
       ),
-      leftOuterJoin(
-        _db.genresTable,
-        _db.genresTable.score.equalsExp(_db.scoresTable.id),
-      ),
-      leftOuterJoin(
-        _db.instrumentsTable,
-        _db.instrumentsTable.score.equalsExp(_db.scoresTable.id),
-      ),
-      leftOuterJoin(
-        _db.scoreTagsTable,
-        _db.scoreTagsTable.score.equalsExp(_db.scoresTable.id),
-      ),
-    ]);
+    );
     _applyScoreFilters(q, searchFields, composer);
     q.orderBy([
       ...searchFields
@@ -326,63 +314,67 @@ class ScoresRepository {
     ]);
     q.limit(size, offset: offset);
 
-    final result = await q.get();
+    final scores = (await q.get())
+        .map((row) => row.readTable(_db.scoresTable))
+        .toList();
+    final scoreIds = scores.map((s) => s.id).toList();
 
-    List<
-      ({
-        ScoresTableData score,
-        SplayTreeSet<String> genres,
-        SplayTreeSet<String> instruments,
-      })
-    >
-    scores = [];
-    String? lastId;
-    for (final row in result) {
-      final score = row.readTable(_db.scoresTable);
-      final genre = row.readTableOrNull(_db.genresTable);
-      final instrument = row.readTableOrNull(_db.instrumentsTable);
-
-      if (lastId != score.id) {
-        scores.add((
-          score: score,
-          genres: SplayTreeSet.of([if (genre != null) genre.genre]),
-          instruments: SplayTreeSet.of([
-            if (instrument != null) instrument.instrument,
-          ]),
-        ));
-        lastId = score.id;
-      } else {
-        if (genre != null) {
-          scores.last.genres.add(genre.genre);
-        }
-        if (instrument != null) {
-          scores.last.instruments.add(instrument.instrument);
-        }
-      }
-    }
-
-    final tags = await _getScoresTags(scores.map((s) => s.score.id));
+    final scoreGenres = await _getScoresGenres(scoreIds);
+    final scoreInstruments = await _getScoresInstruments(scoreIds);
+    final scoreTags = await _getScoresTags(scoreIds);
 
     return Future.wait(
       scores.map(
         (s) async => Score(
-          id: s.score.id,
-          title: s.score.title,
-          composer: s.score.composer,
-          notes: s.score.notes,
-          annotations: s.score.annotations,
-          genres: s.genres.toList(),
-          instruments: s.instruments.toList(),
-          tags: tags[s.score.id] ?? [],
-          metadataUpdatedAt: s.score.metadataUpdatedAt.toUtc(),
-          fileUpdatedAt: s.score.fileUpdatedAt.toUtc(),
-          fileType: s.score.fileType,
-          file: s.score.fileDownloaded
-              ? await scoreFile(s.score.id, s.score.fileType)
-              : null,
+          id: s.id,
+          title: s.title,
+          composer: s.composer,
+          notes: s.notes,
+          annotations: s.annotations,
+          genres: scoreGenres[s.id] ?? const [],
+          instruments: scoreInstruments[s.id] ?? const [],
+          tags: scoreTags[s.id] ?? const [],
+          metadataUpdatedAt: s.metadataUpdatedAt.toUtc(),
+          fileUpdatedAt: s.fileUpdatedAt.toUtc(),
+          fileType: s.fileType,
+          file: s.fileDownloaded ? await scoreFile(s.id, s.fileType) : null,
         ),
       ),
     );
+  }
+
+  Future<Map<String, List<String>>> _getScoresGenres(
+    Iterable<String> scoreIds,
+  ) async {
+    final rows = await (_db.select(
+      _db.genresTable,
+    )..where((t) => t.score.isIn(scoreIds))).get();
+
+    final result = <String, List<String>>{};
+    for (final row in rows) {
+      (result[row.score] ??= []).add(row.genre);
+    }
+    for (final genres in result.values) {
+      genres.sort();
+    }
+    return result;
+  }
+
+  Future<Map<String, List<String>>> _getScoresInstruments(
+    Iterable<String> scoreIds,
+  ) async {
+    final rows = await (_db.select(
+      _db.instrumentsTable,
+    )..where((t) => t.score.isIn(scoreIds))).get();
+
+    final result = <String, List<String>>{};
+    for (final row in rows) {
+      (result[row.score] ??= []).add(row.instrument);
+    }
+    for (final instruments in result.values) {
+      instruments.sort();
+    }
+    return result;
   }
 
   Future<Iterable<Tag>> _getScoreTags(String scoreId) async {
@@ -714,6 +706,7 @@ class ScoresRepository {
         final id = _db.newId();
         final title = path.basenameWithoutExtension(f.name);
 
+        await createScoreDir(id);
         final file = await scoreFile(id, fileType);
 
         await f.saveTo(file.path);
@@ -777,6 +770,7 @@ class ScoresRepository {
       throw InvalidFileTypeException(filePath: file.path);
     }
 
+    await createScoreDir(scoreId);
     final targetFile = await scoreFile(scoreId, fileType);
 
     await file.saveTo(targetFile.path);
@@ -885,7 +879,10 @@ class ScoresRepository {
 
   Future<void> cleanupScoreFilesAfterDelete(String scoreId) async {
     try {
-      (await scoreDir(scoreId)).delete(recursive: true);
+      final dir = await scoreDir(scoreId);
+      if (await dir.exists()) {
+        await dir.delete(recursive: true);
+      }
       await _thumbnailService.invalidateThumbnails([scoreId]);
     } catch (e, st) {
       print(
@@ -941,7 +938,11 @@ class ScoresRepository {
   }
 
   Future<Directory> scoreDir(String id) async {
-    final dir = Directory(path.join((await scoresDir).path, id));
+    return Directory(path.join((await scoresDir).path, id));
+  }
+
+  Future<Directory> createScoreDir(String id) async {
+    final dir = await scoreDir(id);
     await dir.create(recursive: true);
     return dir;
   }

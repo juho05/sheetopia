@@ -67,10 +67,12 @@ class SliverScoreGrid extends StatelessWidget {
                 spacing: _gap,
                 children: List.generate(count, (i) {
                   i += columns * index;
-                  return ScoreGridCell(
-                    score: scores[i],
-                    onScoreTap: onScoreTap,
-                    selected: selected.contains(scores[i].id),
+                  return RepaintBoundary(
+                    child: ScoreGridCell(
+                      score: scores[i],
+                      onScoreTap: onScoreTap,
+                      selected: selected.contains(scores[i].id),
+                    ),
                   );
                 }),
               ),

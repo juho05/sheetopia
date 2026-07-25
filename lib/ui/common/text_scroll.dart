@@ -12,6 +12,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 
 /// TextScroll widget automatically scrolls provided [text] according
@@ -283,41 +284,37 @@ class TextScroll extends StatefulWidget {
   State<TextScroll> createState() => _TextScrollState();
 }
 
-class _TextScrollState extends State<TextScroll> {
-  final _scrollController = ScrollController();
-  String? _endlessText;
-  double? _originalTextWidth;
-  double _textMinWidth = 0;
-  Timer? _timer;
-  bool _running = false;
+class _TextScrollState extends State<TextScroll>
+    with SingleTickerProviderStateMixin {
+  /// ignored below this, so a marquee never runs for a sub pixel overflow
+  static const double _minOverflow = 1;
+
+  AnimationController? _animation;
+
+  AnimationController get _controller =>
+      _animation ??= AnimationController(vsync: this);
+
+  double _from = 0;
+  double _to = 0;
+
+  int _runId = 0;
   int _counter = 0;
+  Object? _runSignature;
 
-  @override
-  void initState() {
-    super.initState();
-    SchedulerBinding.instance.addPostFrameCallback((_) => _initScroller(null));
-  }
-
-  @override
-  void didUpdateWidget(covariant TextScroll oldWidget) {
-    if (widget.text != oldWidget.text ||
-        oldWidget.velocity != widget.velocity ||
-        widget.mode != oldWidget.mode) {
-      _initScroller(_lastWidth);
-    }
-
-    super.didUpdateWidget(oldWidget);
-  }
+  String? _measuredText;
+  TextStyle? _measuredStyle;
+  TextScaler? _measuredScaler;
+  TextDirection? _measuredDirection;
+  int? _measuredSpaces;
+  double _textWidth = 0;
+  double _roundExtent = 0;
 
   @override
   void dispose() {
-    _resetId++;
-    _scrollController.dispose();
-    _timer?.cancel();
+    _runId++;
+    _animation?.dispose();
     super.dispose();
   }
-
-  double? _lastWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -334,284 +331,247 @@ class _TextScrollState extends State<TextScroll> {
       'fadedBorderInterval must be between 0 and 1 when fadedBorder is true',
     );
 
-    Widget baseWidget = Directionality(
-      textDirection: widget.textDirection,
-      child: SingleChildScrollView(
-        controller: _scrollController,
-        physics: const NeverScrollableScrollPhysics(),
-        scrollDirection: Axis.horizontal,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minWidth: _textMinWidth),
-          child: widget.selectable
-              ? SelectableText(
-                  _endlessText ?? widget.text,
-                  style: widget.style,
-                  textAlign: widget.textAlign,
-                )
-              : Text(
-                  _endlessText ?? widget.text,
-                  style: widget.style,
-                  textAlign: widget.textAlign,
-                ),
-        ),
-      ),
+    _measure(
+      DefaultTextStyle.of(context).style.merge(widget.style),
+      MediaQuery.textScalerOf(context),
     );
-
-    /// Used to add the fade border effect, if enabled
-    Widget? fadeBorderWidget;
-
-    /// If fade border is enabled
-    if (widget.fadedBorder) {
-      ///Fill list with amount of transparent colors to make the text visible
-      final List<Color> colors = List.generate(
-        1 ~/ widget.fadedBorderWidth! - 1,
-        (index) {
-          return Colors.transparent;
-        },
-        growable: true,
-      );
-
-      ///Add black color to add gradient fade out
-      if (widget.fadeBorderSide == FadeBorderSide.both ||
-          widget.fadeBorderSide == FadeBorderSide.left) {
-        colors.insert(0, Colors.black);
-      } else {
-        colors.add(Colors.transparent);
-      }
-      if (widget.fadeBorderSide == FadeBorderSide.both ||
-          widget.fadeBorderSide == FadeBorderSide.right) {
-        colors.add(Colors.black);
-      } else {
-        colors.add(Colors.transparent);
-      }
-
-      ///Calculate the stops for the gradient
-      final List<double> stops = List.generate(1 ~/ widget.fadedBorderWidth!, (
-        index,
-      ) {
-        return (index + 1) * widget.fadedBorderWidth!;
-      }, growable: true);
-
-      ///Add first stop to list
-      stops.insert(0, 0);
-
-      /// Pre-render text to get it's width
-      final TextPainter textPrototype = TextPainter(
-        text: TextSpan(text: _endlessText ?? widget.text, style: widget.style),
-        textDirection: widget.textDirection,
-        textScaler: MediaQuery.of(context).textScaler,
-        textWidthBasis: TextWidthBasis.longestLine,
-      )..layout();
-
-      ///Apply ShaderMask to the text
-      fadeBorderWidget = LayoutBuilder(
-        builder: (context, constraints) {
-          ///When text is wider than the widget, apply ShaderMask
-          if (widget.fadeBorderVisibility == FadeBorderVisibility.always ||
-              constraints.maxWidth < textPrototype.size.width) {
-            return ShaderMask(
-              blendMode: BlendMode.dstOut,
-              shaderCallback: (rect) {
-                return LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: colors,
-                  stops: stops,
-                ).createShader(rect);
-              },
-              child: baseWidget,
-            );
-          } else {
-            ///When text is smaller than the widget, just return the text
-            return baseWidget;
-          }
-        },
-      );
-    }
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (_lastWidth != null && constraints.maxWidth != _lastWidth) {
-          SchedulerBinding.instance.addPostFrameCallback((_) {
-            _initScroller(constraints.maxWidth);
-          });
-        }
-        _lastWidth = constraints.maxWidth;
-        return fadeBorderWidget ?? baseWidget;
+        final maxWidth = constraints.maxWidth;
+        final scrolls =
+            maxWidth.isFinite && _textWidth - maxWidth > _minOverflow;
+        _scheduleRun(scrolls: scrolls, maxWidth: maxWidth);
+
+        return _withFadedBorder(
+          scrolls: scrolls,
+          child: Directionality(
+            textDirection: widget.textDirection,
+            child: scrolls ? _buildScrolling() : _buildStatic(maxWidth),
+          ),
+        );
       },
     );
   }
 
-  int _resetId = 0;
-  Future<void> _initScroller(double? width) async {
-    int resetId = ++_resetId;
-    _timer?.cancel();
+  Widget _buildStatic(double maxWidth) {
+    final text = _buildText(widget.text);
+    if (!maxWidth.isFinite) return text;
+    return ConstrainedBox(
+      constraints: BoxConstraints(minWidth: maxWidth),
+      child: text,
+    );
+  }
 
-    if (_available) {
-      _scrollController.jumpTo(0);
+  Widget _buildScrolling() {
+    final text = widget.mode == TextScrollMode.endless
+        ? "${widget.text}$_spaces${widget.text}"
+        : widget.text;
+
+    return RepaintBoundary(
+      child: ClipRect(
+        child: OverflowBox(
+          alignment: AlignmentDirectional.centerStart,
+          maxWidth: double.infinity,
+          fit: OverflowBoxFit.deferToChild,
+          child: AnimatedBuilder(
+            animation: _controller,
+            child: _buildText(text),
+            builder: (context, child) =>
+                Transform.translate(offset: Offset(_offset, 0), child: child),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildText(String text) {
+    if (widget.selectable) {
+      return SelectableText(
+        text,
+        style: widget.style,
+        textAlign: widget.textAlign,
+      );
+    }
+    return Text(text, style: widget.style, textAlign: widget.textAlign);
+  }
+
+  double get _offset {
+    final position = _from + (_to - _from) * _controller.value;
+    return widget.textDirection == TextDirection.rtl ? position : -position;
+  }
+
+  String get _spaces => '\u{00A0}' * (widget.intervalSpaces ?? 1);
+
+  void _measure(TextStyle style, TextScaler textScaler) {
+    if (_measuredText == widget.text &&
+        _measuredStyle == style &&
+        _measuredScaler == textScaler &&
+        _measuredDirection == widget.textDirection &&
+        _measuredSpaces == widget.intervalSpaces) {
+      return;
+    }
+    _measuredText = widget.text;
+    _measuredStyle = style;
+    _measuredScaler = textScaler;
+    _measuredDirection = widget.textDirection;
+    _measuredSpaces = widget.intervalSpaces;
+
+    _textWidth = _widthOf(widget.text, style, textScaler);
+    _roundExtent = widget.mode == TextScrollMode.endless
+        ? _widthOf("${widget.text}$_spaces", style, textScaler)
+        : 0;
+  }
+
+  double _widthOf(String text, TextStyle style, TextScaler textScaler) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: widget.textDirection,
+      textScaler: textScaler,
+      textWidthBasis: TextWidthBasis.longestLine,
+    )..layout();
+    final width = painter.size.width;
+    painter.dispose();
+    return width;
+  }
+
+  void _scheduleRun({required bool scrolls, required double maxWidth}) {
+    final signature = (
+      scrolls,
+      maxWidth,
+      widget.text,
+      widget.mode,
+      widget.velocity,
+      widget.numberOfReps,
+      widget.intervalSpaces,
+      widget.textDirection,
+    );
+    if (signature == _runSignature) return;
+    _runSignature = signature;
+
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || signature != _runSignature) return;
+      _run(scrolls: scrolls, maxWidth: maxWidth);
+    });
+  }
+
+  Future<void> _run({required bool scrolls, required double maxWidth}) async {
+    final runId = ++_runId;
+    _from = 0;
+    _to = 0;
+    _counter = 0;
+    _animation?.stop();
+    _animation?.value = 0;
+    if (!scrolls) return;
+
+    if (widget.delayBefore != null) {
+      await Future<void>.delayed(widget.delayBefore!);
+      if (!_stillRunning(runId)) return;
     }
 
-    setState(() {
-      _textMinWidth = width ?? _scrollController.position.viewportDimension;
-      _endlessText = null;
-      _counter = 0;
-    });
-
-    await _delayBefore();
-    if (resetId != _resetId) return;
-    _setTimer();
-  }
-
-  /// Sets [_timer] for animation
-  void _setTimer() {
-    ///Cancel previous timer if it exists
-    _timer?.cancel();
-
-    ///Reset [_running] to allow for updates on changed velocity
-    _running = false;
-
-    _timer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
-      if (!_available) {
-        _timer?.cancel();
-        _timer = null;
-        return;
-      }
-
-      final int? maxReps = widget.numberOfReps;
-      if (maxReps != null && _counter >= maxReps) {
-        _timer?.cancel();
-        _timer = null;
-        return;
-      }
-
-      if (!_running) _run();
-    });
-  }
-
-  Future<void> _run() async {
-    _running = true;
-
-    final int? maxReps = widget.numberOfReps;
-    if (maxReps == null || _counter < maxReps) {
+    while (_stillRunning(runId)) {
+      final maxReps = widget.numberOfReps;
+      if (maxReps != null && _counter >= maxReps) return;
       _counter++;
 
-      switch (widget.mode) {
-        case TextScrollMode.bouncing:
-          {
-            await _animateBouncing();
-            break;
-          }
-        default:
-          {
-            await _animateEndless();
-          }
-      }
-    }
-    _running = false;
-  }
-
-  Future<void> _animateEndless() async {
-    if (!_available) return;
-    int resetId = _resetId;
-
-    final ScrollPosition position = _scrollController.position;
-    final bool needsScrolling = position.maxScrollExtent > 0;
-    if (!needsScrolling) {
-      if (_endlessText != null) setState(() => _endlessText = null);
-      return;
-    }
-
-    if (_endlessText == null || _originalTextWidth == null) {
-      setState(() {
-        _originalTextWidth =
-            position.maxScrollExtent + position.viewportDimension;
-        _endlessText =
-            widget.text + _getSpaces(widget.intervalSpaces ?? 1) + widget.text;
-      });
-
-      return;
-    }
-
-    final double endlessTextWidth =
-        position.maxScrollExtent + position.viewportDimension;
-    final double singleRoundExtent = endlessTextWidth - _originalTextWidth!;
-    final Duration duration = _getDuration(singleRoundExtent);
-    if (duration == Duration.zero) return;
-
-    if (!_available || resetId != _resetId) return;
-    await _scrollController.animateTo(
-      singleRoundExtent,
-      duration: duration,
-      curve: Curves.linear,
-    );
-    if (!_available || resetId != _resetId) return;
-    _scrollController.jumpTo(position.minScrollExtent);
-
-    ///Pause between animation rounds
-    if (widget.pauseBetween != null && resetId == _resetId) {
-      await Future.delayed(widget.pauseBetween!);
+      final completed = widget.mode == TextScrollMode.bouncing
+          ? await _runBouncing(runId, maxWidth)
+          : await _runEndless(runId);
+      if (!completed) return;
     }
   }
 
-  Future<void> _animateBouncing() async {
-    int resetId = _resetId;
+  Future<bool> _runEndless(int runId) async {
+    if (!await _animate(runId, 0, _roundExtent)) return false;
 
-    final double maxExtent = _scrollController.position.maxScrollExtent;
-    final double minExtent = _scrollController.position.minScrollExtent;
-    final double extent = maxExtent - minExtent;
-    final Duration duration = _getDuration(extent);
-    if (duration == Duration.zero) return;
+    _from = 0;
+    _to = 0;
+    _controller.value = 0;
 
-    if (!_available || resetId != _resetId) return;
-    await _scrollController.animateTo(
-      maxExtent,
-      duration: duration,
-      curve: Curves.linear,
-    );
-    if (widget.pauseOnBounce != null && resetId == _resetId) {
-      await Future.delayed(widget.pauseOnBounce!);
-    }
-    if (!_available || resetId != _resetId) return;
-    await _scrollController.animateTo(
-      minExtent,
-      duration: duration,
-      curve: Curves.linear,
-    );
-    if (!_available || resetId != _resetId) return;
-    if (widget.pauseBetween != null && resetId == _resetId) {
-      await Future<dynamic>.delayed(widget.pauseBetween!);
-    }
+    return _pause(runId, widget.pauseBetween);
   }
 
-  Future<void> _delayBefore() async {
-    final Duration? delayBefore = widget.delayBefore;
-    if (delayBefore == null) return;
-
-    await Future<dynamic>.delayed(delayBefore);
+  Future<bool> _runBouncing(int runId, double maxWidth) async {
+    final extent = _textWidth - maxWidth;
+    if (!await _animate(runId, 0, extent)) return false;
+    if (!await _pause(runId, widget.pauseOnBounce)) return false;
+    if (!await _animate(runId, extent, 0)) return false;
+    return _pause(runId, widget.pauseBetween);
   }
 
-  Duration _getDuration(double extent) {
-    ///No movement when velocity offset dx equals 0
+  Future<bool> _animate(int runId, double from, double to) async {
+    final duration = _durationFor((to - from).abs());
+    if (duration == Duration.zero) return false;
+
+    _from = from;
+    _to = to;
+    _controller.duration = duration;
+    try {
+      await _controller.forward(from: 0).orCancel;
+    } on TickerCanceled {
+      return false;
+    }
+    return _stillRunning(runId);
+  }
+
+  Future<bool> _pause(int runId, Duration? duration) async {
+    if (duration == null) return true;
+    await Future<void>.delayed(duration);
+    return _stillRunning(runId);
+  }
+
+  Duration _durationFor(double extent) {
     if (widget.velocity.pixelsPerSecond.dx == 0) return Duration.zero;
-
-    final int milliseconds =
-        (extent * 1000 / widget.velocity.pixelsPerSecond.dx).round();
-
-    return Duration(milliseconds: milliseconds);
+    return Duration(
+      milliseconds: (extent * 1000 / widget.velocity.pixelsPerSecond.dx)
+          .round(),
+    );
   }
 
-  void _onUpdate(TextScroll oldWidget) {}
+  bool _stillRunning(int runId) => mounted && runId == _runId;
 
-  String _getSpaces(int number) {
-    String spaces = '';
-    for (int i = 0; i < number; i++) {
-      spaces += '\u{00A0}';
+  Widget _withFadedBorder({required bool scrolls, required Widget child}) {
+    if (!widget.fadedBorder) return child;
+    if (widget.fadeBorderVisibility == FadeBorderVisibility.auto && !scrolls) {
+      return child;
     }
 
-    return spaces;
-  }
+    final List<Color> colors = List.generate(
+      1 ~/ widget.fadedBorderWidth! - 1,
+      (index) => Colors.transparent,
+      growable: true,
+    );
+    if (widget.fadeBorderSide == FadeBorderSide.both ||
+        widget.fadeBorderSide == FadeBorderSide.left) {
+      colors.insert(0, Colors.black);
+    } else {
+      colors.add(Colors.transparent);
+    }
+    if (widget.fadeBorderSide == FadeBorderSide.both ||
+        widget.fadeBorderSide == FadeBorderSide.right) {
+      colors.add(Colors.black);
+    } else {
+      colors.add(Colors.transparent);
+    }
 
-  bool get _available => mounted && _scrollController.hasClients;
+    final List<double> stops = List.generate(
+      1 ~/ widget.fadedBorderWidth!,
+      (index) => (index + 1) * widget.fadedBorderWidth!,
+      growable: true,
+    );
+    stops.insert(0, 0);
+
+    return ShaderMask(
+      blendMode: BlendMode.dstOut,
+      shaderCallback: (rect) => LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: colors,
+        stops: stops,
+      ).createShader(rect),
+      child: child,
+    );
+  }
 }
 
 /// Animation types for [TextScroll] widget.

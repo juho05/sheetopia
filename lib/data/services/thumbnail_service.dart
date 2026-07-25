@@ -18,15 +18,31 @@ import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 
 class ThumbnailService {
-  const ThumbnailService();
+  static const int _maxCachedPaths = 2000;
+
+  ThumbnailService();
+
+  final Map<String, String> _pathCache = {};
+  Directory? _cacheDir;
 
   Future<void> invalidateThumbnails(Iterable<String> scoreIds) async {
     for (final scoreId in scoreIds) {
+      _pathCache.removeWhere((key, _) => key.startsWith("$scoreId/"));
       try {
         final dir = await _scoreDir(scoreId);
         await dir.delete(recursive: true);
       } catch (_) {}
     }
+  }
+
+  /// Already resolved thumbnail path, without touching the file system.
+  String? cachedThumbnail(
+    Score score, {
+    required int width,
+    required int height,
+  }) {
+    if (score.file == null) return null;
+    return _pathCache[_cacheKey(score.id, width: width, height: height)];
   }
 
   Future<String?> getThumbnail(
@@ -35,17 +51,34 @@ class ThumbnailService {
     required int height,
   }) async {
     if (score.file == null) return null;
+    final key = _cacheKey(score.id, width: width, height: height);
+    final cached = _pathCache[key];
+    if (cached != null) return cached;
+
     final path = await _thumbnailPath(score.id, width: width, height: height);
     if (await File(path).exists()) {
+      _cachePath(key, path);
       return path;
     }
-    return switch (score.fileType) {
-      FileType.pdf => _generateThumbnailPDF(
+    final generated = switch (score.fileType) {
+      FileType.pdf => await _generateThumbnailPDF(
         score,
         width: width,
         height: height,
       ),
     };
+    if (generated != null) _cachePath(key, generated);
+    return generated;
+  }
+
+  String _cacheKey(String scoreId, {required int width, required int height}) =>
+      "$scoreId/${width}x$height";
+
+  void _cachePath(String key, String path) {
+    if (_pathCache.length >= _maxCachedPaths) {
+      _pathCache.remove(_pathCache.keys.first);
+    }
+    _pathCache[key] = path;
   }
 
   Future<String?> _generateThumbnailPDF(
@@ -76,7 +109,12 @@ class ThumbnailService {
       );
       if (pdfImage == null) return null;
 
-      final path = await _thumbnailPath(score.id, width: width, height: height);
+      final path = await _thumbnailPath(
+        score.id,
+        width: width,
+        height: height,
+        create: true,
+      );
 
       await compute((pdfImage) async {
         var image = img.Image.fromBytes(
@@ -106,20 +144,21 @@ class ThumbnailService {
   }
 
   Future<Directory> _scoreDir(String scoreId) async {
-    final cacheDir = path.join(
-      (await getApplicationCacheDirectory()).path,
-      "thumbnails",
-    );
-    return Directory(path.join(cacheDir, scoreId));
+    final cacheDir =
+        _cacheDir ??= Directory(
+          path.join((await getApplicationCacheDirectory()).path, "thumbnails"),
+        );
+    return Directory(path.join(cacheDir.path, scoreId));
   }
 
   Future<String> _thumbnailPath(
     String scoreId, {
     required int width,
     required int height,
+    bool create = false,
   }) async {
     final scoreDir = await _scoreDir(scoreId);
-    if (!await scoreDir.exists()) {
+    if (create && !await scoreDir.exists()) {
       await scoreDir.create(recursive: true);
     }
     return path.join(scoreDir.path, "${width}x$height.jpg");
