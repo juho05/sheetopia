@@ -144,7 +144,7 @@ class MidiRepository with WidgetsBindingObserver {
         _midiMappings[key] = (_midiMappings[key] ?? MidiMappings())
             .withNextPage(mapping);
         await _rememberAndPersist(key);
-        _registerNextPageKeys[key]!.complete();
+        _registerNextPageKeys[key]?.complete();
         _registerNextPageKeys.remove(key);
         return;
       }
@@ -152,7 +152,7 @@ class MidiRepository with WidgetsBindingObserver {
         _midiMappings[key] = (_midiMappings[key] ?? MidiMappings())
             .withPrevPage(mapping);
         await _rememberAndPersist(key);
-        _registerPrevPageKeys[key]!.complete();
+        _registerPrevPageKeys[key]?.complete();
         _registerPrevPageKeys.remove(key);
         return;
       }
