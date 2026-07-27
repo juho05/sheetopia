@@ -1,0 +1,62 @@
+/*
+ * Copyright 2025-2026 Julian Hofmann (+ Sheetopia contributors).
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:sheetopia/ui/common/menu_button.dart';
+import 'package:sheetopia/ui/common/toast.dart';
+import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_menu_viewmodel.dart';
+import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_tags_dialog.dart';
+
+class BulkEditMenu extends StatefulWidget {
+  final Set<String> selectedScoreIds;
+
+  const BulkEditMenu({super.key, required this.selectedScoreIds});
+
+  @override
+  State<BulkEditMenu> createState() => _BulkEditMenuState();
+}
+
+class _BulkEditMenuState extends State<BulkEditMenu> {
+  late final BulkEditMenuViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = BulkEditMenuViewModel(
+      repo: context.read(),
+      selectedScores: widget.selectedScoreIds,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant BulkEditMenu oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _viewModel.updateSelectedScores(widget.selectedScoreIds);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MenuButton(
+      options: [
+        ContextMenuOption(
+          title: "Edit tags",
+          onSelected: () async {
+            final result = await BulkEditTagsDialog.show(context);
+            if (result == null) return;
+            await _viewModel.editTags(
+              result.addIds.toSet(),
+              result.removeIds.toSet(),
+            );
+            Toast.show("Successfully updated tags of selected scores");
+          },
+        ),
+      ],
+    );
+  }
+}

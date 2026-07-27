@@ -257,16 +257,18 @@ class ScoresRepository {
   }) async {
     final searchFields = _generateSearchFields(filter);
     final countExpr = _db.scoresTable.id.count(distinct: true);
-    final q = _db.selectOnly(_db.scoresTable).join(
-      _filterJoins(
-        instruments: instruments,
-        genres: genres,
-        tagIds: tagIds,
-        genreMatch: genreMatch,
-        instrumentMatch: instrumentMatch,
-        tagMatch: tagMatch,
-      ),
-    );
+    final q = _db
+        .selectOnly(_db.scoresTable)
+        .join(
+          _filterJoins(
+            instruments: instruments,
+            genres: genres,
+            tagIds: tagIds,
+            genreMatch: genreMatch,
+            instrumentMatch: instrumentMatch,
+            tagMatch: tagMatch,
+          ),
+        );
     q.addColumns([countExpr]);
     _applyScoreFilters(q, searchFields, composer);
     final row = await q.getSingle();
@@ -287,16 +289,18 @@ class ScoresRepository {
   }) async {
     final searchFields = _generateSearchFields(filter);
 
-    final q = _db.select(_db.scoresTable).join(
-      _filterJoins(
-        instruments: instruments,
-        genres: genres,
-        tagIds: tagIds,
-        genreMatch: genreMatch,
-        instrumentMatch: instrumentMatch,
-        tagMatch: tagMatch,
-      ),
-    );
+    final q = _db
+        .select(_db.scoresTable)
+        .join(
+          _filterJoins(
+            instruments: instruments,
+            genres: genres,
+            tagIds: tagIds,
+            genreMatch: genreMatch,
+            instrumentMatch: instrumentMatch,
+            tagMatch: tagMatch,
+          ),
+        );
     _applyScoreFilters(q, searchFields, composer);
     q.orderBy([
       ...searchFields
@@ -655,6 +659,39 @@ class ScoresRepository {
           );
     });
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
+  }
+
+  Future<void> bulkEditScoreTags(
+    Iterable<String> scoreIds,
+    Iterable<String> addTagIds,
+    Iterable<String> removeTagIds,
+  ) async {
+    if (scoreIds.isEmpty) return;
+    await _db.transaction(() async {
+      if (addTagIds.isNotEmpty) {
+        await _db.managers.scoreTagsTable.bulkCreate(
+          (o) =>
+              scoreIds.expand((s) => addTagIds.map((t) => o(score: s, tag: t))),
+          onConflict: DoNothing(),
+        );
+      }
+      if (removeTagIds.isNotEmpty) {
+        await _db.managers.scoreTagsTable
+            .filter(
+              (f) => f.score.id.isIn(scoreIds) & f.tag.id.isIn(removeTagIds),
+            )
+            .delete();
+      }
+      await _db.managers.scoresTable
+          .filter((f) => f.id.isIn(scoreIds))
+          .update(
+            (o) => o(
+              metadataUpdatedAt: Value(DateTime.now().toUtc()),
+              metadataUploaded: const Value(false),
+            ),
+          );
+    });
+    _updatedScoreIds.add((changed: scoreIds.toSet(), remoteTriggered: false));
   }
 
   Future<void> addScoreTags(String scoreId, Iterable<String> tagIds) async {

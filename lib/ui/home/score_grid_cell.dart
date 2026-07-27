@@ -9,6 +9,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
@@ -24,12 +25,14 @@ class ScoreGridCell extends StatelessWidget {
 
   final Score score;
   final void Function(Score score)? onScoreTap;
+  final void Function(Score score)? onScoreSelectionStart;
   final bool selected;
 
   const ScoreGridCell({
     super.key,
     required this.score,
     this.onScoreTap,
+    this.onScoreSelectionStart,
     this.selected = false,
   });
 
@@ -38,6 +41,9 @@ class ScoreGridCell extends StatelessWidget {
     final theme = Theme.of(context);
     final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
     final picking = onScoreTap != null;
+
+    final bool isApple = Platform.isIOS || Platform.isMacOS;
+
     return SizedBox(
       width: width.toDouble(),
       height: height.toDouble(),
@@ -52,8 +58,21 @@ class ScoreGridCell extends StatelessWidget {
               onScoreTap!(score);
               return;
             }
+            if (onScoreSelectionStart != null &&
+                (isApple
+                    ? HardwareKeyboard.instance.isMetaPressed
+                    : HardwareKeyboard.instance.isControlPressed)) {
+              onScoreSelectionStart!(score);
+              return;
+            }
             context.go("/scores/${score.id}");
           },
+          onLongPress: !picking && onScoreSelectionStart != null
+              ? () {
+                  HapticFeedback.mediumImpact();
+                  onScoreSelectionStart!(score);
+                }
+              : null,
           child: Builder(
             builder: (context) {
               final title = OptionalTooltip(

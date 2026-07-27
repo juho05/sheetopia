@@ -45,8 +45,12 @@ class _AddScoresDialogState extends State<AddScoresDialog> {
             Expanded(
               child: LibraryView(
                 selected: _selected.toSet(),
-                onScoreTap: (score) => setState(() {
-                  if (!_selected.remove(score.id)) _selected.add(score.id);
+                selectionMode: true,
+                onScoreSelected: (score) => setState(() {
+                  _selected.add(score.id);
+                }),
+                onScoreDeselected: (score) => setState(() {
+                  _selected.remove(score.id);
                 }),
               ),
             ),

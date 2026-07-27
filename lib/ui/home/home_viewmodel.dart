@@ -6,6 +6,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:collection';
+
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
@@ -40,6 +42,10 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  final Set<String> _selectedScoreIds = {};
+
+  Set<String> get selectedScoreIds => UnmodifiableSetView(_selectedScoreIds);
+
   HomeViewModel({required ScoresRepository scoresRepo})
     : _scoresRepo = scoresRepo;
 
@@ -47,6 +53,21 @@ class HomeViewModel extends ChangeNotifier {
   void dispose() {
     importButtonVisible.dispose();
     super.dispose();
+  }
+
+  void selectScore(String scoreId) {
+    _selectedScoreIds.add(scoreId);
+    notifyListeners();
+  }
+
+  void deselectScore(String scoreId) {
+    _selectedScoreIds.remove(scoreId);
+    notifyListeners();
+  }
+
+  void clearSelection() {
+    _selectedScoreIds.clear();
+    notifyListeners();
   }
 
   Future<String?> importScores() async {

@@ -23,14 +23,18 @@ class LibraryView extends StatefulWidget {
   final void Function()? onScrollDown;
   final void Function()? onScrollUp;
 
-  final void Function(Score score)? onScoreTap;
+  final bool selectionMode;
+  final void Function(Score score)? onScoreSelected;
+  final void Function(Score score)? onScoreDeselected;
   final Set<String> selected;
 
   const LibraryView({
     super.key,
     this.onScrollDown,
     this.onScrollUp,
-    this.onScoreTap,
+    this.selectionMode = false,
+    this.onScoreSelected,
+    this.onScoreDeselected,
     this.selected = const {},
   });
 
@@ -250,7 +254,9 @@ class _LibraryViewState extends State<LibraryView> {
                     return SliverScoreGrid(
                       scores: _viewModel.scores,
                       crossAxisExtent: crossAxisExtent,
-                      onScoreTap: widget.onScoreTap,
+                      onScoreSelected: widget.onScoreSelected,
+                      onScoreDeselected: widget.onScoreDeselected,
+                      selectionMode: widget.selectionMode,
                       selected: widget.selected,
                     );
                   },

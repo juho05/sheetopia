@@ -14,6 +14,7 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/integrate_appimage.dart';
 import 'package:sheetopia/ui/common/toast.dart';
+import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_menu.dart';
 import 'package:sheetopia/ui/home/home_viewmodel.dart';
 import 'package:sheetopia/ui/home/library_view.dart';
 import 'package:sheetopia/ui/home/sync_icon.dart';
@@ -118,34 +119,71 @@ class HomePage extends StatelessWidget {
                               index: viewModel.tabIndex,
                               children: [
                                 LibraryView(
-                                  onScrollUp: () => viewModel
-                                      .importButtonVisible
-                                      .value = true,
-                                  onScrollDown: () => viewModel
-                                      .importButtonVisible
-                                      .value = false,
+                                  onScrollUp: () =>
+                                      viewModel.importButtonVisible.value =
+                                          true,
+                                  onScrollDown: () =>
+                                      viewModel.importButtonVisible.value =
+                                          false,
+                                  onScoreSelected: (score) {
+                                    viewModel.selectScore(score.id);
+                                  },
+                                  onScoreDeselected: (score) {
+                                    viewModel.deselectScore(score.id);
+                                  },
+                                  selectionMode:
+                                      viewModel.selectedScoreIds.isNotEmpty,
+                                  selected: viewModel.selectedScoreIds,
                                 ),
                                 const SetlistsView(),
                               ],
                             ),
                           );
                           final importing = library && viewModel.importing;
+                          bool selectionMode =
+                              viewModel.tabIndex == 0 &&
+                              viewModel.selectedScoreIds.isNotEmpty;
                           return Scaffold(
                             appBar: AppBar(
-                              title: Text(_tabs[viewModel.tabIndex].label),
-                              actions: [
-                                const SyncIcon(),
-                                const SizedBox(width: 4),
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: IconButton(
-                                    onPressed: () {
-                                      context.go("/settings");
-                                    },
-                                    icon: const Icon(Icons.settings),
-                                  ),
-                                ),
-                              ],
+                              title: selectionMode
+                                  ? Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      spacing: 8,
+                                      children: [
+                                        IconButton(
+                                          onPressed: () {
+                                            viewModel.clearSelection();
+                                          },
+                                          icon: const Icon(Icons.close),
+                                        ),
+                                        Text(
+                                          "${viewModel.selectedScoreIds.length} selected",
+                                        ),
+                                      ],
+                                    )
+                                  : Text(_tabs[viewModel.tabIndex].label),
+                              actions: selectionMode
+                                  ? [
+                                      BulkEditMenu(
+                                        selectedScoreIds:
+                                            viewModel.selectedScoreIds,
+                                      ),
+                                    ]
+                                  : [
+                                      const SyncIcon(),
+                                      const SizedBox(width: 4),
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 8,
+                                        ),
+                                        child: IconButton(
+                                          onPressed: () {
+                                            context.go("/settings");
+                                          },
+                                          icon: const Icon(Icons.settings),
+                                        ),
+                                      ),
+                                    ],
                             ),
                             body: Row(
                               children: [
