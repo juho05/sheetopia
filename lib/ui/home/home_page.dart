@@ -143,125 +143,140 @@ class HomePage extends StatelessWidget {
                           bool selectionMode =
                               viewModel.tabIndex == 0 &&
                               viewModel.selectedScoreIds.isNotEmpty;
-                          return Scaffold(
-                            appBar: AppBar(
-                              title: selectionMode
-                                  ? Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      spacing: 8,
-                                      children: [
-                                        IconButton(
-                                          onPressed: () {
-                                            viewModel.clearSelection();
-                                          },
-                                          icon: const Icon(Icons.close),
+                          return PopScope(
+                            canPop: !selectionMode && library,
+                            onPopInvokedWithResult: (didPop, _) {
+                              if (didPop) return;
+                              if (selectionMode) {
+                                viewModel.clearSelection();
+                              } else {
+                                viewModel.tabIndex = 0;
+                              }
+                            },
+                            child: Scaffold(
+                              appBar: AppBar(
+                                title: selectionMode
+                                    ? Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        spacing: 8,
+                                        children: [
+                                          IconButton(
+                                            onPressed: () {
+                                              viewModel.clearSelection();
+                                            },
+                                            icon: const Icon(Icons.close),
+                                          ),
+                                          Text(
+                                            "${viewModel.selectedScoreIds.length} selected",
+                                          ),
+                                        ],
+                                      )
+                                    : Text(_tabs[viewModel.tabIndex].label),
+                                actions: selectionMode
+                                    ? [
+                                        BulkEditMenu(
+                                          selectedScoreIds:
+                                              viewModel.selectedScoreIds,
                                         ),
-                                        Text(
-                                          "${viewModel.selectedScoreIds.length} selected",
+                                      ]
+                                    : [
+                                        const SyncIcon(),
+                                        const SizedBox(width: 4),
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 8,
+                                          ),
+                                          child: IconButton(
+                                            onPressed: () {
+                                              context.go("/settings");
+                                            },
+                                            icon: const Icon(Icons.settings),
+                                          ),
                                         ),
                                       ],
-                                    )
-                                  : Text(_tabs[viewModel.tabIndex].label),
-                              actions: selectionMode
-                                  ? [
-                                      BulkEditMenu(
-                                        selectedScoreIds:
-                                            viewModel.selectedScoreIds,
+                              ),
+                              body: Row(
+                                children: [
+                                  if (rail)
+                                    SafeArea(
+                                      child: NavigationRail(
+                                        selectedIndex: viewModel.tabIndex,
+                                        onDestinationSelected: (index) =>
+                                            viewModel.tabIndex = index,
+                                        labelType: NavigationRailLabelType.all,
+                                        destinations: _tabs
+                                            .map(
+                                              (t) => NavigationRailDestination(
+                                                icon: Icon(t.icon),
+                                                selectedIcon: Icon(
+                                                  t.selectedIcon,
+                                                ),
+                                                label: Text(t.label),
+                                              ),
+                                            )
+                                            .toList(),
                                       ),
-                                    ]
-                                  : [
-                                      const SyncIcon(),
-                                      const SizedBox(width: 4),
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 8,
-                                        ),
-                                        child: IconButton(
-                                          onPressed: () {
-                                            context.go("/settings");
-                                          },
-                                          icon: const Icon(Icons.settings),
-                                        ),
-                                      ),
-                                    ],
-                            ),
-                            body: Row(
-                              children: [
-                                if (rail)
-                                  SafeArea(
-                                    child: NavigationRail(
+                                    ),
+                                  Expanded(child: body),
+                                ],
+                              ),
+                              bottomNavigationBar: rail
+                                  ? null
+                                  : NavigationBar(
                                       selectedIndex: viewModel.tabIndex,
                                       onDestinationSelected: (index) =>
                                           viewModel.tabIndex = index,
-                                      labelType: NavigationRailLabelType.all,
                                       destinations: _tabs
                                           .map(
-                                            (t) => NavigationRailDestination(
+                                            (t) => NavigationDestination(
                                               icon: Icon(t.icon),
                                               selectedIcon: Icon(
                                                 t.selectedIcon,
                                               ),
-                                              label: Text(t.label),
+                                              label: t.label,
                                             ),
                                           )
                                           .toList(),
                                     ),
-                                  ),
-                                Expanded(child: body),
-                              ],
-                            ),
-                            bottomNavigationBar: rail
-                                ? null
-                                : NavigationBar(
-                                    selectedIndex: viewModel.tabIndex,
-                                    onDestinationSelected: (index) =>
-                                        viewModel.tabIndex = index,
-                                    destinations: _tabs
-                                        .map(
-                                          (t) => NavigationDestination(
-                                            icon: Icon(t.icon),
-                                            selectedIcon: Icon(t.selectedIcon),
-                                            label: t.label,
-                                          ),
-                                        )
-                                        .toList(),
-                                  ),
-                            floatingActionButton: ValueListenableBuilder<bool>(
-                              valueListenable: viewModel.importButtonVisible,
-                              builder: (context, importButtonVisible, child) {
-                                final fabVisible =
-                                    !library || importButtonVisible;
-                                return AnimatedSlide(
-                                  duration: const Duration(milliseconds: 200),
-                                  offset: fabVisible
-                                      ? Offset.zero
-                                      : const Offset(0, 2),
-                                  child: AnimatedOpacity(
+                              floatingActionButton: ValueListenableBuilder<bool>(
+                                valueListenable: viewModel.importButtonVisible,
+                                builder: (context, importButtonVisible, child) {
+                                  final fabVisible =
+                                      !library || importButtonVisible;
+                                  return AnimatedSlide(
                                     duration: const Duration(milliseconds: 200),
-                                    opacity: fabVisible ? 1 : 0,
-                                    child: child,
-                                  ),
-                                );
-                              },
-                              child: FloatingActionButton(
-                                onPressed: importing
-                                    ? null
-                                    : () => library
-                                          ? _importScores(context)
-                                          : _createSetlist(context),
-                                backgroundColor: importing
-                                    ? disabledColor
-                                    : null,
-                                tooltip: library
-                                    ? "Import score"
-                                    : "New setlist",
-                                child: importing
-                                    ? const Padding(
-                                        padding: EdgeInsets.all(16),
-                                        child:
-                                            CircularProgressIndicator.adaptive(),
-                                      )
-                                    : const Icon(Icons.add),
+                                    offset: fabVisible
+                                        ? Offset.zero
+                                        : const Offset(0, 2),
+                                    child: AnimatedOpacity(
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
+                                      opacity: fabVisible ? 1 : 0,
+                                      child: child,
+                                    ),
+                                  );
+                                },
+                                child: FloatingActionButton(
+                                  onPressed: importing
+                                      ? null
+                                      : () => library
+                                            ? _importScores(context)
+                                            : _createSetlist(context),
+                                  backgroundColor: importing
+                                      ? disabledColor
+                                      : null,
+                                  tooltip: library
+                                      ? "Import score"
+                                      : "New setlist",
+                                  child: importing
+                                      ? const Padding(
+                                          padding: EdgeInsets.all(16),
+                                          child:
+                                              CircularProgressIndicator.adaptive(),
+                                        )
+                                      : const Icon(Icons.add),
+                                ),
                               ),
                             ),
                           );
