@@ -36,7 +36,7 @@ class _AddBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     Widget widget = Padding(
-      padding: const EdgeInsets.only(left: 6, right: 10, top: 1, bottom: 1),
+      padding: const EdgeInsets.only(left: 8, right: 12, top: 3, bottom: 3),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -55,14 +55,14 @@ class _AddBadge extends StatelessWidget {
     );
     if (onTap != null) {
       widget = InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: widget,
       );
     }
     widget = DottedBorder(
       options: RoundedRectDottedBorderOptions(
-        radius: const Radius.circular(12),
+        radius: const Radius.circular(14),
         padding: const EdgeInsets.all(1),
         dashPattern: [5, 5],
         strokeWidth: 2,
@@ -72,7 +72,7 @@ class _AddBadge extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.only(left: 5, top: 7),
+      padding: const EdgeInsets.only(left: 7, top: 9),
       child: OptionalTooltip(message: "Add", child: widget),
     );
   }

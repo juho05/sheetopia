@@ -20,7 +20,7 @@ import 'package:sheetopia/ui/home/thumbnail.dart';
 
 class ScoreGridCell extends StatelessWidget {
   static const int width = 250;
-  static const int height = 288;
+  static const int height = 296;
   static final int thumbnailHeight = (height / 2.1).toInt();
 
   final Score score;
@@ -234,7 +234,7 @@ class _BadgeStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 24,
+      height: 28,
       child: ScrollConfiguration(
         behavior: ScrollConfiguration.of(
           context,

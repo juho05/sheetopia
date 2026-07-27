@@ -38,7 +38,7 @@ class CommonBadge extends StatelessWidget {
               : Colors.white
         : null;
     Widget widget = Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 9),
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
       child: Text(
         name,
         style: theme.textTheme.bodySmall!.copyWith(color: foregroundColor),
@@ -50,7 +50,7 @@ class CommonBadge extends StatelessWidget {
         (onDialog
             ? theme.colorScheme.surfaceContainer
             : theme.colorScheme.surfaceContainerHigh);
-    const borderRadius = BorderRadius.all(Radius.circular(12));
+    const borderRadius = BorderRadius.all(Radius.circular(14));
 
     if (onTap != null) {
       widget = Material(
@@ -72,15 +72,15 @@ class CommonBadge extends StatelessWidget {
       widget = Stack(
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 5, top: 5),
+            padding: const EdgeInsets.only(left: 7, top: 7),
             child: widget,
           ),
           SizedBox.square(
-            dimension: 15,
+            dimension: 22,
             child: IconButton(
               onPressed: onRemove,
               icon: const Icon(Icons.remove),
-              iconSize: 11,
+              iconSize: 15,
               color: theme.colorScheme.onErrorContainer,
               style: IconButton.styleFrom(
                 backgroundColor: theme.colorScheme.errorContainer,
