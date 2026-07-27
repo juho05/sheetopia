@@ -16,8 +16,9 @@ import 'package:sheetopia/ui/setlists/setlist_navigation_viewmodel.dart';
 
 class SetlistPlayPage extends StatefulWidget {
   final String setlistId;
+  final int? startIndex;
 
-  const SetlistPlayPage({super.key, required this.setlistId});
+  const SetlistPlayPage({super.key, required this.setlistId, this.startIndex});
 
   @override
   State<SetlistPlayPage> createState() => _SetlistPlayPageState();
@@ -38,6 +39,7 @@ class _SetlistPlayPageState extends State<SetlistPlayPage> {
           setlist,
           repo: setlistsRepo,
           scoresRepo: scoresRepo,
+          startIndex: widget.startIndex,
         )..addListener(_onNavigationChanged),
       );
     });

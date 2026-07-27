@@ -30,9 +30,10 @@ class SetlistNavigationViewModel extends ChangeNotifier {
     this._setlist, {
     required SetlistsRepository repo,
     required ScoresRepository scoresRepo,
+    int? startIndex,
   }) : _repo = repo,
        _scoresRepo = scoresRepo,
-       _index = _setlist.entries.indexWhere((e) => e.playable) {
+       _index = startIndex ?? _setlist.entries.indexWhere((e) => e.playable) {
     _setlistSub = _repo.updatedSetlistIds
         .where((ids) => ids.contains(_setlist.id))
         .listen((_) => _reload());

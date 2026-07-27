@@ -110,8 +110,12 @@ GoRouter get goRouter {
           ),
           GoRoute(
             path: 'setlists/:setlistId/play',
-            builder: (context, state) =>
-                SetlistPlayPage(setlistId: state.pathParameters["setlistId"]!),
+            builder: (context, state) => SetlistPlayPage(
+              setlistId: state.pathParameters["setlistId"]!,
+              startIndex: int.tryParse(
+                state.uri.queryParameters["startIndex"] ?? "",
+              ),
+            ),
           ),
           GoRoute(
             path: "settings",

@@ -108,13 +108,20 @@ class _SetlistDetailPageState extends State<SetlistDetailPage> {
     }
 
     return ListTile(
-      key: ValueKey(index),
+      key: ValueKey("${score?.id}-$index"),
       leading: leading,
       title: Text(
         score?.title ?? "Unavailable",
         overflow: TextOverflow.ellipsis,
         style: titleStyle,
       ),
+      onTap: entry.playable
+          ? () {
+              context.go(
+                "/setlists/${widget.setlistId}/play?startIndex=$index",
+              );
+            }
+          : null,
       subtitle: Text(
         score == null
             ? "This score is not on this device"
