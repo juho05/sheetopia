@@ -133,7 +133,7 @@ class HomePage extends StatelessWidget {
                                   },
                                   selectionMode:
                                       viewModel.selectedScoreIds.isNotEmpty,
-                                  selected: viewModel.selectedScoreIds,
+                                  selected: viewModel.selectedScoreIdSet,
                                 ),
                                 const SetlistsView(),
                               ],

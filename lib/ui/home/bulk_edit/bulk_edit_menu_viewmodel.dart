@@ -7,23 +7,33 @@
  */
 
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 
 class BulkEditMenuViewModel {
-  Set<String> _selectedScores;
+  List<String> _selectedScores;
 
   final ScoresRepository _repo;
+  final SetlistsRepository _setlistsRepo;
 
   BulkEditMenuViewModel({
     required ScoresRepository repo,
+    required SetlistsRepository setlistsRepo,
     required Iterable<String> selectedScores,
   }) : _repo = repo,
-       _selectedScores = selectedScores.toSet();
+       _setlistsRepo = setlistsRepo,
+       _selectedScores = selectedScores.toList();
 
   void updateSelectedScores(Iterable<String> selectedScores) {
-    _selectedScores = selectedScores.toSet();
+    _selectedScores = selectedScores.toList();
   }
 
   Future<void> editTags(Set<String> addIds, Set<String> removeIds) async {
     await _repo.bulkEditScoreTags(_selectedScores, addIds, removeIds);
+  }
+
+  Future<int> addToSetlist(String setlistId) async {
+    final scoreIds = List.of(_selectedScores);
+    await _setlistsRepo.addScores(setlistId, scoreIds);
+    return scoreIds.length;
   }
 }

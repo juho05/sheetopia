@@ -42,9 +42,12 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  final Set<String> _selectedScoreIds = {};
+  final List<String> _selectedScoreIds = [];
+  final Set<String> _selectedScoreIdSet = {};
 
-  Set<String> get selectedScoreIds => UnmodifiableSetView(_selectedScoreIds);
+  List<String> get selectedScoreIds => UnmodifiableListView(_selectedScoreIds);
+
+  Set<String> get selectedScoreIdSet => UnmodifiableSetView(_selectedScoreIdSet);
 
   HomeViewModel({required ScoresRepository scoresRepo})
     : _scoresRepo = scoresRepo;
@@ -56,17 +59,20 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   void selectScore(String scoreId) {
+    if (!_selectedScoreIdSet.add(scoreId)) return;
     _selectedScoreIds.add(scoreId);
     notifyListeners();
   }
 
   void deselectScore(String scoreId) {
+    if (!_selectedScoreIdSet.remove(scoreId)) return;
     _selectedScoreIds.remove(scoreId);
     notifyListeners();
   }
 
   void clearSelection() {
     _selectedScoreIds.clear();
+    _selectedScoreIdSet.clear();
     notifyListeners();
   }
 

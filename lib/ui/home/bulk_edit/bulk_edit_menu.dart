@@ -7,14 +7,16 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/ui/common/menu_button.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_menu_viewmodel.dart';
 import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_tags_dialog.dart';
+import 'package:sheetopia/ui/setlists/select_setlist_dialog.dart';
 
 class BulkEditMenu extends StatefulWidget {
-  final Set<String> selectedScoreIds;
+  final List<String> selectedScoreIds;
 
   const BulkEditMenu({super.key, required this.selectedScoreIds});
 
@@ -30,6 +32,7 @@ class _BulkEditMenuState extends State<BulkEditMenu> {
     super.initState();
     _viewModel = BulkEditMenuViewModel(
       repo: context.read(),
+      setlistsRepo: context.read(),
       selectedScores: widget.selectedScoreIds,
     );
   }
@@ -46,6 +49,7 @@ class _BulkEditMenuState extends State<BulkEditMenu> {
       options: [
         ContextMenuOption(
           title: "Edit tags",
+          icon: Symbols.label,
           onSelected: () async {
             final result = await BulkEditTagsDialog.show(context);
             if (result == null) return;
@@ -54,6 +58,22 @@ class _BulkEditMenuState extends State<BulkEditMenu> {
               result.removeIds.toSet(),
             );
             Toast.show("Successfully updated tags of selected scores");
+          },
+        ),
+        ContextMenuOption(
+          title: "Add to setlist",
+          icon: Icons.playlist_add,
+          onSelected: () async {
+            final setlist = await SelectSetlistDialog.show(
+              context,
+              title: "Add to setlist",
+            );
+            if (setlist == null) return;
+            final count = await _viewModel.addToSetlist(setlist.id);
+            Toast.show(
+              "Added $count ${count == 1 ? "score" : "scores"} "
+              "to \"${setlist.name}\"",
+            );
           },
         ),
       ],
