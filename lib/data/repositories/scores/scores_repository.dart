@@ -447,6 +447,43 @@ class ScoresRepository {
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
+  Future<void> bulkEditScoreComposer(
+    Iterable<String> scoreIds,
+    String composer,
+  ) async {
+    if (scoreIds.isEmpty) return;
+    await _db.transaction(() async {
+      final query = _db.selectOnly(_db.scoresTable)
+        ..addColumns([_db.scoresTable.id, _db.scoresTable.title])
+        ..where(_db.scoresTable.id.isIn(scoreIds));
+      final scores = await query
+          .map(
+            (r) => (
+              id: r.read(_db.scoresTable.id)!,
+              title: r.read(_db.scoresTable.title)!,
+            ),
+          )
+          .get();
+
+      final now = DateTime.now().toUtc();
+      for (final score in scores) {
+        await _db.managers.scoresTable
+            .filter((f) => f.id(score.id))
+            .update(
+              (o) => o(
+                composer: composer.isNotEmpty
+                    ? Value(composer)
+                    : const Value(null),
+                searchText: Value(generateSearchText([score.title, composer])),
+                metadataUpdatedAt: Value(now),
+                metadataUploaded: const Value(false),
+              ),
+            );
+      }
+    });
+    _updatedScoreIds.add((changed: scoreIds.toSet(), remoteTriggered: false));
+  }
+
   Future<void> updateLastOpened(String scoreId) async {
     await _db.managers.scoresTable
         .filter((f) => f.id(scoreId))
@@ -679,6 +716,76 @@ class ScoresRepository {
         await _db.managers.scoreTagsTable
             .filter(
               (f) => f.score.id.isIn(scoreIds) & f.tag.id.isIn(removeTagIds),
+            )
+            .delete();
+      }
+      await _db.managers.scoresTable
+          .filter((f) => f.id.isIn(scoreIds))
+          .update(
+            (o) => o(
+              metadataUpdatedAt: Value(DateTime.now().toUtc()),
+              metadataUploaded: const Value(false),
+            ),
+          );
+    });
+    _updatedScoreIds.add((changed: scoreIds.toSet(), remoteTriggered: false));
+  }
+
+  Future<void> bulkEditScoreInstruments(
+    Iterable<String> scoreIds,
+    Iterable<String> addInstruments,
+    Iterable<String> removeInstruments,
+  ) async {
+    if (scoreIds.isEmpty) return;
+    await _db.transaction(() async {
+      if (addInstruments.isNotEmpty) {
+        await _db.managers.instrumentsTable.bulkCreate(
+          (o) => scoreIds.expand(
+            (s) => addInstruments.map((i) => o(score: s, instrument: i)),
+          ),
+          onConflict: DoNothing(),
+        );
+      }
+      if (removeInstruments.isNotEmpty) {
+        await _db.managers.instrumentsTable
+            .filter(
+              (f) =>
+                  f.score.id.isIn(scoreIds) &
+                  f.instrument.isIn(removeInstruments),
+            )
+            .delete();
+      }
+      await _db.managers.scoresTable
+          .filter((f) => f.id.isIn(scoreIds))
+          .update(
+            (o) => o(
+              metadataUpdatedAt: Value(DateTime.now().toUtc()),
+              metadataUploaded: const Value(false),
+            ),
+          );
+    });
+    _updatedScoreIds.add((changed: scoreIds.toSet(), remoteTriggered: false));
+  }
+
+  Future<void> bulkEditScoreGenres(
+    Iterable<String> scoreIds,
+    Iterable<String> addGenres,
+    Iterable<String> removeGenres,
+  ) async {
+    if (scoreIds.isEmpty) return;
+    await _db.transaction(() async {
+      if (addGenres.isNotEmpty) {
+        await _db.managers.genresTable.bulkCreate(
+          (o) => scoreIds.expand(
+            (s) => addGenres.map((g) => o(score: s, genre: g)),
+          ),
+          onConflict: DoNothing(),
+        );
+      }
+      if (removeGenres.isNotEmpty) {
+        await _db.managers.genresTable
+            .filter(
+              (f) => f.score.id.isIn(scoreIds) & f.genre.isIn(removeGenres),
             )
             .delete();
       }

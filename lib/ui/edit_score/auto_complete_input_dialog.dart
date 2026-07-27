@@ -13,6 +13,8 @@ class AutoCompleteInputDialog extends StatefulWidget {
   final String title;
   final String inputLabel;
   final String submitBtnText;
+  // when set, an empty input offers a clear button returning an empty string
+  final bool enableClear;
   final Future<Iterable<String>> Function(String filter) getOptions;
 
   const AutoCompleteInputDialog({
@@ -21,6 +23,7 @@ class AutoCompleteInputDialog extends StatefulWidget {
     required this.inputLabel,
     required this.getOptions,
     required this.submitBtnText,
+    this.enableClear = false,
   });
 
   static Future<String?> show(
@@ -28,6 +31,7 @@ class AutoCompleteInputDialog extends StatefulWidget {
     required String title,
     required String inputLabel,
     required String submitBtnText,
+    bool enableClear = false,
     required Future<Iterable<String>> Function(String filter) getOptions,
   }) async {
     return showSheetopiaDialog<String>(
@@ -37,6 +41,7 @@ class AutoCompleteInputDialog extends StatefulWidget {
         inputLabel: inputLabel,
         getOptions: getOptions,
         submitBtnText: submitBtnText,
+        enableClear: enableClear,
       ),
     );
   }
@@ -123,14 +128,26 @@ class _AutoCompleteInputDialogState extends State<AutoCompleteInputDialog> {
                 },
                 child: const Text("Cancel"),
               ),
-              FilledButton(
-                onPressed: _valid
-                    ? () {
-                        Navigator.pop(context, _controller.text.trim());
-                      }
-                    : null,
-                child: Text(widget.submitBtnText),
-              ),
+              if (widget.enableClear && !_valid)
+                FilledButton(
+                  onPressed: () {
+                    Navigator.pop(context, "");
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.colorScheme.errorContainer,
+                    foregroundColor: theme.colorScheme.onErrorContainer,
+                  ),
+                  child: const Text("Clear"),
+                )
+              else
+                FilledButton(
+                  onPressed: _valid
+                      ? () {
+                          Navigator.pop(context, _controller.text.trim());
+                        }
+                      : null,
+                  child: Text(widget.submitBtnText),
+                ),
             ],
           ),
         ],

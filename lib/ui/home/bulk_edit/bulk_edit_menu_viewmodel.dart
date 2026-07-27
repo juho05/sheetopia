@@ -31,6 +31,43 @@ class BulkEditMenuViewModel {
     await _repo.bulkEditScoreTags(_selectedScores, addIds, removeIds);
   }
 
+  Future<void> editComposer(String composer) async {
+    await _repo.bulkEditScoreComposer(_selectedScores, composer);
+  }
+
+  Future<void> editInstruments(
+    Iterable<String> add,
+    Iterable<String> remove,
+  ) async {
+    await _repo.bulkEditScoreInstruments(_selectedScores, add, remove);
+  }
+
+  Future<void> editGenres(Iterable<String> add, Iterable<String> remove) async {
+    await _repo.bulkEditScoreGenres(_selectedScores, add, remove);
+  }
+
+  Future<Iterable<String>> getComposers({String filter = ""}) async {
+    return await _repo.getComposers(filter: filter, size: 10);
+  }
+
+  Future<Iterable<String>> getInstruments({
+    String filter = "",
+    Iterable<String> exclude = const [],
+  }) async {
+    return await _repo.getInstruments(
+      filter: filter,
+      size: 10,
+      exclude: exclude,
+    );
+  }
+
+  Future<Iterable<String>> getGenres({
+    String filter = "",
+    Iterable<String> exclude = const [],
+  }) async {
+    return await _repo.getGenres(filter: filter, size: 10, exclude: exclude);
+  }
+
   Future<int> addToSetlist(String setlistId) async {
     final scoreIds = List.of(_selectedScores);
     await _setlistsRepo.addScores(setlistId, scoreIds);

@@ -7,6 +7,7 @@
  */
 
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -40,8 +41,12 @@ class BulkEditTagsDialog extends StatefulWidget {
 }
 
 class _BulkEditTagsDialogState extends State<BulkEditTagsDialog> {
-  Set<Tag> _addTags = {};
-  Set<Tag> _removeTags = {};
+  final SplayTreeSet<Tag> _addTags = SplayTreeSet(
+    (a, b) => a.name.compareTo(b.name),
+  );
+  final SplayTreeSet<Tag> _removeTags = SplayTreeSet(
+    (a, b) => a.name.compareTo(b.name),
+  );
 
   bool get _valid => _addTags.isNotEmpty || _removeTags.isNotEmpty;
 
@@ -68,8 +73,10 @@ class _BulkEditTagsDialogState extends State<BulkEditTagsDialog> {
 
       if (newAddTags == _addTags && newRemoveTags == _removeTags) return;
       setState(() {
-        _addTags = newAddTags;
-        _removeTags = newRemoveTags;
+        _addTags.clear();
+        _addTags.addAll(newAddTags);
+        _removeTags.clear();
+        _removeTags.addAll(newRemoveTags);
       });
     });
   }

@@ -96,4 +96,49 @@ void main() {
     expect(scores[1].instruments, isEmpty);
     expect(scores[1].genres, isEmpty);
   });
+
+  test("bulk editing the composer keeps the search text in sync", () async {
+    await insertScore("a");
+    await insertScore("b");
+
+    await repo.bulkEditScoreComposer(["a", "b"], "Georg Friedrich Händel");
+
+    expect((await repo.getScore("a"))!.composer, "Georg Friedrich Händel");
+    final query = db.selectOnly(db.scoresTable)
+      ..addColumns([db.scoresTable.searchText])
+      ..where(db.scoresTable.id.equals("a"));
+    final searchText = (await query.getSingle()).read(
+      db.scoresTable.searchText,
+    );
+    expect(searchText, " title a georg friedrich handel ");
+
+    await repo.bulkEditScoreComposer(["a"], "");
+
+    expect((await repo.getScore("a"))!.composer, null);
+    expect((await repo.getScore("b"))!.composer, "Georg Friedrich Händel");
+  });
+
+  test("bulk editing instruments only touches the selected scores", () async {
+    await insertScore("a", instruments: ["piano", "violin"]);
+    await insertScore("b", instruments: ["piano"]);
+    await insertScore("c", instruments: ["violin"]);
+
+    await repo.bulkEditScoreInstruments(["a", "b"], ["cello"], ["piano"]);
+
+    expect((await repo.getScore("a"))!.instruments, ["cello", "violin"]);
+    expect((await repo.getScore("b"))!.instruments, ["cello"]);
+    expect((await repo.getScore("c"))!.instruments, ["violin"]);
+  });
+
+  test("bulk editing genres only touches the selected scores", () async {
+    await insertScore("a", genres: ["classical", "baroque"]);
+    await insertScore("b", genres: ["classical"]);
+    await insertScore("c", genres: ["baroque"]);
+
+    await repo.bulkEditScoreGenres(["a", "b"], ["jazz"], ["classical"]);
+
+    expect((await repo.getScore("a"))!.genres, ["baroque", "jazz"]);
+    expect((await repo.getScore("b"))!.genres, ["jazz"]);
+    expect((await repo.getScore("c"))!.genres, ["baroque"]);
+  });
 }

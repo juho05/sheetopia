@@ -12,7 +12,9 @@ import 'package:provider/provider.dart';
 import 'package:sheetopia/ui/common/menu_button.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_menu_viewmodel.dart';
+import 'package:sheetopia/ui/edit_score/auto_complete_input_dialog.dart';
 import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_tags_dialog.dart';
+import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_values_dialog.dart';
 import 'package:sheetopia/ui/setlists/select_setlist_dialog.dart';
 
 class BulkEditMenu extends StatefulWidget {
@@ -47,6 +49,57 @@ class _BulkEditMenuState extends State<BulkEditMenu> {
   Widget build(BuildContext context) {
     return MenuButton(
       options: [
+        ContextMenuOption(
+          title: "Edit composer",
+          icon: Symbols.artist,
+          onSelected: () async {
+            final composer = await AutoCompleteInputDialog.show(
+              context,
+              title: "Bulk edit composer",
+              inputLabel: "Composer",
+              submitBtnText: "Update",
+              enableClear: true,
+              getOptions: (filter) => _viewModel.getComposers(filter: filter),
+            );
+            if (composer == null) return;
+            await _viewModel.editComposer(composer);
+            Toast.show("Successfully updated composer of selected scores");
+          },
+        ),
+        ContextMenuOption(
+          title: "Edit instruments",
+          icon: Symbols.piano,
+          onSelected: () async {
+            final result = await BulkEditValuesDialog.show(
+              context,
+              title: "Bulk edit instruments",
+              valuesLabel: "instruments",
+              inputLabel: "Instrument",
+              getOptions: (filter, exclude) =>
+                  _viewModel.getInstruments(filter: filter, exclude: exclude),
+            );
+            if (result == null) return;
+            await _viewModel.editInstruments(result.add, result.remove);
+            Toast.show("Successfully updated instruments of selected scores");
+          },
+        ),
+        ContextMenuOption(
+          title: "Edit genres",
+          icon: Symbols.genres,
+          onSelected: () async {
+            final result = await BulkEditValuesDialog.show(
+              context,
+              title: "Bulk edit genres",
+              valuesLabel: "genres",
+              inputLabel: "Genre",
+              getOptions: (filter, exclude) =>
+                  _viewModel.getGenres(filter: filter, exclude: exclude),
+            );
+            if (result == null) return;
+            await _viewModel.editGenres(result.add, result.remove);
+            Toast.show("Successfully updated genres of selected scores");
+          },
+        ),
         ContextMenuOption(
           title: "Edit tags",
           icon: Symbols.label,
