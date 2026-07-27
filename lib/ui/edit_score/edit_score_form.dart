@@ -9,6 +9,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reactive_forms/reactive_forms.dart';
+import 'package:sheetopia/ui/common/auto_complete_field.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/tag_badge.dart';
@@ -27,6 +28,17 @@ class EditScoreForm extends StatefulWidget {
 class _EditScoreFormState extends State<EditScoreForm> {
   final _titleFocus = FocusNode();
   final _notesFocus = FocusNode();
+  final _composerFocus = FocusNode();
+  final _composerController = TextEditingController();
+
+  @override
+  void dispose() {
+    _titleFocus.dispose();
+    _notesFocus.dispose();
+    _composerFocus.dispose();
+    _composerController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,9 +66,11 @@ class _EditScoreFormState extends State<EditScoreForm> {
                   ),
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
-                    child: Autocomplete(
-                      optionsBuilder: (textEditingValue) => viewModel
-                          .getComposers(filter: textEditingValue.text.trim()),
+                    child: AutoCompleteField(
+                      controller: _composerController,
+                      focusNode: _composerFocus,
+                      getOptions: (filter) =>
+                          viewModel.getComposers(filter: filter),
                       onSelected: (option) =>
                           viewModel
                                   .form
@@ -64,21 +78,13 @@ class _EditScoreFormState extends State<EditScoreForm> {
                                       .formComposer]!
                                   .value =
                               option,
-                      fieldViewBuilder:
-                          (
-                            context,
-                            textEditingController,
-                            focusNode,
-                            onFieldSubmitted,
-                          ) => ReactiveTextField(
+                      fieldBuilder: (context, controller, focusNode) =>
+                          ReactiveTextField(
                             onTapOutside: (event) => focusNode.unfocus(),
                             formControlName:
                                 EditScoreFormViewModel.formComposer,
-                            controller: textEditingController,
+                            controller: controller,
                             focusNode: focusNode,
-                            onSubmitted: (control) {
-                              onFieldSubmitted();
-                            },
                             decoration: const InputDecoration(
                               label: Text("Composer"),
                               border: OutlineInputBorder(),

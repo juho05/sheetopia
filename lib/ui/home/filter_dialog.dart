@@ -7,6 +7,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:sheetopia/ui/common/auto_complete_field.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/match_type_selector.dart';
@@ -17,7 +18,7 @@ import 'package:sheetopia/ui/edit_score/auto_complete_input_dialog.dart';
 import 'package:sheetopia/ui/edit_score/select_tags_list.dart';
 import 'package:sheetopia/ui/home/library_viewmodel.dart';
 
-class FilterDialog extends StatelessWidget {
+class FilterDialog extends StatefulWidget {
   final LibraryViewModel _viewModel;
 
   const FilterDialog._({required LibraryViewModel viewModel})
@@ -33,6 +34,38 @@ class FilterDialog extends StatelessWidget {
         return FilterDialog._(viewModel: viewModel);
       },
     );
+  }
+
+  @override
+  State<FilterDialog> createState() => _FilterDialogState();
+}
+
+class _FilterDialogState extends State<FilterDialog> {
+  late final LibraryViewModel _viewModel = widget._viewModel;
+  late final TextEditingController _composerController = TextEditingController(
+    text: _viewModel.filterComposer,
+  );
+  final FocusNode _composerFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel.addListener(_onFiltersChanged);
+  }
+
+  @override
+  void dispose() {
+    _viewModel.removeListener(_onFiltersChanged);
+    _composerController.dispose();
+    _composerFocus.dispose();
+    super.dispose();
+  }
+
+  void _onFiltersChanged() {
+    if (_viewModel.filterComposer.isEmpty &&
+        _composerController.text.isNotEmpty) {
+      _composerController.clear();
+    }
   }
 
   @override
@@ -59,50 +92,30 @@ class FilterDialog extends StatelessWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: Autocomplete(
-                    optionsBuilder: (textEditingValue) =>
-                        _viewModel.getComposers(filter: textEditingValue.text),
+                  child: AutoCompleteField(
+                    controller: _composerController,
+                    focusNode: _composerFocus,
+                    onDialog: true,
+                    getOptions: (filter) =>
+                        _viewModel.getComposers(filter: filter),
+                    onChanged: (value) =>
+                        _viewModel.filterComposer = value.trim(),
                     onSelected: (option) =>
                         _viewModel.filterComposer = option.trim(),
-                    initialValue: TextEditingValue(
-                      text: _viewModel.filterComposer,
+                    decoration: InputDecoration(
+                      label: const Text("Composer"),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: _viewModel.filterComposer.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _composerController.clear();
+                                _viewModel.filterComposer = "";
+                                _composerFocus.unfocus();
+                              },
+                            )
+                          : null,
                     ),
-                    fieldViewBuilder:
-                        (
-                          context,
-                          textEditingController,
-                          focusNode,
-                          onFieldSubmitted,
-                        ) {
-                          if (_viewModel.filterComposer.isEmpty &&
-                              textEditingController.text.isNotEmpty) {
-                            textEditingController.clear();
-                          }
-                          return TextField(
-                            onTapOutside: (event) => focusNode.unfocus(),
-                            controller: textEditingController,
-                            onChanged: (value) =>
-                                _viewModel.filterComposer = value.trim(),
-                            focusNode: focusNode,
-                            onSubmitted: (control) {
-                              onFieldSubmitted();
-                            },
-                            decoration: InputDecoration(
-                              label: const Text("Composer"),
-                              border: const OutlineInputBorder(),
-                              suffixIcon: _viewModel.filterComposer.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear),
-                                      onPressed: () {
-                                        textEditingController.clear();
-                                        _viewModel.filterComposer = "";
-                                        focusNode.unfocus();
-                                      },
-                                    )
-                                  : null,
-                            ),
-                          );
-                        },
                   ),
                 ),
                 Padding(

@@ -7,13 +7,14 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:sheetopia/ui/common/auto_complete_field.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 
 class AutoCompleteInputDialog extends StatefulWidget {
   final String title;
   final String inputLabel;
   final String submitBtnText;
-  // when set, an empty input offers a clear button returning an empty string
   final bool enableClear;
   final Future<Iterable<String>> Function(String filter) getOptions;
 
@@ -56,6 +57,7 @@ class _AutoCompleteInputDialogState extends State<AutoCompleteInputDialog> {
   final FocusNode _focusNode = FocusNode();
 
   bool _valid = false;
+  bool _submitted = false;
 
   @override
   void initState() {
@@ -67,6 +69,7 @@ class _AutoCompleteInputDialogState extends State<AutoCompleteInputDialog> {
   void dispose() {
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -79,9 +82,26 @@ class _AutoCompleteInputDialogState extends State<AutoCompleteInputDialog> {
     }
   }
 
+  void _submit() {
+    final value = _controller.text.trim();
+    if (value.isEmpty || _submitted) return;
+    _submitted = true;
+    Navigator.pop(context, value);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.enter): _submit,
+        const SingleActivator(LogicalKeyboardKey.numpadEnter): _submit,
+      },
+      child: FocusScope(child: _buildDialog(theme)),
+    );
+  }
+
+  Widget _buildDialog(ThemeData theme) {
     return SheetopiaDialog(
       maxWidth: 480,
       child: Column(
@@ -93,30 +113,17 @@ class _AutoCompleteInputDialogState extends State<AutoCompleteInputDialog> {
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.headlineSmall,
           ),
-          Autocomplete(
-            textEditingController: _controller,
+          AutoCompleteField(
+            autofocus: true,
+            controller: _controller,
             focusNode: _focusNode,
-            fieldViewBuilder:
-                (context, textEditingController, focusNode, onFieldSubmitted) {
-                  return TextField(
-                    autofocus: true,
-                    controller: textEditingController,
-                    focusNode: focusNode,
-                    onSubmitted: (value) {
-                      onFieldSubmitted();
-                      value = textEditingController.value.text.trim();
-                      if (value.isEmpty) return;
-                      Navigator.pop(context, value);
-                    },
-                    decoration: InputDecoration(
-                      label: Text(widget.inputLabel),
-                      border: const OutlineInputBorder(),
-                    ),
-                    onTapOutside: (event) => focusNode.unfocus(),
-                  );
-                },
-            optionsBuilder: (textEditingValue) =>
-                widget.getOptions(textEditingValue.text.trim()),
+            getOptions: widget.getOptions,
+            onSubmitted: (value) => _submit(),
+            onDialog: true,
+            decoration: InputDecoration(
+              label: Text(widget.inputLabel),
+              border: const OutlineInputBorder(),
+            ),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
@@ -141,11 +148,7 @@ class _AutoCompleteInputDialogState extends State<AutoCompleteInputDialog> {
                 )
               else
                 FilledButton(
-                  onPressed: _valid
-                      ? () {
-                          Navigator.pop(context, _controller.text.trim());
-                        }
-                      : null,
+                  onPressed: _valid ? _submit : null,
                   child: Text(widget.submitBtnText),
                 ),
             ],
