@@ -25,6 +25,8 @@ iOS/iPadOS builds will soon be available via TestFlight.
     - Notes
 - [x] Search/filter your sheet music
 - [x] Full screen reading/play mode
+- [x] Annotations with stylus support
+- [x] Setlists
 - [x] Compatible with Bluetooth/USB foot switches
 - [x] Turn pages using MIDI controllers
     - [x] Local/USB MIDI
@@ -48,8 +50,8 @@ Visit [sheetopia-sync](https://github.com/juho05/sheetopia-sync#setup) to instal
 1. Download `Sheetopia-x.x.x-windows-x86-64.exe` from the *Assets* section of
    the [latest release](https://github.com/juho05/sheetopia/releases/latest).
 2. Execute the downloaded file and follow the instructions of the installer.
-    - If you are prompted that *Windows protected your PC* click *More info*, then *Run anyway*.
-      This warning appears because the installer is not signed and can safely be ignored.
+    - If you are prompted that *Windows protected your PC* click *More info*, then *Run anyway*. This warning appears
+      because the installer is not signed and can safely be ignored.
 3. Sheetopia is now installed on your system.
 
 ### macOS
@@ -64,9 +66,9 @@ Visit [sheetopia-sync](https://github.com/juho05/sheetopia-sync#setup) to instal
 
 1. Download `Sheetopia-x.x.x-linux-x86-64.AppImage` from the *Assets* section of
    the [latest release](https://github.com/juho05/sheetopia/releases/latest).
-2. Execute the downloaded file (allow execution when prompted). On some systems it's necessary to
-   manually make the file executable. You can do that by entering the following command in a terminal in
-   in the directory of the downloaded file:
+2. Execute the downloaded file (allow execution when prompted). On some systems it's necessary to manually make the file
+   executable. You can do that by entering the following command in a terminal in in the directory of the downloaded
+   file:
    ```shell
    # change to the exact name of the downloaded file
    chmod +x ./Sheetopia-x.x.x-linux-x86-64.AppImage
@@ -94,6 +96,6 @@ Visit [sheetopia-sync](https://github.com/juho05/sheetopia-sync#setup) to instal
 
 Copyright (c) 2025-2026 Julian Hofmann (+ [Sheetopia contributors](https://github.com/juho05/sheetopia/contributors))
 
-Source code files in this repository are subject to the terms of the Mozilla Public
-License, v. 2.0, unless explicitly stated otherwise. If a copy of the MPL was not distributed with this
-file, You can obtain one at https://mozilla.org/MPL/2.0/.
+Source code files in this repository are subject to the terms of the Mozilla Public License, v. 2.0, unless explicitly
+stated otherwise. If a copy of the MPL was not distributed with this file, You can obtain one
+at https://mozilla.org/MPL/2.0/.
