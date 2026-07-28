@@ -7,6 +7,7 @@
  */
 
 import 'package:json_annotation/json_annotation.dart';
+import 'package:sheetopia/data/services/sync/models/deleted_item.dart';
 
 part 'deleted_tags.g.dart';
 
@@ -14,7 +15,10 @@ part 'deleted_tags.g.dart';
 class DeletedTagsModel {
   final List<String> tagIds;
 
-  DeletedTagsModel({required this.tagIds});
+  @JsonKey(defaultValue: <DeletedItemModel>[])
+  final List<DeletedItemModel> deletedTags;
+
+  DeletedTagsModel({required this.tagIds, required this.deletedTags});
 
   factory DeletedTagsModel.fromJson(Map<String, dynamic> json) =>
       _$DeletedTagsModelFromJson(json);

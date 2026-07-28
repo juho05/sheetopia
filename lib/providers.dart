@@ -35,7 +35,9 @@ Future<List<SingleChildWidget>> createProviders({
   await logRepository.enablePersistence(database);
 
   final KeyValueRepository keyValue = KeyValueRepository(database: database);
-  final SettingsRepository settings = SettingsRepository(keyValueRepository: keyValue);
+  final SettingsRepository settings = SettingsRepository(
+    keyValueRepository: keyValue,
+  );
   await settings.load();
 
   return [
@@ -92,6 +94,7 @@ Future<List<SingleChildWidget>> createProviders({
       create: (context) => ImportExportRepository(
         scoresRepo: context.read(),
         setlistsRepo: context.read(),
+        syncRepo: context.read(),
         db: context.read(),
       ),
     ),

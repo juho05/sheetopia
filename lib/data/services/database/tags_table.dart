@@ -16,7 +16,8 @@ class TagsTable extends Table {
   late final updatedAt = dateTime().clientDefault(
     () => DateTime.now().toUtc(),
   )();
-  // null means the write happened at updatedAt
+
+  // non-null means the row was restored by an import and the server has not accepted the restore
   late final writtenAt = dateTime().nullable()();
   late final uploaded = boolean().withDefault(const Constant(false))();
 

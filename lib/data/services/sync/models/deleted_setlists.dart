@@ -7,6 +7,7 @@
  */
 
 import 'package:json_annotation/json_annotation.dart';
+import 'package:sheetopia/data/services/sync/models/deleted_item.dart';
 
 part 'deleted_setlists.g.dart';
 
@@ -14,7 +15,13 @@ part 'deleted_setlists.g.dart';
 class DeletedSetlistsModel {
   final List<String> setlistIds;
 
-  DeletedSetlistsModel({required this.setlistIds});
+  @JsonKey(defaultValue: <DeletedItemModel>[])
+  final List<DeletedItemModel> deletedSetlists;
+
+  DeletedSetlistsModel({
+    required this.setlistIds,
+    required this.deletedSetlists,
+  });
 
   factory DeletedSetlistsModel.fromJson(Map<String, dynamic> json) =>
       _$DeletedSetlistsModelFromJson(json);

@@ -37,6 +37,8 @@ class SyncRepository {
 
   static const minAPIVersionResurrect = Version(major: 0, minor: 3);
 
+  static const minAPIVersionDeletedAt = Version(major: 0, minor: 3);
+
   final ScoresRepository _scoresRepo;
   final SetlistsRepository _setlistsRepo;
   final KeyValueRepository _keyValue;
@@ -79,19 +81,22 @@ class SyncRepository {
     required Database db,
     required SyncService syncService,
     required ThumbnailService thumbnailService,
+    @visibleForTesting EncryptedStorage? encryptedStorage,
   }) : _scoresRepo = scoresRepo,
        _setlistsRepo = setlistsRepo,
        _keyValue = keyValue,
        _db = db,
        _service = syncService,
        _thumbnailService = thumbnailService,
-       _encryptedStorage = Platform.isLinux
-           ? EncryptedStorageLinux(keyValueRepo: keyValue)
-           : EncryptedStorageSecureStorage() {
+       _encryptedStorage =
+           encryptedStorage ??
+           (Platform.isLinux
+               ? EncryptedStorageLinux(keyValueRepo: keyValue)
+               : EncryptedStorageSecureStorage()) {
     _load().then((value) {
-      _scoresRepo.locallyUpdatedScoreIds.listen((event) => _requestSync());
-      _scoresRepo.locallyUpdatedTagIds.listen((event) => _requestSync());
-      _setlistsRepo.locallyUpdatedSetlistIds.listen((event) => _requestSync());
+      _scoresRepo.locallyUpdatedScoreIds.listen((event) => requestSync());
+      _scoresRepo.locallyUpdatedTagIds.listen((event) => requestSync());
+      _setlistsRepo.locallyUpdatedSetlistIds.listen((event) => requestSync());
       _listener = AppLifecycleListener(
         onDetach: _disableSyncing,
         onPause: _disableSyncing,
@@ -214,7 +219,7 @@ class SyncRepository {
     }
   }
 
-  void _requestSync() {
+  void requestSync() {
     if (!signedIn) return;
     _nextSyncDelay = const Duration(seconds: 5);
     if (state.value != SyncState.syncing) {
@@ -256,6 +261,7 @@ class SyncRepository {
       final syncTime = serverInfo.time;
       final apiVersion = Version.parse(serverInfo.apiVersion);
       final sendWrittenAt = apiVersion >= minAPIVersionResurrect;
+      final honourDeletedAt = apiVersion >= minAPIVersionDeletedAt;
 
       await _uploadDeletedTags();
       await _uploadDeletedScores();
@@ -263,12 +269,12 @@ class SyncRepository {
         await _uploadDeletedSetlists();
       }
 
-      await _downloadDeletedTags();
+      await _downloadDeletedTags(honourDeletedAt);
 
       await _uploadTagChanges(sendWrittenAt);
       await _downloadTagChanges();
 
-      await _downloadDeletedScores();
+      await _downloadDeletedScores(honourDeletedAt);
 
       await _uploadMetadataChanges(sendWrittenAt);
       await _uploadFileChanges();
@@ -277,7 +283,7 @@ class SyncRepository {
       await _downloadFileChanges();
 
       if (apiVersion >= minAPIVersionSetlist) {
-        await _downloadDeletedSetlists();
+        await _downloadDeletedSetlists(honourDeletedAt);
         await _uploadSetlistChanges(sendWrittenAt);
         await _downloadSetlistChanges();
       }
@@ -359,18 +365,38 @@ class SyncRepository {
         .delete();
   }
 
-  Future<void> _downloadDeletedSetlists() async {
-    final deletedSetlistIds = await _service.getDeletedSetlistIds(
+  Future<void> _downloadDeletedSetlists(bool honourDeletedAt) async {
+    final deletedSetlists = await _service.getDeletedSetlists(
       _con!,
       since: lastSync.value,
     );
-    for (final s in deletedSetlistIds) {
-      final count = await _db.managers.setlistsTable
-          .filter((f) => f.id(s))
-          .delete();
-      if (count > 0) {
-        _changedSetlists.add(s);
+    for (final d in deletedSetlists) {
+      final setlist = await _db.managers.setlistsTable
+          .filter((f) => f.id(d.id))
+          .getSingleOrNull();
+      if (setlist == null) continue;
+
+      if (honourDeletedAt &&
+          _shouldKeepAfterRemoteDelete(
+            deletedAt: d.deletedAt,
+            writtenAt: setlist.writtenAt,
+          )) {
+        Log.debug(
+          "Keeping setlist ${d.id} deleted on the server at ${d.deletedAt}: restored by an import at ${setlist.writtenAt}",
+        );
+        await _db.managers.setlistsTable
+            .filter((f) => f.id(d.id))
+            .update((o) => o(uploaded: const Value(false)));
+        continue;
       }
+
+      if (!setlist.uploaded) {
+        Log.warn(
+          "Discarding unsynced local changes to setlist ${d.id}: deleted on the server",
+        );
+      }
+      await _db.managers.setlistsTable.filter((f) => f.id(d.id)).delete();
+      _changedSetlists.add(d.id);
     }
   }
 
@@ -392,9 +418,7 @@ class SyncRepository {
           name: s.name,
           scoreIds: entries.map((e) => e.score).toList(),
           updatedAt: s.updatedAt.toUtc(),
-          writtenAt: sendWrittenAt
-              ? (s.writtenAt ?? s.updatedAt).toUtc()
-              : null,
+          writtenAt: sendWrittenAt ? s.writtenAt?.toUtc() : null,
         );
         await _markSetlistUploaded(s.id, s.updatedAt, sendWrittenAt);
       } on ConflictException catch (_) {
@@ -468,25 +492,48 @@ class SyncRepository {
     }
   }
 
-  Future<void> _downloadDeletedTags() async {
-    final deletedTagIds = await _service.getDeletedTagIds(
+  Future<void> _downloadDeletedTags(bool honourDeletedAt) async {
+    final deletedTags = await _service.getDeletedTags(
       _con!,
       since: lastSync.value,
     );
-    for (final t in deletedTagIds) {
+    for (final d in deletedTags) {
       await _db.transaction(() async {
+        final tag = await _db.managers.tagsTable
+            .filter((f) => f.id(d.id))
+            .getSingleOrNull();
+        if (tag == null) return;
+
+        if (honourDeletedAt &&
+            _shouldKeepAfterRemoteDelete(
+              deletedAt: d.deletedAt,
+              writtenAt: tag.writtenAt,
+            )) {
+          Log.debug(
+            "Keeping tag ${d.id} deleted on the server at ${d.deletedAt}: restored by an import at ${tag.writtenAt}",
+          );
+          await _db.managers.tagsTable
+              .filter((f) => f.id(d.id))
+              .update((o) => o(uploaded: const Value(false)));
+          return;
+        }
+
+        if (!tag.uploaded) {
+          Log.warn(
+            "Discarding unsynced local changes to tag ${d.id}: deleted on the server",
+          );
+        }
+
         final affectedScores = await _db.managers.scoreTagsTable
-            .filter((f) => f.tag.id(t))
+            .filter((f) => f.tag.id(d.id))
             .get();
         _changedScores.addAll(affectedScores.map((s) => s.score));
 
-        await _db.managers.scoreTagsTable.filter((f) => f.tag.id(t)).delete();
-        final count = await _db.managers.tagsTable
-            .filter((f) => f.id(t))
+        await _db.managers.scoreTagsTable
+            .filter((f) => f.tag.id(d.id))
             .delete();
-        if (count > 0) {
-          _changedTags.add(t);
-        }
+        await _db.managers.tagsTable.filter((f) => f.id(d.id)).delete();
+        _changedTags.add(d.id);
       });
     }
   }
@@ -504,9 +551,7 @@ class SyncRepository {
           name: t.name,
           color: t.color,
           updatedAt: t.updatedAt.toUtc(),
-          writtenAt: sendWrittenAt
-              ? (t.writtenAt ?? t.updatedAt).toUtc()
-              : null,
+          writtenAt: sendWrittenAt ? t.writtenAt?.toUtc() : null,
         );
         await _markTagUploaded(t.id, t.updatedAt, sendWrittenAt);
       } on ConflictException catch (_) {
@@ -575,20 +620,48 @@ class SyncRepository {
     }
   }
 
-  Future<void> _downloadDeletedScores() async {
-    final deletedScores = await _service.getDeletedScoreIds(
+  Future<void> _downloadDeletedScores(bool honourDeletedAt) async {
+    final deletedScores = await _service.getDeletedScores(
       _con!,
       since: lastSync.value,
     );
     final actuallyDeleted = <String>{};
-    for (final s in deletedScores) {
+    for (final d in deletedScores) {
+      final score = await _db.managers.scoresTable
+          .filter((f) => f.id(d.id))
+          .getSingleOrNull();
+
+      if (score != null) {
+        if (honourDeletedAt &&
+            _shouldKeepAfterRemoteDelete(
+              deletedAt: d.deletedAt,
+              writtenAt: score.writtenAt,
+            )) {
+          Log.debug(
+            "Keeping score ${d.id} deleted on the server at ${d.deletedAt}: restored by an import at ${score.writtenAt}",
+          );
+          // a file-only re-import leaves the metadata marked as uploaded, so force the resurrect POST
+          await _db.managers.scoresTable
+              .filter((f) => f.id(d.id))
+              .update((o) => o(metadataUploaded: const Value(false)));
+          continue;
+        }
+
+        if (!score.metadataUploaded ||
+            (score.fileDownloaded && !score.fileUploaded)) {
+          Log.warn(
+            "Discarding unsynced local changes to score ${d.id}: deleted on the server",
+          );
+        }
+      }
+
       final count = await _db.managers.scoresTable
-          .filter((f) => f.id(s))
+          .filter((f) => f.id(d.id))
           .delete();
-      await _scoresRepo.cleanupScoreFilesAfterDelete(s);
+      await _scoresRepo.cleanupScoreFilesAfterDelete(d.id);
       if (count > 0) {
-        _changedScores.add(s);
-        actuallyDeleted.add(s);
+        _changedScores.add(d.id);
+        actuallyDeleted.add(d.id);
       }
     }
     _scoresRepo.announceDeletedScores(actuallyDeleted);
@@ -613,9 +686,7 @@ class SyncRepository {
           s.id,
           title: s.title,
           metadataUpdatedAt: s.metadataUpdatedAt.toUtc(),
-          writtenAt: sendWrittenAt
-              ? (s.writtenAt ?? s.metadataUpdatedAt).toUtc()
-              : null,
+          writtenAt: sendWrittenAt ? s.writtenAt?.toUtc() : null,
           tagIds: (refs.scoreTagsTableRefs.prefetchedData ?? [])
               .map((t) => t.tag)
               .toList(),
@@ -907,5 +978,14 @@ class SyncRepository {
     if (a == null) return const Value.absent();
     if (a.isEmpty) return const Value(null);
     return Value(jsonEncode(a));
+  }
+
+  bool _shouldKeepAfterRemoteDelete({
+    required DateTime? deletedAt,
+    required DateTime? writtenAt,
+  }) {
+    if (deletedAt == null) return false;
+    if (writtenAt == null) return false;
+    return writtenAt.toUtc().isAfter(deletedAt.toUtc());
   }
 }

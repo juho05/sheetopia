@@ -16,11 +16,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage.dart';
 import 'package:sheetopia/data/repositories/importexport/importexport_repository.dart';
+import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
+import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/sync/sync_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 
 class _FakePathProvider extends PathProviderPlatform
@@ -34,6 +38,19 @@ class _FakePathProvider extends PathProviderPlatform
 
   @override
   Future<String?> getTemporaryPath() async => root;
+}
+
+class _InMemoryEncryptedStorage implements EncryptedStorage {
+  final _values = <String, String>{};
+
+  @override
+  Future<String?> read(String key) async => _values[key];
+
+  @override
+  Future<void> write(String key, String value) async => _values[key] = value;
+
+  @override
+  Future<void> delete(String key) async => _values.remove(key);
 }
 
 class _FakeFileSelector extends FileSelectorPlatform
@@ -68,6 +85,7 @@ void main() {
   late Database db;
   late ScoresRepository scoresRepo;
   late SetlistsRepository setlistsRepo;
+  late SyncRepository syncRepo;
   late ImportExportRepository repo;
   late _FakeFileSelector fileSelector;
 
@@ -141,9 +159,19 @@ void main() {
     await db.customStatement("PRAGMA foreign_keys = ON");
     scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
     setlistsRepo = SetlistsRepository(db: db, scoresRepo: scoresRepo);
+    syncRepo = SyncRepository(
+      scoresRepo: scoresRepo,
+      setlistsRepo: setlistsRepo,
+      keyValue: KeyValueRepository(database: db),
+      db: db,
+      syncService: SyncService(),
+      thumbnailService: ThumbnailService(),
+      encryptedStorage: _InMemoryEncryptedStorage(),
+    );
     repo = ImportExportRepository(
       scoresRepo: scoresRepo,
       setlistsRepo: setlistsRepo,
+      syncRepo: syncRepo,
       db: db,
     );
 

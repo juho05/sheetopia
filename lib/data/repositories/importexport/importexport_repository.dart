@@ -6,6 +6,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
@@ -21,6 +22,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
+import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
@@ -42,9 +44,14 @@ class InvalidFileException implements Exception {
 }
 
 class ImportExportRepository extends ChangeNotifier {
+  final SyncRepository _syncRepo;
   final ScoresRepository _scoresRepo;
   final SetlistsRepository _setlistsRepo;
   final Database _db;
+
+  final StreamController<void> _importedStream = StreamController.broadcast();
+
+  Stream<void> get importedStream => _importedStream.stream;
 
   final zipTypeGroup = const XTypeGroup(
     label: "ZIP",
@@ -60,9 +67,11 @@ class ImportExportRepository extends ChangeNotifier {
   ImportExportRepository({
     required ScoresRepository scoresRepo,
     required SetlistsRepository setlistsRepo,
+    required SyncRepository syncRepo,
     required Database db,
   }) : _scoresRepo = scoresRepo,
        _setlistsRepo = setlistsRepo,
+       _syncRepo = syncRepo,
        _db = db;
 
   Set<String> _changedScores = {};
@@ -118,6 +127,7 @@ class ImportExportRepository extends ChangeNotifier {
       _changedSetlists = {};
       _status = ImportExportStatus.idle;
       notifyListeners();
+      _syncRepo.requestSync();
     }
 
     return true;

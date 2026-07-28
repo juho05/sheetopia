@@ -14,6 +14,7 @@ import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/sync/exceptions.dart';
 import 'package:sheetopia/data/services/sync/models/auth_key.dart';
 import 'package:sheetopia/data/services/sync/models/datetime_converter.dart';
+import 'package:sheetopia/data/services/sync/models/deleted_item.dart';
 import 'package:sheetopia/data/services/sync/models/deleted_scores.dart';
 import 'package:sheetopia/data/services/sync/models/deleted_setlists.dart';
 import 'package:sheetopia/data/services/sync/models/deleted_tags.dart';
@@ -25,6 +26,8 @@ import 'package:sheetopia/data/services/sync/models/tags.dart';
 import 'package:sheetopia/data/services/sync/models/update_score_result.dart';
 import 'package:sheetopia/data/services/sync/models/user.dart';
 import 'package:sheetopia/data/services/sync/sync_connection.dart';
+
+typedef RemotelyDeleted = ({String id, DateTime? deletedAt});
 
 class SyncService {
   final _dio = Dio(
@@ -151,7 +154,7 @@ class SyncService {
     );
   }
 
-  Future<List<String>> getDeletedSetlistIds(
+  Future<List<RemotelyDeleted>> getDeletedSetlists(
     SyncConnection con, {
     DateTime? since,
   }) async {
@@ -165,7 +168,15 @@ class SyncService {
       },
       authKey: con.authKey,
     );
-    return result.setlistIds;
+    return _mergeDeleted(result.setlistIds, result.deletedSetlists);
+  }
+
+  List<RemotelyDeleted> _mergeDeleted(
+    List<String> ids,
+    List<DeletedItemModel> deleted,
+  ) {
+    final deletedAtById = {for (final d in deleted) d.id: d.deletedAt};
+    return ids.map((id) => (id: id, deletedAt: deletedAtById[id])).toList();
   }
 
   Future<void> deleteTag(SyncConnection con, String tagId) async {
@@ -239,7 +250,7 @@ class SyncService {
     );
   }
 
-  Future<List<String>> getDeletedTagIds(
+  Future<List<RemotelyDeleted>> getDeletedTags(
     SyncConnection con, {
     DateTime? since,
   }) async {
@@ -253,10 +264,10 @@ class SyncService {
       },
       authKey: con.authKey,
     );
-    return result.tagIds;
+    return _mergeDeleted(result.tagIds, result.deletedTags);
   }
 
-  Future<List<String>> getDeletedScoreIds(
+  Future<List<RemotelyDeleted>> getDeletedScores(
     SyncConnection con, {
     DateTime? since,
   }) async {
@@ -270,7 +281,7 @@ class SyncService {
       },
       authKey: con.authKey,
     );
-    return result.scoreIds;
+    return _mergeDeleted(result.scoreIds, result.deletedScores);
   }
 
   Future<void> downloadScoreFile(

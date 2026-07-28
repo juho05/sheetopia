@@ -13,9 +13,22 @@ DeletedTagsModel _$DeletedTagsModelFromJson(Map<String, dynamic> json) =>
           'tagIds',
           (v) => (v as List<dynamic>).map((e) => e as String).toList(),
         ),
+        deletedTags: $checkedConvert(
+          'deletedTags',
+          (v) =>
+              (v as List<dynamic>?)
+                  ?.map(
+                    (e) => DeletedItemModel.fromJson(e as Map<String, dynamic>),
+                  )
+                  .toList() ??
+              [],
+        ),
       );
       return val;
     });
 
 Map<String, dynamic> _$DeletedTagsModelToJson(DeletedTagsModel instance) =>
-    <String, dynamic>{'tagIds': instance.tagIds};
+    <String, dynamic>{
+      'tagIds': instance.tagIds,
+      'deletedTags': instance.deletedTags,
+    };

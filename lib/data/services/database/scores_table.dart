@@ -35,7 +35,7 @@ class ScoresTable extends Table {
     () => DateTime.now().toUtc(),
   )();
 
-  // null means the write happened at metadataUpdatedAt
+  // non-null means the row was restored by an import and the server has not accepted the restore
   late final writtenAt = dateTime().nullable()();
 
   late final metadataUploaded = boolean().withDefault(const Constant(false))();
