@@ -13,6 +13,7 @@ import 'package:dbus_secrets/dbus_secrets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
 
 class EncryptedStorageLinux implements EncryptedStorage {
   // login secrets will be encrypted with this key if dbus secret service does not work
@@ -134,19 +135,20 @@ class EncryptedStorageLinux implements EncryptedStorage {
       _storage = DBusSecrets(appName: "de.julianh.sheetopia");
       if (!await _storage!.initialize()) {
         _useFallback = true;
-        print(
-          "Failed to initialize dbus secret storage, falling back to insecure storage in database",
+        Log.warn(
+          "Failed to initialize D-Bus secret storage, falling back to insecure storage in database",
         );
       }
       if (!await _storage!.unlock()) {
         _useFallback = true;
-        print(
-          "Failed to unlock dbus secret storage, falling back to insecure storage in database",
+        Log.warn(
+          "Failed to unlock D-Bus secret storage, falling back to insecure storage in database",
         );
       }
     } catch (e) {
-      print(
-        "Failed to initialize dbus secret storage, falling back to insecure storage in database: $e",
+      Log.warn(
+        "Failed to initialize D-Bus secret storage, falling back to insecure storage in database",
+        e: e,
       );
       _useFallback = true;
     }
@@ -155,8 +157,9 @@ class EncryptedStorageLinux implements EncryptedStorage {
       try {
         await _migrateFallbackToDbus();
       } catch (e) {
-        print(
-          "Failed to migrate fallback encrypted storage to dbus secret storage: $e",
+        Log.error(
+          "Failed to migrate fallback encrypted storage to D-Bus secret storage",
+          e: e,
         );
       }
     }

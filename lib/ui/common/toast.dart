@@ -7,6 +7,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
 
 class Toast {
   static final GlobalKey<ScaffoldMessengerState> messengerKey =
@@ -33,7 +34,7 @@ class Toast {
     StackTrace? st,
     String errorMsg = "An unexpected error occurred",
   }) {
-    print("$e\n$st");
+    Log.error(errorMsg, e: e, st: st);
     show(errorMsg);
   }
 }

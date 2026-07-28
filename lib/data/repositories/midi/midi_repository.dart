@@ -13,6 +13,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/midi/midi_mapping.dart';
 import 'package:sheetopia/data/repositories/midi/remembered_device.dart';
 import 'package:sheetopia/ui/common/toast.dart';
@@ -81,13 +82,13 @@ class MidiRepository with WidgetsBindingObserver {
     await _midi
         .startBluetoothCentral()
         .catchError((e, st) {
-          print("$e\n$st");
+          Log.error("Failed to start Bluetooth central", e: e, st: st);
         })
         .then((value) async {
           await _midi.waitUntilBluetoothIsInitialized().timeout(
             const Duration(seconds: 10),
             onTimeout: () {
-              print("bluetooth timeout");
+              Log.warn("Timed out waiting for Bluetooth to initialize");
             },
           );
         });
@@ -291,14 +292,16 @@ class MidiRepository with WidgetsBindingObserver {
 
   Future<void> _startBleScan() async {
     if (_midi.bluetoothState != BluetoothState.poweredOn) {
-      print("bluetooth not powered on: ${_midi.bluetoothState.name}");
+      Log.info(
+        "Skipping BLE scan: Bluetooth is not powered on (${_midi.bluetoothState.name})",
+      );
       return;
     }
     try {
       await _midi.startScanningForBluetoothDevices();
       _bleScanActive = true;
     } catch (e) {
-      print("failed to start BLE scan: $e");
+      Log.error("Failed to start BLE scan", e: e);
     }
   }
 

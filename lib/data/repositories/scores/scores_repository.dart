@@ -17,6 +17,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
@@ -1029,8 +1030,10 @@ class ScoresRepository {
       }
       await _thumbnailService.invalidateThumbnails([scoreId]);
     } catch (e, st) {
-      print(
-        "Failed to clean up score files after score $scoreId was deleted: $e\n$st",
+      Log.error(
+        "Failed to clean up files of deleted score $scoreId",
+        e: e,
+        st: st,
       );
     }
   }

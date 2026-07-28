@@ -10,6 +10,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:reactive_forms/reactive_forms.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/services/sync/exceptions.dart';
 
@@ -79,10 +80,14 @@ class SyncDialogViewModel extends ChangeNotifier {
     } on UnauthenticatedException catch (_) {
       _errorText = "Invalid credentials!";
     } on DioException catch (e, st) {
-      print("Connection failed: $e\n$st");
+      Log.warn("Failed to connect to sync server", e: e, st: st);
       _errorText = "Failed to connect to server!";
     } catch (e, st) {
-      print("Connection failed: $e\n$st");
+      Log.error(
+        "Unexpected error while logging in to sync server",
+        e: e,
+        st: st,
+      );
       _errorText = "An unexpected error occurred!";
     } finally {
       _loading = false;

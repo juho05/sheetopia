@@ -17,6 +17,7 @@ import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage.
 import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage_linux.dart';
 import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage_secure_storage.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/repositories/version/version.dart';
@@ -285,7 +286,7 @@ class SyncRepository {
       await logout();
     } catch (e, st) {
       if (signedIn) {
-        print("Sync failed: $e\n$st");
+        Log.error("Sync failed", e: e, st: st);
         state.value = SyncState.failure;
       }
     } finally {
@@ -397,11 +398,13 @@ class SyncRepository {
         // the server holds equal or newer content, the local write is settled
         await _markSetlistUploaded(s.id, s.updatedAt, sendWrittenAt);
       } on DeletedException catch (e) {
-        print("setlist ${s.id} was deleted on the server at ${e.deletedAt}");
+        Log.warn(
+          "Skipping upload of setlist ${s.id}: deleted on the server at ${e.deletedAt}",
+        );
       } on UnauthenticatedException catch (_) {
         rethrow;
       } on StatusCodeException catch (e) {
-        print("failed to upload setlist ${s.id}: $e");
+        Log.warn("Failed to upload setlist ${s.id}", e: e);
       }
     }
   }
@@ -506,11 +509,13 @@ class SyncRepository {
         // the server holds equal or newer content, the local write is settled
         await _markTagUploaded(t.id, t.updatedAt, sendWrittenAt);
       } on DeletedException catch (e) {
-        print("tag ${t.id} was deleted on the server at ${e.deletedAt}");
+        Log.warn(
+          "Skipping upload of tag ${t.id}: deleted on the server at ${e.deletedAt}",
+        );
       } on UnauthenticatedException catch (_) {
         rethrow;
       } on StatusCodeException catch (e) {
-        print("failed to upload tag ${t.id}: $e");
+        Log.warn("Failed to upload tag ${t.id}", e: e);
       }
     }
   }
@@ -633,11 +638,13 @@ class SyncRepository {
         // the server holds equal or newer content, the local write is settled
         await _markMetadataUploaded(s.id, s.metadataUpdatedAt, sendWrittenAt);
       } on DeletedException catch (e) {
-        print("score ${s.id} was deleted on the server at ${e.deletedAt}");
+        Log.warn(
+          "Skipping metadata upload of score ${s.id}: deleted on the server at ${e.deletedAt}",
+        );
       } on UnauthenticatedException catch (_) {
         rethrow;
       } on StatusCodeException catch (e) {
-        print("failed to upload metadata of score ${s.id}: $e");
+        Log.warn("Failed to upload metadata of score ${s.id}", e: e);
       }
     }
   }
@@ -689,7 +696,7 @@ class SyncRepository {
       } on UnauthenticatedException catch (_) {
         rethrow;
       } on StatusCodeException catch (e) {
-        print("failed to upload file of score ${s.id}: $e");
+        Log.warn("Failed to upload file of score ${s.id}", e: e);
       }
     }
   }
@@ -864,7 +871,7 @@ class SyncRepository {
       } on UnauthenticatedException catch (_) {
         rethrow;
       } on StatusCodeException catch (e) {
-        print("failed to download file of score ${s.id}: $e");
+        Log.warn("Failed to download file of score ${s.id}", e: e);
       }
     }
   }

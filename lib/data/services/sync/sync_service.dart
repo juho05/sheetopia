@@ -9,6 +9,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/sync/exceptions.dart';
 import 'package:sheetopia/data/services/sync/models/auth_key.dart';
@@ -386,7 +387,7 @@ class SyncService {
     try {
       return fromJson(response.data!);
     } catch (e, st) {
-      print("$e:\n$st");
+      Log.error("Failed to parse response body of $endpointName", e: e, st: st);
       throw const InvalidResponseBody();
     }
   }
