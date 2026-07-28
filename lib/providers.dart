@@ -95,6 +95,7 @@ Future<List<SingleChildWidget>> createProviders({
         scoresRepo: context.read(),
         setlistsRepo: context.read(),
         syncRepo: context.read(),
+        thumbnailService: context.read(),
         db: context.read(),
       ),
     ),

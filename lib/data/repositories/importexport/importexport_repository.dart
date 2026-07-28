@@ -29,6 +29,7 @@ import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/setlists.dart';
 import 'package:sheetopia/data/services/sync/models/tags.dart';
+import 'package:sheetopia/data/services/thumbnail_service.dart';
 
 enum ImportExportStatus { idle, importing, exporting }
 
@@ -47,6 +48,7 @@ class ImportExportRepository extends ChangeNotifier {
   final SyncRepository _syncRepo;
   final ScoresRepository _scoresRepo;
   final SetlistsRepository _setlistsRepo;
+  final ThumbnailService _thumbnailService;
   final Database _db;
 
   final StreamController<void> _importedStream = StreamController.broadcast();
@@ -69,7 +71,9 @@ class ImportExportRepository extends ChangeNotifier {
     required SetlistsRepository setlistsRepo,
     required SyncRepository syncRepo,
     required Database db,
-  }) : _scoresRepo = scoresRepo,
+    required ThumbnailService thumbnailService,
+  }) : _thumbnailService = thumbnailService,
+       _scoresRepo = scoresRepo,
        _setlistsRepo = setlistsRepo,
        _syncRepo = syncRepo,
        _db = db;
@@ -179,25 +183,28 @@ class ImportExportRepository extends ChangeNotifier {
               offset: offset,
             );
             scoreModels.addAll(
-              scores.map(
-                (s) => ScoreModel(
-                  id: s.id,
-                  title: s.title,
-                  fileType: s.fileType,
-                  fileUpdatedAt: s.fileUpdatedAt,
-                  metadata: ScoreMetadataModel(
-                    composer: s.composer,
-                    genres: s.genres,
-                    instruments: s.instruments,
-                    notes: s.notes,
-                    annotations: s.annotations == null
-                        ? {}
-                        : jsonDecode(s.annotations!) as Map<String, dynamic>,
+              scores
+                  .where((s) => s.file != null)
+                  .map(
+                    (s) => ScoreModel(
+                      id: s.id,
+                      title: s.title,
+                      fileType: s.fileType,
+                      fileUpdatedAt: s.fileUpdatedAt,
+                      metadata: ScoreMetadataModel(
+                        composer: s.composer,
+                        genres: s.genres,
+                        instruments: s.instruments,
+                        notes: s.notes,
+                        annotations: s.annotations == null
+                            ? {}
+                            : jsonDecode(s.annotations!)
+                                  as Map<String, dynamic>,
+                      ),
+                      metadataUpdatedAt: s.metadataUpdatedAt,
+                      tagIds: s.tags.map((t) => t.id).toList(),
+                    ),
                   ),
-                  metadataUpdatedAt: s.metadataUpdatedAt,
-                  tagIds: s.tags.map((t) => t.id).toList(),
-                ),
-              ),
             );
             if (scores.length < 500) break;
             offset += scores.length;
@@ -432,6 +439,7 @@ class ImportExportRepository extends ChangeNotifier {
           await _scoresRepo.createScoreDir(s.id);
           final targetScoreFile = await _scoresRepo.scoreFile(s.id, s.fileType);
           await scoreFile.copy(targetScoreFile.path);
+          await _thumbnailService.invalidateThumbnails({s.id});
 
           if (score != null && score.fileType != s.fileType) {
             deleteFile = await _scoresRepo.scoreFile(score.id, score.fileType);

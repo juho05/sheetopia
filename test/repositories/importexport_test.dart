@@ -169,6 +169,7 @@ void main() {
       encryptedStorage: _InMemoryEncryptedStorage(),
     );
     repo = ImportExportRepository(
+      thumbnailService: ThumbnailService(),
       scoresRepo: scoresRepo,
       setlistsRepo: setlistsRepo,
       syncRepo: syncRepo,
