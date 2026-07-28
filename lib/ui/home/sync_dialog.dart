@@ -180,6 +180,7 @@ class _StatusView extends StatelessWidget {
                         switch (viewModel.state) {
                           SyncState.none => "not syncing",
                           SyncState.failure => "last sync failed",
+                          SyncState.partial => "some items failed to sync",
                           SyncState.syncing => "syncing",
                           SyncState.success => "waiting for next sync",
                         },

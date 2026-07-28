@@ -28,7 +28,7 @@ import 'package:sheetopia/data/services/sync/sync_connection.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 
-enum SyncState { none, failure, syncing, success }
+enum SyncState { none, failure, partial, syncing, success }
 
 class SyncRepository {
   static const _defaultSyncDelay = Duration(seconds: 30);
@@ -55,6 +55,8 @@ class SyncRepository {
   Set<String> _changedScores = {};
   Set<String> _changedTags = {};
   Set<String> _changedSetlists = {};
+
+  bool _itemsFailed = false;
 
   static const String _userKey = "auth.user";
   static const String _conKey = "sheetopia/auth.con";
@@ -243,6 +245,7 @@ class SyncRepository {
     if (!signedIn) return;
     if (state.value == SyncState.syncing) return;
     state.value = SyncState.syncing;
+    _itemsFailed = false;
 
     try {
       if (lastSync.value == null) {
@@ -281,7 +284,7 @@ class SyncRepository {
 
       await _updateLastSync(syncTime);
 
-      state.value = SyncState.success;
+      state.value = _itemsFailed ? SyncState.partial : SyncState.success;
     } on UnauthenticatedException catch (_) {
       await logout();
     } catch (e, st) {
@@ -404,6 +407,7 @@ class SyncRepository {
       } on UnauthenticatedException catch (_) {
         rethrow;
       } on StatusCodeException catch (e) {
+        _itemsFailed = true;
         Log.warn("Failed to upload setlist ${s.id}", e: e);
       }
     }
@@ -515,6 +519,7 @@ class SyncRepository {
       } on UnauthenticatedException catch (_) {
         rethrow;
       } on StatusCodeException catch (e) {
+        _itemsFailed = true;
         Log.warn("Failed to upload tag ${t.id}", e: e);
       }
     }
@@ -644,6 +649,7 @@ class SyncRepository {
       } on UnauthenticatedException catch (_) {
         rethrow;
       } on StatusCodeException catch (e) {
+        _itemsFailed = true;
         Log.warn("Failed to upload metadata of score ${s.id}", e: e);
       }
     }
@@ -696,6 +702,7 @@ class SyncRepository {
       } on UnauthenticatedException catch (_) {
         rethrow;
       } on StatusCodeException catch (e) {
+        _itemsFailed = true;
         Log.warn("Failed to upload file of score ${s.id}", e: e);
       }
     }
@@ -871,6 +878,7 @@ class SyncRepository {
       } on UnauthenticatedException catch (_) {
         rethrow;
       } on StatusCodeException catch (e) {
+        _itemsFailed = true;
         Log.warn("Failed to download file of score ${s.id}", e: e);
       }
     }

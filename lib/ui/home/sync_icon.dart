@@ -7,6 +7,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/ui/home/sync_dialog.dart';
@@ -30,6 +31,7 @@ class SyncIcon extends StatelessWidget {
             return switch (state) {
               SyncState.none => const Icon(Icons.cloud_off_outlined),
               SyncState.failure => const Icon(Icons.wifi_off),
+              SyncState.partial => const Icon(Symbols.cloud_alert),
               SyncState.success => const Icon(Icons.cloud_done),
               SyncState.syncing => Stack(
                 children: [
