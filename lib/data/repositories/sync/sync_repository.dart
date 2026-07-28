@@ -34,6 +34,8 @@ class SyncRepository {
 
   static const minAPIVersionSetlist = Version(major: 0, minor: 2);
 
+  static const minAPIVersionResurrect = Version(major: 0, minor: 3);
+
   final ScoresRepository _scoresRepo;
   final SetlistsRepository _setlistsRepo;
   final KeyValueRepository _keyValue;
@@ -249,6 +251,7 @@ class SyncRepository {
       final serverInfo = await _service.getServerInfo(_con!.baseUri);
       final syncTime = serverInfo.time;
       final apiVersion = Version.parse(serverInfo.apiVersion);
+      final sendWrittenAt = apiVersion >= minAPIVersionResurrect;
 
       await _uploadDeletedTags();
       await _uploadDeletedScores();
@@ -258,12 +261,12 @@ class SyncRepository {
 
       await _downloadDeletedTags();
 
-      await _uploadTagChanges();
+      await _uploadTagChanges(sendWrittenAt);
       await _downloadTagChanges();
 
       await _downloadDeletedScores();
 
-      await _uploadMetadataChanges();
+      await _uploadMetadataChanges(sendWrittenAt);
       await _uploadFileChanges();
 
       await _downloadMetadataChanges();
@@ -271,7 +274,7 @@ class SyncRepository {
 
       if (apiVersion >= minAPIVersionSetlist) {
         await _downloadDeletedSetlists();
-        await _uploadSetlistChanges();
+        await _uploadSetlistChanges(sendWrittenAt);
         await _downloadSetlistChanges();
       }
 
@@ -367,7 +370,7 @@ class SyncRepository {
     }
   }
 
-  Future<void> _uploadSetlistChanges() async {
+  Future<void> _uploadSetlistChanges(bool sendWrittenAt) async {
     final changedSetlists = await _db.managers.setlistsTable
         .filter((f) => f.uploaded.isFalse())
         .get();
@@ -385,14 +388,39 @@ class SyncRepository {
           name: s.name,
           scoreIds: entries.map((e) => e.score).toList(),
           updatedAt: s.updatedAt.toUtc(),
+          writtenAt: sendWrittenAt
+              ? (s.writtenAt ?? s.updatedAt).toUtc()
+              : null,
         );
-        await _db.managers.setlistsTable
-            .filter((f) => f.id(s.id) & f.updatedAt.equals(s.updatedAt))
-            .update((o) => o(uploaded: const Value(true)));
+        await _markSetlistUploaded(s.id, s.updatedAt, sendWrittenAt);
       } on ConflictException catch (_) {
-        // local changes aren't the latest version
+        // the server holds equal or newer content, the local write is settled
+        await _markSetlistUploaded(s.id, s.updatedAt, sendWrittenAt);
+      } on DeletedException catch (e) {
+        print("setlist ${s.id} was deleted on the server at ${e.deletedAt}");
+      } on UnauthenticatedException catch (_) {
+        rethrow;
+      } on StatusCodeException catch (e) {
+        print("failed to upload setlist ${s.id}: $e");
       }
     }
+  }
+
+  Future<void> _markSetlistUploaded(
+    String id,
+    DateTime updatedAt,
+    bool clearWrittenAt,
+  ) async {
+    await _db.managers.setlistsTable
+        .filter((f) => f.id(id) & f.updatedAt.equals(updatedAt))
+        .update(
+          (o) => o(
+            uploaded: const Value(true),
+            writtenAt: clearWrittenAt
+                ? const Value(null)
+                : const Value.absent(),
+          ),
+        );
   }
 
   Future<void> _downloadSetlistChanges() async {
@@ -456,7 +484,7 @@ class SyncRepository {
     }
   }
 
-  Future<void> _uploadTagChanges() async {
+  Future<void> _uploadTagChanges(bool sendWrittenAt) async {
     final changedTags = await _db.managers.tagsTable
         .filter((f) => f.uploaded.isFalse())
         .get();
@@ -469,14 +497,39 @@ class SyncRepository {
           name: t.name,
           color: t.color,
           updatedAt: t.updatedAt.toUtc(),
+          writtenAt: sendWrittenAt
+              ? (t.writtenAt ?? t.updatedAt).toUtc()
+              : null,
         );
-        await _db.managers.tagsTable
-            .filter((f) => f.id(t.id) & f.updatedAt.equals(t.updatedAt))
-            .update((o) => o(uploaded: const Value(true)));
+        await _markTagUploaded(t.id, t.updatedAt, sendWrittenAt);
       } on ConflictException catch (_) {
-        // local changes aren't the latest version
+        // the server holds equal or newer content, the local write is settled
+        await _markTagUploaded(t.id, t.updatedAt, sendWrittenAt);
+      } on DeletedException catch (e) {
+        print("tag ${t.id} was deleted on the server at ${e.deletedAt}");
+      } on UnauthenticatedException catch (_) {
+        rethrow;
+      } on StatusCodeException catch (e) {
+        print("failed to upload tag ${t.id}: $e");
       }
     }
+  }
+
+  Future<void> _markTagUploaded(
+    String id,
+    DateTime updatedAt,
+    bool clearWrittenAt,
+  ) async {
+    await _db.managers.tagsTable
+        .filter((f) => f.id(id) & f.updatedAt.equals(updatedAt))
+        .update(
+          (o) => o(
+            uploaded: const Value(true),
+            writtenAt: clearWrittenAt
+                ? const Value(null)
+                : const Value.absent(),
+          ),
+        );
   }
 
   Future<void> _downloadTagChanges() async {
@@ -531,7 +584,7 @@ class SyncRepository {
     _scoresRepo.announceDeletedScores(actuallyDeleted);
   }
 
-  Future<void> _uploadMetadataChanges() async {
+  Future<void> _uploadMetadataChanges(bool sendWrittenAt) async {
     final changedScores = await _db.managers.scoresTable
         .withReferences(
           (prefetch) => prefetch(
@@ -545,11 +598,14 @@ class SyncRepository {
 
     for (final (s, refs) in changedScores) {
       try {
-        await _service.updateScore(
+        final result = await _service.updateScore(
           _con!,
           s.id,
           title: s.title,
           metadataUpdatedAt: s.metadataUpdatedAt.toUtc(),
+          writtenAt: sendWrittenAt
+              ? (s.writtenAt ?? s.metadataUpdatedAt).toUtc()
+              : null,
           tagIds: (refs.scoreTagsTableRefs.prefetchedData ?? [])
               .map((t) => t.tag)
               .toList(),
@@ -567,15 +623,44 @@ class SyncRepository {
                 : jsonDecode(s.annotations!) as Map<String, dynamic>,
           ),
         );
+        await _markMetadataUploaded(
+          s.id,
+          s.metadataUpdatedAt,
+          sendWrittenAt,
+          resetFileUploaded: result != null && !result.hasFile,
+        );
       } on ConflictException catch (_) {
-        // local changes aren't the latest version
+        // the server holds equal or newer content, the local write is settled
+        await _markMetadataUploaded(s.id, s.metadataUpdatedAt, sendWrittenAt);
+      } on DeletedException catch (e) {
+        print("score ${s.id} was deleted on the server at ${e.deletedAt}");
+      } on UnauthenticatedException catch (_) {
+        rethrow;
+      } on StatusCodeException catch (e) {
+        print("failed to upload metadata of score ${s.id}: $e");
       }
-      await _db.managers.scoresTable
-          .filter(
-            (f) => f.id(s.id) & f.metadataUpdatedAt.equals(s.metadataUpdatedAt),
-          )
-          .update((o) => o(metadataUploaded: const Value(true)));
     }
+  }
+
+  Future<void> _markMetadataUploaded(
+    String id,
+    DateTime metadataUpdatedAt,
+    bool clearWrittenAt, {
+    bool resetFileUploaded = false,
+  }) async {
+    await _db.managers.scoresTable
+        .filter((f) => f.id(id) & f.metadataUpdatedAt.equals(metadataUpdatedAt))
+        .update(
+          (o) => o(
+            metadataUploaded: const Value(true),
+            writtenAt: clearWrittenAt
+                ? const Value(null)
+                : const Value.absent(),
+            fileUploaded: resetFileUploaded
+                ? const Value(false)
+                : const Value.absent(),
+          ),
+        );
   }
 
   Future<void> _uploadFileChanges() async {
@@ -592,13 +677,27 @@ class SyncRepository {
           updatedAt: s.fileUpdatedAt.toUtc(),
           fileType: s.fileType,
         );
+        await _markFileUploaded(s.id, s.fileUpdatedAt);
       } on ConflictException catch (_) {
-        // local file is no longer the latest version
+        // the server holds an equal or newer file, the local write is settled
+        await _markFileUploaded(s.id, s.fileUpdatedAt);
+      } on NotFoundException catch (_) {
+        // the server has no row for this score, upload the metadata again first
+        await _db.managers.scoresTable
+            .filter((f) => f.id(s.id))
+            .update((o) => o(metadataUploaded: const Value(false)));
+      } on UnauthenticatedException catch (_) {
+        rethrow;
+      } on StatusCodeException catch (e) {
+        print("failed to upload file of score ${s.id}: $e");
       }
-      await _db.managers.scoresTable
-          .filter((f) => f.id(s.id) & f.fileUpdatedAt.equals(s.fileUpdatedAt))
-          .update((o) => o(fileUploaded: const Value(true)));
     }
+  }
+
+  Future<void> _markFileUploaded(String id, DateTime fileUpdatedAt) async {
+    await _db.managers.scoresTable
+        .filter((f) => f.id(id) & f.fileUpdatedAt.equals(fileUpdatedAt))
+        .update((o) => o(fileUploaded: const Value(true)));
   }
 
   Future<void> _downloadMetadataChanges() async {
@@ -743,24 +842,30 @@ class SyncRepository {
         .filter((f) => f.fileDownloaded.isFalse())
         .get();
     for (final s in scores) {
-      await _scoresRepo.createScoreDir(s.id);
-      final file = await _scoresRepo.scoreFile(s.id, s.fileType);
-      final partFile = File("${file.path}.part");
-      await _service.downloadScoreFile(
-        _con!,
-        s.id,
-        fileType: s.fileType,
-        target: partFile,
-      );
+      try {
+        await _scoresRepo.createScoreDir(s.id);
+        final file = await _scoresRepo.scoreFile(s.id, s.fileType);
+        final partFile = File("${file.path}.part");
+        await _service.downloadScoreFile(
+          _con!,
+          s.id,
+          fileType: s.fileType,
+          target: partFile,
+        );
 
-      await partFile.rename(file.path);
+        await partFile.rename(file.path);
 
-      await _db.managers.scoresTable
-          .filter((f) => f.id(s.id))
-          .update((o) => o(fileDownloaded: const Value(true)));
+        await _db.managers.scoresTable
+            .filter((f) => f.id(s.id))
+            .update((o) => o(fileDownloaded: const Value(true)));
 
-      await _thumbnailService.invalidateThumbnails([s.id]);
-      _changedScores.add(s.id);
+        await _thumbnailService.invalidateThumbnails([s.id]);
+        _changedScores.add(s.id);
+      } on UnauthenticatedException catch (_) {
+        rethrow;
+      } on StatusCodeException catch (e) {
+        print("failed to download file of score ${s.id}: $e");
+      }
     }
   }
 

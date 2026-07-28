@@ -101,9 +101,11 @@ class ImportExportRepository extends ChangeNotifier {
         final setlists = result["setlists"] as List<SetlistModel>;
         final scoresDir = result["scoresDir"] as String;
 
-        await _importTags(tags);
-        await _importScores(scores, scoresDir);
-        await _importSetlists(setlists);
+        final importedAt = DateTime.now().toUtc();
+
+        await _importTags(tags, importedAt);
+        await _importScores(scores, scoresDir, importedAt);
+        await _importSetlists(setlists, importedAt);
       } finally {
         await dir.delete(recursive: true);
       }
@@ -282,7 +284,14 @@ class ImportExportRepository extends ChangeNotifier {
     }
   }
 
-  Future<void> _importTags(List<TagModel> tags) async {
+  Future<void> _importTags(List<TagModel> tags, DateTime importedAt) async {
+    await _dropPendingTombstones(
+      tags.map((t) => t.id).toList(),
+      (chunk) => _db.managers.deletedTagsTable
+          .filter((f) => f.tagId.isIn(chunk))
+          .delete(),
+    );
+
     for (final t in tags) {
       final result = await _db.managers.tagsTable.createReturningOrNull(
         (o) => o(
@@ -290,6 +299,7 @@ class ImportExportRepository extends ChangeNotifier {
           name: t.name,
           color: t.color,
           updatedAt: Value(t.updatedAt.toUtc()),
+          writtenAt: Value(importedAt),
           uploaded: const Value(false),
         ),
         onConflict: DoUpdate.withExcluded(
@@ -298,6 +308,7 @@ class ImportExportRepository extends ChangeNotifier {
             color: excluded.color,
             uploaded: excluded.uploaded,
             updatedAt: excluded.updatedAt,
+            writtenAt: excluded.writtenAt,
           ),
           where: (old, excluded) =>
               old.updatedAt.isSmallerThan(excluded.updatedAt),
@@ -314,7 +325,28 @@ class ImportExportRepository extends ChangeNotifier {
     }
   }
 
-  Future<void> _importSetlists(List<SetlistModel> setlists) async {
+  Future<void> _dropPendingTombstones(
+    List<String> ids,
+    Future<void> Function(List<String> chunk) deleteChunk,
+  ) async {
+    const chunkSize = 500;
+    for (int i = 0; i < ids.length; i += chunkSize) {
+      final end = i + chunkSize;
+      await deleteChunk(ids.sublist(i, end > ids.length ? ids.length : end));
+    }
+  }
+
+  Future<void> _importSetlists(
+    List<SetlistModel> setlists,
+    DateTime importedAt,
+  ) async {
+    await _dropPendingTombstones(
+      setlists.map((s) => s.id).toList(),
+      (chunk) => _db.managers.deletedSetlistsTable
+          .filter((f) => f.setlistId.isIn(chunk))
+          .delete(),
+    );
+
     for (final s in setlists) {
       await _db.transaction(() async {
         final result = await _db.managers.setlistsTable.createReturningOrNull(
@@ -322,6 +354,7 @@ class ImportExportRepository extends ChangeNotifier {
             id: s.id,
             name: s.name,
             updatedAt: Value(s.updatedAt.toUtc()),
+            writtenAt: Value(importedAt),
             uploaded: const Value(false),
           ),
           onConflict: DoUpdate.withExcluded(
@@ -329,6 +362,7 @@ class ImportExportRepository extends ChangeNotifier {
               name: excluded.name,
               uploaded: excluded.uploaded,
               updatedAt: excluded.updatedAt,
+              writtenAt: excluded.writtenAt,
             ),
             where: (old, excluded) =>
                 old.updatedAt.isSmallerThan(excluded.updatedAt),
@@ -348,7 +382,18 @@ class ImportExportRepository extends ChangeNotifier {
     }
   }
 
-  Future<void> _importScores(List<ScoreModel> scores, String scoresDir) async {
+  Future<void> _importScores(
+    List<ScoreModel> scores,
+    String scoresDir,
+    DateTime importedAt,
+  ) async {
+    await _dropPendingTombstones(
+      scores.map((s) => s.id).toList(),
+      (chunk) => _db.managers.deletedScoresTable
+          .filter((f) => f.scoreId.isIn(chunk))
+          .delete(),
+    );
+
     for (final s in scores) {
       File? deleteFile;
       await _db.transaction(() async {
@@ -397,6 +442,7 @@ class ImportExportRepository extends ChangeNotifier {
               annotations: _annotationsColumnValue(s.metadata.annotations),
               metadataUploaded: const Value(false),
               metadataUpdatedAt: Value(s.metadataUpdatedAt.toUtc()),
+              writtenAt: Value(importedAt),
               lastOpened: Value(
                 s.metadataUpdatedAt.isAfter(s.fileUpdatedAt)
                     ? s.metadataUpdatedAt.toUtc()
@@ -422,6 +468,7 @@ class ImportExportRepository extends ChangeNotifier {
                   metadataUploaded: metadataChanged
                       ? const Value(false)
                       : const Value.absent(),
+                  writtenAt: Value(importedAt),
                   composer: metadataChanged
                       ? _optionalStringValue(s.metadata.composer)
                       : const Value.absent(),

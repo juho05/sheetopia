@@ -35,6 +35,9 @@ class ScoresTable extends Table {
     () => DateTime.now().toUtc(),
   )();
 
+  // null means the write happened at metadataUpdatedAt
+  late final writtenAt = dateTime().nullable()();
+
   late final metadataUploaded = boolean().withDefault(const Constant(false))();
   late final fileUploaded = boolean().withDefault(const Constant(false))();
   late final fileDownloaded = boolean()();

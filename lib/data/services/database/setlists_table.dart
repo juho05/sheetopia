@@ -14,6 +14,8 @@ class SetlistsTable extends Table {
   late final updatedAt = dateTime().clientDefault(
     () => DateTime.now().toUtc(),
   )();
+  // null means the write happened at updatedAt
+  late final writtenAt = dateTime().nullable()();
   late final uploaded = boolean().withDefault(const Constant(false))();
 
   @override

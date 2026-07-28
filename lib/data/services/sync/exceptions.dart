@@ -29,8 +29,20 @@ class ConflictException extends StatusCodeException {
   const ConflictException() : super(409);
 }
 
+class DeletedException extends StatusCodeException {
+  final DateTime deletedAt;
+
+  const DeletedException(this.deletedAt) : super(409);
+
+  @override
+  String toString() {
+    return "DeletedException: deleted at $deletedAt";
+  }
+}
+
 class InvalidResponseBody implements Exception {
   const InvalidResponseBody();
+
   @override
   String toString() {
     return "InvalidResponseBody";

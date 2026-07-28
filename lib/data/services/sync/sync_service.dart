@@ -21,6 +21,7 @@ import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/server_info.dart';
 import 'package:sheetopia/data/services/sync/models/setlists.dart';
 import 'package:sheetopia/data/services/sync/models/tags.dart';
+import 'package:sheetopia/data/services/sync/models/update_score_result.dart';
 import 'package:sheetopia/data/services/sync/models/user.dart';
 import 'package:sheetopia/data/services/sync/sync_connection.dart';
 
@@ -124,6 +125,7 @@ class SyncService {
     required String name,
     required List<String> scoreIds,
     required DateTime updatedAt,
+    DateTime? writtenAt,
   }) async {
     await _request(
       con.baseUri,
@@ -134,6 +136,7 @@ class SyncService {
         "name": name,
         "scoreIds": scoreIds,
         "updatedAt": updatedAt.toUtc().toIso8601String(),
+        if (writtenAt != null) "writtenAt": writtenAt.toRFC3339(),
       },
     );
   }
@@ -183,6 +186,7 @@ class SyncService {
     required String name,
     required int color,
     required DateTime updatedAt,
+    DateTime? writtenAt,
   }) async {
     await _request(
       con.baseUri,
@@ -192,30 +196,45 @@ class SyncService {
       data: {
         "name": name,
         "color": color,
-        "updatedAt": updatedAt.toUtc().toIso8601String(),
+        "updatedAt": updatedAt.toRFC3339(),
+        if (writtenAt != null) "writtenAt": writtenAt.toRFC3339(),
       },
     );
   }
 
-  Future<void> updateScore(
+  Future<UpdateScoreResultModel?> updateScore(
     SyncConnection con,
     String scoreId, {
     required String title,
     required DateTime metadataUpdatedAt,
     required List<String> tagIds,
     required ScoreMetadataModel metadata,
+    DateTime? writtenAt,
   }) async {
-    await _request(
+    final data = {
+      "title": title,
+      "metadataUpdatedAt": metadataUpdatedAt.toRFC3339(),
+      "metadata": metadata,
+      "tagIds": tagIds,
+      if (writtenAt != null) "writtenAt": writtenAt.toRFC3339(),
+    };
+    if (writtenAt == null) {
+      await _request(
+        con.baseUri,
+        "POST",
+        "score/$scoreId",
+        authKey: con.authKey,
+        data: data,
+      );
+      return null;
+    }
+    return await _requestObject(
       con.baseUri,
       "POST",
       "score/$scoreId",
+      UpdateScoreResultModel.fromJson,
       authKey: con.authKey,
-      data: {
-        "title": title,
-        "metadataUpdatedAt": metadataUpdatedAt.toRFC3339(),
-        "metadata": metadata,
-        "tagIds": tagIds,
-      },
+      data: data,
     );
   }
 
@@ -266,17 +285,24 @@ class SyncService {
         "fileType": [fileType.name],
       },
     );
-    await _dio.downloadUri(
-      uri,
-      target.path,
-      deleteOnError: true,
-      options: Options(
-        headers: {
-          "User-Agent": "sheetopia",
-          "Authorization": "Bearer ${con.authKey}",
-        },
-      ),
-    );
+    try {
+      await _dio.downloadUri(
+        uri,
+        target.path,
+        deleteOnError: true,
+        options: Options(
+          headers: {
+            "User-Agent": "sheetopia",
+            "Authorization": "Bearer ${con.authKey}",
+          },
+        ),
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode != null) {
+        _throwStatusException(e.response!.statusCode!, e.response?.data);
+      }
+      rethrow;
+    }
   }
 
   Future<void> uploadScoreFile(
@@ -312,7 +338,7 @@ class SyncService {
       );
     } on DioException catch (e) {
       if (e.response?.statusCode != null) {
-        _throwStatusException(e.response!.statusCode!);
+        _throwStatusException(e.response!.statusCode!, e.response?.data);
       }
       rethrow;
     } finally {
@@ -392,7 +418,7 @@ class SyncService {
       );
     } on DioException catch (e) {
       if (e.response?.statusCode != null) {
-        _throwStatusException(e.response!.statusCode!);
+        _throwStatusException(e.response!.statusCode!, e.response?.data);
       }
       rethrow;
     }
@@ -417,13 +443,20 @@ class SyncService {
     );
   }
 
-  void _throwStatusException(int status) {
+  void _throwStatusException(int status, Object? body) {
     switch (status) {
       case 401:
         throw const UnauthenticatedException();
       case 404:
         throw const NotFoundException();
       case 409:
+        final deletedAt = body is Map<String, dynamic>
+            ? body["deletedAt"]
+            : null;
+        if (deletedAt is String) {
+          final parsed = DateTime.tryParse(deletedAt);
+          if (parsed != null) throw DeletedException(parsed.toUtc());
+        }
         throw const ConflictException();
       default:
         throw StatusCodeException(status);
