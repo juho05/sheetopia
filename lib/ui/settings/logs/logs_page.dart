@@ -93,8 +93,10 @@ class _LogsPageState extends State<LogsPage> {
                 Rect? sharePositionOrigin;
                 if (Platform.isIOS) {
                   final box = context.findRenderObject() as RenderBox?;
-                  sharePositionOrigin =
-                      box!.localToGlobal(Offset.zero) & box.size;
+                  if (box != null) {
+                    sharePositionOrigin =
+                        box.localToGlobal(Offset.zero) & box.size;
+                  }
                 }
                 return MenuButton(
                   icon: const Icon(Icons.share),

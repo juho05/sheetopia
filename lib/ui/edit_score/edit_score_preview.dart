@@ -143,8 +143,10 @@ class _EditScorePreviewState extends State<EditScorePreview> {
                     Rect? sharePositionOrigin;
                     if (Platform.isIOS) {
                       final box = context.findRenderObject() as RenderBox?;
-                      sharePositionOrigin =
-                          box!.localToGlobal(Offset.zero) & box.size;
+                      if (box != null) {
+                        sharePositionOrigin =
+                            box.localToGlobal(Offset.zero) & box.size;
+                      }
                     }
                     await viewModel.share(
                       sharePositionOrigin: sharePositionOrigin,

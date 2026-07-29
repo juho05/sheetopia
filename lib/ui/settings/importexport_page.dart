@@ -100,9 +100,12 @@ class ImportExportPage extends StatelessWidget {
                         builder: (context) {
                           Rect? sharePositionOrigin;
                           if (Platform.isIOS) {
-                            final box = context.findRenderObject() as RenderBox?;
-                            sharePositionOrigin =
-                            box!.localToGlobal(Offset.zero) & box.size;
+                            final box =
+                                context.findRenderObject() as RenderBox?;
+                            if (box != null) {
+                              sharePositionOrigin =
+                                  box.localToGlobal(Offset.zero) & box.size;
+                            }
                           }
                           return Button(
                             enabled:
@@ -110,7 +113,9 @@ class ImportExportPage extends StatelessWidget {
                             onPressed: () async {
                               Toast.show("Exporting…");
                               try {
-                                final success = await viewModel.export(sharePositionOrigin: sharePositionOrigin);
+                                final success = await viewModel.export(
+                                  sharePositionOrigin: sharePositionOrigin,
+                                );
                                 if (!success || !context.mounted) return;
                                 Toast.show("Export successful!");
                               } on Exception catch (e, st) {
