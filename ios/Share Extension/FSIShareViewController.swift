@@ -4,7 +4,6 @@
 
 import AVFoundation
 import MobileCoreServices
-import Social
 import UIKit
 import UniformTypeIdentifiers
 
@@ -16,50 +15,71 @@ public let kAppChannel = "flutter_sharing_intent"
 
 // @objc(FSIShareViewController)
 @available(swift, introduced: 5.0)
-open class FSIShareViewController: SLComposeServiceViewController {
+open class FSIShareViewController: UIViewController {
     // MARK: - Config
     private(set) var hostAppBundleIdentifier: String = ""
     private(set) var appGroupId: String = ""
-    
+
     // Results
     private var sharedMedia: [SharingFile] = []
-    
+
     // Debug
     private let debugLogs = false
-    
+
+    // Spinner, shown only if the attachments take long enough to load that the
+    // otherwise empty screen would look like a hang.
+    private let spinnerDelay: TimeInterval = 0.35
+    private var spinnerContainer: UIVisualEffectView?
+    private var spinnerWorkItem: DispatchWorkItem?
+
     // MARK: - Lifecycle
     open override func viewDidLoad() {
         super.viewDidLoad()
+        view.backgroundColor = .clear
         loadIds()
-    }
-    
-    open override func isContentValid() -> Bool {
-        return true
-    }
-    
-    open override func didSelectPost() {
-        if self.sharedMedia.isEmpty {
-            if let text = self.contentText, !text.isEmpty {
-                self.sharedMedia.append(
-                    SharingFile(value: text, thumbnail: nil, duration: nil, type: .text)
-                )
-                self.saveAndRedirect(message: text)
-                return
-            }
-            self.completeAndExit()
-        } else {
-            self.saveAndRedirect()
-        }
-        // If the UI Post is used, save and redirect using contentText
-//        saveAndRedirect(message: contentText)
-    }
-    
-    open override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        // Process attachments automatically on appear like original FSI
+        setupSpinner()
         processAttachments()
     }
-    
+
+    // MARK: - Spinner
+    private func setupSpinner() {
+        let container = UIVisualEffectView(effect: UIBlurEffect(style: .systemThickMaterial))
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.layer.cornerRadius = 14
+        container.layer.cornerCurve = .continuous
+        container.clipsToBounds = true
+        container.alpha = 0
+
+        let indicator = UIActivityIndicatorView(style: .large)
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        indicator.startAnimating()
+        container.contentView.addSubview(indicator)
+        view.addSubview(container)
+
+        NSLayoutConstraint.activate([
+            container.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            container.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            container.widthAnchor.constraint(equalToConstant: 80),
+            container.heightAnchor.constraint(equalToConstant: 80),
+            indicator.centerXAnchor.constraint(equalTo: container.contentView.centerXAnchor),
+            indicator.centerYAnchor.constraint(equalTo: container.contentView.centerYAnchor),
+        ])
+        spinnerContainer = container
+
+        let work = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            UIView.animate(withDuration: 0.2) { self.spinnerContainer?.alpha = 1 }
+        }
+        spinnerWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + spinnerDelay, execute: work)
+    }
+
+    private func hideSpinner() {
+        spinnerWorkItem?.cancel()
+        spinnerWorkItem = nil
+        spinnerContainer?.alpha = 0
+    }
+
     // MARK: - Load Ids
     private func loadIds() {
         let shareExtId = Bundle.main.bundleIdentifier ?? ""
@@ -323,6 +343,7 @@ open class FSIShareViewController: SLComposeServiceViewController {
     private func redirectToHostApp() {
         // kept for compatibility (RSI style)
         loadIds()
+        hideSpinner()
         //        let raw = "\(kSchemePrefix)-\(hostAppBundleIdentifier):share"
         let raw = "\(kSchemePrefix)-\(hostAppBundleIdentifier)://dataUrl=\(kUserDefaultsKey)"
         guard let url = URL(string: raw.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? raw) else { completeAndExit(); return }
@@ -430,15 +451,22 @@ open class FSIShareViewController: SLComposeServiceViewController {
     }
     
     private func completeAndExit() {
+        hideSpinner()
         extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
     }
-    
+
+    // Reached from the attachment loading callbacks, which run on arbitrary
+    // queues, so hop to main before touching the view hierarchy.
     private func dismissWithError() {
         log("[ERROR] Error loading data!")
-        let alert = UIAlertController(title: "Error", message: "Error loading data", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .cancel) { _ in self.dismiss(animated: true, completion: nil) })
-        present(alert, animated: true, completion: nil)
-        extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.hideSpinner()
+            let alert = UIAlertController(title: "Error", message: "Error loading data", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .cancel) { _ in self.dismiss(animated: true, completion: nil) })
+            self.present(alert, animated: true, completion: nil)
+            self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
+        }
     }
     
     private func writeTempFile(_ image: UIImage, to dstURL: URL) -> Bool {
