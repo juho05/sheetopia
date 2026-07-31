@@ -82,20 +82,29 @@ class _AppState extends State<App> {
   Future<void> _onFilesReceived(Iterable<SharedFile> files) async {
     files = files.where((f) => f.value != null);
     if (files.isEmpty) {
+      shareImport.value = const ShareImport.empty();
       return;
     }
     shareImport.value = const ShareImport.importing();
     final repo = context.read<ScoresRepository>();
-    final scores = await repo.importAll(
-      files.map((f) => XFile(f.value!, mimeType: f.mimeType)),
-    );
-    final first = scores.firstOrNull;
-    if (first == null) {
+    try {
+      final scores = await repo.importAll(
+        files.map((f) => XFile(f.value!, mimeType: f.mimeType)),
+      );
+      final first = scores.firstOrNull;
+      if (first == null) {
+        shareImport.value = const ShareImport.empty();
+        return;
+      }
+      shareImport.value = ShareImport.ready(first.id);
+      goRouter.go("/scores/${first.id}/edit");
+    } on InvalidFileTypeException catch (e, st) {
       shareImport.value = const ShareImport.empty();
-      return;
+      Toast.exception(e, st: st, errorMsg: "Unsupported file type!");
+    } catch (e, st) {
+      shareImport.value = const ShareImport.empty();
+      Toast.exception(e, st: st, errorMsg: "Failed to import scores!");
     }
-    shareImport.value = ShareImport.ready(first.id);
-    goRouter.go("/scores/${first.id}/edit");
   }
 
   @override

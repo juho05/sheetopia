@@ -199,7 +199,7 @@ open class FSIShareViewController: SLComposeServiceViewController {
             let filename = getFileName(from: url, type: .image)
             if let dst = containerURL()?.appendingPathComponent(filename) {
                 if copyFile(at: url, to: dst) {
-                    sharedMedia.append(SharingFile(value: dst.absoluteString, mimeType: url.mimeType(), thumbnail: nil, duration: nil, type: .image))
+                    sharedMedia.append(SharingFile(value: sharedValue(for: dst), mimeType: url.mimeType(), thumbnail: nil, duration: nil, type: .image))
                 }
             }
         } else if let img = data as? UIImage {
@@ -233,7 +233,7 @@ open class FSIShareViewController: SLComposeServiceViewController {
             let filename = getFileName(from: url, type: .file)
             if let dst = containerURL()?.appendingPathComponent(filename) {
                 if copyFile(at: url, to: dst) {
-                    sharedMedia.append(SharingFile(value: dst.absoluteString, mimeType: url.mimeType(), thumbnail: nil, duration: nil, type: .file))
+                    sharedMedia.append(SharingFile(value: sharedValue(for: dst), mimeType: url.mimeType(), thumbnail: nil, duration: nil, type: .file))
                 }
             }
         }
@@ -246,7 +246,7 @@ open class FSIShareViewController: SLComposeServiceViewController {
             if let dst = containerURL()?.appendingPathComponent(filename) {
                 do {
                     try raw.write(to: dst)
-                    sharedMedia.append(SharingFile(value: dst.absoluteString, mimeType: dst.mimeType(), thumbnail: nil, duration: nil, type: .file))
+                    sharedMedia.append(SharingFile(value: sharedValue(for: dst), mimeType: dst.mimeType(), thumbnail: nil, duration: nil, type: .file))
                 } catch {}
             }
         }
@@ -298,8 +298,7 @@ open class FSIShareViewController: SLComposeServiceViewController {
         do {
             if let d = image.pngData() {
                 try d.write(to: dst)
-                let decoded = dst.absoluteString.removingPercentEncoding ?? dst.absoluteString
-                return SharingFile(value: decoded, mimeType: "image/png", thumbnail: nil, duration: nil, type: .image)
+                return SharingFile(value: sharedValue(for: dst), mimeType: "image/png", thumbnail: nil, duration: nil, type: .image)
             }
         } catch {
             log("writeTempImage error: \(error)")
@@ -345,6 +344,19 @@ open class FSIShareViewController: SLComposeServiceViewController {
     }
     
     // MARK: - File / thumbnail / metadata helpers
+
+    // The value we hand to the host app ends up being used as a plain
+    // filesystem path: the plugin only strips the `file://` prefix, it never
+    // percent-decodes. Using `absoluteString` therefore breaks every file whose
+    // name contains a space or another character that gets percent-encoded
+    // (e.g. "Klausur SEW.pdf" arrives as ".../Klausur%20SEW.pdf" and can't be
+    // opened). `path` is already decoded; the prefix is kept so the host app
+    // recognises the value as a file path regardless of where the app group
+    // container resolves to.
+    private func sharedValue(for url: URL) -> String {
+        return "file://" + url.path
+    }
+
     func getExtension(from url: URL, type: SharingFileType) -> String {
         let parts = url.lastPathComponent.components(separatedBy: ".")
         var ex: String? = nil
@@ -384,7 +396,7 @@ open class FSIShareViewController: SLComposeServiceViewController {
         let thumbnailPath = getThumbnailPath(for: forVideo)
         
         if FileManager.default.fileExists(atPath: thumbnailPath.path) {
-            return SharingFile(value: forVideo.absoluteString, mimeType: forVideo.mimeType(), thumbnail: thumbnailPath.absoluteString, duration: Int(duration), type: .video)
+            return SharingFile(value: sharedValue(for: forVideo), mimeType: forVideo.mimeType(), thumbnail: sharedValue(for: thumbnailPath), duration: Int(duration), type: .video)
         }
         
         let gen = AVAssetImageGenerator(asset: asset)
@@ -397,14 +409,14 @@ open class FSIShareViewController: SLComposeServiceViewController {
             let cg = try gen.copyCGImage(at: time, actualTime: nil)
             if let data = UIImage(cgImage: cg).jpegData(compressionQuality: 0.8) {
                 try data.write(to: thumbnailPath)
-                return SharingFile(value: forVideo.absoluteString, mimeType: forVideo.mimeType(), thumbnail: thumbnailPath.absoluteString, duration: Int(duration), type: .video)
+                return SharingFile(value: sharedValue(for: forVideo), mimeType: forVideo.mimeType(), thumbnail: sharedValue(for: thumbnailPath), duration: Int(duration), type: .video)
             }
         } catch {
             log("getSharedMediaFile thumbnail error: \(error)")
         }
         
         // fallback
-        return SharingFile(value: forVideo.absoluteString, mimeType: forVideo.mimeType(), thumbnail: nil, duration: Int(duration), type: .video)
+        return SharingFile(value: sharedValue(for: forVideo), mimeType: forVideo.mimeType(), thumbnail: nil, duration: Int(duration), type: .video)
     }
     
     private func getThumbnailPath(for url: URL) -> URL {
