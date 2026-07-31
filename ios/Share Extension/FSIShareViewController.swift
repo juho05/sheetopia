@@ -13,12 +13,23 @@ public let kUserDefaultsMessageKey = "SharingMessageKey"
 public let kAppGroupIdKey = "AppGroupId"
 public let kAppChannel = "flutter_sharing_intent"
 
+/// Subdirectory of the app group container the attachments are copied into.
+///
+/// Each share gets its own directory below it (`ShareInbox/<uuid>/`), so
+/// original file names survive without two shares of the same name colliding,
+/// and the host app can delete the whole share in one go once it has imported
+/// it. Keep in sync with `lib/data/services/sharing/share_inbox.dart`.
+public let kShareInboxDirectory = "ShareInbox"
+
 // @objc(FSIShareViewController)
 @available(swift, introduced: 5.0)
 open class FSIShareViewController: UIViewController {
     // MARK: - Config
     private(set) var hostAppBundleIdentifier: String = ""
     private(set) var appGroupId: String = ""
+
+    // Identifies this share's directory inside the inbox.
+    private let shareId = UUID().uuidString
 
     // Results
     private var sharedMedia: [SharingFile] = []
@@ -37,6 +48,7 @@ open class FSIShareViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .clear
         loadIds()
+        purgeStaleShares()
         setupSpinner()
         processAttachments()
     }
@@ -217,7 +229,7 @@ open class FSIShareViewController: UIViewController {
         // data can be URL, UIImage, or Data
         if let url = data as? URL {
             let filename = getFileName(from: url, type: .image)
-            if let dst = containerURL()?.appendingPathComponent(filename) {
+            if let dst = shareURL()?.appendingPathComponent(filename) {
                 if copyFile(at: url, to: dst) {
                     sharedMedia.append(SharingFile(value: sharedValue(for: dst), mimeType: url.mimeType(), thumbnail: nil, duration: nil, type: .image))
                 }
@@ -237,7 +249,7 @@ open class FSIShareViewController: UIViewController {
     private func handleVideoItem(data: NSSecureCoding?, index: Int, total: Int) {
         if let url = data as? URL {
             let filename = getFileName(from: url, type: .video)
-            if let dst = containerURL()?.appendingPathComponent(filename) {
+            if let dst = shareURL()?.appendingPathComponent(filename) {
                 if copyFile(at: url, to: dst) {
                     if let m = getSharedMediaFile(forVideo: dst) {
                         sharedMedia.append(m)
@@ -251,7 +263,7 @@ open class FSIShareViewController: UIViewController {
     private func handleFileItem(data: NSSecureCoding?, provider: NSItemProvider?, index: Int, total: Int) {
         if let url = data as? URL {
             let filename = getFileName(from: url, type: .file)
-            if let dst = containerURL()?.appendingPathComponent(filename) {
+            if let dst = shareURL()?.appendingPathComponent(filename) {
                 if copyFile(at: url, to: dst) {
                     sharedMedia.append(SharingFile(value: sharedValue(for: dst), mimeType: url.mimeType(), thumbnail: nil, duration: nil, type: .file))
                 }
@@ -263,7 +275,7 @@ open class FSIShareViewController: UIViewController {
             // provider's suggested name / registered type. Without this the file is
             // written with no extension and the host app can't detect its type.
             let filename = fallbackFileName(for: provider)
-            if let dst = containerURL()?.appendingPathComponent(filename) {
+            if let dst = shareURL()?.appendingPathComponent(filename) {
                 do {
                     try raw.write(to: dst)
                     sharedMedia.append(SharingFile(value: sharedValue(for: dst), mimeType: dst.mimeType(), thumbnail: nil, duration: nil, type: .file))
@@ -312,9 +324,9 @@ open class FSIShareViewController: UIViewController {
     
     // MARK: - Helpers: write temp image
     private func writeTempImage(_ image: UIImage) -> SharingFile? {
-        guard let container = containerURL() else { return nil }
+        guard let dir = shareURL() else { return nil }
         let tempName = "TempImage_\(UUID().uuidString).png"
-        let dst = container.appendingPathComponent(tempName)
+        let dst = dir.appendingPathComponent(tempName)
         do {
             if let d = image.pngData() {
                 try d.write(to: dst)
@@ -441,13 +453,57 @@ open class FSIShareViewController: UIViewController {
     }
     
     private func getThumbnailPath(for url: URL) -> URL {
-        guard let container = containerURL() else { fatalError("App group not configured or missing") }
+        guard let dir = shareURL() else { fatalError("App group not configured or missing") }
         let fileName = Data(url.lastPathComponent.utf8).base64EncodedString().replacingOccurrences(of: "=", with: "")
-        return container.appendingPathComponent("\(fileName).jpg")
+        return dir.appendingPathComponent("\(fileName).jpg")
     }
-    
+
     private func containerURL() -> URL? {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId)
+    }
+
+    private func inboxURL() -> URL? {
+        containerURL()?.appendingPathComponent(kShareInboxDirectory, isDirectory: true)
+    }
+
+    /// Destination directory for this share's attachments, created on demand.
+    ///
+    /// The inbox is excluded from backups: everything in it is a temporary copy
+    /// that the host app re-saves into its own (backed up) storage, so backing
+    /// the copies up as well would only duplicate the user's library.
+    private func shareURL() -> URL? {
+        guard let inbox = inboxURL() else { return nil }
+        var dir = inbox.appendingPathComponent(shareId, isDirectory: true)
+        if FileManager.default.fileExists(atPath: dir.path) { return dir }
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try dir.setResourceValues(values)
+        } catch {
+            log("shareURL error: \(error)")
+            return FileManager.default.fileExists(atPath: dir.path) ? dir : nil
+        }
+        return dir
+    }
+
+    /// Deletes leftovers from earlier shares.
+    ///
+    /// The host app removes each share directory once it has imported it, so
+    /// anything still here belongs to a share the app never got to process
+    /// (it was killed on the way, or the import failed). Without this the
+    /// copies would stay in the container forever, invisible to the app.
+    private func purgeStaleShares() {
+        guard let inbox = inboxURL(),
+              let entries = try? FileManager.default.contentsOfDirectory(
+                at: inbox, includingPropertiesForKeys: nil) else { return }
+        for entry in entries where entry.lastPathComponent != shareId {
+            do {
+                try FileManager.default.removeItem(at: entry)
+            } catch {
+                log("purgeStaleShares error: \(error)")
+            }
+        }
     }
     
     private func completeAndExit() {

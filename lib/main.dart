@@ -21,6 +21,7 @@ import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/logger/log_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/themeManager/theme_manager.dart';
+import 'package:sheetopia/data/services/sharing/share_inbox.dart';
 import 'package:sheetopia/providers.dart';
 import 'package:sheetopia/routing/router.dart';
 import 'package:sheetopia/ui/common/toast.dart';
@@ -104,6 +105,11 @@ class _AppState extends State<App> {
     } catch (e, st) {
       shareImport.value = const ShareImport.empty();
       Toast.exception(e, st: st, errorMsg: "Failed to import scores!");
+    } finally {
+      // The import copied what it needed into the app's own storage; the
+      // share extension's copies would otherwise stay in the app group
+      // container forever.
+      await cleanUpSharedFiles(files.map((f) => f.value!));
     }
   }
 
