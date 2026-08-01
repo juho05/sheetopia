@@ -56,7 +56,7 @@ Visit [sheetopia-sync](https://github.com/juho05/sheetopia-sync#setup) to instal
 
 ### macOS
 
-1. Download `Sheetopia-x.x.x-linux-x86-64.AppImage` from the *Assets* section of
+1. Download `Sheetopia-x.x.x-macOS-universal.dmg` from the *Assets* section of
    the [latest release](https://github.com/juho05/sheetopia/releases/latest).
 2. Open the downloaded file.
 3. Drag the `Sheetopia` icon to the `Applications` directory.
@@ -87,10 +87,30 @@ Visit [sheetopia-sync](https://github.com/juho05/sheetopia-sync#setup) to instal
 
 ## Screenshots
 
-![](screenshots/library_lightdark.png)
-![](screenshots/score_light.png)
-![](screenshots/edit_dark.png)
-![](screenshots/filter_dark.png)
+<p align="center">
+  <img src="screenshots/library.png" alt="Library"><br>
+  <em>library in light and dark theme</em>
+</p>
+
+<p align="center">
+  <img src="screenshots/filter.png" alt="Filter"><br>
+  <em>filter library by metadata</em>
+</p>
+
+<p align="center">
+  <img src="screenshots/edit_score.png" alt="Edit score"><br>
+  <em>edit metadata</em>
+</p>
+
+<p align="center">
+  <img src="screenshots/annotate.png" alt="Annotations"><br>
+  <em>annotate scores with stylus support</em>
+</p>
+
+<p align="center">
+  <img src="screenshots/play_setlist.png" alt="Setlist play mode"><br>
+  <em>create and play setlists</em>
+</p>
 
 ## License
 
