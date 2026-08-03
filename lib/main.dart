@@ -16,6 +16,7 @@ import 'package:flutter_fullscreen/flutter_fullscreen.dart';
 import 'package:flutter_sharing_intent/flutter_sharing_intent.dart';
 import 'package:flutter_sharing_intent/model/sharing_file.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:predictive_transition/predictive_transition.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/logger/log_repository.dart';
@@ -69,6 +70,19 @@ class App extends StatefulWidget {
 class _AppState extends State<App> {
   late final StreamSubscription _intentDataStreamSubscription;
 
+  static const _pageTransitions = PageTransitionsTheme(
+    builders: <TargetPlatform, PageTransitionsBuilder>{
+      TargetPlatform.android: PredictiveTransitionPageTransitionsBuilder(),
+    },
+  );
+
+  static ThemeData _theme(Brightness brightness) => ThemeData.from(
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.deepPurple,
+      brightness: brightness,
+    ),
+  ).copyWith(pageTransitionsTheme: _pageTransitions);
+
   @override
   void initState() {
     super.initState();
@@ -106,9 +120,6 @@ class _AppState extends State<App> {
       shareImport.value = const ShareImport.empty();
       Toast.exception(e, st: st, errorMsg: "Failed to import scores!");
     } finally {
-      // The import copied what it needed into the app's own storage; the
-      // share extension's copies would otherwise stay in the app group
-      // container forever.
       await cleanUpSharedFiles(files.map((f) => f.value!));
     }
   }
@@ -119,18 +130,8 @@ class _AppState extends State<App> {
       builder: (context, themeManager, _) {
         return MaterialApp.router(
           title: 'Sheetopia',
-          theme: ThemeData.from(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.deepPurple,
-              brightness: Brightness.light,
-            ),
-          ),
-          darkTheme: ThemeData.from(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.deepPurple,
-              brightness: Brightness.dark,
-            ),
-          ),
+          theme: _theme(Brightness.light),
+          darkTheme: _theme(Brightness.dark),
           themeMode: themeManager.themeMode,
           scaffoldMessengerKey: Toast.messengerKey,
           debugShowCheckedModeBanner: false,

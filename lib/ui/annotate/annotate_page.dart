@@ -73,11 +73,6 @@ class _AnnotatePageState extends State<AnnotatePage> {
     super.dispose();
   }
 
-  Future<void> _saveAndClose() async {
-    await _viewModel.saveAll();
-    if (mounted) context.pop();
-  }
-
   void _showWidthPreview(Offset globalPosition) {
     final box = _stackKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return;
@@ -103,10 +98,8 @@ class _AnnotatePageState extends State<AnnotatePage> {
     return ChangeNotifierProvider.value(
       value: _viewModel,
       child: PopScope(
-        canPop: false,
-        onPopInvokedWithResult: (didPop, _) async {
-          if (didPop) return;
-          await _saveAndClose();
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) _viewModel.saveAll();
         },
         child: CallbackShortcuts(
           bindings: {
@@ -194,7 +187,7 @@ class _AnnotatePageState extends State<AnnotatePage> {
                           icon: const BackButtonIcon(),
                           iconSize: 20,
                           padding: const EdgeInsets.all(0),
-                          onPressed: _saveAndClose,
+                          onPressed: context.pop,
                         ),
                       ),
                     ),

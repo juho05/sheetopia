@@ -60,6 +60,10 @@ dependencies:
   cross_file: ^0.3.5+2
   perfect_freehand: ^2.5.2+1
   material_symbols_icons: ^4.2951.0
+  predictive_transition:
+    git:
+      url: https://github.com/juho05/flutter_predictive_transition
+      ref: 17f68b501d0ef5338453476599eb2b0c4af1c1f7
 
 dependency_overrides:
   path_provider_linux:
