@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/integrate_appimage.dart';
+import 'package:sheetopia/ui/common/fab_menu.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_menu.dart';
 import 'package:sheetopia/ui/home/home_viewmodel.dart';
@@ -257,26 +258,46 @@ class HomePage extends StatelessWidget {
                                     ),
                                   );
                                 },
-                                child: FloatingActionButton(
-                                  onPressed: importing
-                                      ? null
-                                      : () => library
-                                            ? _importScores(context)
-                                            : _createSetlist(context),
-                                  backgroundColor: importing
-                                      ? disabledColor
-                                      : null,
-                                  tooltip: library
-                                      ? "Import score"
-                                      : "New setlist",
-                                  child: importing
-                                      ? const Padding(
+                                child: importing
+                                    ? FloatingActionButton(
+                                        onPressed: null,
+                                        backgroundColor: disabledColor,
+                                        tooltip: "Import score",
+                                        child: const Padding(
                                           padding: EdgeInsets.all(16),
                                           child:
                                               CircularProgressIndicator.adaptive(),
-                                        )
-                                      : const Icon(Icons.add),
-                                ),
+                                        ),
+                                      )
+                                    : FabMenu(
+                                        tooltip: library
+                                            ? "Add score"
+                                            : "New setlist",
+                                        icon: const Icon(Icons.add),
+                                        items: library
+                                            ? [
+                                                //FabMenuItem(
+                                                //  icon: Icons.document_scanner,
+                                                //  label: "Scan pages",
+                                                //  onPressed: () {
+                                                //    // TODO
+                                                //  },
+                                                //),
+                                                FabMenuItem(
+                                                  icon: Icons.file_open,
+                                                  label: "Import files",
+                                                  onPressed: () =>
+                                                      _importScores(context),
+                                                ),
+                                              ]
+                                            : [
+                                                FabMenuItem(
+                                                  label: "New setlist",
+                                                  onPressed: () =>
+                                                      _createSetlist(context),
+                                                ),
+                                              ],
+                                      ),
                               ),
                             ),
                           );
