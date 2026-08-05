@@ -43,6 +43,8 @@
 	<string>Discover bluetooth MIDI devices.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Discover network MIDI devices.</string>
+	<key>NSCameraUsageDescription</key>
+    <string>Access to the camera is required to scan scores.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>

@@ -7,7 +7,10 @@
  */
 
 import 'dart:collection';
+import 'dart:io';
 
+import 'package:cross_file/cross_file.dart';
+import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
@@ -47,7 +50,8 @@ class HomeViewModel extends ChangeNotifier {
 
   List<String> get selectedScoreIds => UnmodifiableListView(_selectedScoreIds);
 
-  Set<String> get selectedScoreIdSet => UnmodifiableSetView(_selectedScoreIdSet);
+  Set<String> get selectedScoreIdSet =>
+      UnmodifiableSetView(_selectedScoreIdSet);
 
   HomeViewModel({required ScoresRepository scoresRepo})
     : _scoresRepo = scoresRepo;
@@ -85,6 +89,31 @@ class HomeViewModel extends ChangeNotifier {
 
       final scores = await _scoresRepo.importAll(files);
       return scores.first.id;
+    } finally {
+      _importing = false;
+      notifyListeners();
+    }
+  }
+
+  Future<String?> scanScore() async {
+    if (!Platform.isAndroid && !Platform.isIOS) return null;
+    _importing = true;
+    notifyListeners();
+    try {
+      final pdfPath = await CunningDocumentScanner.getPictures(
+        scannerSource: ScannerSource.camera,
+        asPdf: true,
+      );
+      if (pdfPath == null || pdfPath.isEmpty) return null;
+
+      try {
+        final scores = await _scoresRepo.importAll(
+          pdfPath.map((p) => XFile(p, mimeType: "application/pdf")),
+        );
+        return scores.first.id;
+      } finally {
+        await CunningDocumentScanner.cleanCache();
+      }
     } finally {
       _importing = false;
       notifyListeners();

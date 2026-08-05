@@ -64,6 +64,7 @@ dependencies:
     git:
       url: https://github.com/juho05/flutter_predictive_transition
       ref: 17f68b501d0ef5338453476599eb2b0c4af1c1f7
+  cunning_document_scanner: ^2.8.0
 
 dependency_overrides:
   path_provider_linux:

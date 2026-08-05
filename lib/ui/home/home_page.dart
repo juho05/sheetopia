@@ -6,6 +6,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:io';
+
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -51,6 +53,18 @@ class HomePage extends StatelessWidget {
       Toast.exception(e, st: st, errorMsg: "Unsupported file type!");
     } catch (e, st) {
       Toast.exception(e, st: st, errorMsg: "Failed to import scores!");
+    }
+  }
+
+  Future<void> _scanScore(BuildContext context) async {
+    try {
+      final firstScoreId = await context.read<HomeViewModel>().scanScore();
+      if (!context.mounted || firstScoreId == null) {
+        return;
+      }
+      context.go("/scores/$firstScoreId/edit");
+    } catch (e, st) {
+      Toast.exception(e, st: st, errorMsg: "Failed to scan score!");
     }
   }
 
@@ -276,13 +290,14 @@ class HomePage extends StatelessWidget {
                                         icon: const Icon(Icons.add),
                                         items: library
                                             ? [
-                                                //FabMenuItem(
-                                                //  icon: Icons.document_scanner,
-                                                //  label: "Scan pages",
-                                                //  onPressed: () {
-                                                //    // TODO
-                                                //  },
-                                                //),
+                                                if (Platform.isAndroid ||
+                                                    Platform.isIOS)
+                                                  FabMenuItem(
+                                                    icon:
+                                                        Icons.document_scanner,
+                                                    label: "Scan pages",
+                                                    onPressed: () => _scanScore(context),
+                                                  ),
                                                 FabMenuItem(
                                                   icon: Icons.file_open,
                                                   label: "Import files",
