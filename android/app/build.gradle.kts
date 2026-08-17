@@ -14,7 +14,7 @@ if (keystorePropertiesFile.exists()) {
 }
 android {
     namespace = "de.julianh.sheetopia"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -25,7 +25,7 @@ android {
     defaultConfig {
         applicationId = "de.julianh.sheetopia"
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 37
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

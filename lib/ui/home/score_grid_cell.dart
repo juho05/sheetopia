@@ -106,25 +106,7 @@ class ScoreGridCell extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       spacing: 4,
                       children: [
-                        if (Platform.isAndroid && !picking)
-                          Row(
-                            children: [
-                              Expanded(child: title),
-                              SizedBox.square(
-                                dimension: 22,
-                                child: IconButton(
-                                  onPressed: () {
-                                    context.go("/scores/${score.id}/edit");
-                                  },
-                                  padding: const EdgeInsetsGeometry.all(2),
-                                  iconSize: 18,
-                                  icon: const Icon(Icons.edit),
-                                ),
-                              ),
-                            ],
-                          )
-                        else
-                          title,
+                        title,
                         OptionalTooltip(
                           message: score.composer,
                           child: Text(
@@ -185,10 +167,6 @@ class ScoreGridCell extends StatelessWidget {
                       ),
                   ],
                 );
-              }
-              // android really struggles with transparent overlays on images
-              if (Platform.isAndroid) {
-                return widget;
               }
               return Stack(
                 children: [

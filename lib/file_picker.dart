@@ -40,12 +40,12 @@ Future<List<XFile>> selectScoreFiles() async {
     );
     return files;
   }
-  FilePickerResult? result = await FilePicker.pickFiles(
+  List<PlatformFile> result = await FilePicker.pickFiles(
     type: FileType.custom,
     allowedExtensions: ScoresRepository.scoreFileTypeGroup
         .map((e) => e.extensions)
         .expand<String>((e) => e ?? [])
         .toList(),
   );
-  return result?.xFiles ?? [];
+  return result.map((f) => f.xFile).toList();
 }

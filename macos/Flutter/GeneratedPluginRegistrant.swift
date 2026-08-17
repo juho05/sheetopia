@@ -7,7 +7,7 @@ import Foundation
 
 import desktop_drop
 import device_info_plus
-import file_picker
+import file_picker_darwin
 import file_selector_macos
 import flutter_midi_command
 import open_file_mac
