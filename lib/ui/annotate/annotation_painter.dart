@@ -56,16 +56,107 @@ Path _buildStrokePath(Stroke stroke, Size size) {
   return path;
 }
 
+const double _dash = 10;
+const double _gap = 6;
+const double _period = _dash + _gap;
+const Color _marqueeColor = Color(0xFF1976D2);
+
+Paint _marqueePaint() => Paint()
+  ..color = _marqueeColor
+  ..strokeWidth = 2.5
+  ..style = PaintingStyle.stroke
+  ..isAntiAlias = true;
+
+// A dashed polyline baked into one Path, in on-screen pixels. Kept across
+// frames: a lasso being drawn only pays for the segments it just grew by, and
+// a selection being dragged pays nothing at all, since the marquee moves with
+// the layer instead of being re-emitted.
+class _DashedPath {
+  final Size size;
+  final Path path = Path();
+
+  // Points already walked, the running arc-length phase so dashes carry over
+  // corners, and the pen position the next segment starts from.
+  int _walked = 0;
+  double _phase = 0;
+  double _x = 0;
+  double _y = 0;
+  bool _done = false;
+
+  _DashedPath(this.size);
+
+  void extend(List<double> points, {required bool close}) {
+    if (_done) return;
+    final n = points.length ~/ 2;
+    if (n < 2) return;
+    if (_walked == 0) {
+      _x = points[0] * size.width;
+      _y = points[1] * size.height;
+      _walked = 1;
+    }
+    for (var i = _walked; i < n; i++) {
+      _lineTo(points[i * 2] * size.width, points[i * 2 + 1] * size.height);
+    }
+    _walked = n;
+    if (close) {
+      _lineTo(points[0] * size.width, points[1] * size.height);
+      _done = true;
+    }
+  }
+
+  void _lineTo(double bx, double by) {
+    final dx = bx - _x;
+    final dy = by - _y;
+    final length = sqrt(dx * dx + dy * dy);
+    if (length <= 0) return;
+    final ux = dx / length;
+    final uy = dy / length;
+    var t = 0.0;
+    while (t < length) {
+      final span = _phase < _dash
+          ? min(_dash - _phase, length - t)
+          : min(_period - _phase, length - t);
+      if (_phase < _dash) {
+        path
+          ..moveTo(_x + ux * t, _y + uy * t)
+          ..lineTo(_x + ux * (t + span), _y + uy * (t + span));
+      }
+      t += span;
+      _phase = (_phase + span) % _period;
+    }
+    _x = bx;
+    _y = by;
+  }
+}
+
+final _dashCache = Expando<_DashedPath>('annotationDashedPolyline');
+
+// points must not be mutated except by appending, which is what both callers
+// do: a selection polygon is final, an in-progress lasso only grows.
+Path _dashedPath(List<double> points, Size size, {required bool close}) {
+  var cached = _dashCache[points];
+  if (cached == null || cached.size != size) {
+    cached = _DashedPath(size);
+    _dashCache[points] = cached;
+  }
+  cached.extend(points, close: close);
+  return cached.path;
+}
+
 // Paints the committed strokes plus the eraser cursor. Repaints only when a
 // stroke is committed/erased or the eraser cursor moves, not per live pen
 // sample, so completed strokes are not re-tessellated while drawing.
 class AnnotationPainter extends CustomPainter {
   final List<Stroke> strokes;
+
+  // Selected strokes, drawn by SelectionPainter on its own draggable layer.
+  final Set<Stroke>? hidden;
   final StrokePoint? eraserCursor;
   final double eraserWidth;
 
   AnnotationPainter({
     required this.strokes,
+    this.hidden,
     this.eraserCursor,
     this.eraserWidth = 0,
   });
@@ -77,8 +168,10 @@ class AnnotationPainter extends CustomPainter {
       ..isAntiAlias = true;
     if (size.width > 0 && strokes.isNotEmpty) {
       final clip = canvas.getLocalClipBounds();
+      final hidden = this.hidden;
       for (final stroke in strokes) {
         if (stroke.outline.isEmpty) continue;
+        if (hidden != null && hidden.contains(stroke)) continue;
         final rect = _strokeRect(stroke, size);
         if (rect != null && !rect.overlaps(clip)) continue;
         paint.color = Color(stroke.colorValue);
@@ -115,9 +208,69 @@ class AnnotationPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant AnnotationPainter oldDelegate) {
     return oldDelegate.strokes != strokes ||
+        !identical(oldDelegate.hidden, hidden) ||
         oldDelegate.eraserCursor != eraserCursor ||
         oldDelegate.eraserWidth != eraserWidth;
   }
+}
+
+// Paints the selected strokes and the dotted marquee around them, both at rest:
+// the drag offset is applied by a Transform above this painter's
+// RepaintBoundary, so dragging recomposites a cached layer and never repaints.
+//
+// The page overlay is laid out in on-screen pixels (pdfrx bakes the zoom into
+// the overlay rect), so the dashes are sized in plain logical pixels and stay
+// constant as the user zooms, like the rest of the UI chrome.
+class SelectionPainter extends CustomPainter {
+  final List<Stroke> strokes;
+  final List<double> polygon;
+
+  const SelectionPainter({required this.strokes, required this.polygon});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0) return;
+    final paint = Paint()
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+    for (final stroke in strokes) {
+      if (stroke.outline.isEmpty) continue;
+      paint.color = Color(stroke.colorValue);
+      canvas.drawPath(_strokePath(stroke, size), paint);
+    }
+    canvas.drawPath(
+      _dashedPath(polygon, size, close: true),
+      _marqueePaint(),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant SelectionPainter oldDelegate) =>
+      !identical(oldDelegate.strokes, strokes) ||
+      !identical(oldDelegate.polygon, polygon);
+}
+
+// Paints the open marquee of the lasso being drawn, on its own repaint channel
+// so pen samples do not dirty it.
+class LassoPainter extends CustomPainter {
+  final AnnotateViewModel viewModel;
+  final int pageIndex;
+
+  LassoPainter({required this.viewModel, required this.pageIndex})
+    : super(repaint: viewModel.lassoRepaintFor(pageIndex));
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final points = viewModel.lassoPointsFor(pageIndex);
+    if (points == null || size.width <= 0) return;
+    canvas.drawPath(
+      _dashedPath(points, size, close: false),
+      _marqueePaint(),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant LassoPainter oldDelegate) => true;
 }
 
 // Paints only the in-progress pen stroke, on its own repaint boundary. Drawn as

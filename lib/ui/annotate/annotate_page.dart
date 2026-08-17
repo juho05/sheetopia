@@ -51,7 +51,21 @@ class _AnnotatePageState extends State<AnnotatePage> {
       repo: context.read(),
       scoreId: widget.scoreId,
     );
+    // The layout is authoritative for every page, laid out or not, unlike the
+    // aspect the surfaces report.
+    _viewModel.pageAspect = (index) {
+      if (!_controller.isReady) return null;
+      final pages = _controller.layout.pageLayouts;
+      if (index < 0 || index >= pages.length) return null;
+      final rect = pages[index];
+      return rect.width <= 0 ? null : rect.height / rect.width;
+    };
     _loadFile();
+  }
+
+  void _paste() {
+    final page = _controller.isReady ? _controller.pageNumber : null;
+    if (page != null) _viewModel.pasteInto(page - 1);
   }
 
   Future<void> _loadFile() async {
@@ -119,6 +133,8 @@ class _AnnotatePageState extends State<AnnotatePage> {
               meta: isApple,
               shift: true,
             ): _viewModel.redo,
+            const SingleActivator(LogicalKeyboardKey.escape):
+                _viewModel.clearSelection,
           },
           child: Focus(
             autofocus: true,
@@ -170,6 +186,7 @@ class _AnnotatePageState extends State<AnnotatePage> {
                           viewModel: _viewModel,
                           onWidthPreview: _showWidthPreview,
                           onWidthPreviewEnd: _hideWidthPreview,
+                          onPaste: _paste,
                         ),
                       ),
                     ),
@@ -575,11 +592,13 @@ class _Toolbar extends StatelessWidget {
   final AnnotateViewModel viewModel;
   final void Function(Offset globalPosition) onWidthPreview;
   final VoidCallback onWidthPreviewEnd;
+  final VoidCallback onPaste;
 
   const _Toolbar({
     required this.viewModel,
     required this.onWidthPreview,
     required this.onWidthPreviewEnd,
+    required this.onPaste,
   });
 
   Future<void> _clear(BuildContext context) async {
@@ -612,95 +631,30 @@ class _Toolbar extends StatelessWidget {
                 crossAxisAlignment: WrapCrossAlignment.center,
                 runSpacing: 4,
                 children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        tooltip: viewModel.drawMode ? "Draw" : "Move",
-                        isSelected: viewModel.drawMode,
-                        onPressed: viewModel.toggleDrawMode,
-                        icon: Icon(
-                          viewModel.drawMode ? Symbols.stylus : Icons.back_hand,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      for (final color in AnnotateViewModel.palette)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 3),
-                          child: GestureDetector(
-                            onTap: () => viewModel.setColor(color),
-                            child: Container(
-                              width: 26,
-                              height: 26,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Color.alphaBlend(
-                                  Color(color),
-                                  Colors.white,
-                                ),
-                                border: Border.all(
-                                  color:
-                                      !viewModel.eraser &&
-                                          viewModel.colorValue == color
-                                      ? theme.colorScheme.primary
-                                      : theme.colorScheme.outline,
-                                  width:
-                                      !viewModel.eraser &&
-                                          viewModel.colorValue == color
-                                      ? 3
-                                      : 1,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 3),
-                        child: GestureDetector(
-                          onTap: viewModel.setEraser,
-                          child: Container(
-                            width: 26,
-                            height: 26,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: viewModel.eraser
-                                  ? Border.all(
-                                      color: theme.colorScheme.primary,
-                                      width: 3,
-                                    )
-                                  : null,
-                            ),
-                            child: const Icon(Symbols.ink_eraser, size: 20),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(
-                    width: 110,
-                    height: 40,
-                    child: Listener(
-                      onPointerDown: (e) => onWidthPreview(e.position),
-                      onPointerMove: (e) => onWidthPreview(e.position),
-                      onPointerUp: (_) => onWidthPreviewEnd(),
-                      onPointerCancel: (_) => onWidthPreviewEnd(),
-                      child: SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          thumbShape: const RoundSliderThumbShape(
-                            enabledThumbRadius: 8,
-                          ),
-                          overlayShape: const RoundSliderOverlayShape(
-                            overlayRadius: 12,
-                          ),
-                          trackHeight: 4,
-                        ),
-                        child: Slider(
-                          value: viewModel.widthFraction,
-                          onChanged: viewModel.setWidthFraction,
-                        ),
-                      ),
+                  IconButton(
+                    tooltip: !viewModel.drawMode
+                        ? "Move"
+                        : viewModel.lasso
+                        ? "Select"
+                        : "Draw",
+                    isSelected: viewModel.drawMode,
+                    onPressed: viewModel.toggleDrawMode,
+                    icon: Icon(
+                      !viewModel.drawMode
+                          ? Icons.back_hand
+                          : viewModel.lasso
+                          ? Symbols.lasso_select
+                          : Symbols.stylus,
                     ),
                   ),
+                  if (viewModel.lasso)
+                    _LassoTools(viewModel: viewModel, onPaste: onPaste)
+                  else
+                    _PenTools(
+                      viewModel: viewModel,
+                      onWidthPreview: onWidthPreview,
+                      onWidthPreviewEnd: onWidthPreviewEnd,
+                    ),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -714,13 +668,21 @@ class _Toolbar extends StatelessWidget {
                         icon: const Icon(Icons.redo),
                         onPressed: viewModel.canRedo ? viewModel.redo : null,
                       ),
-                      IconButton(
-                        tooltip: "Clear all",
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: viewModel.hasAnnotations
-                            ? () => _clear(context)
-                            : null,
-                      ),
+                      if (viewModel.lasso)
+                        IconButton(
+                          tooltip: "Done",
+                          icon: const Icon(Icons.check),
+                          onPressed: () =>
+                              viewModel.setColor(viewModel.colorValue),
+                        )
+                      else
+                        IconButton(
+                          tooltip: "Clear all",
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: viewModel.hasAnnotations
+                              ? () => _clear(context)
+                              : null,
+                        ),
                     ],
                   ),
                 ],
@@ -729,6 +691,146 @@ class _Toolbar extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _PenTools extends StatelessWidget {
+  final AnnotateViewModel viewModel;
+  final void Function(Offset globalPosition) onWidthPreview;
+  final VoidCallback onWidthPreviewEnd;
+
+  const _PenTools({
+    required this.viewModel,
+    required this.onWidthPreview,
+    required this.onWidthPreviewEnd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      runSpacing: 4,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(width: 4),
+            for (final color in AnnotateViewModel.palette)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: GestureDetector(
+                  onTap: () => viewModel.setColor(color),
+                  child: Container(
+                    width: 26,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color.alphaBlend(Color(color), Colors.white),
+                      border: Border.all(
+                        color:
+                            !viewModel.eraser && viewModel.colorValue == color
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.outline,
+                        width:
+                            !viewModel.eraser && viewModel.colorValue == color
+                            ? 3
+                            : 1,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: GestureDetector(
+                onTap: viewModel.setEraser,
+                child: Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: viewModel.eraser
+                        ? Border.all(color: theme.colorScheme.primary, width: 3)
+                        : null,
+                  ),
+                  child: const Icon(Symbols.ink_eraser, size: 20),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: GestureDetector(
+                onTap: viewModel.setLasso,
+                child: const SizedBox.square(
+                  dimension: 26,
+                  child: Icon(Symbols.lasso_select, size: 20),
+                ),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(
+          width: 110,
+          height: 40,
+          child: Listener(
+            onPointerDown: (e) => onWidthPreview(e.position),
+            onPointerMove: (e) => onWidthPreview(e.position),
+            onPointerUp: (_) => onWidthPreviewEnd(),
+            onPointerCancel: (_) => onWidthPreviewEnd(),
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                trackHeight: 4,
+              ),
+              child: Slider(
+                value: viewModel.widthFraction,
+                onChanged: viewModel.setWidthFraction,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LassoTools extends StatelessWidget {
+  final AnnotateViewModel viewModel;
+  final VoidCallback onPaste;
+
+  const _LassoTools({required this.viewModel, required this.onPaste});
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = viewModel.hasSelection;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: "Delete",
+          icon: const Icon(Icons.delete),
+          onPressed: selected ? viewModel.deleteSelection : null,
+        ),
+        IconButton(
+          tooltip: "Cut",
+          icon: const Icon(Icons.content_cut),
+          onPressed: selected ? viewModel.cutSelection : null,
+        ),
+        IconButton(
+          tooltip: "Copy",
+          icon: const Icon(Icons.content_copy),
+          onPressed: selected ? viewModel.copySelection : null,
+        ),
+        IconButton(
+          tooltip: "Paste",
+          icon: const Icon(Icons.content_paste),
+          onPressed: viewModel.canPaste ? onPaste : null,
+        ),
+      ],
     );
   }
 }

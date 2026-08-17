@@ -73,6 +73,30 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
     widget.viewModel.endStroke();
   }
 
+  // The inner RepaintBoundary is what makes a drag cheap: the Transform above
+  // it only swaps a layer matrix, so the selected strokes and their marquee are
+  // rasterized once and recomposited from then on.
+  Widget _buildSelection() {
+    final selection = widget.viewModel.selectionFor(widget.pageIndex);
+    if (selection == null) return const SizedBox.expand();
+    return ValueListenableBuilder<Offset>(
+      valueListenable: widget.viewModel.dragOffset,
+      builder: (context, offset, child) => Transform.translate(
+        offset: Offset(offset.dx * _size.width, offset.dy * _size.height),
+        child: child,
+      ),
+      child: RepaintBoundary(
+        child: CustomPaint(
+          size: Size.infinite,
+          painter: SelectionPainter(
+            strokes: selection.strokes,
+            polygon: selection.polygon,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -107,6 +131,9 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
                       size: Size.infinite,
                       painter: AnnotationPainter(
                         strokes: widget.viewModel.strokesFor(widget.pageIndex),
+                        hidden: widget.viewModel.selectionStrokesFor(
+                          widget.pageIndex,
+                        ),
                         eraserCursor: eraserCursor,
                         // Only track width while it is actually drawn, so the
                         // width slider does not repaint every committed stroke.
@@ -116,6 +143,25 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
                       ),
                     );
                   },
+                ),
+              ),
+              // The marquee can reach past the strokes it encloses, so a drag
+              // that keeps them on the page can still push it off one.
+              ClipRect(
+                child: RepaintBoundary(
+                  child: ListenableBuilder(
+                    listenable: widget.viewModel,
+                    builder: (context, _) => _buildSelection(),
+                  ),
+                ),
+              ),
+              RepaintBoundary(
+                child: CustomPaint(
+                  size: Size.infinite,
+                  painter: LassoPainter(
+                    viewModel: widget.viewModel,
+                    pageIndex: widget.pageIndex,
+                  ),
                 ),
               ),
               RepaintBoundary(
