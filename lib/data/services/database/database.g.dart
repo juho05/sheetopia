@@ -38,6 +38,26 @@ class $ScoresTableTable extends ScoresTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sourceLinkMeta = const VerificationMeta(
+    'sourceLink',
+  );
+  @override
+  late final GeneratedColumn<String> sourceLink = GeneratedColumn<String>(
+    'source_link',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
@@ -193,6 +213,8 @@ class $ScoresTableTable extends ScoresTable
     id,
     title,
     composer,
+    source,
+    sourceLink,
     notes,
     searchText,
     recentTime,
@@ -235,6 +257,18 @@ class $ScoresTableTable extends ScoresTable
       context.handle(
         _composerMeta,
         composer.isAcceptableOrUnknown(data['composer']!, _composerMeta),
+      );
+    }
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    }
+    if (data.containsKey('source_link')) {
+      context.handle(
+        _sourceLinkMeta,
+        sourceLink.isAcceptableOrUnknown(data['source_link']!, _sourceLinkMeta),
       );
     }
     if (data.containsKey('notes')) {
@@ -346,6 +380,14 @@ class $ScoresTableTable extends ScoresTable
         DriftSqlType.string,
         data['${effectivePrefix}composer'],
       ),
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      ),
+      sourceLink: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_link'],
+      ),
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
@@ -412,6 +454,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
   final String id;
   final String title;
   final String? composer;
+  final String? source;
+  final String? sourceLink;
   final String? notes;
   final String searchText;
   final DateTime recentTime;
@@ -428,6 +472,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     required this.id,
     required this.title,
     this.composer,
+    this.source,
+    this.sourceLink,
     this.notes,
     required this.searchText,
     required this.recentTime,
@@ -448,6 +494,12 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     map['title'] = Variable<String>(title);
     if (!nullToAbsent || composer != null) {
       map['composer'] = Variable<String>(composer);
+    }
+    if (!nullToAbsent || source != null) {
+      map['source'] = Variable<String>(source);
+    }
+    if (!nullToAbsent || sourceLink != null) {
+      map['source_link'] = Variable<String>(sourceLink);
     }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
@@ -480,6 +532,12 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       composer: composer == null && nullToAbsent
           ? const Value.absent()
           : Value(composer),
+      source: source == null && nullToAbsent
+          ? const Value.absent()
+          : Value(source),
+      sourceLink: sourceLink == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceLink),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
@@ -509,6 +567,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       id: serializer.fromJson<String>(json['id']),
       title: serializer.fromJson<String>(json['title']),
       composer: serializer.fromJson<String?>(json['composer']),
+      source: serializer.fromJson<String?>(json['source']),
+      sourceLink: serializer.fromJson<String?>(json['sourceLink']),
       notes: serializer.fromJson<String?>(json['notes']),
       searchText: serializer.fromJson<String>(json['searchText']),
       recentTime: serializer.fromJson<DateTime>(json['recentTime']),
@@ -534,6 +594,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       'id': serializer.toJson<String>(id),
       'title': serializer.toJson<String>(title),
       'composer': serializer.toJson<String?>(composer),
+      'source': serializer.toJson<String?>(source),
+      'sourceLink': serializer.toJson<String?>(sourceLink),
       'notes': serializer.toJson<String?>(notes),
       'searchText': serializer.toJson<String>(searchText),
       'recentTime': serializer.toJson<DateTime>(recentTime),
@@ -555,6 +617,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     String? id,
     String? title,
     Value<String?> composer = const Value.absent(),
+    Value<String?> source = const Value.absent(),
+    Value<String?> sourceLink = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     String? searchText,
     DateTime? recentTime,
@@ -571,6 +635,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     id: id ?? this.id,
     title: title ?? this.title,
     composer: composer.present ? composer.value : this.composer,
+    source: source.present ? source.value : this.source,
+    sourceLink: sourceLink.present ? sourceLink.value : this.sourceLink,
     notes: notes.present ? notes.value : this.notes,
     searchText: searchText ?? this.searchText,
     recentTime: recentTime ?? this.recentTime,
@@ -590,6 +656,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('composer: $composer, ')
+          ..write('source: $source, ')
+          ..write('sourceLink: $sourceLink, ')
           ..write('notes: $notes, ')
           ..write('searchText: $searchText, ')
           ..write('recentTime: $recentTime, ')
@@ -611,6 +679,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     id,
     title,
     composer,
+    source,
+    sourceLink,
     notes,
     searchText,
     recentTime,
@@ -631,6 +701,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           other.id == this.id &&
           other.title == this.title &&
           other.composer == this.composer &&
+          other.source == this.source &&
+          other.sourceLink == this.sourceLink &&
           other.notes == this.notes &&
           other.searchText == this.searchText &&
           other.recentTime == this.recentTime &&
@@ -649,6 +721,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
   final Value<String> id;
   final Value<String> title;
   final Value<String?> composer;
+  final Value<String?> source;
+  final Value<String?> sourceLink;
   final Value<String?> notes;
   final Value<String> searchText;
   final Value<DateTime> lastOpened;
@@ -665,6 +739,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.id = const Value.absent(),
     this.title = const Value.absent(),
     this.composer = const Value.absent(),
+    this.source = const Value.absent(),
+    this.sourceLink = const Value.absent(),
     this.notes = const Value.absent(),
     this.searchText = const Value.absent(),
     this.lastOpened = const Value.absent(),
@@ -682,6 +758,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     required String id,
     required String title,
     this.composer = const Value.absent(),
+    this.source = const Value.absent(),
+    this.sourceLink = const Value.absent(),
     this.notes = const Value.absent(),
     required String searchText,
     this.lastOpened = const Value.absent(),
@@ -703,6 +781,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Expression<String>? id,
     Expression<String>? title,
     Expression<String>? composer,
+    Expression<String>? source,
+    Expression<String>? sourceLink,
     Expression<String>? notes,
     Expression<String>? searchText,
     Expression<DateTime>? lastOpened,
@@ -720,6 +800,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       if (id != null) 'id': id,
       if (title != null) 'title': title,
       if (composer != null) 'composer': composer,
+      if (source != null) 'source': source,
+      if (sourceLink != null) 'source_link': sourceLink,
       if (notes != null) 'notes': notes,
       if (searchText != null) 'search_text': searchText,
       if (lastOpened != null) 'last_opened': lastOpened,
@@ -739,6 +821,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Value<String>? id,
     Value<String>? title,
     Value<String?>? composer,
+    Value<String?>? source,
+    Value<String?>? sourceLink,
     Value<String?>? notes,
     Value<String>? searchText,
     Value<DateTime>? lastOpened,
@@ -756,6 +840,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       id: id ?? this.id,
       title: title ?? this.title,
       composer: composer ?? this.composer,
+      source: source ?? this.source,
+      sourceLink: sourceLink ?? this.sourceLink,
       notes: notes ?? this.notes,
       searchText: searchText ?? this.searchText,
       lastOpened: lastOpened ?? this.lastOpened,
@@ -782,6 +868,12 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     }
     if (composer.present) {
       map['composer'] = Variable<String>(composer.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (sourceLink.present) {
+      map['source_link'] = Variable<String>(sourceLink.value);
     }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
@@ -830,6 +922,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('composer: $composer, ')
+          ..write('source: $source, ')
+          ..write('sourceLink: $sourceLink, ')
           ..write('notes: $notes, ')
           ..write('searchText: $searchText, ')
           ..write('lastOpened: $lastOpened, ')
@@ -4052,6 +4146,8 @@ typedef $$ScoresTableTableCreateCompanionBuilder =
       required String id,
       required String title,
       Value<String?> composer,
+      Value<String?> source,
+      Value<String?> sourceLink,
       Value<String?> notes,
       required String searchText,
       Value<DateTime> lastOpened,
@@ -4070,6 +4166,8 @@ typedef $$ScoresTableTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> title,
       Value<String?> composer,
+      Value<String?> source,
+      Value<String?> sourceLink,
       Value<String?> notes,
       Value<String> searchText,
       Value<DateTime> lastOpened,
@@ -4166,6 +4264,16 @@ class $$ScoresTableTableFilterComposer
 
   ColumnFilters<String> get composer => $composableBuilder(
     column: $table.composer,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceLink => $composableBuilder(
+    column: $table.sourceLink,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4330,6 +4438,16 @@ class $$ScoresTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceLink => $composableBuilder(
+    column: $table.sourceLink,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnOrderings(column),
@@ -4408,6 +4526,14 @@ class $$ScoresTableTableAnnotationComposer
 
   GeneratedColumn<String> get composer =>
       $composableBuilder(column: $table.composer, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceLink => $composableBuilder(
+    column: $table.sourceLink,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
@@ -4574,6 +4700,8 @@ class $$ScoresTableTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String?> composer = const Value.absent(),
+                Value<String?> source = const Value.absent(),
+                Value<String?> sourceLink = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String> searchText = const Value.absent(),
                 Value<DateTime> lastOpened = const Value.absent(),
@@ -4590,6 +4718,8 @@ class $$ScoresTableTableTableManager
                 id: id,
                 title: title,
                 composer: composer,
+                source: source,
+                sourceLink: sourceLink,
                 notes: notes,
                 searchText: searchText,
                 lastOpened: lastOpened,
@@ -4608,6 +4738,8 @@ class $$ScoresTableTableTableManager
                 required String id,
                 required String title,
                 Value<String?> composer = const Value.absent(),
+                Value<String?> source = const Value.absent(),
+                Value<String?> sourceLink = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 required String searchText,
                 Value<DateTime> lastOpened = const Value.absent(),
@@ -4624,6 +4756,8 @@ class $$ScoresTableTableTableManager
                 id: id,
                 title: title,
                 composer: composer,
+                source: source,
+                sourceLink: sourceLink,
                 notes: notes,
                 searchText: searchText,
                 lastOpened: lastOpened,

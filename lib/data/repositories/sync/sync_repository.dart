@@ -692,6 +692,8 @@ class SyncRepository {
               .toList(),
           metadata: ScoreMetadataModel(
             composer: s.composer ?? "",
+            source: s.source ?? "",
+            sourceLink: s.sourceLink ?? "",
             notes: s.notes ?? "",
             genres: (refs.genresTableRefs.prefetchedData ?? [])
                 .map((g) => g.genre)
@@ -813,6 +815,8 @@ class SyncRepository {
               ]),
               title: s.title,
               composer: _optionalStringValue(s.metadata.composer),
+              source: _optionalStringValue(s.metadata.source),
+              sourceLink: _optionalStringValue(s.metadata.sourceLink),
               notes: _optionalStringValue(s.metadata.notes),
               annotations: _annotationsColumnValue(s.metadata.annotations),
               metadataUploaded: const Value(true),
@@ -844,6 +848,12 @@ class SyncRepository {
                       : const Value.absent(),
                   composer: metadataChanged
                       ? _optionalStringValue(s.metadata.composer)
+                      : const Value.absent(),
+                  source: metadataChanged
+                      ? _optionalStringValue(s.metadata.source)
+                      : const Value.absent(),
+                  sourceLink: metadataChanged
+                      ? _optionalStringValue(s.metadata.sourceLink)
                       : const Value.absent(),
                   notes: metadataChanged
                       ? _optionalStringValue(s.metadata.notes)

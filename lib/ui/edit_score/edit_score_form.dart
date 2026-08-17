@@ -7,16 +7,21 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 import 'package:reactive_forms/reactive_forms.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/ui/common/auto_complete_field.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
+import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/tag_badge.dart';
 import 'package:sheetopia/ui/edit_score/add_tags_dialog.dart';
 import 'package:sheetopia/ui/edit_score/auto_complete_input_dialog.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_form_viewmodel.dart';
 import 'package:sheetopia/ui/edit_score/select_tags_list.dart';
+import 'package:sheetopia/ui/edit_score/source_input_dialog.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class EditScoreForm extends StatefulWidget {
   const EditScoreForm({super.key});
@@ -92,6 +97,11 @@ class _EditScoreFormState extends State<EditScoreForm> {
                           ),
                     ),
                   ),
+                  const Padding(
+                    padding: EdgeInsets.only(top: 12, bottom: 4),
+                    child: Heading(text: "Source"),
+                  ),
+                  _SourceRow(viewModel: viewModel),
                   const Padding(
                     padding: EdgeInsets.only(top: 12, bottom: 4),
                     child: Heading(text: "Instruments"),
@@ -189,6 +199,73 @@ class _EditScoreFormState extends State<EditScoreForm> {
           },
         );
       },
+    );
+  }
+}
+
+class _SourceRow extends StatelessWidget {
+  final EditScoreFormViewModel viewModel;
+
+  const _SourceRow({required this.viewModel});
+
+  void _openLink(String link) {
+    try {
+      launchUrl(Uri.parse(link), mode: LaunchMode.externalApplication);
+    } on FormatException catch (e, st) {
+      Log.error("failed to open source link", e: e, st: st);
+    }
+  }
+
+  Future<void> _edit(BuildContext context) async {
+    final result = await SourceInputDialog.show(
+      context,
+      title: viewModel.source == null ? "Add source" : "Edit source",
+      submitBtnText: "Save",
+      source: viewModel.source ?? "",
+      sourceLink: viewModel.sourceLink ?? "",
+      getOptions: (filter) => viewModel.getSources(filter: filter),
+    );
+    if (result == null) return;
+    viewModel.setSource(result.source, result.sourceLink);
+  }
+
+  Future<void> _remove(BuildContext context) async {
+    final confirmation = await ConfirmationDialog.showCancel(
+      context,
+      message: "Remove the source from this score?",
+    );
+    if (confirmation != true) return;
+    viewModel.setSource("", "");
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final source = viewModel.source;
+    final link = viewModel.sourceLink;
+
+    final theme = Theme.of(context);
+    return SelectTagsList(
+      tags: [
+        if (source != null)
+          if (link == null)
+            CommonBadge(name: source, onRemove: () => _remove(context))
+          else
+            Tooltip(
+              message: link,
+              child: CommonBadge(
+                name: source,
+                color: theme.colorScheme.primaryContainer,
+                foreground: theme.colorScheme.onPrimaryContainer,
+                tooltip: false,
+                trailingIcon: Symbols.open_in_new,
+                onTap: () => _openLink(link),
+                onRemove: () => _remove(context),
+              ),
+            ),
+      ],
+      addLabel: source == null ? "Set" : "Edit",
+      addIcon: source == null ? Icons.add : Icons.edit,
+      onAdd: () => _edit(context),
     );
   }
 }

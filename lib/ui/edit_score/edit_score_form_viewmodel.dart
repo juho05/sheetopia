@@ -32,6 +32,12 @@ class EditScoreFormViewModel extends ChangeNotifier {
   SplayTreeSet<String> _genres = SplayTreeSet();
   Iterable<String> get genres => _genres;
 
+  String? _source;
+  String? get source => _source;
+
+  String? _sourceLink;
+  String? get sourceLink => _sourceLink;
+
   final FormGroup form;
 
   static const String formTitle = "title";
@@ -89,6 +95,17 @@ class EditScoreFormViewModel extends ChangeNotifier {
     await _repo.removeScoreGenre(score.id, genre);
   }
 
+  Future<void> setSource(String source, String sourceLink) async {
+    _source = source.isNotEmpty ? source : null;
+    _sourceLink = _source != null && sourceLink.isNotEmpty ? sourceLink : null;
+    notifyListeners();
+    await _repo.updateScoreSource(
+      score.id,
+      source: source,
+      sourceLink: sourceLink,
+    );
+  }
+
   Future<void> addTags(Iterable<Tag> tags) async {
     _tags.addAll(tags);
     notifyListeners();
@@ -122,6 +139,15 @@ class EditScoreFormViewModel extends ChangeNotifier {
         .take(10);
   }
 
+  List<String>? _sources;
+  Future<Iterable<String>> getSources({String filter = ""}) async {
+    _sources ??= await _repo.getSources();
+    filter = filter.toLowerCase();
+    return _sources!
+        .where((element) => element.toLowerCase().contains(filter))
+        .take(10);
+  }
+
   Future<void> reloadScore() async {
     await _onValuesChanged(form.value);
     await _loadScore();
@@ -134,6 +160,8 @@ class EditScoreFormViewModel extends ChangeNotifier {
       // tags need to be updated because they might have been edited outside of
       // this view model, e.g. in the edit tags dialog
       _tags = SplayTreeSet.of(score.tags, (a, b) => a.name.compareTo(b.name));
+      _source = _score.source;
+      _sourceLink = _score.sourceLink;
       notifyListeners();
       return;
     }
@@ -143,7 +171,10 @@ class EditScoreFormViewModel extends ChangeNotifier {
 
   Future<void> _loadScore() async {
     _composers = null;
+    _sources = null;
     _score = _editScoreViewModel.score!;
+    _source = _score.source;
+    _sourceLink = _score.sourceLink;
     form.updateValue({
       formTitle: _score.title,
       formComposer: _score.composer ?? "",

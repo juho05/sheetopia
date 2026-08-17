@@ -10,6 +10,8 @@ ScoreMetadataModel _$ScoreMetadataModelFromJson(Map<String, dynamic> json) =>
     $checkedCreate('ScoreMetadataModel', json, ($checkedConvert) {
       final val = ScoreMetadataModel(
         composer: $checkedConvert('composer', (v) => v as String?),
+        source: $checkedConvert('source', (v) => v as String?),
+        sourceLink: $checkedConvert('sourceLink', (v) => v as String?),
         notes: $checkedConvert('notes', (v) => v as String?),
         instruments: $checkedConvert(
           'instruments',
@@ -30,6 +32,8 @@ ScoreMetadataModel _$ScoreMetadataModelFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$ScoreMetadataModelToJson(ScoreMetadataModel instance) =>
     <String, dynamic>{
       'composer': instance.composer,
+      'source': instance.source,
+      'sourceLink': instance.sourceLink,
       'notes': instance.notes,
       'instruments': instance.instruments,
       'genres': instance.genres,

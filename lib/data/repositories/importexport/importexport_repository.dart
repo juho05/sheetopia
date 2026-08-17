@@ -193,6 +193,8 @@ class ImportExportRepository extends ChangeNotifier {
                       fileUpdatedAt: s.fileUpdatedAt,
                       metadata: ScoreMetadataModel(
                         composer: s.composer,
+                        source: s.source,
+                        sourceLink: s.sourceLink,
                         genres: s.genres,
                         instruments: s.instruments,
                         notes: s.notes,
@@ -456,6 +458,8 @@ class ImportExportRepository extends ChangeNotifier {
               ]),
               title: s.title,
               composer: _optionalStringValue(s.metadata.composer),
+              source: _optionalStringValue(s.metadata.source),
+              sourceLink: _optionalStringValue(s.metadata.sourceLink),
               notes: _optionalStringValue(s.metadata.notes),
               annotations: _annotationsColumnValue(s.metadata.annotations),
               metadataUploaded: const Value(false),
@@ -489,6 +493,12 @@ class ImportExportRepository extends ChangeNotifier {
                   writtenAt: Value(importedAt),
                   composer: metadataChanged
                       ? _optionalStringValue(s.metadata.composer)
+                      : const Value.absent(),
+                  source: metadataChanged
+                      ? _optionalStringValue(s.metadata.source)
+                      : const Value.absent(),
+                  sourceLink: metadataChanged
+                      ? _optionalStringValue(s.metadata.sourceLink)
                       : const Value.absent(),
                   notes: metadataChanged
                       ? _optionalStringValue(s.metadata.notes)

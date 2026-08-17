@@ -110,6 +110,8 @@ class ScoresRepository {
       id: score.id,
       title: score.title,
       composer: score.composer,
+      source: score.source,
+      sourceLink: score.sourceLink,
       notes: score.notes,
       annotations: score.annotations,
       genres:
@@ -237,6 +239,7 @@ class ScoresRepository {
     JoinedSelectStatement q,
     Iterable<String> searchFields,
     String composer,
+    String source,
   ) {
     for (final s in searchFields) {
       q.where(_db.scoresTable.searchText.contains(s));
@@ -244,11 +247,15 @@ class ScoresRepository {
     if (composer.isNotEmpty) {
       q.where(_db.scoresTable.composer.equals(composer));
     }
+    if (source.isNotEmpty) {
+      q.where(_db.scoresTable.source.equals(source));
+    }
   }
 
   Future<int> countScores({
     String filter = "",
     String composer = "",
+    String source = "",
     Iterable<String> instruments = const [],
     Iterable<String> genres = const [],
     Iterable<String> tagIds = const [],
@@ -271,7 +278,7 @@ class ScoresRepository {
           ),
         );
     q.addColumns([countExpr]);
-    _applyScoreFilters(q, searchFields, composer);
+    _applyScoreFilters(q, searchFields, composer, source);
     final row = await q.getSingle();
     return row.read(countExpr) ?? 0;
   }
@@ -281,6 +288,7 @@ class ScoresRepository {
     int offset = 0,
     String filter = "",
     String composer = "",
+    String source = "",
     Iterable<String> instruments = const [],
     Iterable<String> genres = const [],
     Iterable<String> tagIds = const [],
@@ -302,7 +310,7 @@ class ScoresRepository {
             tagMatch: tagMatch,
           ),
         );
-    _applyScoreFilters(q, searchFields, composer);
+    _applyScoreFilters(q, searchFields, composer, source);
     q.orderBy([
       ...searchFields
           .take(3)
@@ -334,6 +342,8 @@ class ScoresRepository {
           id: s.id,
           title: s.title,
           composer: s.composer,
+          source: s.source,
+          sourceLink: s.sourceLink,
           notes: s.notes,
           annotations: s.annotations,
           genres: scoreGenres[s.id] ?? const [],
@@ -446,6 +456,47 @@ class ScoresRepository {
           ),
         );
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
+  }
+
+  Future<void> updateScoreSource(
+    String scoreId, {
+    required String source,
+    required String sourceLink,
+  }) async {
+    await _db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .update(
+          (o) => o(
+            source: source.isNotEmpty ? Value(source) : const Value(null),
+            sourceLink: source.isNotEmpty && sourceLink.isNotEmpty
+                ? Value(sourceLink)
+                : const Value(null),
+            metadataUpdatedAt: Value(DateTime.now().toUtc()),
+            metadataUploaded: const Value(false),
+          ),
+        );
+    _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
+  }
+
+  Future<void> bulkEditScoreSource(
+    Iterable<String> scoreIds,
+    String source,
+    String sourceLink,
+  ) async {
+    if (scoreIds.isEmpty) return;
+    await _db.managers.scoresTable
+        .filter((f) => f.id.isIn(scoreIds))
+        .update(
+          (o) => o(
+            source: source.isNotEmpty ? Value(source) : const Value(null),
+            sourceLink: source.isNotEmpty && sourceLink.isNotEmpty
+                ? Value(sourceLink)
+                : const Value(null),
+            metadataUpdatedAt: Value(DateTime.now().toUtc()),
+            metadataUploaded: const Value(false),
+          ),
+        );
+    _updatedScoreIds.add((changed: scoreIds.toSet(), remoteTriggered: false));
   }
 
   Future<void> bulkEditScoreComposer(
@@ -862,6 +913,8 @@ class ScoresRepository {
             id: id,
             title: title,
             composer: null,
+            source: null,
+            sourceLink: null,
             notes: null,
             annotations: null,
             genres: const [],
@@ -1004,6 +1057,28 @@ class ScoresRepository {
       query.limit(size, offset: offset);
     }
     return await query.map((r) => r.read(_db.scoresTable.composer)!).get();
+  }
+
+  Future<List<String>> getSources({
+    String filter = "",
+    int? size,
+    int offset = 0,
+  }) async {
+    final query = _db.selectOnly(_db.scoresTable, distinct: true)
+      ..addColumns([_db.scoresTable.source]);
+    if (filter.isEmpty) {
+      query.where(_db.scoresTable.source.isNotNull());
+    } else {
+      query.where(
+        _db.scoresTable.source.isNotNull() &
+            _db.scoresTable.source.contains(filter),
+      );
+    }
+    query.orderBy([OrderingTerm.asc(_db.scoresTable.source.lower())]);
+    if (size != null) {
+      query.limit(size, offset: offset);
+    }
+    return await query.map((r) => r.read(_db.scoresTable.source)!).get();
   }
 
   void clearFreshImports() {

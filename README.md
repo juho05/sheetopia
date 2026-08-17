@@ -22,6 +22,7 @@ iOS/iPadOS builds will soon be available via TestFlight.
     - Instruments
     - Genres
     - Tags
+    - Source
     - Notes
 - [x] Search/filter your sheet music
 - [x] Full screen reading/play mode

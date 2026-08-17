@@ -6,15 +6,22 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
-import 'package:sheetopia/ui/common/optional_tooltip.dart';
+import 'package:sheetopia/ui/common/dashed_badge.dart';
 
 class SelectTagsList extends StatelessWidget {
   final Iterable<Widget> tags;
   final void Function() onAdd;
+  final String addLabel;
+  final IconData addIcon;
 
-  const SelectTagsList({super.key, required this.tags, required this.onAdd});
+  const SelectTagsList({
+    super.key,
+    required this.tags,
+    required this.onAdd,
+    this.addLabel = "Add",
+    this.addIcon = Icons.add,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,58 +29,13 @@ class SelectTagsList extends StatelessWidget {
       alignment: WrapAlignment.start,
       spacing: 4,
       runSpacing: 4,
-      children: tags.followedBy([_AddBadge(onTap: onAdd)]).toList(),
-    );
-  }
-}
-
-class _AddBadge extends StatelessWidget {
-  final void Function()? onTap;
-
-  const _AddBadge({this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    Widget widget = Padding(
-      padding: const EdgeInsets.only(left: 8, right: 12, top: 3, bottom: 3),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        spacing: 4,
-        children: [
-          const Icon(Icons.add, size: 16),
-          Flexible(
-            child: Text(
-              "Add",
-              style: theme.textTheme.bodySmall,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-    if (onTap != null) {
-      widget = InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: widget,
-      );
-    }
-    widget = DottedBorder(
-      options: RoundedRectDottedBorderOptions(
-        radius: const Radius.circular(14),
-        padding: const EdgeInsets.all(1),
-        dashPattern: [5, 5],
-        strokeWidth: 2,
-        color: theme.colorScheme.onSurface.withAlpha(160),
-      ),
-      child: widget,
-    );
-
-    return Padding(
-      padding: const EdgeInsets.only(left: 7, top: 9),
-      child: OptionalTooltip(message: "Add", child: widget),
+      children: tags.followedBy([
+        // aligns with the badges, which are offset by their remove button
+        Padding(
+          padding: const EdgeInsets.only(left: 9, top: 9),
+          child: DashedBadge(onTap: onAdd, label: addLabel, icon: addIcon),
+        ),
+      ]).toList(),
     );
   }
 }

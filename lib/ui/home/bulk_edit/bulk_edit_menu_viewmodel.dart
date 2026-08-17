@@ -35,6 +35,10 @@ class BulkEditMenuViewModel {
     await _repo.bulkEditScoreComposer(_selectedScores, composer);
   }
 
+  Future<void> editSource(String source, String sourceLink) async {
+    await _repo.bulkEditScoreSource(_selectedScores, source, sourceLink);
+  }
+
   Future<void> editInstruments(
     Iterable<String> add,
     Iterable<String> remove,
@@ -48,6 +52,10 @@ class BulkEditMenuViewModel {
 
   Future<Iterable<String>> getComposers({String filter = ""}) async {
     return await _repo.getComposers(filter: filter, size: 10);
+  }
+
+  Future<Iterable<String>> getSources({String filter = ""}) async {
+    return await _repo.getSources(filter: filter, size: 10);
   }
 
   Future<Iterable<String>> getInstruments({

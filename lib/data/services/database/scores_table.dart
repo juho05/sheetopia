@@ -15,6 +15,8 @@ class ScoresTable extends Table {
   late final id = text()();
   late final title = text()();
   late final composer = text().nullable()();
+  late final source = text().nullable()();
+  late final sourceLink = text().nullable()();
   late final notes = text().nullable()();
   late final searchText = text()();
 

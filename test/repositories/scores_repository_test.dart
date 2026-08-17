@@ -118,6 +118,47 @@ void main() {
     expect((await repo.getScore("b"))!.composer, "Georg Friedrich Händel");
   });
 
+  test("bulk editing the source only touches the selected scores", () async {
+    await insertScore("a");
+    await insertScore("b");
+    await insertScore("c");
+
+    await repo.bulkEditScoreSource(["a", "b"], "IMSLP", "https://imslp.org");
+
+    expect((await repo.getScore("a"))!.source, "IMSLP");
+    expect((await repo.getScore("a"))!.sourceLink, "https://imslp.org");
+    expect((await repo.getScore("b"))!.source, "IMSLP");
+    expect((await repo.getScore("c"))!.source, null);
+    expect((await repo.getScore("c"))!.sourceLink, null);
+
+    await repo.bulkEditScoreSource(["a"], "", "");
+
+    expect((await repo.getScore("a"))!.source, null);
+    expect((await repo.getScore("a"))!.sourceLink, null);
+    expect((await repo.getScore("b"))!.source, "IMSLP");
+    expect((await repo.getScore("b"))!.sourceLink, "https://imslp.org");
+  });
+
+  test("an empty source name drops the link", () async {
+    await insertScore("a");
+
+    await repo.updateScoreSource(
+      "a",
+      source: "IMSLP",
+      sourceLink: "https://imslp.org",
+    );
+    expect((await repo.getScore("a"))!.sourceLink, "https://imslp.org");
+
+    await repo.updateScoreSource(
+      "a",
+      source: "",
+      sourceLink: "https://imslp.org",
+    );
+
+    expect((await repo.getScore("a"))!.source, null);
+    expect((await repo.getScore("a"))!.sourceLink, null);
+  });
+
   test("bulk editing instruments only touches the selected scores", () async {
     await insertScore("a", instruments: ["piano", "violin"]);
     await insertScore("b", instruments: ["piano"]);

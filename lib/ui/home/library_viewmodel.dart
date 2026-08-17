@@ -37,6 +37,7 @@ class LibraryViewModel extends ChangeNotifier {
   bool get isFiltered =>
       _filterSearch.isNotEmpty ||
       _filterComposer.isNotEmpty ||
+      _filterSource.isNotEmpty ||
       _filterInstruments.isNotEmpty ||
       _filterGenres.isNotEmpty ||
       _filterTags.isNotEmpty;
@@ -49,6 +50,7 @@ class LibraryViewModel extends ChangeNotifier {
             instruments: _filterInstruments,
             genres: _filterGenres,
             composer: _filterComposer,
+            source: _filterSource,
             tagIds: _filterTags.map((t) => t.id),
             genreMatch: _genreMatch,
             instrumentMatch: _instrumentMatch,
@@ -72,6 +74,15 @@ class LibraryViewModel extends ChangeNotifier {
   set filterComposer(String composer) {
     if (_filterComposer == composer) return;
     _filterComposer = composer;
+    notifyListeners();
+    _reset();
+  }
+
+  String _filterSource = "";
+  String get filterSource => _filterSource;
+  set filterSource(String source) {
+    if (_filterSource == source) return;
+    _filterSource = source;
     notifyListeners();
     _reset();
   }
@@ -182,6 +193,7 @@ class LibraryViewModel extends ChangeNotifier {
       instruments: _filterInstruments,
       genres: _filterGenres,
       composer: _filterComposer,
+      source: _filterSource,
       tagIds: _filterTags.map((t) => t.id),
       genreMatch: _genreMatch,
       instrumentMatch: _instrumentMatch,
@@ -266,9 +278,14 @@ class LibraryViewModel extends ChangeNotifier {
     return await _repo.getComposers(filter: filter, size: 10);
   }
 
+  Future<Iterable<String>> getSources({String filter = ""}) async {
+    return await _repo.getSources(filter: filter, size: 10);
+  }
+
   void clearFilters() {
     _filterTags.clear();
     _filterComposer = "";
+    _filterSource = "";
     _filterGenres.clear();
     _filterInstruments.clear();
     _genreMatch = FilterMatchType.any;

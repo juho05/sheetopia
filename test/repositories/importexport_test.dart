@@ -109,6 +109,8 @@ void main() {
         id: scoreId,
         title: "Prelude",
         composer: const Value("Bach"),
+        source: const Value("IMSLP"),
+        sourceLink: const Value("https://imslp.org"),
         searchText: " prelude bach ",
         fileDownloaded: true,
         fileType: FileType.pdf,
@@ -197,6 +199,8 @@ void main() {
         .getSingle();
     expect(score.title, "Prelude");
     expect(score.composer, "Bach");
+    expect(score.source, "IMSLP");
+    expect(score.sourceLink, "https://imslp.org");
     expect(score.metadataUpdatedAt, contentTime);
     expect(score.writtenAt, isNotNull);
     expect(score.writtenAt!.isAfter(contentTime), isTrue);
@@ -267,6 +271,11 @@ void main() {
       composer: "Bach",
       notes: "",
     );
+    await scoresRepo.updateScoreSource(
+      scoreId,
+      source: "Henle",
+      sourceLink: "",
+    );
     await scoresRepo.updateTag(tagId, name: "Barock", color: Colors.red);
     await setlistsRepo.renameSetlist(setlistId, "Rezital");
 
@@ -276,6 +285,8 @@ void main() {
         .filter((f) => f.id(scoreId))
         .getSingle();
     expect(score.title, "Prelude in C");
+    expect(score.source, "Henle");
+    expect(score.sourceLink, isNull);
     expect(score.writtenAt, isNull);
 
     final tag = await db.managers.tagsTable

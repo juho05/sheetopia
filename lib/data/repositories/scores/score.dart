@@ -15,6 +15,8 @@ class Score {
   final String id;
   final String title;
   final String? composer;
+  final String? source;
+  final String? sourceLink;
   final String? notes;
   final String? annotations;
 
@@ -32,6 +34,8 @@ class Score {
     required this.id,
     required this.title,
     required this.composer,
+    required this.source,
+    required this.sourceLink,
     required this.notes,
     required this.annotations,
     required this.genres,

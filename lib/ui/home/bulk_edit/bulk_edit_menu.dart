@@ -13,6 +13,7 @@ import 'package:sheetopia/ui/common/menu_button.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_menu_viewmodel.dart';
 import 'package:sheetopia/ui/edit_score/auto_complete_input_dialog.dart';
+import 'package:sheetopia/ui/edit_score/source_input_dialog.dart';
 import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_tags_dialog.dart';
 import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_values_dialog.dart';
 import 'package:sheetopia/ui/setlists/select_setlist_dialog.dart';
@@ -64,6 +65,22 @@ class _BulkEditMenuState extends State<BulkEditMenu> {
             if (composer == null) return;
             await _viewModel.editComposer(composer);
             Toast.show("Successfully updated composer of selected scores");
+          },
+        ),
+        ContextMenuOption(
+          title: "Edit source",
+          icon: Symbols.link,
+          onSelected: () async {
+            final result = await SourceInputDialog.show(
+              context,
+              title: "Bulk edit source",
+              submitBtnText: "Update",
+              enableClear: true,
+              getOptions: (filter) => _viewModel.getSources(filter: filter),
+            );
+            if (result == null) return;
+            await _viewModel.editSource(result.source, result.sourceLink);
+            Toast.show("Successfully updated source of selected scores");
           },
         ),
         ContextMenuOption(

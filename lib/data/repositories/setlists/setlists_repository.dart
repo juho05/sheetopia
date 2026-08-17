@@ -122,6 +122,8 @@ class SetlistsRepository {
       id: score.id,
       title: score.title,
       composer: score.composer,
+      source: score.source,
+      sourceLink: score.sourceLink,
       notes: score.notes,
       annotations: score.annotations,
       genres: const [],

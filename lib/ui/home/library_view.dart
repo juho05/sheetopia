@@ -172,6 +172,7 @@ class _LibraryViewState extends State<LibraryView> {
                                 builder: (context, _) {
                                   final filterActive =
                                       _viewModel.filterComposer.isNotEmpty ||
+                                      _viewModel.filterSource.isNotEmpty ||
                                       _viewModel.filterInstruments.isNotEmpty ||
                                       _viewModel.filterGenres.isNotEmpty ||
                                       _viewModel.filterTags.isNotEmpty;

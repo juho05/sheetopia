@@ -23,6 +23,8 @@ void main() {
       id: "a",
       title: title,
       composer: "Composer",
+      source: "Source",
+      sourceLink: "https://example.com",
       notes: null,
       annotations: null,
       genres: const [],

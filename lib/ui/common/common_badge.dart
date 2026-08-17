@@ -13,7 +13,9 @@ import 'optional_tooltip.dart';
 class CommonBadge extends StatelessWidget {
   final String name;
   final Color? color;
+  final Color? foreground;
   final bool onDialog;
+  final IconData? trailingIcon;
 
   final bool tooltip;
   final void Function()? onTap;
@@ -23,7 +25,9 @@ class CommonBadge extends StatelessWidget {
     super.key,
     required this.name,
     this.color,
+    this.foreground,
     this.onDialog = false,
+    this.trailingIcon,
     this.tooltip = true,
     this.onTap,
     this.onRemove,
@@ -32,18 +36,30 @@ class CommonBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final foregroundColor = color != null
-        ? color!.computeLuminance() > 0.5
-              ? Colors.black
-              : Colors.white
-        : null;
+    final foregroundColor =
+        foreground ??
+        (color != null
+            ? color!.computeLuminance() > 0.5
+                  ? Colors.black
+                  : Colors.white
+            : null);
+    final label = Text(
+      name,
+      style: theme.textTheme.bodySmall!.copyWith(color: foregroundColor),
+      overflow: TextOverflow.ellipsis,
+    );
     Widget widget = Padding(
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-      child: Text(
-        name,
-        style: theme.textTheme.bodySmall!.copyWith(color: foregroundColor),
-        overflow: TextOverflow.ellipsis,
-      ),
+      child: trailingIcon == null
+          ? label
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 4,
+              children: [
+                Flexible(child: label),
+                Icon(trailingIcon, size: 14, color: foregroundColor),
+              ],
+            ),
     );
     final backgroundColor =
         color ??
@@ -72,7 +88,7 @@ class CommonBadge extends StatelessWidget {
       widget = Stack(
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 7, top: 7),
+            padding: const EdgeInsets.only(left: 9, top: 7),
             child: widget,
           ),
           SizedBox.square(
