@@ -21,6 +21,7 @@ class SliverScoreGrid extends StatelessWidget {
   final bool selectionMode;
   final void Function(Score score)? onScoreSelected;
   final void Function(Score score)? onScoreDeselected;
+  final void Function(Score score)? onScoreRangeSelect;
   final Set<String> selected;
 
   const SliverScoreGrid({
@@ -30,6 +31,7 @@ class SliverScoreGrid extends StatelessWidget {
     this.selectionMode = false,
     this.onScoreSelected,
     this.onScoreDeselected,
+    this.onScoreRangeSelect,
     this.selected = const {},
   });
 
@@ -83,6 +85,7 @@ class SliverScoreGrid extends StatelessWidget {
                         onScoreSelected!(score);
                       }
                     : null,
+                onScoreRangeSelect: onScoreRangeSelect,
                 selected: selected.contains(scores[i].id),
               );
             }),

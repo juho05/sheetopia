@@ -19,6 +19,7 @@ import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/common/search_input.dart';
 import 'package:sheetopia/ui/home/library_view.dart';
 import 'package:sheetopia/ui/home/library_viewmodel.dart';
+import 'package:sheetopia/ui/home/score_grid_cell.dart';
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -29,6 +30,7 @@ void main() {
   late LibraryViewModel viewModel;
   late List<String>? selected;
   late bool cleared;
+  late Set<String> selection;
 
   final timestamp = DateTime.utc(2026, 1, 1);
 
@@ -54,6 +56,7 @@ void main() {
     viewModel = LibraryViewModel(repo: repo);
     selected = null;
     cleared = false;
+    selection = {};
   });
 
   tearDown(() async {
@@ -76,7 +79,7 @@ void main() {
             body: LibraryView(
               viewModel: viewModel,
               selectionMode: selectionMode,
-              onSelectAll: (scoreIds) => selected = scoreIds,
+              onScoresSelected: (scoreIds) => selected = scoreIds,
               onClearSelection: () => cleared = true,
             ),
           ),
@@ -84,6 +87,53 @@ void main() {
       ),
     );
     // the marquees of the cells hold uncancellable delays before they animate
+    await tester.pump(const Duration(seconds: 5));
+  }
+
+  Future<void> pumpSelectableLibrary(WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<ScoresRepository>.value(value: repo),
+          Provider<ThumbnailService>.value(value: ThumbnailService()),
+        ],
+        child: MaterialApp(
+          home: StatefulBuilder(
+            builder: (context, setState) => Scaffold(
+              body: LibraryView(
+                viewModel: viewModel,
+                selectionMode: selection.isNotEmpty,
+                selected: selection,
+                onScoreSelected: (score) =>
+                    setState(() => selection.add(score.id)),
+                onScoreDeselected: (score) =>
+                    setState(() => selection.remove(score.id)),
+                onScoresSelected: (scoreIds) =>
+                    setState(() => selection.addAll(scoreIds)),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    // the marquees of the cells hold uncancellable delays before they animate
+    await tester.pump(const Duration(seconds: 5));
+  }
+
+  Future<void> tapScore(
+    WidgetTester tester,
+    String title, {
+    LogicalKeyboardKey? modifier,
+  }) async {
+    final cell = find
+        .ancestor(of: find.text(title), matching: find.byType(ScoreGridCell))
+        .first;
+    if (modifier != null) await tester.sendKeyDownEvent(modifier);
+    await tester.tap(cell);
+    if (modifier != null) await tester.sendKeyUpEvent(modifier);
     await tester.pump(const Duration(seconds: 5));
   }
 
@@ -165,7 +215,7 @@ void main() {
                 children: [
                   LibraryView(
                     viewModel: viewModel,
-                    onSelectAll: (scoreIds) => selected = scoreIds,
+                    onScoresSelected: (scoreIds) => selected = scoreIds,
                   ),
                   const SizedBox.shrink(),
                 ],
@@ -206,5 +256,75 @@ void main() {
       field.controller.selection,
       const TextSelection(baseOffset: 0, extentOffset: 6),
     );
+  });
+
+  testWidgets("shift+click selects the range after the anchor", (tester) async {
+    for (var i = 0; i < 5; i++) {
+      await insertScore("$i", title: "Title $i");
+    }
+
+    await pumpSelectableLibrary(tester);
+    await tapScore(tester, "Title 1", modifier: LogicalKeyboardKey.control);
+    await tapScore(tester, "Title 3", modifier: LogicalKeyboardKey.shiftLeft);
+
+    expect(selection, {"1", "2", "3"});
+  });
+
+  testWidgets("shift+click selects the range before the anchor", (
+    tester,
+  ) async {
+    for (var i = 0; i < 5; i++) {
+      await insertScore("$i", title: "Title $i");
+    }
+
+    await pumpSelectableLibrary(tester);
+    await tapScore(tester, "Title 3", modifier: LogicalKeyboardKey.control);
+    await tapScore(tester, "Title 1", modifier: LogicalKeyboardKey.shiftLeft);
+
+    expect(selection, {"1", "2", "3"});
+  });
+
+  testWidgets("shift+click keeps scores selected outside of the range", (
+    tester,
+  ) async {
+    for (var i = 0; i < 5; i++) {
+      await insertScore("$i", title: "Title $i");
+    }
+
+    await pumpSelectableLibrary(tester);
+    await tapScore(tester, "Title 0", modifier: LogicalKeyboardKey.control);
+    await tapScore(tester, "Title 2", modifier: LogicalKeyboardKey.control);
+    await tapScore(tester, "Title 4", modifier: LogicalKeyboardKey.shiftLeft);
+
+    expect(selection, {"0", "2", "3", "4"});
+  });
+
+  testWidgets("shift+click without a selection selects a single score", (
+    tester,
+  ) async {
+    for (var i = 0; i < 5; i++) {
+      await insertScore("$i", title: "Title $i");
+    }
+
+    await pumpSelectableLibrary(tester);
+    await tapScore(tester, "Title 2", modifier: LogicalKeyboardKey.shiftLeft);
+
+    expect(selection, {"2"});
+  });
+
+  testWidgets("shift+click extends from the last deselected score", (
+    tester,
+  ) async {
+    for (var i = 0; i < 5; i++) {
+      await insertScore("$i", title: "Title $i");
+    }
+
+    await pumpSelectableLibrary(tester);
+    await tapScore(tester, "Title 0", modifier: LogicalKeyboardKey.control);
+    await tapScore(tester, "Title 3", modifier: LogicalKeyboardKey.control);
+    await tapScore(tester, "Title 3");
+    await tapScore(tester, "Title 1", modifier: LogicalKeyboardKey.shiftLeft);
+
+    expect(selection, {"0", "1", "2", "3"});
   });
 }

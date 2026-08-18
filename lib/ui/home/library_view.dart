@@ -8,6 +8,7 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -53,7 +54,7 @@ class LibraryView extends StatefulWidget {
   final bool selectionMode;
   final void Function(Score score)? onScoreSelected;
   final void Function(Score score)? onScoreDeselected;
-  final void Function(List<String> scoreIds)? onSelectAll;
+  final void Function(List<String> scoreIds)? onScoresSelected;
   final void Function()? onClearSelection;
   final Set<String> selected;
 
@@ -65,7 +66,7 @@ class LibraryView extends StatefulWidget {
     this.selectionMode = false,
     this.onScoreSelected,
     this.onScoreDeselected,
-    this.onSelectAll,
+    this.onScoresSelected,
     this.onClearSelection,
     this.selected = const {},
   });
@@ -81,6 +82,7 @@ class _LibraryViewState extends State<LibraryView> {
   final FocusScopeNode _focusScope = FocusScopeNode();
 
   bool _visible = true;
+  String? _rangeAnchorId;
 
   @override
   void initState() {
@@ -155,11 +157,39 @@ class _LibraryViewState extends State<LibraryView> {
   }
 
   Future<void> _selectAll() async {
-    final onSelectAll = widget.onSelectAll;
-    if (onSelectAll == null) return;
+    final onScoresSelected = widget.onScoresSelected;
+    if (onScoresSelected == null) return;
     final scoreIds = await _viewModel.getFilteredScoreIds();
     if (!mounted) return;
-    onSelectAll(scoreIds);
+    onScoresSelected(scoreIds);
+  }
+
+  void _selectScore(Score score) {
+    _rangeAnchorId = score.id;
+    widget.onScoreSelected?.call(score);
+  }
+
+  void _deselectScore(Score score) {
+    _rangeAnchorId = score.id;
+    widget.onScoreDeselected?.call(score);
+  }
+
+  void _selectRangeTo(Score score) {
+    final scores = _viewModel.scores;
+    final anchorId = _rangeAnchorId;
+    final anchor = anchorId == null || !widget.selectionMode
+        ? -1
+        : scores.indexWhere((s) => s.id == anchorId);
+    if (anchor < 0) {
+      _selectScore(score);
+      return;
+    }
+    final target = scores.indexWhere((s) => s.id == score.id);
+    if (target < 0) return;
+    widget.onScoresSelected?.call([
+      for (var i = min(anchor, target); i <= max(anchor, target); i++)
+        scores[i].id,
+    ]);
   }
 
   @override
@@ -167,7 +197,7 @@ class _LibraryViewState extends State<LibraryView> {
     final bool isApple = Platform.isIOS || Platform.isMacOS;
     return Shortcuts(
       shortcuts: {
-        if (widget.onSelectAll != null)
+        if (widget.onScoresSelected != null)
           SingleActivator(
             LogicalKeyboardKey.keyA,
             control: !isApple,
@@ -336,8 +366,17 @@ class _LibraryViewState extends State<LibraryView> {
                     return SliverScoreGrid(
                       scores: _viewModel.scores,
                       crossAxisExtent: crossAxisExtent,
-                      onScoreSelected: widget.onScoreSelected,
-                      onScoreDeselected: widget.onScoreDeselected,
+                      onScoreSelected: widget.onScoreSelected != null
+                          ? _selectScore
+                          : null,
+                      onScoreDeselected: widget.onScoreDeselected != null
+                          ? _deselectScore
+                          : null,
+                      onScoreRangeSelect:
+                          widget.onScoreSelected != null &&
+                              widget.onScoresSelected != null
+                          ? _selectRangeTo
+                          : null,
                       selectionMode: widget.selectionMode,
                       selected: widget.selected,
                     );

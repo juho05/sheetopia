@@ -167,7 +167,7 @@ class _HomePageState extends State<HomePage> {
                                   onScoreDeselected: (score) {
                                     viewModel.deselectScore(score.id);
                                   },
-                                  onSelectAll: (scoreIds) {
+                                  onScoresSelected: (scoreIds) {
                                     if (viewModel.tabIndex != 0) return;
                                     viewModel.selectScores(scoreIds);
                                   },

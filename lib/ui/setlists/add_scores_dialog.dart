@@ -109,7 +109,7 @@ class _AddScoresDialogState extends State<AddScoresDialog> {
                 onScoreDeselected: (score) => setState(() {
                   _selected.remove(score.id);
                 }),
-                onSelectAll: _selectAll,
+                onScoresSelected: _selectAll,
               ),
             ),
             Row(

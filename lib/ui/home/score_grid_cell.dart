@@ -26,6 +26,7 @@ class ScoreGridCell extends StatelessWidget {
   final Score score;
   final void Function(Score score)? onScoreTap;
   final void Function(Score score)? onScoreSelectionStart;
+  final void Function(Score score)? onScoreRangeSelect;
   final bool selected;
 
   const ScoreGridCell({
@@ -33,6 +34,7 @@ class ScoreGridCell extends StatelessWidget {
     required this.score,
     this.onScoreTap,
     this.onScoreSelectionStart,
+    this.onScoreRangeSelect,
     this.selected = false,
   });
 
@@ -54,6 +56,11 @@ class ScoreGridCell extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () {
+            if (onScoreRangeSelect != null &&
+                HardwareKeyboard.instance.isShiftPressed) {
+              onScoreRangeSelect!(score);
+              return;
+            }
             if (picking) {
               onScoreTap!(score);
               return;
