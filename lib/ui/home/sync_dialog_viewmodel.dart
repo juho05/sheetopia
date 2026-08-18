@@ -6,6 +6,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
@@ -134,6 +136,39 @@ class _BaseUriValidator extends Validator<dynamic> {
     if (uri.scheme != "http" && uri.scheme != "https") {
       return {"baseUri": true};
     }
+    if (uri.scheme == "http" &&
+        (Platform.isIOS || Platform.isMacOS) &&
+        !isLocalNetworkHost(uri.host)) {
+      return {"insecureHttp": true};
+    }
     return null;
   }
+}
+
+// Mirrors what App Transport Security exempts via NSAllowsLocalNetworking:
+// localhost, .local and unqualified names, loopback, link-local and private ranges.
+bool isLocalNetworkHost(String host) {
+  final normalized = host.toLowerCase();
+  if (normalized.isEmpty) {
+    return false;
+  }
+  if (normalized == "localhost" || normalized.endsWith(".local")) {
+    return true;
+  }
+
+  final address = InternetAddress.tryParse(normalized);
+  if (address == null) {
+    return !normalized.contains(".");
+  }
+  if (address.isLoopback || address.isLinkLocal) {
+    return true;
+  }
+
+  final bytes = address.rawAddress;
+  if (address.type == InternetAddressType.IPv4) {
+    return bytes[0] == 10 ||
+        (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
+        (bytes[0] == 192 && bytes[1] == 168);
+  }
+  return (bytes[0] & 0xfe) == 0xfc;
 }

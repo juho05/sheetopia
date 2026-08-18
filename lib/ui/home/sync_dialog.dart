@@ -78,7 +78,12 @@ class _LoginView extends StatelessWidget {
           children: [
             ReactiveTextField(
               formControlName: "url",
-              validationMessages: {"baseUri": (error) => "invalid URI"},
+              validationMessages: {
+                "baseUri": (error) => "invalid URI",
+                "insecureHttp": (error) =>
+                    "http:// is only allowed for servers on the local "
+                    "network. Use https:// for remote connections.",
+              },
               autofillHints: [AutofillHints.url],
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
