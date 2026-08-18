@@ -23,6 +23,13 @@ class SettingsPage extends StatelessWidget {
       color: theme.colorScheme.primary,
       decoration: TextDecoration.underline,
     );
+    Widget link(String text, String url) => MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => launchUrl(Uri.parse(url)),
+        child: Text(text, style: linkStyle),
+      ),
+    );
     return Scaffold(
       appBar: AppBar(title: const Text("Settings")),
       body: SafeArea(
@@ -104,14 +111,11 @@ class SettingsPage extends StatelessWidget {
                       "It's free software under the MPL-2.0 license.",
                     ),
                     const SizedBox(height: 8),
-                    MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: GestureDetector(
-                        onTap: () => launchUrl(
-                          Uri.parse("https://github.com/juho05/sheetopia"),
-                        ),
-                        child: Text("GitHub", style: linkStyle),
-                      ),
+                    link("GitHub", "https://github.com/juho05/sheetopia"),
+                    const SizedBox(height: 4),
+                    link(
+                      "Privacy policy",
+                      "https://github.com/juho05/sheetopia/blob/main/PRIVACY.md",
                     ),
                   ],
                 );
