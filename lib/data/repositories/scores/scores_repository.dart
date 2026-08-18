@@ -283,6 +283,50 @@ class ScoresRepository {
     return row.read(countExpr) ?? 0;
   }
 
+  Future<List<String>> getScoreIds({
+    String filter = "",
+    String composer = "",
+    String source = "",
+    Iterable<String> instruments = const [],
+    Iterable<String> genres = const [],
+    Iterable<String> tagIds = const [],
+    FilterMatchType genreMatch = FilterMatchType.any,
+    FilterMatchType instrumentMatch = FilterMatchType.exact,
+    FilterMatchType tagMatch = FilterMatchType.all,
+  }) async {
+    final searchFields = _generateSearchFields(filter);
+    final q = _db
+        .selectOnly(_db.scoresTable)
+        .join(
+          _filterJoins(
+            instruments: instruments,
+            genres: genres,
+            tagIds: tagIds,
+            genreMatch: genreMatch,
+            instrumentMatch: instrumentMatch,
+            tagMatch: tagMatch,
+          ),
+        );
+    q.addColumns([_db.scoresTable.id]);
+    _applyScoreFilters(q, searchFields, composer, source);
+    q.orderBy([
+      ...searchFields
+          .take(3)
+          .map(
+            (s) => OrderingTerm.asc(
+              InstrExpression(
+                string: _db.scoresTable.searchText,
+                substring: Variable(s),
+              ),
+            ),
+          ),
+      OrderingTerm.desc(_db.scoresTable.recentTime),
+      OrderingTerm.asc(_db.scoresTable.id),
+    ]);
+    final rows = await q.get();
+    return rows.map((row) => row.read(_db.scoresTable.id)!).toList();
+  }
+
   Future<Iterable<Score>> getScores({
     required int size,
     int offset = 0,

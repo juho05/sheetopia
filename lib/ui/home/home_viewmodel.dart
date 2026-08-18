@@ -68,6 +68,17 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void selectScores(Iterable<String> scoreIds) {
+    var changed = false;
+    for (final scoreId in scoreIds) {
+      if (!_selectedScoreIdSet.add(scoreId)) continue;
+      _selectedScoreIds.add(scoreId);
+      changed = true;
+    }
+    if (!changed) return;
+    notifyListeners();
+  }
+
   void deselectScore(String scoreId) {
     if (!_selectedScoreIdSet.remove(scoreId)) return;
     _selectedScoreIds.remove(scoreId);

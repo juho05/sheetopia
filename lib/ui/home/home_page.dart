@@ -20,12 +20,20 @@ import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_menu.dart';
 import 'package:sheetopia/ui/home/home_viewmodel.dart';
 import 'package:sheetopia/ui/home/library_view.dart';
+import 'package:sheetopia/ui/home/library_viewmodel.dart';
 import 'package:sheetopia/ui/home/sync_icon.dart';
 import 'package:sheetopia/ui/setlists/setlist_name_dialog.dart';
 import 'package:sheetopia/ui/setlists/setlists_view.dart';
 import 'package:sheetopia/version_checker.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
   static const List<({IconData icon, IconData selectedIcon, String label})>
   _tabs = [
     (
@@ -40,7 +48,19 @@ class HomePage extends StatelessWidget {
     ),
   ];
 
-  const HomePage({super.key});
+  late final LibraryViewModel _libraryViewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _libraryViewModel = LibraryViewModel(repo: context.read());
+  }
+
+  @override
+  void dispose() {
+    _libraryViewModel.dispose();
+    super.dispose();
+  }
 
   Future<void> _importScores(BuildContext context) async {
     try {
@@ -134,6 +154,7 @@ class HomePage extends StatelessWidget {
                               index: viewModel.tabIndex,
                               children: [
                                 LibraryView(
+                                  viewModel: _libraryViewModel,
                                   onScrollUp: () =>
                                       viewModel.importButtonVisible.value =
                                           true,
@@ -146,6 +167,11 @@ class HomePage extends StatelessWidget {
                                   onScoreDeselected: (score) {
                                     viewModel.deselectScore(score.id);
                                   },
+                                  onSelectAll: (scoreIds) {
+                                    if (viewModel.tabIndex != 0) return;
+                                    viewModel.selectScores(scoreIds);
+                                  },
+                                  onClearSelection: viewModel.clearSelection,
                                   selectionMode:
                                       viewModel.selectedScoreIds.isNotEmpty,
                                   selected: viewModel.selectedScoreIdSet,
@@ -170,6 +196,7 @@ class HomePage extends StatelessWidget {
                             },
                             child: Scaffold(
                               appBar: AppBar(
+                                centerTitle: false,
                                 title: selectionMode
                                     ? Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -189,6 +216,9 @@ class HomePage extends StatelessWidget {
                                     : Text(_tabs[viewModel.tabIndex].label),
                                 actions: selectionMode
                                     ? [
+                                        _SelectAllButton(
+                                          viewModel: _libraryViewModel,
+                                        ),
                                         BulkEditMenu(
                                           selectedScoreIds:
                                               viewModel.selectedScoreIds,
@@ -296,7 +326,8 @@ class HomePage extends StatelessWidget {
                                                     icon:
                                                         Icons.document_scanner,
                                                     label: "Scan pages",
-                                                    onPressed: () => _scanScore(context),
+                                                    onPressed: () =>
+                                                        _scanScore(context),
                                                   ),
                                                 FabMenuItem(
                                                   icon: Icons.file_open,
@@ -362,6 +393,42 @@ class HomePage extends StatelessWidget {
           },
         ),
       ),
+    );
+  }
+}
+
+class _SelectAllButton extends StatelessWidget {
+  final LibraryViewModel viewModel;
+
+  const _SelectAllButton({required this.viewModel});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<HomeViewModel>(
+      builder: (context, homeViewModel, _) {
+        return ListenableBuilder(
+          listenable: viewModel,
+          builder: (context, _) {
+            final resultCount = viewModel.resultCount;
+            final allSelected =
+                resultCount != null &&
+                homeViewModel.selectedScoreIds.length >= resultCount;
+            return IconButton(
+              tooltip: allSelected ? "Deselect all" : "Select all",
+              icon: Icon(allSelected ? Icons.deselect : Icons.select_all),
+              onPressed: () async {
+                if (allSelected) {
+                  homeViewModel.clearSelection();
+                  return;
+                }
+                homeViewModel.selectScores(
+                  await viewModel.getFilteredScoreIds(),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }

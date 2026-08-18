@@ -21,17 +21,21 @@ class LibraryViewModel extends ChangeNotifier {
   final ScoresRepository _repo;
 
   List<Score> _scores = [];
+
   UnmodifiableListView<Score> get scores => UnmodifiableListView(_scores);
 
   int _currentPage = -1;
 
   bool _hasNextPage = true;
+
   bool get hasNextPage => _hasNextPage;
 
   int? _resultCount;
+
   int? get resultCount => _resultCount;
 
   int? _totalCount;
+
   int? get totalCount => _totalCount;
 
   bool get isFiltered =>
@@ -63,6 +67,7 @@ class LibraryViewModel extends ChangeNotifier {
   }
 
   String _filterSearch = "";
+
   set filterSearch(String filter) {
     if (_filterSearch == filter) return;
     _filterSearch = filter;
@@ -70,7 +75,9 @@ class LibraryViewModel extends ChangeNotifier {
   }
 
   String _filterComposer = "";
+
   String get filterComposer => _filterComposer;
+
   set filterComposer(String composer) {
     if (_filterComposer == composer) return;
     _filterComposer = composer;
@@ -79,7 +86,9 @@ class LibraryViewModel extends ChangeNotifier {
   }
 
   String _filterSource = "";
+
   String get filterSource => _filterSource;
+
   set filterSource(String source) {
     if (_filterSource == source) return;
     _filterSource = source;
@@ -90,16 +99,21 @@ class LibraryViewModel extends ChangeNotifier {
   final SplayTreeSet<Tag> _filterTags = SplayTreeSet(
     (a, b) => a.name.compareTo(b.name),
   );
+
   Iterable<Tag> get filterTags => _filterTags;
 
   final SplayTreeSet<String> _filterInstruments = SplayTreeSet();
+
   Iterable<String> get filterInstruments => _filterInstruments;
 
   final SplayTreeSet<String> _filterGenres = SplayTreeSet();
+
   Iterable<String> get filterGenres => _filterGenres;
 
   FilterMatchType _genreMatch = FilterMatchType.any;
+
   FilterMatchType get genreMatch => _genreMatch;
+
   set genreMatch(FilterMatchType value) {
     if (_genreMatch == value) return;
     _genreMatch = value;
@@ -108,7 +122,9 @@ class LibraryViewModel extends ChangeNotifier {
   }
 
   FilterMatchType _instrumentMatch = FilterMatchType.exact;
+
   FilterMatchType get instrumentMatch => _instrumentMatch;
+
   set instrumentMatch(FilterMatchType value) {
     if (_instrumentMatch == value) return;
     _instrumentMatch = value;
@@ -117,7 +133,9 @@ class LibraryViewModel extends ChangeNotifier {
   }
 
   FilterMatchType _tagMatch = FilterMatchType.all;
+
   FilterMatchType get tagMatch => _tagMatch;
+
   set tagMatch(FilterMatchType value) {
     if (_tagMatch == value) return;
     _tagMatch = value;
@@ -128,6 +146,7 @@ class LibraryViewModel extends ChangeNotifier {
   StreamSubscription? _updatedScoresSub;
   StreamSubscription? _updatedTagsSub;
   StreamSubscription? _lastOpenedSub;
+
   LibraryViewModel({required ScoresRepository repo}) : _repo = repo {
     _updatedScoresSub = _repo.updatedScoreIds.listen((_) => _refresh());
     _lastOpenedSub = _repo.lastOpenedChanged.listen((_) => _refresh());
@@ -201,6 +220,20 @@ class LibraryViewModel extends ChangeNotifier {
     );
   }
 
+  Future<List<String>> getFilteredScoreIds() async {
+    return await _repo.getScoreIds(
+      filter: _filterSearch,
+      instruments: _filterInstruments,
+      genres: _filterGenres,
+      composer: _filterComposer,
+      source: _filterSource,
+      tagIds: _filterTags.map((t) => t.id),
+      genreMatch: _genreMatch,
+      instrumentMatch: _instrumentMatch,
+      tagMatch: _tagMatch,
+    );
+  }
+
   Future<void> _refreshFilterTags() async {
     final newTags = await _repo.getTagsById(_filterTags.map((t) => t.id));
     _filterTags.clear();
@@ -209,6 +242,7 @@ class LibraryViewModel extends ChangeNotifier {
   }
 
   Timer? _resetDebounce;
+
   void _reset() {
     _resetDebounce?.cancel();
     _resetDebounce = Timer(const Duration(milliseconds: 250), () async {
@@ -295,12 +329,21 @@ class LibraryViewModel extends ChangeNotifier {
     _reset();
   }
 
+  bool _disposed = false;
+
   @override
   void dispose() {
+    _disposed = true;
     _resetDebounce?.cancel();
     _updatedTagsSub?.cancel();
     _updatedScoresSub?.cancel();
     _lastOpenedSub?.cancel();
     super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    super.notifyListeners();
   }
 }

@@ -7,11 +7,12 @@
  */
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/ui/common/search_input.dart';
 import 'package:sheetopia/ui/home/filter_dialog.dart';
@@ -19,22 +20,53 @@ import 'package:sheetopia/ui/home/library_viewmodel.dart';
 import 'package:sheetopia/ui/home/score_grid_cell.dart';
 import 'package:sheetopia/ui/home/sliver_score_grid.dart';
 
+class _SelectAllScoresIntent extends Intent {
+  const _SelectAllScoresIntent();
+}
+
+class _SelectAllScoresAction extends Action<_SelectAllScoresIntent> {
+  final void Function() _onInvoke;
+
+  _SelectAllScoresAction(this._onInvoke);
+
+  // a focused text field owns ctrl+a for its own content
+  @override
+  bool get isActionEnabled =>
+      FocusManager.instance.primaryFocus?.context
+          ?.findAncestorWidgetOfExactType<EditableText>() ==
+      null;
+
+  @override
+  void invoke(_SelectAllScoresIntent intent) => _onInvoke();
+}
+
+class _ClearSelectionIntent extends Intent {
+  const _ClearSelectionIntent();
+}
+
 class LibraryView extends StatefulWidget {
+  final LibraryViewModel viewModel;
+
   final void Function()? onScrollDown;
   final void Function()? onScrollUp;
 
   final bool selectionMode;
   final void Function(Score score)? onScoreSelected;
   final void Function(Score score)? onScoreDeselected;
+  final void Function(List<String> scoreIds)? onSelectAll;
+  final void Function()? onClearSelection;
   final Set<String> selected;
 
   const LibraryView({
     super.key,
+    required this.viewModel,
     this.onScrollDown,
     this.onScrollUp,
     this.selectionMode = false,
     this.onScoreSelected,
     this.onScoreDeselected,
+    this.onSelectAll,
+    this.onClearSelection,
     this.selected = const {},
   });
 
@@ -43,15 +75,17 @@ class LibraryView extends StatefulWidget {
 }
 
 class _LibraryViewState extends State<LibraryView> {
-  late final LibraryViewModel _viewModel;
+  late final LibraryViewModel _viewModel = widget.viewModel;
 
   final ScrollController _scrollController = ScrollController();
+  final FocusScopeNode _focusScope = FocusScopeNode();
+
+  bool _visible = true;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    _viewModel = LibraryViewModel(repo: context.read());
     _viewModel.loadNextPage();
     Future.delayed(const Duration(milliseconds: 100), () {
       WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
@@ -60,6 +94,15 @@ class _LibraryViewState extends State<LibraryView> {
         });
       });
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = Visibility.of(context);
+    if (visible == _visible) return;
+    _visible = visible;
+    if (visible) _focusScope.requestFocus();
   }
 
   void _onScroll() {
@@ -94,7 +137,7 @@ class _LibraryViewState extends State<LibraryView> {
     _scrollController.removeListener(_onScroll);
     _scrollController.removeListener(_checkEndReached);
     _scrollController.dispose();
-    _viewModel.dispose();
+    _focusScope.dispose();
     super.dispose();
   }
 
@@ -111,8 +154,46 @@ class _LibraryViewState extends State<LibraryView> {
     return currentScroll >= (maxScroll - 3 * ScoreGridCell.height);
   }
 
+  Future<void> _selectAll() async {
+    final onSelectAll = widget.onSelectAll;
+    if (onSelectAll == null) return;
+    final scoreIds = await _viewModel.getFilteredScoreIds();
+    if (!mounted) return;
+    onSelectAll(scoreIds);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bool isApple = Platform.isIOS || Platform.isMacOS;
+    return Shortcuts(
+      shortcuts: {
+        if (widget.onSelectAll != null)
+          SingleActivator(
+            LogicalKeyboardKey.keyA,
+            control: !isApple,
+            meta: isApple,
+          ): const _SelectAllScoresIntent(),
+        if (widget.selectionMode && widget.onClearSelection != null)
+          const SingleActivator(LogicalKeyboardKey.escape):
+              const _ClearSelectionIntent(),
+      },
+      child: Actions(
+        actions: {
+          _SelectAllScoresIntent: _SelectAllScoresAction(_selectAll),
+          _ClearSelectionIntent: CallbackAction<_ClearSelectionIntent>(
+            onInvoke: (_) => widget.onClearSelection?.call(),
+          ),
+        },
+        child: FocusScope(
+          node: _focusScope,
+          autofocus: true,
+          child: _buildBody(context),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
     return Listener(
       onPointerSignal: (event) {
         if (event is PointerScrollEvent) {

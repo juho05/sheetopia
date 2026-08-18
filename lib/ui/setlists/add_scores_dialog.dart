@@ -7,8 +7,10 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/home/library_view.dart';
+import 'package:sheetopia/ui/home/library_viewmodel.dart';
 
 class AddScoresDialog extends StatefulWidget {
   const AddScoresDialog._();
@@ -27,6 +29,30 @@ class AddScoresDialog extends StatefulWidget {
 class _AddScoresDialogState extends State<AddScoresDialog> {
   final List<String> _selected = [];
 
+  late final LibraryViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = LibraryViewModel(repo: context.read());
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
+
+  void _selectAll(Iterable<String> scoreIds) {
+    setState(() {
+      final selected = _selected.toSet();
+      for (final scoreId in scoreIds) {
+        if (!selected.add(scoreId)) continue;
+        _selected.add(scoreId);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -37,13 +63,44 @@ class _AddScoresDialogState extends State<AddScoresDialog> {
         child: Column(
           spacing: 8,
           children: [
-            Text(
-              _selected.isEmpty ? "Add scores" : "${_selected.length} selected",
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.headlineSmall,
+            Row(
+              spacing: 8,
+              children: [
+                Expanded(
+                  child: Text(
+                    _selected.isEmpty
+                        ? "Add scores"
+                        : "${_selected.length} selected",
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.headlineSmall,
+                  ),
+                ),
+                ListenableBuilder(
+                  listenable: _viewModel,
+                  builder: (context, _) {
+                    final resultCount = _viewModel.resultCount;
+                    final allSelected =
+                        resultCount != null && _selected.length >= resultCount;
+                    return IconButton(
+                      tooltip: allSelected ? "Deselect all" : "Select all",
+                      icon: Icon(
+                        allSelected ? Icons.deselect : Icons.select_all,
+                      ),
+                      onPressed: () async {
+                        if (allSelected) {
+                          setState(_selected.clear);
+                          return;
+                        }
+                        _selectAll(await _viewModel.getFilteredScoreIds());
+                      },
+                    );
+                  },
+                ),
+              ],
             ),
             Expanded(
               child: LibraryView(
+                viewModel: _viewModel,
                 selected: _selected.toSet(),
                 selectionMode: true,
                 onScoreSelected: (score) => setState(() {
@@ -52,6 +109,7 @@ class _AddScoresDialogState extends State<AddScoresDialog> {
                 onScoreDeselected: (score) => setState(() {
                   _selected.remove(score.id);
                 }),
+                onSelectAll: _selectAll,
               ),
             ),
             Row(

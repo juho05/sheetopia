@@ -81,6 +81,23 @@ void main() {
     },
   );
 
+  test("score ids cover every match without join duplicates", () async {
+    for (final id in ["a", "b", "c"]) {
+      await insertScore(
+        id,
+        instruments: ["piano", "violin"],
+        genres: ["classical", "baroque"],
+      );
+    }
+    await insertScore("d");
+
+    final all = await repo.getScoreIds();
+    final filtered = await repo.getScoreIds(instruments: ["piano", "violin"]);
+
+    expect(all, ["a", "b", "c", "d"]);
+    expect(filtered, ["a", "b", "c"]);
+  });
+
   test("scores carry their sorted genres and instruments", () async {
     await insertScore(
       "a",
