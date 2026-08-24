@@ -133,4 +133,4 @@ inno_bundle:
   admin: auto
   vc_redist: true
   languages:
-    - english
+    - English
