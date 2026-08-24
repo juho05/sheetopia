@@ -16,6 +16,7 @@ iOS/iPadOS builds will soon be available via TestFlight.
 ## Features
 
 - [x] Import PDF files of your sheet music (scanned or digital)
+    - [x] Scan using device camera
 - [x] Manage metadata such as:
     - Title
     - Composer
