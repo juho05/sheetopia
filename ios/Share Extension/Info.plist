@@ -14,7 +14,8 @@
 				SUBQUERY (
 					$extensionItem.attachments, $attachment,
 					ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "com.adobe.pdf"
-				).@count == $extensionItem.attachments.@count
+					|| ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.file-url"
+				).@count &gt;= 1
 			).@count &gt;= 1</string>
 		</dict>
 		<key>NSExtensionPrincipalClass</key>
