@@ -98,15 +98,18 @@ class ImportExportPage extends StatelessWidget {
                       alignment: AlignmentGeometry.centerLeft,
                       child: Builder(
                         builder: (context) {
-                          Rect? sharePositionOrigin;
-                          if (Platform.isIOS) {
-                            final box =
-                                context.findRenderObject() as RenderBox?;
-                            if (box != null) {
-                              sharePositionOrigin =
-                                  box.localToGlobal(Offset.zero) & box.size;
+                          Rect? sharePositionOrigin() {
+                            if (Platform.isIOS) {
+                              final box =
+                                  context.findRenderObject() as RenderBox?;
+                              if (box != null) {
+                                return box.localToGlobal(Offset.zero) &
+                                    box.size;
+                              }
                             }
+                            return null;
                           }
+
                           return Button(
                             enabled:
                                 viewModel.status == ImportExportStatus.idle,
@@ -114,7 +117,7 @@ class ImportExportPage extends StatelessWidget {
                               Toast.show("Exporting…");
                               try {
                                 final success = await viewModel.export(
-                                  sharePositionOrigin: sharePositionOrigin,
+                                  sharePositionOrigin: sharePositionOrigin(),
                                 );
                                 if (!success || !context.mounted) return;
                                 Toast.show("Export successful!");

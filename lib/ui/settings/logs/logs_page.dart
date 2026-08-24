@@ -90,14 +90,16 @@ class _LogsPageState extends State<LogsPage> {
           if (shareButton)
             Builder(
               builder: (context) {
-                Rect? sharePositionOrigin;
-                if (Platform.isIOS) {
-                  final box = context.findRenderObject() as RenderBox?;
-                  if (box != null) {
-                    sharePositionOrigin =
-                        box.localToGlobal(Offset.zero) & box.size;
+                Rect? sharePositionOrigin() {
+                  if (Platform.isIOS) {
+                    final box = context.findRenderObject() as RenderBox?;
+                    if (box != null) {
+                      return box.localToGlobal(Offset.zero) & box.size;
+                    }
                   }
+                  return null;
                 }
+
                 return MenuButton(
                   icon: const Icon(Icons.share),
                   tooltip: "Share log",
@@ -107,7 +109,7 @@ class _LogsPageState extends State<LogsPage> {
                       onSelected: () async {
                         final result = await _viewModel.shareLog(
                           filtered: false,
-                          sharePositionOrigin: sharePositionOrigin,
+                          sharePositionOrigin: sharePositionOrigin(),
                         );
                         if (!context.mounted) return;
                         if (!result) {
@@ -122,7 +124,7 @@ class _LogsPageState extends State<LogsPage> {
                       onSelected: () async {
                         final result = await _viewModel.shareLog(
                           filtered: true,
-                          sharePositionOrigin: sharePositionOrigin,
+                          sharePositionOrigin: sharePositionOrigin(),
                         );
                         if (!context.mounted) return;
                         if (!result) {
