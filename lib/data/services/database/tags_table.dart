@@ -7,7 +7,16 @@
  */
 
 import 'package:drift/drift.dart';
+import 'package:json_annotation/json_annotation.dart';
+import 'package:sheetopia/data/services/database/exercises_table.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+
+enum TagType {
+  @JsonValue("score")
+  score,
+  @JsonValue("exercise")
+  exercise,
+}
 
 class TagsTable extends Table {
   late final id = text()();
@@ -15,6 +24,9 @@ class TagsTable extends Table {
   late final color = integer()();
   late final updatedAt = dateTime().clientDefault(
     () => DateTime.now().toUtc(),
+  )();
+  late final type = textEnum<TagType>().withDefault(
+    Constant(TagType.score.name),
   )();
 
   // non-null means the row was restored by an import and the server has not accepted the restore
@@ -47,4 +59,25 @@ class ScoreTagsTable extends Table {
 
   @override
   Set<Column<Object>>? get primaryKey => {score, tag};
+}
+
+class ExerciseTagsTable extends Table {
+  late final exercise = text().references(
+    ExercisesTable,
+    #id,
+    onUpdate: KeyAction.cascade,
+    onDelete: KeyAction.cascade,
+  )();
+  late final tag = text().references(
+    TagsTable,
+    #id,
+    onUpdate: KeyAction.cascade,
+    onDelete: KeyAction.cascade,
+  )();
+
+  @override
+  String? get tableName => "exercise_tags";
+
+  @override
+  Set<Column<Object>>? get primaryKey => {exercise, tag};
 }

@@ -13,6 +13,7 @@ import 'dart:ui';
 
 import 'package:archive/archive_io.dart';
 import 'package:drift/drift.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
@@ -344,6 +345,20 @@ class ImportExportRepository extends ChangeNotifier {
     }
   }
 
+  Future<List<String>> _knownTagIds(String scoreId, List<String> tagIds) async {
+    final known =
+        (await _db.managers.tagsTable
+                .filter((f) => f.id.isIn(tagIds))
+                .map((t) => t.id)
+                .get())
+            .toSet();
+    final unknown = tagIds.where((t) => !known.contains(t));
+    if (unknown.isNotEmpty) {
+      Log.warn("Dropping unknown tags ${unknown.join(", ")} of score $scoreId");
+    }
+    return tagIds.where(known.contains).toList();
+  }
+
   Future<void> _dropPendingTombstones(
     List<String> ids,
     Future<void> Function(List<String> chunk) deleteChunk,
@@ -546,9 +561,12 @@ class ImportExportRepository extends ChangeNotifier {
         }
         if (score == null || metadataChanged) {
           if (s.tagIds.isNotEmpty) {
-            await _db.managers.scoreTagsTable.bulkCreate(
-              (o) => s.tagIds.map((t) => o(score: s.id, tag: t)),
-            );
+            final tagIds = await _knownTagIds(s.id, s.tagIds);
+            if (tagIds.isNotEmpty) {
+              await _db.managers.scoreTagsTable.bulkCreate(
+                (o) => tagIds.map((t) => o(score: s.id, tag: t)),
+              );
+            }
           }
           if ((s.metadata.instruments ?? []).isNotEmpty) {
             await _db.managers.instrumentsTable.bulkCreate(

@@ -11,14 +11,23 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:sheetopia/data/services/database/deleted_exercise_categories_table.dart';
+import 'package:sheetopia/data/services/database/deleted_exercises_table.dart';
+import 'package:sheetopia/data/services/database/deleted_practice_routines_table.dart';
+import 'package:sheetopia/data/services/database/deleted_practice_sessions_table.dart';
 import 'package:sheetopia/data/services/database/deleted_scores_table.dart';
 import 'package:sheetopia/data/services/database/deleted_tags_table.dart';
+import 'package:sheetopia/data/services/database/duration_converter.dart';
+import 'package:sheetopia/data/services/database/exercise_categories_table.dart';
+import 'package:sheetopia/data/services/database/exercises_table.dart';
 import 'package:sheetopia/data/services/database/genres_table.dart';
 import 'package:sheetopia/data/services/database/instruments_table.dart';
 import 'package:sheetopia/data/services/database/key_value_table.dart';
 import 'package:sheetopia/data/services/database/log_interceptor.dart';
 import 'package:sheetopia/data/services/database/log_level_converter.dart';
 import 'package:sheetopia/data/services/database/log_message.dart';
+import 'package:sheetopia/data/services/database/practice_routines_table.dart';
+import 'package:sheetopia/data/services/database/practice_sessions_table.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/database/setlists_table.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
@@ -42,13 +51,25 @@ part 'database.g.dart';
     SetlistsTable,
     SetlistEntriesTable,
     DeletedSetlistsTable,
+    ExerciseCategoriesTable,
+    ExercisesTable,
+    ExerciseScoresTable,
+    ExerciseTagsTable,
+    PracticeRoutinesTable,
+    PracticeRoutineEntriesTable,
+    PracticeSessionsTable,
+    PracticeSessionEntriesTable,
+    DeletedExerciseCategoriesTable,
+    DeletedExercisesTable,
+    DeletedPracticeRoutinesTable,
+    DeletedPracticeSessionsTable,
   ],
 )
 class Database extends _$Database {
   Database([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -107,6 +128,33 @@ class Database extends _$Database {
             from8To9: (m, schema) async {
               await m.addColumn(schema.scores, schema.scores.source);
               await m.addColumn(schema.scores, schema.scores.sourceLink);
+            },
+            from9To10: (m, schema) async {
+              await m.addColumn(schema.tags, schema.tags.type);
+
+              await m.createTable(schema.exerciseCategories);
+              await m.createTable(schema.exercises);
+              await m.createTable(schema.exerciseScores);
+              await m.createTable(schema.exerciseTags);
+              await m.createTable(schema.practiceRoutines);
+              await m.createTable(schema.practiceRoutineEntries);
+              await m.createTable(schema.practiceSessions);
+              await m.createTable(schema.practiceSessionEntries);
+              await m.createTable(schema.deletedExerciseCategories);
+              await m.createTable(schema.deletedExercises);
+              await m.createTable(schema.deletedPracticeRoutines);
+              await m.createTable(schema.deletedPracticeSessions);
+
+              await m.createIndex(schema.exercisesCategoryIndex);
+              await m.createIndex(schema.exerciseScoresScoreIndex);
+              await m.createIndex(schema.practiceRoutineEntriesRoutineIndex);
+              await m.createIndex(schema.practiceRoutineEntriesExerciseIndex);
+              await m.createIndex(schema.practiceSessionsStartedAtIndex);
+              await m.createIndex(schema.practiceSessionsRoutineIndex);
+              await m.createIndex(schema.practiceSessionEntriesExerciseIndex);
+              await m.createIndex(
+                schema.practiceSessionEntriesRoutineEntryIndex,
+              );
             },
           ),
         ),
