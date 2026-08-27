@@ -16,6 +16,7 @@ class CommonBadge extends StatelessWidget {
   final Color? foreground;
   final bool onDialog;
   final IconData? trailingIcon;
+  final bool compact;
 
   final bool tooltip;
   final void Function()? onTap;
@@ -28,6 +29,7 @@ class CommonBadge extends StatelessWidget {
     this.foreground,
     this.onDialog = false,
     this.trailingIcon,
+    this.compact = false,
     this.tooltip = true,
     this.onTap,
     this.onRemove,
@@ -45,11 +47,14 @@ class CommonBadge extends StatelessWidget {
             : null);
     final label = Text(
       name,
-      style: theme.textTheme.bodySmall!.copyWith(color: foregroundColor),
+      style: (compact ? theme.textTheme.labelSmall : theme.textTheme.bodySmall)!
+          .copyWith(color: foregroundColor),
       overflow: TextOverflow.ellipsis,
     );
     Widget widget = Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+      padding: compact
+          ? const EdgeInsets.symmetric(vertical: 2, horizontal: 8)
+          : const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
       child: trailingIcon == null
           ? label
           : Row(
@@ -57,7 +62,11 @@ class CommonBadge extends StatelessWidget {
               spacing: 4,
               children: [
                 Flexible(child: label),
-                Icon(trailingIcon, size: 14, color: foregroundColor),
+                Icon(
+                  trailingIcon,
+                  size: compact ? 12 : 14,
+                  color: foregroundColor,
+                ),
               ],
             ),
     );
@@ -66,7 +75,9 @@ class CommonBadge extends StatelessWidget {
         (onDialog
             ? theme.colorScheme.surfaceContainer
             : theme.colorScheme.surfaceContainerHigh);
-    const borderRadius = BorderRadius.all(Radius.circular(14));
+    final borderRadius = BorderRadius.all(
+      Radius.circular(compact ? 10 : 14),
+    );
 
     if (onTap != null) {
       widget = Material(

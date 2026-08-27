@@ -13,6 +13,8 @@ import 'package:sheetopia/data/repositories/setlists/setlist.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/menu_button.dart';
+import 'package:sheetopia/ui/common/rounded_list_tile.dart';
+import 'package:sheetopia/ui/common/rounded_tile_icon.dart';
 import 'package:sheetopia/ui/common/search_input.dart';
 import 'package:sheetopia/ui/setlists/setlist_name_dialog.dart';
 import 'package:sheetopia/ui/setlists/setlists_viewmodel.dart';
@@ -81,7 +83,6 @@ class _SetlistsViewState extends State<SetlistsView> {
           padding: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
           child: SearchInput(
             label: "Search",
-            debounce: null,
             onSearch: (query) {
               _viewModel.filterSearch = query;
             },
@@ -162,12 +163,13 @@ class _SetlistsViewState extends State<SetlistsView> {
     }
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 88),
+      itemExtent: RoundedListTile.extentFor(subtitle: true),
       itemCount: _viewModel.setlists.length,
       itemBuilder: (context, index) {
         final setlist = _viewModel.setlists[index];
-        return ListTile(
-          leading: const Icon(Icons.queue_music),
-          title: Text(setlist.name, overflow: TextOverflow.ellipsis),
+        return RoundedListTile(
+          leading: const RoundedTileIcon(icon: Icons.queue_music),
+          title: setlist.name,
           subtitle: Text(
             "${setlist.entryCount} "
             "${setlist.entryCount == 1 ? "score" : "scores"}",

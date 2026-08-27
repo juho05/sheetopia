@@ -23,7 +23,7 @@ class SearchInput extends StatefulWidget {
   const SearchInput({
     super.key,
     required this.onSearch,
-    this.debounce = const Duration(milliseconds: 500),
+    this.debounce = const Duration(milliseconds: 50),
     this.restorationId,
     this.onTapOutside,
     this.onClearButtonPressed,
@@ -54,6 +54,7 @@ class _SearchInputState extends State<SearchInput> with RestorationMixin {
   }
 
   bool _setInitialValue = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();

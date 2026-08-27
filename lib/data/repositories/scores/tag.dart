@@ -14,7 +14,7 @@ class Tag {
   final Color color;
   final DateTime updatedAt;
 
-  Tag({
+  const Tag({
     required this.id,
     required this.name,
     required this.color,

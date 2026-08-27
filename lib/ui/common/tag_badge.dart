@@ -13,6 +13,7 @@ import 'package:sheetopia/ui/common/common_badge.dart';
 class TagBadge extends StatelessWidget {
   final Tag tag;
   final bool tooltip;
+  final bool compact;
   final void Function()? onTap;
   final void Function()? onRemove;
 
@@ -20,6 +21,7 @@ class TagBadge extends StatelessWidget {
     super.key,
     required this.tag,
     this.tooltip = true,
+    this.compact = false,
     this.onTap,
     this.onRemove,
   });
@@ -30,6 +32,7 @@ class TagBadge extends StatelessWidget {
       name: tag.name,
       color: tag.color,
       tooltip: tooltip,
+      compact: compact,
       onTap: onTap,
       onRemove: onRemove,
     );

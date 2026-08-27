@@ -239,6 +239,7 @@ class LibraryViewModel extends ChangeNotifier {
     _filterTags.clear();
     _filterTags.addAll(newTags);
     notifyListeners();
+    _reset();
   }
 
   Timer? _resetDebounce;
