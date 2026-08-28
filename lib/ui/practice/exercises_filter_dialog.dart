@@ -15,6 +15,7 @@ import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/common/tag_badge.dart';
 import 'package:sheetopia/ui/edit_score/add_tags_dialog.dart';
 import 'package:sheetopia/ui/edit_score/select_tags_list.dart';
+import 'package:sheetopia/ui/practice/category_selector.dart';
 import 'package:sheetopia/ui/practice/exercises_viewmodel.dart';
 
 class ExercisesFilterDialog extends StatefulWidget {
@@ -38,10 +39,6 @@ class ExercisesFilterDialog extends StatefulWidget {
 
 class _ExercisesFilterDialogState extends State<ExercisesFilterDialog> {
   late final ExercisesViewModel _viewModel = widget._viewModel;
-  late final TextEditingController _categoryController = TextEditingController(
-    text: _viewModel.filterCategory,
-  );
-  final FocusNode _categoryFocus = FocusNode();
   late final TextEditingController _instrumentController =
       TextEditingController(text: _viewModel.filterInstrument);
   final FocusNode _instrumentFocus = FocusNode();
@@ -55,18 +52,12 @@ class _ExercisesFilterDialogState extends State<ExercisesFilterDialog> {
   @override
   void dispose() {
     _viewModel.removeListener(_onFiltersChanged);
-    _categoryController.dispose();
-    _categoryFocus.dispose();
     _instrumentController.dispose();
     _instrumentFocus.dispose();
     super.dispose();
   }
 
   void _onFiltersChanged() {
-    if (_viewModel.filterCategory.isEmpty &&
-        _categoryController.text.isNotEmpty) {
-      _categoryController.clear();
-    }
     if (_viewModel.filterInstrument.isEmpty &&
         _instrumentController.text.isNotEmpty) {
       _instrumentController.clear();
@@ -110,30 +101,11 @@ class _ExercisesFilterDialogState extends State<ExercisesFilterDialog> {
                 ),
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: AutoCompleteField(
-                    controller: _categoryController,
-                    focusNode: _categoryFocus,
-                    onDialog: true,
-                    getOptions: (filter) =>
-                        _viewModel.getCategories(filter: filter),
-                    onChanged: (value) =>
-                        _viewModel.filterCategory = value.trim(),
-                    onSelected: (option) =>
-                        _viewModel.filterCategory = option.trim(),
-                    decoration: InputDecoration(
-                      label: const Text("Category"),
-                      border: const OutlineInputBorder(),
-                      suffixIcon: _viewModel.filterCategory.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _categoryController.clear();
-                                _viewModel.filterCategory = "";
-                                _categoryFocus.unfocus();
-                              },
-                            )
-                          : null,
-                    ),
+                  child: CategorySelector(
+                    category: _viewModel.filterCategory,
+                    emptyLabel: "All categories",
+                    onChanged: (category) =>
+                        _viewModel.filterCategory = category,
                   ),
                 ),
                 Padding(

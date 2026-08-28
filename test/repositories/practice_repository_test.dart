@@ -64,6 +64,9 @@ void main() {
     return id;
   }
 
+  Future<List<String>> categoryNames() async =>
+      (await repo.getAllCategories()).map((c) => c.name).toList();
+
   setUp(() async {
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
@@ -371,10 +374,10 @@ void main() {
     await createExercise("Slides", instrument: "Guitar");
     await createExercise("Walking", instrument: "Bass");
 
-    expect((await repo.getExercises(size: 10, category: "Warmup")).length, 1);
+    expect((await repo.getExercises(size: 10, categoryId: warmup)).length, 1);
     expect(await repo.countExercises(instrument: "Guitar"), 2);
     expect(
-      await repo.countExercises(category: "Warmup", instrument: "Bass"),
+      await repo.countExercises(categoryId: warmup, instrument: "Bass"),
       0,
     );
   });
@@ -413,9 +416,43 @@ void main() {
     await insertCategory("Etudes", position: 0);
     await insertCategory("Technique", position: 2);
 
-    expect(await repo.getCategories(), ["Etudes", "Warmup", "Technique"]);
-    expect(await repo.getCategories(size: 2), ["Etudes", "Warmup"]);
-    expect(await repo.getCategories(filter: "tud"), ["Etudes"]);
+    expect(await categoryNames(), ["Etudes", "Warmup", "Technique"]);
+  });
+
+  test("an exercise can be created with a category", () async {
+    final warmup = await repo.createCategory("Warmup");
+
+    final id = await repo.createExercise(
+      name: "Chromatic",
+      description: "",
+      instrument: "",
+      source: "",
+      sourceLink: "",
+      tagIds: const [],
+      categoryId: warmup.id,
+    );
+
+    expect((await repo.getExercise(id))?.category?.id, warmup.id);
+  });
+
+  test("the category of an exercise can be changed and removed", () async {
+    final warmup = await repo.createCategory("Warmup");
+    final id = await createExercise("Chromatic");
+    await db.managers.exercisesTable
+        .filter((f) => f.id(id))
+        .update((o) => o(uploaded: const Value(true)));
+
+    await repo.updateExerciseCategory(id, warmup.id);
+
+    expect((await repo.getExercise(id))?.category?.name, "Warmup");
+    final updated = await db.managers.exercisesTable
+        .filter((f) => f.id(id))
+        .getSingle();
+    expect(updated.uploaded, isFalse);
+
+    await repo.updateExerciseCategory(id, null);
+
+    expect((await repo.getExercise(id))?.category, isNull);
   });
 
   test("categories are created at the end and can be reordered", () async {
@@ -423,18 +460,19 @@ void main() {
     final etudes = await repo.createCategory("Etudes");
     final technique = await repo.createCategory("Technique");
 
-    expect(await repo.getCategories(), ["Warmup", "Etudes", "Technique"]);
+    expect(await categoryNames(), ["Warmup", "Etudes", "Technique"]);
 
     await repo.moveCategory(2, 0);
 
-    expect(
-      (await repo.getAllCategories()).map((c) => c.id),
-      [technique.id, warmup.id, etudes.id],
-    );
+    expect((await repo.getAllCategories()).map((c) => c.id), [
+      technique.id,
+      warmup.id,
+      etudes.id,
+    ]);
 
     await repo.moveCategory(0, 3);
 
-    expect(await repo.getCategories(), ["Technique", "Warmup", "Etudes"]);
+    expect(await categoryNames(), ["Technique", "Warmup", "Etudes"]);
   });
 
   test("a renamed category is reported with the exercise", () async {

@@ -16,6 +16,7 @@ import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/menu_button.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
+import 'package:sheetopia/ui/practice/category_name_dialog.dart';
 import 'package:sheetopia/ui/practice/manage_categories_viewmodel.dart';
 
 class ManageCategoriesDialog extends StatefulWidget {
@@ -42,7 +43,7 @@ class _ManageCategoriesDialogState extends State<ManageCategoriesDialog> {
   late final ManageCategoriesViewModel _viewModel = widget.viewModel;
 
   Future<void> _create() async {
-    final name = await _CategoryNameDialog.show(
+    final name = await CategoryNameDialog.show(
       context,
       title: "Create category",
       confirmLabel: "Create",
@@ -53,7 +54,7 @@ class _ManageCategoriesDialogState extends State<ManageCategoriesDialog> {
   }
 
   Future<void> _rename(CategoryEntry entry) async {
-    final name = await _CategoryNameDialog.show(
+    final name = await CategoryNameDialog.show(
       context,
       title: "Rename category",
       confirmLabel: "Rename",
@@ -210,114 +211,6 @@ class _ManageCategoriesDialogState extends State<ManageCategoriesDialog> {
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-class _CategoryNameDialog extends StatefulWidget {
-  final String title;
-  final String confirmLabel;
-  final String initialName;
-  final bool Function(String name) isTaken;
-
-  const _CategoryNameDialog({
-    required this.title,
-    required this.confirmLabel,
-    required this.initialName,
-    required this.isTaken,
-  });
-
-  static Future<String?> show(
-    BuildContext context, {
-    required String title,
-    required String confirmLabel,
-    String initialName = "",
-    required bool Function(String name) isTaken,
-  }) {
-    return showSheetopiaDialog<String>(
-      context: context,
-      builder: (context) => _CategoryNameDialog(
-        title: title,
-        confirmLabel: confirmLabel,
-        initialName: initialName,
-        isTaken: isTaken,
-      ),
-    );
-  }
-
-  @override
-  State<_CategoryNameDialog> createState() => _CategoryNameDialogState();
-}
-
-class _CategoryNameDialogState extends State<_CategoryNameDialog> {
-  late final TextEditingController _controller = TextEditingController(
-    text: widget.initialName,
-  );
-  final FocusNode _focus = FocusNode();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _focus.dispose();
-    super.dispose();
-  }
-
-  String get _name => _controller.text.trim();
-
-  bool get _valid => _name.isNotEmpty && !widget.isTaken(_name);
-
-  void _submit() {
-    if (!_valid) return;
-    Navigator.pop(context, _name);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SheetopiaDialog(
-      maxWidth: 480,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        spacing: 8,
-        children: [
-          Text(
-            widget.title,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 4),
-          TextField(
-            controller: _controller,
-            focusNode: _focus,
-            autofocus: true,
-            textInputAction: TextInputAction.done,
-            onChanged: (_) => setState(() {}),
-            onSubmitted: (_) => _submit(),
-            onTapOutside: (event) => _focus.unfocus(),
-            decoration: InputDecoration(
-              border: const OutlineInputBorder(),
-              labelText: "Name",
-              errorText: widget.isTaken(_name)
-                  ? "This category already exists"
-                  : null,
-            ),
-          ),
-          Row(
-            spacing: 8,
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              OutlinedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Cancel"),
-              ),
-              FilledButton(
-                onPressed: _valid ? _submit : null,
-                child: Text(widget.confirmLabel),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }

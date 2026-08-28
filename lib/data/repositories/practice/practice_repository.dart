@@ -93,14 +93,14 @@ class PracticeRepository {
   void _applyExerciseFilters(
     JoinedSelectStatement q,
     Iterable<String> searchWords,
-    String category,
+    String? categoryId,
     String instrument,
   ) {
     for (final word in searchWords) {
       q.where(_db.exercisesTable.name.contains(word));
     }
-    if (category.isNotEmpty) {
-      q.where(_db.exerciseCategoriesTable.name.equals(category));
+    if (categoryId != null) {
+      q.where(_db.exercisesTable.category.equals(categoryId));
     }
     if (instrument.isNotEmpty) {
       q.where(_db.exercisesTable.instrument.equals(instrument));
@@ -119,7 +119,7 @@ class PracticeRepository {
 
   Future<int> countExercises({
     String filter = "",
-    String category = "",
+    String? categoryId,
     String instrument = "",
     Iterable<String> tagIds = const [],
     FilterMatchType tagMatch = FilterMatchType.all,
@@ -129,7 +129,7 @@ class PracticeRepository {
         .selectOnly(_db.exercisesTable)
         .join(_filterJoins(tagIds: tagIds, tagMatch: tagMatch));
     q.addColumns([countExpr]);
-    _applyExerciseFilters(q, _searchWords(filter), category, instrument);
+    _applyExerciseFilters(q, _searchWords(filter), categoryId, instrument);
     return (await q.getSingle()).read(countExpr) ?? 0;
   }
 
@@ -137,7 +137,7 @@ class PracticeRepository {
     required int size,
     int offset = 0,
     String filter = "",
-    String category = "",
+    String? categoryId,
     String instrument = "",
     Iterable<String> tagIds = const [],
     FilterMatchType tagMatch = FilterMatchType.all,
@@ -145,7 +145,7 @@ class PracticeRepository {
     final q = _db
         .select(_db.exercisesTable)
         .join(_filterJoins(tagIds: tagIds, tagMatch: tagMatch));
-    _applyExerciseFilters(q, _searchWords(filter), category, instrument);
+    _applyExerciseFilters(q, _searchWords(filter), categoryId, instrument);
     q.orderBy(_exerciseOrdering);
     q.limit(size, offset: offset);
 
@@ -173,21 +173,6 @@ class PracticeRepository {
           sourceLink: exercise.sourceLink,
         ),
     ];
-  }
-
-  Future<List<String>> getCategories({String filter = "", int? size}) async {
-    final q = _db.select(_db.exerciseCategoriesTable);
-    if (filter.isNotEmpty) {
-      q.where((t) => t.name.contains(filter));
-    }
-    q.orderBy([
-      (t) => OrderingTerm.asc(t.position),
-      (t) => OrderingTerm.asc(t.name.lower()),
-    ]);
-    if (size != null) {
-      q.limit(size);
-    }
-    return (await q.get()).map((c) => c.name).toList();
   }
 
   Future<List<ExerciseCategory>> getAllCategories() async {
@@ -263,12 +248,12 @@ class PracticeRepository {
           .filter((f) => f.id(categoryId))
           .delete();
       await _db.managers.deletedExerciseCategoriesTable.create(
-        (o) => o(
-          categoryId: categoryId,
-          deletedAt: Value(DateTime.now().toUtc()),
-        ),
+        (o) =>
+            o(categoryId: categoryId, deletedAt: Value(DateTime.now().toUtc())),
       );
-      movedIds.addAll(await _writeCategoryPositions(await _orderedCategories()));
+      movedIds.addAll(
+        await _writeCategoryPositions(await _orderedCategories()),
+      );
     });
     if (exerciseIds.isNotEmpty) _updatedExerciseIds.add(exerciseIds);
     _updatedCategoryIds.add({categoryId, ...movedIds});
@@ -402,6 +387,7 @@ class PracticeRepository {
     required String source,
     required String sourceLink,
     required Iterable<String> tagIds,
+    String? categoryId,
   }) async {
     final exerciseId = _db.newId();
     await _db.transaction(() async {
@@ -409,6 +395,7 @@ class PracticeRepository {
         (o) => o(
           id: exerciseId,
           name: name,
+          category: Value(categoryId),
           description: description.isNotEmpty
               ? Value(description)
               : const Value(null),
@@ -450,6 +437,22 @@ class PracticeRepository {
             instrument: instrument.isNotEmpty
                 ? Value(instrument)
                 : const Value(null),
+            updatedAt: Value(DateTime.now().toUtc()),
+            uploaded: const Value(false),
+          ),
+        );
+    _updatedExerciseIds.add({exerciseId});
+  }
+
+  Future<void> updateExerciseCategory(
+    String exerciseId,
+    String? categoryId,
+  ) async {
+    await _db.managers.exercisesTable
+        .filter((f) => f.id(exerciseId))
+        .update(
+          (o) => o(
+            category: Value(categoryId),
             updatedAt: Value(DateTime.now().toUtc()),
             uploaded: const Value(false),
           ),

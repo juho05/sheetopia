@@ -11,6 +11,7 @@ import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
+import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 
@@ -30,6 +31,10 @@ class EditExerciseViewModel extends ChangeNotifier {
   );
 
   Iterable<Tag> get tags => _tags;
+
+  ExerciseCategory? _category;
+
+  ExerciseCategory? get category => _category;
 
   String? _source;
 
@@ -65,13 +70,20 @@ class EditExerciseViewModel extends ChangeNotifier {
     });
   }
 
+  Future<void> setCategory(ExerciseCategory? category) async {
+    _category = category;
+    notifyListeners();
+    if (_exerciseId == null) return;
+    await _repo.updateExerciseCategory(_exerciseId, category?.id);
+  }
+
   Future<void> setSource(String source, String sourceLink) async {
     _source = source.isNotEmpty ? source : null;
     _sourceLink = _source != null && sourceLink.isNotEmpty ? sourceLink : null;
     notifyListeners();
     if (_exerciseId == null) return;
     await _repo.updateExerciseSource(
-      _exerciseId!,
+      _exerciseId,
       source: source,
       sourceLink: sourceLink,
     );
@@ -81,14 +93,14 @@ class EditExerciseViewModel extends ChangeNotifier {
     _tags.addAll(tags);
     notifyListeners();
     if (_exerciseId == null) return;
-    await _repo.addExerciseTags(_exerciseId!, tags.map((t) => t.id));
+    await _repo.addExerciseTags(_exerciseId, tags.map((t) => t.id));
   }
 
   Future<void> removeTag(Tag tag) async {
     _tags.remove(tag);
     notifyListeners();
     if (_exerciseId == null) return;
-    await _repo.removeExerciseTag(_exerciseId!, tag.id);
+    await _repo.removeExerciseTag(_exerciseId, tag.id);
   }
 
   List<String>? _instruments;
@@ -122,6 +134,7 @@ class EditExerciseViewModel extends ChangeNotifier {
       source: _source ?? "",
       sourceLink: _sourceLink ?? "",
       tagIds: _tags.map((t) => t.id),
+      categoryId: _category?.id,
     );
   }
 
@@ -129,7 +142,7 @@ class EditExerciseViewModel extends ChangeNotifier {
     if (_exerciseId == null) return;
     _valuesDebounce?.cancel();
     _valuesDebounce = null;
-    await _repo.deleteExercise(_exerciseId!);
+    await _repo.deleteExercise(_exerciseId);
   }
 
   Future<void> reloadExercise() async {
@@ -145,6 +158,7 @@ class EditExerciseViewModel extends ChangeNotifier {
     final exercise = await _repo.getExercise(_exerciseId);
     // TODO properly handle exercise == null
     if (exercise != null) {
+      _category = exercise.category;
       _source = exercise.source;
       _sourceLink = exercise.sourceLink;
       _tags = SplayTreeSet.of(

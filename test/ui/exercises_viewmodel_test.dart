@@ -71,7 +71,7 @@ void main() {
 
     await viewModel.loadNextPage();
 
-    expect(viewModel.exercises.map((g) => g.category), ["Warmup", null]);
+    expect(viewModel.exercises.map((g) => g.category?.name), ["Warmup", null]);
     expect(viewModel.exercises.first.exercise.map((e) => e.name), [
       "Bends",
       "Slides",

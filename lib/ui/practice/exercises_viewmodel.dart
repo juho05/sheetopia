@@ -11,11 +11,12 @@ import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
+import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 
-typedef ExerciseGroup = ({String? category, List<Exercise> exercise});
+typedef ExerciseGroup = ({ExerciseCategory? category, List<Exercise> exercise});
 
 class ExercisesViewModel extends ChangeNotifier {
   static const int _pageSize = 100;
@@ -62,7 +63,7 @@ class ExercisesViewModel extends ChangeNotifier {
     final result = isFiltered
         ? await _repo.countExercises(
             filter: _filterSearch,
-            category: _filterCategory,
+            categoryId: _filterCategory?.id,
             instrument: _filterInstrument,
             tagIds: _filterTags.map((t) => t.id),
             tagMatch: _tagMatch,
@@ -81,12 +82,12 @@ class ExercisesViewModel extends ChangeNotifier {
     _reset();
   }
 
-  String _filterCategory = "";
+  ExerciseCategory? _filterCategory;
 
-  String get filterCategory => _filterCategory;
+  ExerciseCategory? get filterCategory => _filterCategory;
 
-  set filterCategory(String category) {
-    if (_filterCategory == category) return;
+  set filterCategory(ExerciseCategory? category) {
+    if (_filterCategory?.id == category?.id) return;
     _filterCategory = category;
     notifyListeners();
     _reset();
@@ -121,7 +122,7 @@ class ExercisesViewModel extends ChangeNotifier {
   }
 
   bool get hasFilters =>
-      _filterCategory.isNotEmpty ||
+      _filterCategory != null ||
       _filterInstrument.isNotEmpty ||
       _filterTags.isNotEmpty;
 
@@ -141,16 +142,12 @@ class ExercisesViewModel extends ChangeNotifier {
 
   void clearFilters() {
     if (!hasFilters) return;
-    _filterCategory = "";
+    _filterCategory = null;
     _filterInstrument = "";
     _filterTags.clear();
     _tagMatch = FilterMatchType.all;
     notifyListeners();
     _reset();
-  }
-
-  Future<Iterable<String>> getCategories({String filter = ""}) async {
-    return await _repo.getCategories(filter: filter, size: 10);
   }
 
   Future<Iterable<String>> getInstruments({String filter = ""}) async {
@@ -214,7 +211,7 @@ class ExercisesViewModel extends ChangeNotifier {
       size: size,
       offset: offset,
       filter: _filterSearch,
-      category: _filterCategory,
+      categoryId: _filterCategory?.id,
       instrument: _filterInstrument,
       tagIds: _filterTags.map((t) => t.id),
       tagMatch: _tagMatch,
@@ -224,8 +221,8 @@ class ExercisesViewModel extends ChangeNotifier {
   void _groupExercises() {
     final groups = <ExerciseGroup>[];
     for (final exercise in _exercises) {
-      final category = exercise.category?.name;
-      if (groups.isEmpty || groups.last.category != category) {
+      final category = exercise.category;
+      if (groups.isEmpty || groups.last.category?.id != category?.id) {
         groups.add((category: category, exercise: [exercise]));
       } else {
         groups.last.exercise.add(exercise);

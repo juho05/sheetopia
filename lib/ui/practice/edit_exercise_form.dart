@@ -23,6 +23,7 @@ import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/edit_score/add_tags_dialog.dart';
 import 'package:sheetopia/ui/edit_score/select_tags_list.dart';
 import 'package:sheetopia/ui/edit_score/source_input_dialog.dart';
+import 'package:sheetopia/ui/practice/category_selector.dart';
 import 'package:sheetopia/ui/practice/edit_exercise_viewmodel.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -67,6 +68,15 @@ class _EditExerciseFormState extends State<EditExerciseForm> {
                       decoration: const InputDecoration(
                         label: Text("Title"),
                         border: OutlineInputBorder(),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: CategorySelector(
+                        category: viewModel.category,
+                        emptyLabel: "No category",
+                        allowCreate: true,
+                        onChanged: viewModel.setCategory,
                       ),
                     ),
                     Padding(

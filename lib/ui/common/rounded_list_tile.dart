@@ -19,6 +19,7 @@ class RoundedListTile extends StatelessWidget {
       (subtitle ? defaultHeight : compactHeight) + spacing;
 
   final String title;
+  final TextStyle? titleStyle;
   final Widget? subtitle;
   final Widget? leading;
   final Widget? trailing;
@@ -33,6 +34,7 @@ class RoundedListTile extends StatelessWidget {
   const RoundedListTile({
     super.key,
     required this.title,
+    this.titleStyle,
     this.subtitle,
     this.leading,
     this.trailing,
@@ -95,11 +97,13 @@ class RoundedListTile extends StatelessWidget {
                       spacing: 2,
                       children: [
                         DefaultTextStyle.merge(
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: selected
-                                ? theme.colorScheme.onSecondaryContainer
-                                : theme.colorScheme.onSurface,
-                          ),
+                          style: theme.textTheme.bodyLarge
+                              ?.copyWith(
+                                color: selected
+                                    ? theme.colorScheme.onSecondaryContainer
+                                    : theme.colorScheme.onSurface,
+                              )
+                              .merge(titleStyle),
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
                           child: OptionalTooltip(

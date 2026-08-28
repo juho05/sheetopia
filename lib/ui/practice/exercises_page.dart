@@ -222,13 +222,13 @@ class _ExercisesListState extends State<_ExercisesList> {
                 ),
               for (final group in groups)
                 SliverMainAxisGroup(
-                  key: ValueKey(group.category),
+                  key: ValueKey(group.category?.id),
                   slivers: [
                     if (headers)
                       SliverPersistentHeader(
                         pinned: true,
                         delegate: _CategoryHeaderDelegate(
-                          title: group.category ?? "No category",
+                          title: group.category?.name ?? "No category",
                         ),
                       ),
                     SliverFixedExtentList.builder(

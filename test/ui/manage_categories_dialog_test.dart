@@ -39,6 +39,9 @@ void main() {
         .update((o) => o(category: Value(category)));
   }
 
+  Future<List<String>> categoryNames() async =>
+      (await repo.getAllCategories()).map((c) => c.name).toList();
+
   setUp(() async {
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
@@ -119,7 +122,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, "Create"));
     await tester.pumpAndSettle();
 
-    expect(await repo.getCategories(), ["Warmup", "Etudes"]);
+    expect(await categoryNames(), ["Warmup", "Etudes"]);
     expect(find.text("Etudes"), findsOneWidget);
   });
 
@@ -152,7 +155,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, "Rename"));
     await tester.pumpAndSettle();
 
-    expect(await repo.getCategories(), ["Warm up"]);
+    expect(await categoryNames(), ["Warm up"]);
     expect((await repo.getAllCategories()).single.id, warmup.id);
   });
 
@@ -174,7 +177,7 @@ void main() {
     await tester.tap(find.text("Yes"));
     await tester.pumpAndSettle();
 
-    expect(await repo.getCategories(), isEmpty);
+    expect(await categoryNames(), isEmpty);
     expect(find.text("No categories yet."), findsOneWidget);
   });
 
@@ -193,7 +196,7 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
 
-    expect(await repo.getCategories(), ["Etudes", "Warmup"]);
+    expect(await categoryNames(), ["Etudes", "Warmup"]);
   });
 
   testWidgets("a long press anywhere on the tile starts a drag", (
@@ -214,7 +217,7 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
 
-    expect(await repo.getCategories(), ["Etudes", "Warmup"]);
+    expect(await categoryNames(), ["Etudes", "Warmup"]);
   });
 
   testWidgets("changes made elsewhere reach the open dialog", (tester) async {

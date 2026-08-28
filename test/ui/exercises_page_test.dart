@@ -14,6 +14,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/ui/common/filter_button.dart';
+import 'package:sheetopia/ui/practice/category_selector.dart';
 import 'package:sheetopia/ui/practice/exercises_page.dart';
 
 void main() {
@@ -23,7 +25,7 @@ void main() {
   late Database db;
   late PracticeRepository repo;
 
-  Future<void> createExercise(String name) async {
+  Future<void> createExercise(String name, {String? category}) async {
     await repo.createExercise(
       name: name,
       description: "",
@@ -31,6 +33,7 @@ void main() {
       source: "",
       sourceLink: "",
       tagIds: const [],
+      categoryId: category,
     );
   }
 
@@ -115,5 +118,26 @@ void main() {
     expect(find.text("No matching exercises."), findsOneWidget);
     expect(find.text("Create exercise"), findsNothing);
     expect(find.text("0 of 1"), findsOneWidget);
+  });
+
+  testWidgets("the category filter narrows the list down", (tester) async {
+    final warmup = await repo.createCategory("Warmup");
+    await createExercise("Bends", category: warmup.id);
+    await createExercise("Chromatic");
+
+    await pumpExercises(tester);
+    await tester.tap(find.byType(FilterButton));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(CategorySelector));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text("Warmup").last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text("Done"));
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(find.text("Bends"), findsOneWidget);
+    expect(find.text("Chromatic"), findsNothing);
+    expect(find.text("1 of 2"), findsOneWidget);
   });
 }
