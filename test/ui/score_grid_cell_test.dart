@@ -40,6 +40,7 @@ void main() {
           updatedAt: timestamp,
         ),
       ),
+      type: ScoreType.score,
       metadataUpdatedAt: timestamp,
       fileUpdatedAt: timestamp,
       fileType: FileType.pdf,

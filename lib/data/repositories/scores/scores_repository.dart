@@ -122,6 +122,7 @@ class ScoresRepository {
               .toList()
             ..sort(),
       tags: (await _getScoreTags(score.id)).toList(),
+      type: score.type,
       metadataUpdatedAt: score.metadataUpdatedAt.toUtc(),
       fileUpdatedAt: score.fileUpdatedAt.toUtc(),
       fileType: score.fileType,
@@ -237,9 +238,13 @@ class ScoresRepository {
     Iterable<String> searchFields,
     String composer,
     String source,
+    ScoreType? type,
   ) {
     for (final s in searchFields) {
       q.where(_db.scoresTable.searchText.contains(s));
+    }
+    if (type != null) {
+      q.where(_db.scoresTable.type.equalsValue(type));
     }
     if (composer.isNotEmpty) {
       q.where(_db.scoresTable.composer.equals(composer));
@@ -253,6 +258,7 @@ class ScoresRepository {
     String filter = "",
     String composer = "",
     String source = "",
+    ScoreType? type,
     Iterable<String> instruments = const [],
     Iterable<String> genres = const [],
     Iterable<String> tagIds = const [],
@@ -275,7 +281,7 @@ class ScoresRepository {
           ),
         );
     q.addColumns([countExpr]);
-    _applyScoreFilters(q, searchFields, composer, source);
+    _applyScoreFilters(q, searchFields, composer, source, type);
     final row = await q.getSingle();
     return row.read(countExpr) ?? 0;
   }
@@ -284,6 +290,7 @@ class ScoresRepository {
     String filter = "",
     String composer = "",
     String source = "",
+    ScoreType? type,
     Iterable<String> instruments = const [],
     Iterable<String> genres = const [],
     Iterable<String> tagIds = const [],
@@ -305,7 +312,7 @@ class ScoresRepository {
           ),
         );
     q.addColumns([_db.scoresTable.id]);
-    _applyScoreFilters(q, searchFields, composer, source);
+    _applyScoreFilters(q, searchFields, composer, source, type);
     q.orderBy([
       ...searchFields
           .take(3)
@@ -330,6 +337,7 @@ class ScoresRepository {
     String filter = "",
     String composer = "",
     String source = "",
+    ScoreType? type,
     Iterable<String> instruments = const [],
     Iterable<String> genres = const [],
     Iterable<String> tagIds = const [],
@@ -351,7 +359,7 @@ class ScoresRepository {
             tagMatch: tagMatch,
           ),
         );
-    _applyScoreFilters(q, searchFields, composer, source);
+    _applyScoreFilters(q, searchFields, composer, source, type);
     q.orderBy([
       ...searchFields
           .take(3)
@@ -390,6 +398,7 @@ class ScoresRepository {
           genres: scoreGenres[s.id] ?? const [],
           instruments: scoreInstruments[s.id] ?? const [],
           tags: scoreTags[s.id] ?? const [],
+          type: s.type,
           metadataUpdatedAt: s.metadataUpdatedAt.toUtc(),
           fileUpdatedAt: s.fileUpdatedAt.toUtc(),
           fileType: s.fileType,
@@ -943,7 +952,10 @@ class ScoresRepository {
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
-  Future<List<Score>> importAll(Iterable<XFile> files) async {
+  Future<List<Score>> importAll(
+    Iterable<XFile> files, {
+    ScoreType type = ScoreType.score,
+  }) async {
     List<Score> scores = [];
     try {
       for (final f in files) {
@@ -975,6 +987,7 @@ class ScoresRepository {
             genres: const [],
             instruments: const [],
             tags: const [],
+            type: type,
             fileUpdatedAt: now,
             metadataUpdatedAt: now,
             fileType: fileType,
@@ -993,6 +1006,7 @@ class ScoresRepository {
             fileUpdatedAt: Value(s.fileUpdatedAt.toUtc()),
             fileDownloaded: true,
             fileType: s.fileType,
+            type: Value(s.type),
           ),
         ),
       );

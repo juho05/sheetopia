@@ -31,6 +31,14 @@ ScoreModel _$ScoreModelFromJson(Map<String, dynamic> json) =>
           'metadata',
           (v) => ScoreMetadataModel.fromJson(v as Map<String, dynamic>),
         ),
+        type: $checkedConvert(
+          'type',
+          (v) => $enumDecodeNullable(
+            _$ScoreTypeEnumMap,
+            v,
+            unknownValue: ScoreType.score,
+          ),
+        ),
       );
       return val;
     });
@@ -44,9 +52,15 @@ Map<String, dynamic> _$ScoreModelToJson(ScoreModel instance) =>
       'fileType': _$FileTypeEnumMap[instance.fileType]!,
       'tagIds': instance.tagIds,
       'metadata': instance.metadata,
+      'type': ?_$ScoreTypeEnumMap[instance.type],
     };
 
 const _$FileTypeEnumMap = {FileType.pdf: 'pdf'};
+
+const _$ScoreTypeEnumMap = {
+  ScoreType.score: 'score',
+  ScoreType.exercise: 'exercise',
+};
 
 ScoresModel _$ScoresModelFromJson(Map<String, dynamic> json) =>
     $checkedCreate('ScoresModel', json, ($checkedConvert) {

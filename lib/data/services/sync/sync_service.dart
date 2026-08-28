@@ -11,6 +11,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/data/services/sync/exceptions.dart';
 import 'package:sheetopia/data/services/sync/models/auth_key.dart';
 import 'package:sheetopia/data/services/sync/models/datetime_converter.dart';
@@ -199,6 +200,7 @@ class SyncService {
     required int color,
     required DateTime updatedAt,
     DateTime? writtenAt,
+    TagType? type,
   }) async {
     await _request(
       con.baseUri,
@@ -210,6 +212,7 @@ class SyncService {
         "color": color,
         "updatedAt": updatedAt.toRFC3339(),
         if (writtenAt != null) "writtenAt": writtenAt.toRFC3339(),
+        if (type != null) "type": type.name,
       },
     );
   }
@@ -222,6 +225,7 @@ class SyncService {
     required List<String> tagIds,
     required ScoreMetadataModel metadata,
     DateTime? writtenAt,
+    ScoreType? type,
   }) async {
     final data = {
       "title": title,
@@ -229,6 +233,7 @@ class SyncService {
       "metadata": metadata,
       "tagIds": tagIds,
       if (writtenAt != null) "writtenAt": writtenAt.toRFC3339(),
+      if (type != null) "type": type.name,
     };
     if (writtenAt == null) {
       await _request(

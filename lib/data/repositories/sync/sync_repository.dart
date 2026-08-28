@@ -39,6 +39,8 @@ class SyncRepository {
 
   static const minAPIVersionDeletedAt = Version(major: 0, minor: 3);
 
+  static const minAPIVersionType = Version(major: 0, minor: 4);
+
   final ScoresRepository _scoresRepo;
   final SetlistsRepository _setlistsRepo;
   final KeyValueRepository _keyValue;
@@ -258,6 +260,7 @@ class SyncRepository {
       final apiVersion = Version.parse(serverInfo.apiVersion);
       final sendWrittenAt = apiVersion >= minAPIVersionResurrect;
       final honourDeletedAt = apiVersion >= minAPIVersionDeletedAt;
+      final sendType = apiVersion >= minAPIVersionType;
 
       await _uploadDeletedTags();
       await _uploadDeletedScores();
@@ -267,12 +270,12 @@ class SyncRepository {
 
       await _downloadDeletedTags(honourDeletedAt);
 
-      await _uploadTagChanges(sendWrittenAt);
+      await _uploadTagChanges(sendWrittenAt, sendType);
       await _downloadTagChanges();
 
       await _downloadDeletedScores(honourDeletedAt);
 
-      await _uploadMetadataChanges(sendWrittenAt);
+      await _uploadMetadataChanges(sendWrittenAt, sendType);
       await _uploadFileChanges();
 
       await _downloadMetadataChanges();
@@ -534,7 +537,7 @@ class SyncRepository {
     }
   }
 
-  Future<void> _uploadTagChanges(bool sendWrittenAt) async {
+  Future<void> _uploadTagChanges(bool sendWrittenAt, bool sendType) async {
     final changedTags = await _db.managers.tagsTable
         .filter((f) => f.uploaded.isFalse())
         .get();
@@ -548,6 +551,7 @@ class SyncRepository {
           color: t.color,
           updatedAt: t.updatedAt.toUtc(),
           writtenAt: sendWrittenAt ? t.writtenAt?.toUtc() : null,
+          type: sendType ? t.type : null,
         );
         await _markTagUploaded(t.id, t.updatedAt, sendWrittenAt);
       } on ConflictException catch (_) {
@@ -665,7 +669,7 @@ class SyncRepository {
     _scoresRepo.announceDeletedScores(actuallyDeleted);
   }
 
-  Future<void> _uploadMetadataChanges(bool sendWrittenAt) async {
+  Future<void> _uploadMetadataChanges(bool sendWrittenAt, bool sendType) async {
     final changedScores = await _db.managers.scoresTable
         .withReferences(
           (prefetch) => prefetch(
@@ -685,6 +689,7 @@ class SyncRepository {
           title: s.title,
           metadataUpdatedAt: s.metadataUpdatedAt.toUtc(),
           writtenAt: sendWrittenAt ? s.writtenAt?.toUtc() : null,
+          type: sendType ? s.type : null,
           tagIds: (refs.scoreTagsTableRefs.prefetchedData ?? [])
               .map((t) => t.tag)
               .toList(),
@@ -828,6 +833,7 @@ class SyncRepository {
               fileUpdatedAt: Value(s.fileUpdatedAt.toUtc()),
               fileDownloaded: false,
               fileUploaded: const Value(true),
+              type: s.type != null ? Value(s.type!) : const Value.absent(),
             ),
           );
         } else if (metadataChanged || fileChanged) {
@@ -878,6 +884,9 @@ class SyncRepository {
                       : const Value.absent(),
                   fileType: fileChanged
                       ? Value(s.fileType)
+                      : const Value.absent(),
+                  type: metadataChanged && s.type != null
+                      ? Value(s.type!)
                       : const Value.absent(),
                 ),
               );

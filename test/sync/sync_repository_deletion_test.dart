@@ -67,6 +67,7 @@ class _FakeSyncService extends SyncService {
   DateTime syncTime = DateTime.utc(2026, 7, 28, 16);
 
   List<TagModel> tags = [];
+  List<ScoreModel> scores = [];
 
   List<RemotelyDeleted> deletedScores = [];
   List<RemotelyDeleted> deletedTags = [];
@@ -74,6 +75,9 @@ class _FakeSyncService extends SyncService {
 
   final uploadedScores = <_ScoreUpload>[];
   final uploadedTags = <_ScoreUpload>[];
+
+  final uploadedScoreTypes = <String, ScoreType?>{};
+  final uploadedTagTypes = <String, TagType?>{};
   final uploadedSetlists = <_ScoreUpload>[];
 
   final deletedOnServer = <String>[];
@@ -118,7 +122,7 @@ class _FakeSyncService extends SyncService {
   Future<List<ScoreModel>> getScores(
     SyncConnection con, {
     DateTime? changedAfter,
-  }) async => [];
+  }) async => scores;
 
   @override
   Future<List<TagModel>> getTags(
@@ -141,8 +145,10 @@ class _FakeSyncService extends SyncService {
     required List<String> tagIds,
     required ScoreMetadataModel metadata,
     DateTime? writtenAt,
+    ScoreType? type,
   }) async {
     uploadedScores.add((id: scoreId, writtenAt: writtenAt));
+    uploadedScoreTypes[scoreId] = type;
     if (writtenAt == null) return null;
     return UpdateScoreResultModel(hasFile: false);
   }
@@ -155,7 +161,11 @@ class _FakeSyncService extends SyncService {
     required int color,
     required DateTime updatedAt,
     DateTime? writtenAt,
-  }) async => uploadedTags.add((id: tagId, writtenAt: writtenAt));
+    TagType? type,
+  }) async {
+    uploadedTags.add((id: tagId, writtenAt: writtenAt));
+    uploadedTagTypes[tagId] = type;
+  }
 
   @override
   Future<void> updateSetlist(
@@ -219,7 +229,11 @@ void main() {
   final importedAt = deletedAt.add(const Duration(minutes: 5));
   final contentTime = DateTime.utc(2026, 1, 1);
 
-  Future<void> createScore({DateTime? writtenAt, bool uploaded = true}) async {
+  Future<void> createScore({
+    DateTime? writtenAt,
+    bool uploaded = true,
+    ScoreType type = ScoreType.score,
+  }) async {
     await db.managers.scoresTable.create(
       (o) => o(
         id: scoreId,
@@ -233,6 +247,7 @@ void main() {
         writtenAt: Value(writtenAt),
         metadataUploaded: Value(uploaded),
         fileUploaded: Value(uploaded),
+        type: Value(type),
       ),
     );
   }
@@ -472,6 +487,89 @@ void main() {
         .filter((f) => f.id("tag-2"))
         .getSingle();
     expect(tag.type, TagType.score);
+  });
+
+  ScoreModel remoteScore({ScoreType? type, String id = scoreId}) {
+    return ScoreModel(
+      id: id,
+      title: "Title",
+      metadataUpdatedAt: contentTime.add(const Duration(days: 1)),
+      fileUpdatedAt: contentTime,
+      fileType: FileType.pdf,
+      tagIds: const [],
+      type: type,
+      metadata: ScoreMetadataModel(
+        composer: "",
+        source: "",
+        sourceLink: "",
+        notes: "",
+        instruments: const [],
+        genres: const [],
+        annotations: const {},
+      ),
+    );
+  }
+
+  test("a downloaded score without a type keeps the local one", () async {
+    await createScore(type: ScoreType.exercise);
+    service.scores = [remoteScore()];
+
+    await syncAndWait();
+
+    final score = await db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .getSingle();
+    expect(score.type, ScoreType.exercise);
+  });
+
+  test("a downloaded score with a type applies it", () async {
+    await createScore();
+    service.scores = [remoteScore(type: ScoreType.exercise)];
+
+    await syncAndWait();
+
+    final score = await db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .getSingle();
+    expect(score.type, ScoreType.exercise);
+  });
+
+  test("a new score from a server without types is a regular score", () async {
+    service.scores = [remoteScore(id: "score-2")];
+
+    await syncAndWait();
+
+    final score = await db.managers.scoresTable
+        .filter((f) => f.id("score-2"))
+        .getSingle();
+    expect(score.type, ScoreType.score);
+  });
+
+  Future<void> createUnuploadedTypedRows() async {
+    await createScore(uploaded: false, type: ScoreType.exercise);
+    await createTag(type: TagType.exercise);
+    await db.managers.tagsTable
+        .filter((f) => f.id(tagId))
+        .update((o) => o(uploaded: const Value(false)));
+  }
+
+  test("a 0.4 server receives the score and tag types", () async {
+    service.apiVersion = "0.4.0";
+    await createUnuploadedTypedRows();
+
+    await syncAndWait();
+
+    expect(service.uploadedScoreTypes, {scoreId: ScoreType.exercise});
+    expect(service.uploadedTagTypes, {tagId: TagType.exercise});
+  });
+
+  test("a server before 0.4 receives no types", () async {
+    await createUnuploadedTypedRows();
+
+    await syncAndWait();
+
+    expect(service.uploadedScoreTypes, {scoreId: null});
+    expect(service.uploadedTagTypes, {tagId: null});
   });
 
   test("an imported setlist survives its tombstone", () async {

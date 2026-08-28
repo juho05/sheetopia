@@ -129,6 +129,7 @@ class SetlistsRepository {
       genres: const [],
       instruments: const [],
       tags: const [],
+      type: score.type,
       metadataUpdatedAt: score.metadataUpdatedAt.toUtc(),
       fileUpdatedAt: score.fileUpdatedAt.toUtc(),
       fileType: score.fileType,

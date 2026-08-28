@@ -24,6 +24,8 @@ class Score {
   final List<String> instruments;
   final List<Tag> tags;
 
+  final ScoreType type;
+
   final DateTime metadataUpdatedAt;
   final DateTime fileUpdatedAt;
 
@@ -41,6 +43,7 @@ class Score {
     required this.genres,
     required this.instruments,
     required this.tags,
+    required this.type,
     required this.metadataUpdatedAt,
     required this.fileUpdatedAt,
     required this.fileType,

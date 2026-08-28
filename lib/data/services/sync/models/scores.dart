@@ -22,6 +22,9 @@ class ScoreModel {
   final List<String> tagIds;
   final ScoreMetadataModel metadata;
 
+  @JsonKey(includeIfNull: false, unknownEnumValue: ScoreType.score)
+  final ScoreType? type;
+
   ScoreModel({
     required this.id,
     required this.title,
@@ -30,6 +33,7 @@ class ScoreModel {
     required this.fileType,
     required this.tagIds,
     required this.metadata,
+    required this.type,
   });
 
   factory ScoreModel.fromJson(Map<String, dynamic> json) =>

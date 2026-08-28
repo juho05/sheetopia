@@ -209,6 +209,16 @@ class $ScoresTableTable extends ScoresTable
     requiredDuringInsert: false,
   );
   @override
+  late final GeneratedColumnWithTypeConverter<ScoreType, String> type =
+      GeneratedColumn<String>(
+        'type',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: Constant(ScoreType.score.name),
+      ).withConverter<ScoreType>($ScoresTableTable.$convertertype);
+  @override
   List<GeneratedColumn> get $columns => [
     id,
     title,
@@ -227,6 +237,7 @@ class $ScoresTableTable extends ScoresTable
     fileDownloaded,
     fileType,
     annotations,
+    type,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -438,6 +449,12 @@ class $ScoresTableTable extends ScoresTable
         DriftSqlType.string,
         data['${effectivePrefix}annotations'],
       ),
+      type: $ScoresTableTable.$convertertype.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}type'],
+        )!,
+      ),
     );
   }
 
@@ -448,6 +465,8 @@ class $ScoresTableTable extends ScoresTable
 
   static JsonTypeConverter2<FileType, String, String> $converterfileType =
       const EnumNameConverter<FileType>(FileType.values);
+  static JsonTypeConverter2<ScoreType, String, String> $convertertype =
+      const EnumNameConverter<ScoreType>(ScoreType.values);
 }
 
 class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
@@ -468,6 +487,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
   final bool fileDownloaded;
   final FileType fileType;
   final String? annotations;
+  final ScoreType type;
   const ScoresTableData({
     required this.id,
     required this.title,
@@ -486,6 +506,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     required this.fileDownloaded,
     required this.fileType,
     this.annotations,
+    required this.type,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -522,6 +543,11 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     if (!nullToAbsent || annotations != null) {
       map['annotations'] = Variable<String>(annotations);
     }
+    {
+      map['type'] = Variable<String>(
+        $ScoresTableTable.$convertertype.toSql(type),
+      );
+    }
     return map;
   }
 
@@ -555,6 +581,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       annotations: annotations == null && nullToAbsent
           ? const Value.absent()
           : Value(annotations),
+      type: Value(type),
     );
   }
 
@@ -585,6 +612,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
         serializer.fromJson<String>(json['fileType']),
       ),
       annotations: serializer.fromJson<String?>(json['annotations']),
+      type: $ScoresTableTable.$convertertype.fromJson(
+        serializer.fromJson<String>(json['type']),
+      ),
     );
   }
   @override
@@ -610,6 +640,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
         $ScoresTableTable.$converterfileType.toJson(fileType),
       ),
       'annotations': serializer.toJson<String?>(annotations),
+      'type': serializer.toJson<String>(
+        $ScoresTableTable.$convertertype.toJson(type),
+      ),
     };
   }
 
@@ -631,6 +664,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     bool? fileDownloaded,
     FileType? fileType,
     Value<String?> annotations = const Value.absent(),
+    ScoreType? type,
   }) => ScoresTableData(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -649,6 +683,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     fileDownloaded: fileDownloaded ?? this.fileDownloaded,
     fileType: fileType ?? this.fileType,
     annotations: annotations.present ? annotations.value : this.annotations,
+    type: type ?? this.type,
   );
   @override
   String toString() {
@@ -669,7 +704,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           ..write('fileUploaded: $fileUploaded, ')
           ..write('fileDownloaded: $fileDownloaded, ')
           ..write('fileType: $fileType, ')
-          ..write('annotations: $annotations')
+          ..write('annotations: $annotations, ')
+          ..write('type: $type')
           ..write(')'))
         .toString();
   }
@@ -693,6 +729,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     fileDownloaded,
     fileType,
     annotations,
+    type,
   );
   @override
   bool operator ==(Object other) =>
@@ -714,7 +751,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           other.fileUploaded == this.fileUploaded &&
           other.fileDownloaded == this.fileDownloaded &&
           other.fileType == this.fileType &&
-          other.annotations == this.annotations);
+          other.annotations == this.annotations &&
+          other.type == this.type);
 }
 
 class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
@@ -734,6 +772,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
   final Value<bool> fileDownloaded;
   final Value<FileType> fileType;
   final Value<String?> annotations;
+  final Value<ScoreType> type;
   final Value<int> rowid;
   const ScoresTableCompanion({
     this.id = const Value.absent(),
@@ -752,6 +791,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.fileDownloaded = const Value.absent(),
     this.fileType = const Value.absent(),
     this.annotations = const Value.absent(),
+    this.type = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ScoresTableCompanion.insert({
@@ -771,6 +811,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     required bool fileDownloaded,
     required FileType fileType,
     this.annotations = const Value.absent(),
+    this.type = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
@@ -794,6 +835,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Expression<bool>? fileDownloaded,
     Expression<String>? fileType,
     Expression<String>? annotations,
+    Expression<String>? type,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -813,6 +855,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       if (fileDownloaded != null) 'file_downloaded': fileDownloaded,
       if (fileType != null) 'file_type': fileType,
       if (annotations != null) 'annotations': annotations,
+      if (type != null) 'type': type,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -834,6 +877,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Value<bool>? fileDownloaded,
     Value<FileType>? fileType,
     Value<String?>? annotations,
+    Value<ScoreType>? type,
     Value<int>? rowid,
   }) {
     return ScoresTableCompanion(
@@ -853,6 +897,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       fileDownloaded: fileDownloaded ?? this.fileDownloaded,
       fileType: fileType ?? this.fileType,
       annotations: annotations ?? this.annotations,
+      type: type ?? this.type,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -910,6 +955,11 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     if (annotations.present) {
       map['annotations'] = Variable<String>(annotations.value);
     }
+    if (type.present) {
+      map['type'] = Variable<String>(
+        $ScoresTableTable.$convertertype.toSql(type.value),
+      );
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -935,6 +985,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
           ..write('fileDownloaded: $fileDownloaded, ')
           ..write('fileType: $fileType, ')
           ..write('annotations: $annotations, ')
+          ..write('type: $type, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8886,6 +8937,7 @@ typedef $$ScoresTableTableCreateCompanionBuilder =
       required bool fileDownloaded,
       required FileType fileType,
       Value<String?> annotations,
+      Value<ScoreType> type,
       Value<int> rowid,
     });
 typedef $$ScoresTableTableUpdateCompanionBuilder =
@@ -8906,6 +8958,7 @@ typedef $$ScoresTableTableUpdateCompanionBuilder =
       Value<bool> fileDownloaded,
       Value<FileType> fileType,
       Value<String?> annotations,
+      Value<ScoreType> type,
       Value<int> rowid,
     });
 
@@ -9064,6 +9117,12 @@ class $$ScoresTableTableFilterComposer
     column: $table.annotations,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnWithTypeConverterFilters<ScoreType, ScoreType, String> get type =>
+      $composableBuilder(
+        column: $table.type,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
 
   Expression<bool> genresTableRefs(
     Expression<bool> Function($$GenresTableTableFilterComposer f) f,
@@ -9234,6 +9293,11 @@ class $$ScoresTableTableOrderingComposer
     column: $table.annotations,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ScoresTableTableAnnotationComposer
@@ -9315,6 +9379,9 @@ class $$ScoresTableTableAnnotationComposer
     column: $table.annotations,
     builder: (column) => column,
   );
+
+  GeneratedColumnWithTypeConverter<ScoreType, String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
 
   Expression<T> genresTableRefs<T extends Object>(
     Expression<T> Function($$GenresTableTableAnnotationComposer a) f,
@@ -9440,6 +9507,7 @@ class $$ScoresTableTableTableManager
                 Value<bool> fileDownloaded = const Value.absent(),
                 Value<FileType> fileType = const Value.absent(),
                 Value<String?> annotations = const Value.absent(),
+                Value<ScoreType> type = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ScoresTableCompanion(
                 id: id,
@@ -9458,6 +9526,7 @@ class $$ScoresTableTableTableManager
                 fileDownloaded: fileDownloaded,
                 fileType: fileType,
                 annotations: annotations,
+                type: type,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -9478,6 +9547,7 @@ class $$ScoresTableTableTableManager
                 required bool fileDownloaded,
                 required FileType fileType,
                 Value<String?> annotations = const Value.absent(),
+                Value<ScoreType> type = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ScoresTableCompanion.insert(
                 id: id,
@@ -9496,6 +9566,7 @@ class $$ScoresTableTableTableManager
                 fileDownloaded: fileDownloaded,
                 fileType: fileType,
                 annotations: annotations,
+                type: type,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

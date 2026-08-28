@@ -25,6 +25,7 @@ import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
+import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/tags.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
@@ -274,6 +275,55 @@ void main() {
 
     expect(tag.type, isNull);
     expect(tag.toJson().containsKey("type"), isFalse);
+  });
+
+  test("an exercise score keeps its type through an export", () async {
+    const exerciseScoreId = "score-2";
+    await db.managers.scoresTable.create(
+      (o) => o(
+        id: exerciseScoreId,
+        title: "Scales",
+        searchText: " scales ",
+        fileDownloaded: true,
+        fileType: FileType.pdf,
+        type: const Value(ScoreType.exercise),
+        lastOpened: Value(contentTime),
+        metadataUpdatedAt: Value(contentTime),
+        fileUpdatedAt: Value(contentTime),
+      ),
+    );
+    await scoresRepo.createScoreDir(exerciseScoreId);
+    final file = await scoresRepo.scoreFile(exerciseScoreId, FileType.pdf);
+    await file.writeAsString("%PDF-1.4 fake");
+
+    final zip = await exportAll();
+
+    await scoresRepo.deleteScore(exerciseScoreId);
+    await scoresRepo.deleteScore(scoreId);
+    expect(await db.managers.scoresTable.count(), 0);
+
+    await importFrom(zip);
+
+    final scores = await db.managers.scoresTable.get();
+    expect(
+      {for (final s in scores) s.title: s.type},
+      {"Prelude": ScoreType.score, "Scales": ScoreType.exercise},
+    );
+  });
+
+  test("a score exported before types existed has no type", () {
+    final score = ScoreModel.fromJson({
+      "id": "a",
+      "title": "Prelude",
+      "metadataUpdatedAt": "2026-01-01T00:00:00.000Z",
+      "fileUpdatedAt": "2026-01-01T00:00:00.000Z",
+      "fileType": "pdf",
+      "tagIds": <String>[],
+      "metadata": <String, dynamic>{},
+    });
+
+    expect(score.type, isNull);
+    expect(score.toJson().containsKey("type"), isFalse);
   });
 
   test("re-importing a deleted setlist restores it with its entries", () async {

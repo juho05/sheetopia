@@ -203,6 +203,7 @@ class ImportExportRepository extends ChangeNotifier {
                       ),
                       metadataUpdatedAt: s.metadataUpdatedAt,
                       tagIds: s.tags.map((t) => t.id).toList(),
+                      type: s.type,
                     ),
                   ),
             );
@@ -488,6 +489,7 @@ class ImportExportRepository extends ChangeNotifier {
               fileUpdatedAt: Value(s.fileUpdatedAt.toUtc()),
               fileDownloaded: true,
               fileUploaded: const Value(false),
+              type: s.type != null ? Value(s.type!) : const Value.absent(),
             ),
           );
         } else if (metadataChanged || fileChanged) {
@@ -539,6 +541,9 @@ class ImportExportRepository extends ChangeNotifier {
                       : const Value.absent(),
                   fileType: fileChanged
                       ? Value(s.fileType)
+                      : const Value.absent(),
+                  type: metadataChanged && s.type != null
+                      ? Value(s.type!)
                       : const Value.absent(),
                 ),
               );

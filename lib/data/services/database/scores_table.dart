@@ -48,6 +48,10 @@ class ScoresTable extends Table {
 
   late final annotations = text().nullable()();
 
+  late final type = textEnum<ScoreType>().withDefault(
+    Constant(ScoreType.score.name),
+  )();
+
   @override
   Set<Column<Object>>? get primaryKey => {id};
 
@@ -58,6 +62,13 @@ class ScoresTable extends Table {
 enum FileType {
   @JsonValue("pdf")
   pdf,
+}
+
+enum ScoreType {
+  @JsonValue("score")
+  score,
+  @JsonValue("exercise")
+  exercise,
 }
 
 FileType? fileTypeFromExtension(String ext) {

@@ -14,6 +14,7 @@ import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
+import 'package:sheetopia/data/services/database/scores_table.dart';
 
 class LibraryViewModel extends ChangeNotifier {
   static const int _pageSize = 100;
@@ -47,10 +48,11 @@ class LibraryViewModel extends ChangeNotifier {
       _filterTags.isNotEmpty;
 
   Future<void> _refreshCounts() async {
-    final total = await _repo.countScores();
+    final total = await _repo.countScores(type: ScoreType.score);
     final result = isFiltered
         ? await _repo.countScores(
             filter: _filterSearch,
+            type: ScoreType.score,
             instruments: _filterInstruments,
             genres: _filterGenres,
             composer: _filterComposer,
@@ -147,7 +149,7 @@ class LibraryViewModel extends ChangeNotifier {
   StreamSubscription? _updatedTagsSub;
   StreamSubscription? _lastOpenedSub;
 
-  LibraryViewModel({required ScoresRepository repo}) : _repo = repo {
+  LibraryViewModel({required this._repo}) {
     _updatedScoresSub = _repo.updatedScoreIds.listen((_) => _refresh());
     _lastOpenedSub = _repo.lastOpenedChanged.listen((_) => _refresh());
     _updatedTagsSub = _repo.updatedTagIds
@@ -209,6 +211,7 @@ class LibraryViewModel extends ChangeNotifier {
       size: size,
       offset: offset,
       filter: _filterSearch,
+      type: ScoreType.score,
       instruments: _filterInstruments,
       genres: _filterGenres,
       composer: _filterComposer,
@@ -223,6 +226,7 @@ class LibraryViewModel extends ChangeNotifier {
   Future<List<String>> getFilteredScoreIds() async {
     return await _repo.getScoreIds(
       filter: _filterSearch,
+      type: ScoreType.score,
       instruments: _filterInstruments,
       genres: _filterGenres,
       composer: _filterComposer,
