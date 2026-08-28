@@ -12,30 +12,38 @@ import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
+import 'package:sheetopia/data/services/database/tags_table.dart';
 
 class AddTagsViewModel extends ChangeNotifier {
   final ScoresRepository _repo;
 
+  final TagType _type;
+
   final Set<Tag> _scoreTags;
+
   Set<Tag> get scoreTags => UnmodifiableSetView(_scoreTags);
 
   List<Tag> _results = [];
+
   List<Tag> get results => UnmodifiableListView(_results);
 
   final Set<Tag> _selected = {};
+
   Set<Tag> get selected => UnmodifiableSetView(_selected);
 
   String _currentFilter = "";
+
   String get currentFilter => _currentFilter;
 
   bool _manageTagsMode = false;
+
   bool get manageTagsMode => _manageTagsMode;
 
   AddTagsViewModel({
-    required Set<Tag> scoreTags,
-    required ScoresRepository repo,
-  }) : _scoreTags = scoreTags,
-       _repo = repo {
+    required this._scoreTags,
+    required this._repo,
+    required this._type,
+  }) {
     _loadTags("").then((_) => notifyListeners());
   }
 
@@ -71,6 +79,7 @@ class AddTagsViewModel extends ChangeNotifier {
   Future<void> _loadTags(String filter) async {
     final tags = await _repo.getTags(
       filter: filter.isNotEmpty ? filter : null,
+      type: _type,
       excludeTagIds: manageTagsMode ? const [] : _scoreTags.map((t) => t.id),
     );
     _results = tags;

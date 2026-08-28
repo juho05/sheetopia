@@ -155,7 +155,7 @@ class _SetlistsViewState extends State<SetlistsView> {
             FilledButton.icon(
               onPressed: _create,
               icon: const Icon(Icons.add),
-              label: const Text("New setlist"),
+              label: const Text("Create setlist"),
             ),
           ],
         ),

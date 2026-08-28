@@ -25,6 +25,7 @@ import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/instr_expression.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 
 class InvalidFileTypeException implements Exception {
@@ -80,11 +81,7 @@ class ScoresRepository {
 
   Stream<String> get lastOpenedChanged => _lastOpenedChanged.stream;
 
-  ScoresRepository({
-    required Database db,
-    required ThumbnailService thumbnailService,
-  }) : _db = db,
-       _thumbnailService = thumbnailService;
+  ScoresRepository({required this._db, required this._thumbnailService});
 
   List<String> _freshImports = [];
 
@@ -446,6 +443,7 @@ class ScoresRepository {
             id: t.id,
             name: t.name,
             color: Color(t.color),
+            type: t.type,
             updatedAt: t.updatedAt.toUtc(),
           ),
         );
@@ -466,6 +464,7 @@ class ScoresRepository {
         id: t.$1.id,
         name: t.$1.name,
         color: Color(t.$1.color),
+        type: t.$1.type,
         updatedAt: t.$1.updatedAt.toUtc(),
       );
       for (final s
@@ -611,12 +610,17 @@ class ScoresRepository {
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
-  Future<Tag> createTag({required String name, required Color color}) async {
+  Future<Tag> createTag({
+    required String name,
+    required Color color,
+    required TagType type,
+  }) async {
     final tag = await _db.managers.tagsTable.createReturning(
       (o) => o(
         id: _db.newId(),
         name: name,
         color: color.toARGB32(),
+        type: Value(type),
         updatedAt: Value(DateTime.now().toUtc()),
       ),
     );
@@ -625,12 +629,14 @@ class ScoresRepository {
       id: tag.id,
       name: tag.name,
       color: Color(tag.color),
+      type: tag.type,
       updatedAt: tag.updatedAt.toUtc(),
     );
   }
 
   Future<List<Tag>> getTags({
     String? filter,
+    TagType? type,
     int? size,
     int offset = 0,
     Iterable<String> excludeTagIds = const [],
@@ -638,6 +644,9 @@ class ScoresRepository {
     final q = _db.select(_db.tagsTable);
     if (filter != null) {
       q.where((tbl) => tbl.name.contains(filter));
+    }
+    if (type != null) {
+      q.where((tbl) => tbl.type.equalsValue(type));
     }
     if (excludeTagIds.isNotEmpty) {
       q.where((tbl) => tbl.id.isNotIn(excludeTagIds));
@@ -654,6 +663,7 @@ class ScoresRepository {
             name: t.name,
             updatedAt: t.updatedAt.toUtc(),
             color: Color(t.color),
+            type: t.type,
           ),
         )
         .toList();
@@ -672,6 +682,7 @@ class ScoresRepository {
             name: t.name,
             updatedAt: t.updatedAt.toUtc(),
             color: Color(t.color),
+            type: t.type,
           ),
         )
         .toList();

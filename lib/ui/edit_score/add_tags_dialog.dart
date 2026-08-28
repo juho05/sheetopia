@@ -11,6 +11,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
+import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/search_input.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
@@ -24,10 +25,12 @@ class AddTagsDialog extends StatelessWidget {
   final String title;
   final String addBtnText;
   final bool enableTagEdits;
+  final TagType type;
 
   const AddTagsDialog._({
     required this.viewModel,
     required this.enableTagEdits,
+    required this.type,
     this.title = "Add tags",
     this.addBtnText = "Add",
     this.reloadTagsCallback,
@@ -36,6 +39,7 @@ class AddTagsDialog extends StatelessWidget {
   static Future<List<Tag>?> show(
     BuildContext context, {
     required bool enableTagEdits,
+    required TagType type,
     Set<Tag> alreadySelected = const {},
     void Function()? reloadTags,
     String title = "Add tags",
@@ -44,6 +48,7 @@ class AddTagsDialog extends StatelessWidget {
     final viewModel = AddTagsViewModel(
       scoreTags: alreadySelected,
       repo: context.read(),
+      type: type,
     );
     return showSheetopiaDialog<List<Tag>>(
       context: context,
@@ -51,6 +56,7 @@ class AddTagsDialog extends StatelessWidget {
         viewModel: viewModel,
         reloadTagsCallback: reloadTags,
         enableTagEdits: enableTagEdits,
+        type: type,
         title: title,
         addBtnText: addBtnText,
       ),
@@ -145,7 +151,8 @@ class AddTagsDialog extends StatelessWidget {
                                           final tag =
                                               await EditTagDialog.showCreate(
                                                 context,
-                                                filter,
+                                                type: type,
+                                                name: filter,
                                               );
                                           if (!context.mounted || tag == null) {
                                             return;
@@ -192,6 +199,7 @@ class AddTagsDialog extends StatelessWidget {
                                           await EditTagDialog.showEdit(
                                             context,
                                             t,
+                                            type: type,
                                           );
                                       if (!edited) return;
                                       await viewModel.editedTag();

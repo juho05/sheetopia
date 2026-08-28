@@ -6,24 +6,68 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
-import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
+import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 
 typedef ExerciseGroup = ({String? category, List<Exercise> exercise});
 
 class ExercisesViewModel extends ChangeNotifier {
-  List<ExerciseGroup> _exercises = [];
+  static const int _pageSize = 100;
+
+  final PracticeRepository _repo;
+
+  List<Exercise> _exercises = [];
+
+  List<ExerciseGroup> _groups = [];
 
   UnmodifiableListView<ExerciseGroup> get exercises =>
-      UnmodifiableListView(_exercises);
+      UnmodifiableListView(_groups);
 
-  ExercisesViewModel() {
-    _load();
+  int _currentPage = -1;
+
+  bool _hasNextPage = true;
+
+  bool get hasNextPage => _hasNextPage;
+
+  bool _loading = true;
+
+  bool get loading => _loading;
+
+  int? _resultCount;
+
+  int? get resultCount => _resultCount;
+
+  int? _totalCount;
+
+  int? get totalCount => _totalCount;
+
+  StreamSubscription? _updatedExercisesSub;
+
+  ExercisesViewModel({required PracticeRepository repo}) : _repo = repo {
+    _updatedExercisesSub = _repo.updatedExerciseIds.listen((_) => _refresh());
+    _refreshCounts();
+  }
+
+  Future<void> _refreshCounts() async {
+    final total = await _repo.countExercises();
+    final result = isFiltered
+        ? await _repo.countExercises(
+            filter: _filterSearch,
+            category: _filterCategory,
+            instrument: _filterInstrument,
+            tagIds: _filterTags.map((t) => t.id),
+            tagMatch: _tagMatch,
+          )
+        : total;
+    _totalCount = total;
+    _resultCount = result;
+    notifyListeners();
   }
 
   String _filterSearch = "";
@@ -31,7 +75,7 @@ class ExercisesViewModel extends ChangeNotifier {
   set filterSearch(String filter) {
     if (_filterSearch == filter) return;
     _filterSearch = filter;
-    _load();
+    _reset();
   }
 
   String _filterCategory = "";
@@ -41,7 +85,8 @@ class ExercisesViewModel extends ChangeNotifier {
   set filterCategory(String category) {
     if (_filterCategory == category) return;
     _filterCategory = category;
-    _load();
+    notifyListeners();
+    _reset();
   }
 
   String _filterInstrument = "";
@@ -51,7 +96,8 @@ class ExercisesViewModel extends ChangeNotifier {
   set filterInstrument(String instrument) {
     if (_filterInstrument == instrument) return;
     _filterInstrument = instrument;
-    _load();
+    notifyListeners();
+    _reset();
   }
 
   final SplayTreeSet<Tag> _filterTags = SplayTreeSet(
@@ -67,7 +113,8 @@ class ExercisesViewModel extends ChangeNotifier {
   set tagMatch(FilterMatchType value) {
     if (_tagMatch == value) return;
     _tagMatch = value;
-    _load();
+    notifyListeners();
+    _reset();
   }
 
   bool get hasFilters =>
@@ -80,13 +127,13 @@ class ExercisesViewModel extends ChangeNotifier {
   void addFilterTags(Iterable<Tag> tags) {
     _filterTags.addAll(tags);
     notifyListeners();
-    _load();
+    _reset();
   }
 
   void removeFilterTag(Tag tag) {
     _filterTags.remove(tag);
     notifyListeners();
-    _load();
+    _reset();
   }
 
   void clearFilters() {
@@ -95,100 +142,124 @@ class ExercisesViewModel extends ChangeNotifier {
     _filterInstrument = "";
     _filterTags.clear();
     _tagMatch = FilterMatchType.all;
-    _load();
+    notifyListeners();
+    _reset();
   }
 
-  // TODO
-  Future<Iterable<String>> getCategories({String filter = ""}) async => [];
+  Future<Iterable<String>> getCategories({String filter = ""}) async {
+    return await _repo.getCategories(filter: filter, size: 10);
+  }
 
-  // TODO
-  Future<Iterable<String>> getInstruments({String filter = ""}) async => [];
+  Future<Iterable<String>> getInstruments({String filter = ""}) async {
+    return await _repo.getInstruments(filter: filter, size: 10);
+  }
 
-  // TODO support pagination
-  // TODO load from repository including filters
-  Future<void> _load() async {
-    _exercises = [
-      (
-        category: "Warmup",
-        exercise: [
-          Exercise(
-            name: "Test asdf",
-            category: const ExerciseCategory(name: "Warmup"),
-            description: null,
-            instrument: "Guitar",
-            tags: [
-              Tag(
-                id: "",
-                name: "Test",
-                color: Colors.red,
-                updatedAt: DateTime.now(),
-              ),
-              Tag(
-                id: "",
-                name: "Test2",
-                color: Colors.blue,
-                updatedAt: DateTime.now(),
-              ),
-            ],
-          ),
-          const Exercise(
-            name:
-                "Blab lab als asdjb aslh aslkjd hfaskl hfkajs hfkajsh fkjashd asödfjas öflk asöfkj as",
-            category: ExerciseCategory(name: "Warmup"),
-            description: null,
-            instrument: "Guitar",
-            tags: [],
-          ),
-          const Exercise(
-            name: "bla",
-            category: ExerciseCategory(name: "Warmup"),
-            description: null,
-            instrument: null,
-            tags: [],
-          ),
-        ],
-      ),
-      (
-        category: null,
-        exercise: [
-          Exercise(
-            name: "Test asdf",
-            category: const ExerciseCategory(name: "Warmup"),
-            description: null,
-            instrument: "Guitar",
-            tags: [
-              Tag(
-                id: "",
-                name: "Test",
-                color: Colors.red,
-                updatedAt: DateTime.now(),
-              ),
-              Tag(
-                id: "",
-                name: "Test2",
-                color: Colors.blue,
-                updatedAt: DateTime.now(),
-              ),
-            ],
-          ),
-          const Exercise(
-            name:
-                "Blab lab als asdjb aslh aslkjd hfaskl hfkajs hfkajsh fkjashd asödfjas öflk asöfkj as",
-            category: ExerciseCategory(name: "Warmup"),
-            description: null,
-            instrument: "Guitar",
-            tags: [],
-          ),
-          const Exercise(
-            name: "bla",
-            category: ExerciseCategory(name: "Warmup"),
-            description: null,
-            instrument: null,
-            tags: [],
-          ),
-        ],
-      ),
-    ];
-    notifyListeners();
+  int _generation = 0;
+  Future<void>? _pendingLoad;
+
+  Future<void> loadNextPage() {
+    final pending = _pendingLoad;
+    if (pending != null) return pending;
+    if (!_hasNextPage) return Future.value();
+    return _pendingLoad = _loadPage(_currentPage + 1, _generation);
+  }
+
+  Future<void> _loadPage(int page, int generation) async {
+    try {
+      final exercises = await _loadExercises(
+        size: _pageSize,
+        offset: page * _pageSize,
+      );
+      if (generation != _generation) return;
+      _currentPage = page;
+      _hasNextPage = exercises.length == _pageSize;
+      _exercises.addAll(exercises);
+      _groupExercises();
+      _loading = false;
+      notifyListeners();
+    } finally {
+      if (generation == _generation) _pendingLoad = null;
+    }
+  }
+
+  Future<void> _refresh() {
+    final loadedCount = (_currentPage + 1) * _pageSize;
+    if (loadedCount == 0) return _refreshCounts();
+    return _pendingLoad = _refreshPages(loadedCount, ++_generation);
+  }
+
+  Future<void> _refreshPages(int loadedCount, int generation) async {
+    try {
+      final exercises = await _loadExercises(size: loadedCount);
+      if (generation != _generation) return;
+      _exercises = exercises;
+      _hasNextPage = exercises.length == loadedCount;
+      _groupExercises();
+      _loading = false;
+      notifyListeners();
+      _refreshCounts();
+    } finally {
+      if (generation == _generation) _pendingLoad = null;
+    }
+  }
+
+  Future<List<Exercise>> _loadExercises({
+    required int size,
+    int offset = 0,
+  }) async {
+    return await _repo.getExercises(
+      size: size,
+      offset: offset,
+      filter: _filterSearch,
+      category: _filterCategory,
+      instrument: _filterInstrument,
+      tagIds: _filterTags.map((t) => t.id),
+      tagMatch: _tagMatch,
+    );
+  }
+
+  void _groupExercises() {
+    final groups = <ExerciseGroup>[];
+    for (final exercise in _exercises) {
+      final category = exercise.category?.name;
+      if (groups.isEmpty || groups.last.category != category) {
+        groups.add((category: category, exercise: [exercise]));
+      } else {
+        groups.last.exercise.add(exercise);
+      }
+    }
+    _groups = groups;
+  }
+
+  Timer? _resetDebounce;
+
+  void _reset() {
+    _resetDebounce?.cancel();
+    _resetDebounce = Timer(const Duration(milliseconds: 250), () async {
+      _generation++;
+      _pendingLoad = null;
+      _currentPage = -1;
+      _exercises = [];
+      _groups = [];
+      _hasNextPage = true;
+      await loadNextPage();
+      _refreshCounts();
+    });
+  }
+
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _resetDebounce?.cancel();
+    _updatedExercisesSub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    super.notifyListeners();
   }
 }

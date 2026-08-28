@@ -23,7 +23,7 @@ import 'package:sheetopia/ui/home/home_viewmodel.dart';
 import 'package:sheetopia/ui/home/library_view.dart';
 import 'package:sheetopia/ui/home/library_viewmodel.dart';
 import 'package:sheetopia/ui/home/sync_icon.dart';
-import 'package:sheetopia/ui/practice/practice_view.dart';
+import 'package:sheetopia/ui/practice/practice_page.dart';
 import 'package:sheetopia/ui/setlists/setlist_name_dialog.dart';
 import 'package:sheetopia/ui/setlists/setlists_view.dart';
 import 'package:sheetopia/version_checker.dart';
@@ -175,7 +175,7 @@ class _HomePageState extends State<HomePage> {
                                       selected: viewModel.selectedScoreIdSet,
                                     ),
                                     const SetlistsView(),
-                                    const PracticeView(),
+                                    const PracticePage(),
                                   ],
                                 ),
                               );

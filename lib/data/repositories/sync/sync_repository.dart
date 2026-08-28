@@ -75,19 +75,15 @@ class SyncRepository {
   AppLifecycleListener? _listener;
 
   SyncRepository({
-    required ScoresRepository scoresRepo,
-    required SetlistsRepository setlistsRepo,
+    required this._scoresRepo,
+    required this._setlistsRepo,
     required KeyValueRepository keyValue,
-    required Database db,
+    required this._db,
     required SyncService syncService,
-    required ThumbnailService thumbnailService,
+    required this._thumbnailService,
     @visibleForTesting EncryptedStorage? encryptedStorage,
-  }) : _scoresRepo = scoresRepo,
-       _setlistsRepo = setlistsRepo,
-       _keyValue = keyValue,
-       _db = db,
+  }) : _keyValue = keyValue,
        _service = syncService,
-       _thumbnailService = thumbnailService,
        _encryptedStorage =
            encryptedStorage ??
            (Platform.isLinux
@@ -595,6 +591,7 @@ class SyncRepository {
           id: t.id,
           name: t.name,
           color: t.color,
+          type: t.type != null ? Value(t.type!) : const Value.absent(),
           updatedAt: Value(t.updatedAt.toUtc()),
           uploaded: const Value(true),
         ),
@@ -604,6 +601,7 @@ class SyncRepository {
             color: excluded.color,
             uploaded: excluded.uploaded,
             updatedAt: excluded.updatedAt,
+            type: t.type != null ? excluded.type : null,
           ),
           where: (old, excluded) =>
               old.updatedAt.isSmallerThan(excluded.updatedAt),

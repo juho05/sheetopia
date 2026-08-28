@@ -8,10 +8,12 @@
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 
 void main() {
@@ -186,6 +188,44 @@ void main() {
     expect((await repo.getScore("a"))!.instruments, ["cello", "violin"]);
     expect((await repo.getScore("b"))!.instruments, ["cello"]);
     expect((await repo.getScore("c"))!.instruments, ["violin"]);
+  });
+
+  test("tags are created with their type and listed by it", () async {
+    final score = await repo.createTag(
+      name: "Recital",
+      color: Colors.red,
+      type: TagType.score,
+    );
+    final exercise = await repo.createTag(
+      name: "Warmup",
+      color: Colors.blue,
+      type: TagType.exercise,
+    );
+
+    expect((await repo.getTags(type: TagType.score)).map((t) => t.id), [
+      score.id,
+    ]);
+    expect((await repo.getTags(type: TagType.exercise)).map((t) => t.id), [
+      exercise.id,
+    ]);
+    expect((await repo.getTags()).length, 2);
+  });
+
+  test("the type narrows a filtered tag search", () async {
+    await repo.createTag(
+      name: "Warmup",
+      color: Colors.red,
+      type: TagType.score,
+    );
+    await repo.createTag(
+      name: "Warmup",
+      color: Colors.blue,
+      type: TagType.exercise,
+    );
+
+    final tags = await repo.getTags(filter: "warm", type: TagType.exercise);
+    expect(tags.map((t) => t.name), ["Warmup"]);
+    expect(tags.single.color.toARGB32(), Colors.blue.toARGB32());
   });
 
   test("bulk editing genres only touches the selected scores", () async {

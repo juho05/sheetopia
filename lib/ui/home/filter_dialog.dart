@@ -7,6 +7,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/ui/common/auto_complete_field.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/heading.dart';
@@ -21,8 +22,7 @@ import 'package:sheetopia/ui/home/library_viewmodel.dart';
 class FilterDialog extends StatefulWidget {
   final LibraryViewModel _viewModel;
 
-  const FilterDialog._({required LibraryViewModel viewModel})
-    : _viewModel = viewModel;
+  const FilterDialog._({required this._viewModel});
 
   static Future<void> show(
     BuildContext context, {
@@ -135,7 +135,8 @@ class _FilterDialogState extends State<FilterDialog> {
                     onDialog: true,
                     getOptions: (filter) =>
                         _viewModel.getSources(filter: filter),
-                    onChanged: (value) => _viewModel.filterSource = value.trim(),
+                    onChanged: (value) =>
+                        _viewModel.filterSource = value.trim(),
                     onSelected: (option) =>
                         _viewModel.filterSource = option.trim(),
                     decoration: InputDecoration(
@@ -253,6 +254,7 @@ class _FilterDialogState extends State<FilterDialog> {
                       context,
                       alreadySelected: _viewModel.filterTags.toSet(),
                       enableTagEdits: false,
+                      type: TagType.score,
                       title: "Select tags",
                       addBtnText: "Select",
                     );

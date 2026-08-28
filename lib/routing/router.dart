@@ -14,7 +14,8 @@ import 'package:sheetopia/ui/annotate/annotate_page.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_page.dart';
 import 'package:sheetopia/ui/home/home_page.dart';
 import 'package:sheetopia/ui/install_update/install_update_page.dart';
-import 'package:sheetopia/ui/practice/exercises_view.dart';
+import 'package:sheetopia/ui/practice/edit_exercise_page.dart';
+import 'package:sheetopia/ui/practice/exercises_page.dart';
 import 'package:sheetopia/ui/score/score_page.dart';
 import 'package:sheetopia/ui/setlists/setlist_detail_page.dart';
 import 'package:sheetopia/ui/setlists/setlist_play_page.dart';
@@ -122,7 +123,20 @@ GoRouter get goRouter {
           ),
           GoRoute(
             path: "practice/exercises",
-            builder: (context, state) => const ExercisesView(),
+            builder: (context, state) => const ExercisesPage(),
+            routes: [
+              GoRoute(
+                path: "create",
+                builder: (context, state) =>
+                    const EditExercisePage(exerciseId: null),
+              ),
+              GoRoute(
+                path: ":exerciseId",
+                builder: (context, state) => EditExercisePage(
+                  exerciseId: state.pathParameters["exerciseId"],
+                ),
+              ),
+            ],
           ),
           GoRoute(
             path: "settings",

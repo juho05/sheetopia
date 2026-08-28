@@ -42,7 +42,7 @@ class NextDoneDeleteButton extends StatelessWidget {
                   "Successfully deleted score '${viewModel.score!.title}'!",
                 );
               }
-              goRouter.go("/");
+              goRouter.pop();
             },
             style: FilledButton.styleFrom(
               backgroundColor: theme.colorScheme.errorContainer,

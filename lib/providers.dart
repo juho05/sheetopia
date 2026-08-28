@@ -14,6 +14,7 @@ import 'package:sheetopia/data/repositories/importexport/importexport_repository
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/logger/log_repository.dart';
 import 'package:sheetopia/data/repositories/midi/midi_repository.dart';
+import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
@@ -78,6 +79,7 @@ Future<List<SingleChildWidget>> createProviders({
           SetlistsRepository(db: context.read(), scoresRepo: context.read()),
       lazy: false,
     ),
+    Provider(create: (context) => PracticeRepository(db: context.read())),
     Provider(
       create: (context) => SyncRepository(
         scoresRepo: context.read(),

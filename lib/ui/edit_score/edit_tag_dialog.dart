@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:reactive_color_picker/reactive_color_picker.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
+import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/edit_score/edit_tag_viewmodel.dart';
 
@@ -19,8 +20,16 @@ class EditTagDialog extends StatefulWidget {
 
   const EditTagDialog({super.key, required this.viewModel});
 
-  static Future<Tag?> showCreate(BuildContext context, [String? name]) async {
-    final viewModel = EditTagViewModel(repo: context.read(), initialName: name);
+  static Future<Tag?> showCreate(
+    BuildContext context, {
+    required TagType type,
+    String? name,
+  }) async {
+    final viewModel = EditTagViewModel(
+      repo: context.read(),
+      type: type,
+      initialName: name,
+    );
     return await showSheetopiaDialog<Tag>(
       context: context,
       builder: (context) {
@@ -29,9 +38,14 @@ class EditTagDialog extends StatefulWidget {
     );
   }
 
-  static Future<bool> showEdit(BuildContext context, Tag tag) async {
+  static Future<bool> showEdit(
+    BuildContext context,
+    Tag tag, {
+    required TagType type,
+  }) async {
     final viewModel = EditTagViewModel(
       repo: context.read(),
+      type: type,
       initialName: tag.name,
       initialColor: tag.color,
       tagId: tag.id,

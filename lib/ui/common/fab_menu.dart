@@ -307,6 +307,7 @@ class _FabMenuState extends State<FabMenu> with SingleTickerProviderStateMixin {
       top: 0,
       child: CompositedTransformFollower(
         link: _layerLink,
+        showWhenUnlinked: false,
         targetAnchor: rtl ? Alignment.topLeft : Alignment.topRight,
         followerAnchor: rtl ? Alignment.bottomLeft : Alignment.bottomRight,
         offset: const Offset(0, -_menuSpacing),

@@ -21,21 +21,29 @@ class EditScoreFormViewModel extends ChangeNotifier {
   final EditScoreViewModel _editScoreViewModel;
 
   Score _score;
+
   Score get score => _score;
 
-  SplayTreeSet<Tag> _tags = SplayTreeSet((a, b) => a.name.compareTo(b.name));
+  SplayTreeSet<Tag> _tags = SplayTreeSet(
+    (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+  );
+
   Iterable<Tag> get tags => _tags;
 
   SplayTreeSet<String> _instruments = SplayTreeSet();
+
   Iterable<String> get instruments => _instruments;
 
   SplayTreeSet<String> _genres = SplayTreeSet();
+
   Iterable<String> get genres => _genres;
 
   String? _source;
+
   String? get source => _source;
 
   String? _sourceLink;
+
   String? get sourceLink => _sourceLink;
 
   final FormGroup form;
@@ -131,6 +139,7 @@ class EditScoreFormViewModel extends ChangeNotifier {
   }
 
   List<String>? _composers;
+
   Future<Iterable<String>> getComposers({String filter = ""}) async {
     _composers ??= await _repo.getComposers();
     filter = filter.toLowerCase();
@@ -140,6 +149,7 @@ class EditScoreFormViewModel extends ChangeNotifier {
   }
 
   List<String>? _sources;
+
   Future<Iterable<String>> getSources({String filter = ""}) async {
     _sources ??= await _repo.getSources();
     filter = filter.toLowerCase();
@@ -149,7 +159,7 @@ class EditScoreFormViewModel extends ChangeNotifier {
   }
 
   Future<void> reloadScore() async {
-    await _onValuesChanged(form.value);
+    await _saveValues(form.value);
     await _loadScore();
   }
 
@@ -159,7 +169,10 @@ class EditScoreFormViewModel extends ChangeNotifier {
       _score = _editScoreViewModel.score!;
       // tags need to be updated because they might have been edited outside of
       // this view model, e.g. in the edit tags dialog
-      _tags = SplayTreeSet.of(score.tags, (a, b) => a.name.compareTo(b.name));
+      _tags = SplayTreeSet.of(
+        score.tags,
+        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
       _source = _score.source;
       _sourceLink = _score.sourceLink;
       notifyListeners();
@@ -182,29 +195,37 @@ class EditScoreFormViewModel extends ChangeNotifier {
     });
     _instruments = SplayTreeSet.of(score.instruments);
     _genres = SplayTreeSet.of(score.genres);
-    _tags = SplayTreeSet.of(score.tags, (a, b) => a.name.compareTo(b.name));
+    _tags = SplayTreeSet.of(
+      score.tags,
+      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+    );
 
     notifyListeners();
   }
 
   Timer? _valuesDebounce;
   static const _valuesDebounceDuration = Duration(milliseconds: 250);
+
   Future<void> _onValuesChanged(Map<String, dynamic> values) async {
     _valuesDebounce?.cancel();
-    _valuesDebounce = Timer(
-      _valuesDebounceDuration,
-      () => _repo.updateScore(
-        _score.id,
-        title: values[formTitle].trim(),
-        composer: (values[formComposer] ?? "").trim(),
-        notes: (values[formNotes] ?? "").trim(),
-      ),
+    _valuesDebounce = Timer(_valuesDebounceDuration, () => _saveValues(values));
+  }
+
+  Future<void> _saveValues(Map<String, dynamic> values) async {
+    if (_valuesDebounce == null) return;
+    _valuesDebounce!.cancel();
+    _valuesDebounce = null;
+    await _repo.updateScore(
+      _score.id,
+      title: values[formTitle].trim(),
+      composer: (values[formComposer] ?? "").trim(),
+      notes: (values[formNotes] ?? "").trim(),
     );
   }
 
   @override
   void dispose() {
-    _valuesDebounce?.cancel();
+    _saveValues(form.value);
     _editScoreViewModel.removeListener(_onScoreChanged);
     _valueSub?.cancel();
     super.dispose();

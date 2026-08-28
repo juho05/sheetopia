@@ -7,6 +7,7 @@
  */
 
 import 'package:json_annotation/json_annotation.dart';
+import 'package:sheetopia/data/services/database/tags_table.dart';
 
 part 'tags.g.dart';
 
@@ -15,6 +16,10 @@ class TagModel {
   final String id;
   final String name;
   final int color;
+
+  @JsonKey(includeIfNull: false, unknownEnumValue: TagType.score)
+  final TagType? type;
+
   final DateTime updatedAt;
 
   TagModel({
@@ -22,6 +27,7 @@ class TagModel {
     required this.name,
     required this.color,
     required this.updatedAt,
+    this.type,
   });
 
   factory TagModel.fromJson(Map<String, dynamic> json) =>

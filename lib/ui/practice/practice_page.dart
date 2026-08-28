@@ -9,8 +9,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-class PracticeView extends StatelessWidget {
-  const PracticeView({super.key});
+class PracticePage extends StatelessWidget {
+  const PracticePage({super.key});
 
   @override
   Widget build(BuildContext context) {

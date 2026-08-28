@@ -7,6 +7,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/ui/common/auto_complete_field.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/match_type_selector.dart';
@@ -19,8 +20,7 @@ import 'package:sheetopia/ui/practice/exercises_viewmodel.dart';
 class ExercisesFilterDialog extends StatefulWidget {
   final ExercisesViewModel _viewModel;
 
-  const ExercisesFilterDialog._({required ExercisesViewModel viewModel})
-    : _viewModel = viewModel;
+  const ExercisesFilterDialog._({required this._viewModel});
 
   static Future<void> show(
     BuildContext context, {
@@ -78,6 +78,7 @@ class _ExercisesFilterDialogState extends State<ExercisesFilterDialog> {
       context,
       alreadySelected: _viewModel.filterTags.toSet(),
       enableTagEdits: false,
+      type: TagType.exercise,
       title: "Select tags",
       addBtnText: "Select",
     );

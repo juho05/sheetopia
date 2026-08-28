@@ -23,6 +23,7 @@ import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/server_info.dart';
@@ -64,6 +65,8 @@ typedef _ScoreUpload = ({String id, DateTime? writtenAt});
 class _FakeSyncService extends SyncService {
   String apiVersion = "0.3.0";
   DateTime syncTime = DateTime.utc(2026, 7, 28, 16);
+
+  List<TagModel> tags = [];
 
   List<RemotelyDeleted> deletedScores = [];
   List<RemotelyDeleted> deletedTags = [];
@@ -121,7 +124,7 @@ class _FakeSyncService extends SyncService {
   Future<List<TagModel>> getTags(
     SyncConnection con, {
     DateTime? changedAfter,
-  }) async => [];
+  }) async => tags;
 
   @override
   Future<List<SetlistModel>> getSetlists(
@@ -234,12 +237,16 @@ void main() {
     );
   }
 
-  Future<void> createTag({DateTime? writtenAt}) async {
+  Future<void> createTag({
+    DateTime? writtenAt,
+    TagType type = TagType.score,
+  }) async {
     await db.managers.tagsTable.create(
       (o) => o(
         id: tagId,
         name: "Tag",
         color: 1,
+        type: Value(type),
         updatedAt: Value(contentTime),
         writtenAt: Value(writtenAt),
         uploaded: const Value(true),
@@ -309,11 +316,9 @@ void main() {
         .filter((f) => f.id(scoreId))
         .getSingleOrNull();
     expect(score, isNotNull);
-    expect(
-      service.uploadedScores,
-      [(id: scoreId, writtenAt: importedAt)],
-      reason: "the kept score must be resurrected in the same sync",
-    );
+    expect(service.uploadedScores, [
+      (id: scoreId, writtenAt: importedAt),
+    ], reason: "the kept score must be resurrected in the same sync");
   });
 
   test("a score with no import restore is deleted", () async {
@@ -414,6 +419,59 @@ void main() {
       await db.managers.scoreTagsTable.filter((f) => f.tag.id(tagId)).count(),
       0,
     );
+  });
+
+  test("a downloaded tag without a type keeps the local one", () async {
+    await createTag(type: TagType.exercise);
+    service.tags = [
+      TagModel(
+        id: tagId,
+        name: "Renamed",
+        color: 1,
+        updatedAt: contentTime.add(const Duration(days: 1)),
+      ),
+    ];
+
+    await syncAndWait();
+
+    final tag = await db.managers.tagsTable
+        .filter((f) => f.id(tagId))
+        .getSingle();
+    expect(tag.name, "Renamed");
+    expect(tag.type, TagType.exercise);
+  });
+
+  test("a downloaded tag with a type applies it", () async {
+    await createTag();
+    service.tags = [
+      TagModel(
+        id: tagId,
+        name: "Tag",
+        color: 1,
+        type: TagType.exercise,
+        updatedAt: contentTime.add(const Duration(days: 1)),
+      ),
+    ];
+
+    await syncAndWait();
+
+    final tag = await db.managers.tagsTable
+        .filter((f) => f.id(tagId))
+        .getSingle();
+    expect(tag.type, TagType.exercise);
+  });
+
+  test("a new tag from a server without types is a score tag", () async {
+    service.tags = [
+      TagModel(id: "tag-2", name: "New", color: 1, updatedAt: contentTime),
+    ];
+
+    await syncAndWait();
+
+    final tag = await db.managers.tagsTable
+        .filter((f) => f.id("tag-2"))
+        .getSingle();
+    expect(tag.type, TagType.score);
   });
 
   test("an imported setlist survives its tombstone", () async {

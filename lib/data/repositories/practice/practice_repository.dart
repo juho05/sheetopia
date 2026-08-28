@@ -1,0 +1,478 @@
+/*
+ * Copyright 2025-2026 Julian Hofmann (+ Sheetopia contributors).
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+import 'dart:ui';
+
+import 'package:drift/drift.dart';
+import 'package:rxdart/rxdart.dart';
+import 'package:sheetopia/data/repositories/practice/exercise.dart';
+import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
+import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
+import 'package:sheetopia/data/repositories/scores/tag.dart';
+import 'package:sheetopia/data/services/database/database.dart';
+
+class PracticeRepository {
+  final Database _db;
+
+  final BehaviorSubject<Set<String>> _updatedExerciseIds = BehaviorSubject();
+
+  Stream<Set<String>> get updatedExerciseIds => _updatedExerciseIds.stream;
+
+  PracticeRepository({required this._db});
+
+  static final _whitespaceRegex = RegExp(r'\s+');
+
+  Iterable<String> _searchWords(String filter) {
+    filter = filter.trim();
+    if (filter.isEmpty) return const [];
+    return filter.split(_whitespaceRegex);
+  }
+
+  Expression<bool> _matchHaving(
+    FilterMatchType type,
+    Expression<int> matchingCount,
+    Expression<int> totalCount,
+    int selectedLen,
+  ) {
+    switch (type) {
+      case FilterMatchType.any:
+        return matchingCount.isBiggerThanValue(0);
+      case FilterMatchType.all:
+        return matchingCount.equals(selectedLen);
+      case FilterMatchType.exact:
+        return matchingCount.equals(selectedLen) &
+            totalCount.equals(selectedLen);
+    }
+  }
+
+  List<Join> _filterJoins({
+    required Iterable<String> tagIds,
+    required FilterMatchType tagMatch,
+  }) {
+    final tagsSubQ = _db.selectOnly(_db.exerciseTagsTable).join([]);
+    tagsSubQ.addColumns([_db.exerciseTagsTable.exercise]);
+    tagsSubQ.groupBy(
+      [_db.exerciseTagsTable.exercise],
+      having: _matchHaving(
+        tagMatch,
+        _db.exerciseTagsTable.tag.count(
+          distinct: true,
+          filter: _db.exerciseTagsTable.tag.isIn(tagIds),
+        ),
+        _db.exerciseTagsTable.tag.count(distinct: true),
+        tagIds.length,
+      ),
+    );
+    final assignedToTags = Subquery(tagsSubQ, 'assigned_to_tags');
+
+    return [
+      leftOuterJoin(
+        _db.exerciseCategoriesTable,
+        _db.exerciseCategoriesTable.id.equalsExp(_db.exercisesTable.category),
+      ),
+      if (tagIds.isNotEmpty)
+        innerJoin(
+          assignedToTags,
+          assignedToTags
+              .ref(_db.exerciseTagsTable.exercise)
+              .equalsExp(_db.exercisesTable.id),
+          useColumns: false,
+        ),
+    ];
+  }
+
+  void _applyExerciseFilters(
+    JoinedSelectStatement q,
+    Iterable<String> searchWords,
+    String category,
+    String instrument,
+  ) {
+    for (final word in searchWords) {
+      q.where(_db.exercisesTable.name.contains(word));
+    }
+    if (category.isNotEmpty) {
+      q.where(_db.exerciseCategoriesTable.name.equals(category));
+    }
+    if (instrument.isNotEmpty) {
+      q.where(_db.exercisesTable.instrument.equals(instrument));
+    }
+  }
+
+  List<OrderingTerm> get _exerciseOrdering => [
+    OrderingTerm.asc(
+      _db.exerciseCategoriesTable.position,
+      nulls: NullsOrder.last,
+    ),
+    OrderingTerm.asc(_db.exerciseCategoriesTable.id),
+    OrderingTerm.asc(_db.exercisesTable.name.lower()),
+    OrderingTerm.asc(_db.exercisesTable.id),
+  ];
+
+  Future<int> countExercises({
+    String filter = "",
+    String category = "",
+    String instrument = "",
+    Iterable<String> tagIds = const [],
+    FilterMatchType tagMatch = FilterMatchType.all,
+  }) async {
+    final countExpr = _db.exercisesTable.id.count(distinct: true);
+    final q = _db
+        .selectOnly(_db.exercisesTable)
+        .join(_filterJoins(tagIds: tagIds, tagMatch: tagMatch));
+    q.addColumns([countExpr]);
+    _applyExerciseFilters(q, _searchWords(filter), category, instrument);
+    return (await q.getSingle()).read(countExpr) ?? 0;
+  }
+
+  Future<List<Exercise>> getExercises({
+    required int size,
+    int offset = 0,
+    String filter = "",
+    String category = "",
+    String instrument = "",
+    Iterable<String> tagIds = const [],
+    FilterMatchType tagMatch = FilterMatchType.all,
+  }) async {
+    final q = _db
+        .select(_db.exercisesTable)
+        .join(_filterJoins(tagIds: tagIds, tagMatch: tagMatch));
+    _applyExerciseFilters(q, _searchWords(filter), category, instrument);
+    q.orderBy(_exerciseOrdering);
+    q.limit(size, offset: offset);
+
+    final rows = [
+      for (final row in await q.get())
+        (
+          row.readTable(_db.exercisesTable),
+          row.readTableOrNull(_db.exerciseCategoriesTable),
+        ),
+    ];
+    final tags = await _getExercisesTags(rows.map((r) => r.$1.id));
+
+    return [
+      for (final (exercise, category) in rows)
+        Exercise(
+          id: exercise.id,
+          name: exercise.name,
+          category: category == null
+              ? null
+              : ExerciseCategory(name: category.name),
+          instrument: exercise.instrument,
+          tags: tags[exercise.id] ?? const [],
+          description: exercise.description,
+          source: exercise.source,
+          sourceLink: exercise.sourceLink,
+        ),
+    ];
+  }
+
+  Future<List<String>> getCategories({String filter = "", int? size}) async {
+    final q = _db.select(_db.exerciseCategoriesTable);
+    if (filter.isNotEmpty) {
+      q.where((t) => t.name.contains(filter));
+    }
+    q.orderBy([
+      (t) => OrderingTerm.asc(t.position),
+      (t) => OrderingTerm.asc(t.name.lower()),
+    ]);
+    if (size != null) {
+      q.limit(size);
+    }
+    return (await q.get()).map((c) => c.name).toList();
+  }
+
+  Future<Exercise?> getExercise(String exerciseId) async {
+    final query = _db.select(_db.exercisesTable).join([
+      leftOuterJoin(
+        _db.exerciseCategoriesTable,
+        _db.exerciseCategoriesTable.id.equalsExp(_db.exercisesTable.category),
+      ),
+    ])..where(_db.exercisesTable.id.equals(exerciseId));
+    final row = await query.getSingleOrNull();
+    if (row == null) return null;
+
+    final exercise = row.readTable(_db.exercisesTable);
+    final category = row.readTableOrNull(_db.exerciseCategoriesTable);
+
+    return Exercise(
+      id: exercise.id,
+      name: exercise.name,
+      category: category == null ? null : ExerciseCategory(name: category.name),
+      instrument: exercise.instrument,
+      tags: await _getExerciseTags(exercise.id),
+      description: exercise.description,
+      source: exercise.source,
+      sourceLink: exercise.sourceLink,
+    );
+  }
+
+  Future<List<Tag>> _getExerciseTags(String exerciseId) async {
+    return (await _db.managers.tagsTable
+            .filter(
+              (f) => f.exerciseTagsTableRefs((f) => f.exercise.id(exerciseId)),
+            )
+            .orderBy((o) => o.name.asc())
+            .get())
+        .map(
+          (t) => Tag(
+            id: t.id,
+            name: t.name,
+            color: Color(t.color),
+            type: t.type,
+            updatedAt: t.updatedAt.toUtc(),
+          ),
+        )
+        .toList();
+  }
+
+  Future<Map<String, List<Tag>>> _getExercisesTags(
+    Iterable<String> exerciseIds,
+  ) async {
+    if (exerciseIds.isEmpty) return const {};
+    final exerciseTags = <String, List<Tag>>{};
+
+    final tags = await _db.managers.tagsTable
+        .filter(
+          (f) =>
+              f.exerciseTagsTableRefs((f) => f.exercise.id.isIn(exerciseIds)),
+        )
+        .orderBy((o) => o.name.asc())
+        .withReferences((prefetch) => prefetch(exerciseTagsTableRefs: true))
+        .get(distinct: true);
+    for (final t in tags) {
+      final tag = Tag(
+        id: t.$1.id,
+        name: t.$1.name,
+        color: Color(t.$1.color),
+        type: t.$1.type,
+        updatedAt: t.$1.updatedAt.toUtc(),
+      );
+      final refs =
+          t.$2.exerciseTagsTableRefs.prefetchedData ??
+          <ExerciseTagsTableData>[];
+      for (final ref in refs) {
+        (exerciseTags[ref.exercise] ??= []).add(tag);
+      }
+    }
+
+    return exerciseTags;
+  }
+
+  Future<String> createExercise({
+    required String name,
+    required String description,
+    required String instrument,
+    required String source,
+    required String sourceLink,
+    required Iterable<String> tagIds,
+  }) async {
+    final exerciseId = _db.newId();
+    await _db.transaction(() async {
+      await _db.managers.exercisesTable.create(
+        (o) => o(
+          id: exerciseId,
+          name: name,
+          description: description.isNotEmpty
+              ? Value(description)
+              : const Value(null),
+          instrument: instrument.isNotEmpty
+              ? Value(instrument)
+              : const Value(null),
+          source: source.isNotEmpty ? Value(source) : const Value(null),
+          sourceLink: source.isNotEmpty && sourceLink.isNotEmpty
+              ? Value(sourceLink)
+              : const Value(null),
+          updatedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+      if (tagIds.isNotEmpty) {
+        await _db.managers.exerciseTagsTable.bulkCreate(
+          (o) => tagIds.map((id) => o(exercise: exerciseId, tag: id)),
+          onConflict: DoNothing(),
+        );
+      }
+    });
+    _updatedExerciseIds.add({exerciseId});
+    return exerciseId;
+  }
+
+  Future<void> updateExercise(
+    String exerciseId, {
+    required String name,
+    required String description,
+    required String instrument,
+  }) async {
+    await _db.managers.exercisesTable
+        .filter((f) => f.id(exerciseId))
+        .update(
+          (o) => o(
+            name: Value(name),
+            description: description.isNotEmpty
+                ? Value(description)
+                : const Value(null),
+            instrument: instrument.isNotEmpty
+                ? Value(instrument)
+                : const Value(null),
+            updatedAt: Value(DateTime.now().toUtc()),
+            uploaded: const Value(false),
+          ),
+        );
+    _updatedExerciseIds.add({exerciseId});
+  }
+
+  Future<void> updateExerciseSource(
+    String exerciseId, {
+    required String source,
+    required String sourceLink,
+  }) async {
+    await _db.managers.exercisesTable
+        .filter((f) => f.id(exerciseId))
+        .update(
+          (o) => o(
+            source: source.isNotEmpty ? Value(source) : const Value(null),
+            sourceLink: source.isNotEmpty && sourceLink.isNotEmpty
+                ? Value(sourceLink)
+                : const Value(null),
+            updatedAt: Value(DateTime.now().toUtc()),
+            uploaded: const Value(false),
+          ),
+        );
+    _updatedExerciseIds.add({exerciseId});
+  }
+
+  Future<void> addExerciseTags(
+    String exerciseId,
+    Iterable<String> tagIds,
+  ) async {
+    if (tagIds.isEmpty) return;
+    await _db.transaction(() async {
+      await _db.managers.exerciseTagsTable.bulkCreate(
+        (o) => tagIds.map((id) => o(exercise: exerciseId, tag: id)),
+        onConflict: DoNothing(),
+      );
+      await _markUpdated(exerciseId);
+    });
+    _updatedExerciseIds.add({exerciseId});
+  }
+
+  Future<void> removeExerciseTag(String exerciseId, String tagId) async {
+    await _db.transaction(() async {
+      await _db.managers.exerciseTagsTable
+          .filter((f) => f.exercise.id(exerciseId) & f.tag.id(tagId))
+          .delete();
+      await _markUpdated(exerciseId);
+    });
+    _updatedExerciseIds.add({exerciseId});
+  }
+
+  // TODO delete owned scores
+  Future<void> deleteExercise(String exerciseId) async {
+    await _db.transaction(() async {
+      final routineIds =
+          (await _db.managers.practiceRoutineEntriesTable
+                  .filter((f) => f.exercise.id(exerciseId))
+                  .map((e) => e.routine)
+                  .get())
+              .toSet();
+      if (routineIds.isNotEmpty) {
+        await _db.managers.practiceRoutineEntriesTable
+            .filter((f) => f.exercise.id(exerciseId))
+            .delete();
+        for (final routineId in routineIds) {
+          await _renumberRoutineEntries(routineId);
+        }
+        await _db.managers.practiceRoutinesTable
+            .filter((f) => f.id.isIn(routineIds))
+            .update(
+              (o) => o(
+                updatedAt: Value(DateTime.now().toUtc()),
+                uploaded: const Value(false),
+              ),
+            );
+      }
+      await _db.managers.exercisesTable
+          .filter((f) => f.id(exerciseId))
+          .delete();
+      await _db.managers.deletedExercisesTable.create(
+        (o) =>
+            o(exerciseId: exerciseId, deletedAt: Value(DateTime.now().toUtc())),
+      );
+    });
+    _updatedExerciseIds.add({exerciseId});
+  }
+
+  Future<List<String>> getInstruments({String filter = "", int? size}) async {
+    final exerciseQuery = _db.selectOnly(_db.exercisesTable, distinct: true)
+      ..addColumns([_db.exercisesTable.instrument])
+      ..where(_db.exercisesTable.instrument.isNotNull());
+    final scoreQuery = _db.selectOnly(_db.instrumentsTable, distinct: true)
+      ..addColumns([_db.instrumentsTable.instrument]);
+    if (filter.isNotEmpty) {
+      exerciseQuery.where(_db.exercisesTable.instrument.contains(filter));
+      scoreQuery.where(_db.instrumentsTable.instrument.contains(filter));
+    }
+    return _merge([
+      ...(await exerciseQuery.get()).map(
+        (r) => r.read(_db.exercisesTable.instrument)!,
+      ),
+      ...(await scoreQuery.get()).map(
+        (r) => r.read(_db.instrumentsTable.instrument)!,
+      ),
+    ], size);
+  }
+
+  Future<List<String>> getSources({String filter = "", int? size}) async {
+    final exerciseQuery = _db.selectOnly(_db.exercisesTable, distinct: true)
+      ..addColumns([_db.exercisesTable.source])
+      ..where(_db.exercisesTable.source.isNotNull());
+    final scoreQuery = _db.selectOnly(_db.scoresTable, distinct: true)
+      ..addColumns([_db.scoresTable.source])
+      ..where(_db.scoresTable.source.isNotNull());
+    if (filter.isNotEmpty) {
+      exerciseQuery.where(_db.exercisesTable.source.contains(filter));
+      scoreQuery.where(_db.scoresTable.source.contains(filter));
+    }
+    return _merge([
+      ...(await exerciseQuery.get()).map(
+        (r) => r.read(_db.exercisesTable.source)!,
+      ),
+      ...(await scoreQuery.get()).map((r) => r.read(_db.scoresTable.source)!),
+    ], size);
+  }
+
+  List<String> _merge(Iterable<String> values, int? size) {
+    final merged = values.toSet().toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    if (size == null || merged.length <= size) return merged;
+    return merged.sublist(0, size);
+  }
+
+  Future<void> _renumberRoutineEntries(String routineId) async {
+    final query = _db.select(_db.practiceRoutineEntriesTable)
+      ..where((t) => t.routine.equals(routineId))
+      ..orderBy([(t) => OrderingTerm.asc(t.position)]);
+    final entries = await query.get();
+    for (final (position, entry) in entries.indexed) {
+      if (entry.position == position) continue;
+      await _db.managers.practiceRoutineEntriesTable
+          .filter((f) => f.id(entry.id))
+          .update((o) => o(position: Value(position)));
+    }
+  }
+
+  Future<void> _markUpdated(String exerciseId) async {
+    await _db.managers.exercisesTable
+        .filter((f) => f.id(exerciseId))
+        .update(
+          (o) => o(
+            updatedAt: Value(DateTime.now().toUtc()),
+            uploaded: const Value(false),
+          ),
+        );
+  }
+}

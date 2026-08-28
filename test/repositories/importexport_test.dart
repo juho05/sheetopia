@@ -24,6 +24,8 @@ import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/database/tags_table.dart';
+import 'package:sheetopia/data/services/sync/models/tags.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 
@@ -234,6 +236,44 @@ void main() {
     expect(tag.uploaded, isFalse);
 
     expect(await db.managers.deletedTagsTable.count(), 0);
+  });
+
+  test("an exercise tag keeps its type through an export", () async {
+    final exerciseTagId = db.newId();
+    await db.managers.tagsTable.create(
+      (o) => o(
+        id: exerciseTagId,
+        name: "Warmup",
+        color: 0xff0000ff,
+        type: const Value(TagType.exercise),
+        updatedAt: Value(contentTime),
+      ),
+    );
+    final zip = await exportAll();
+
+    await scoresRepo.deleteTag(exerciseTagId);
+    await scoresRepo.deleteTag(tagId);
+    expect(await db.managers.tagsTable.count(), 0);
+
+    await importFrom(zip);
+
+    final tags = await db.managers.tagsTable.get();
+    expect(
+      {for (final t in tags) t.name: t.type},
+      {"Baroque": TagType.score, "Warmup": TagType.exercise},
+    );
+  });
+
+  test("a tag exported before types existed has no type", () {
+    final tag = TagModel.fromJson({
+      "id": "a",
+      "name": "Baroque",
+      "color": 0xff00ff00,
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+    });
+
+    expect(tag.type, isNull);
+    expect(tag.toJson().containsKey("type"), isFalse);
   });
 
   test("re-importing a deleted setlist restores it with its entries", () async {

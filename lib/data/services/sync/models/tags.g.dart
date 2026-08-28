@@ -6,26 +6,32 @@ part of 'tags.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-TagModel _$TagModelFromJson(Map<String, dynamic> json) =>
-    $checkedCreate('TagModel', json, ($checkedConvert) {
-      final val = TagModel(
-        id: $checkedConvert('id', (v) => v as String),
-        name: $checkedConvert('name', (v) => v as String),
-        color: $checkedConvert('color', (v) => (v as num).toInt()),
-        updatedAt: $checkedConvert(
-          'updatedAt',
-          (v) => DateTime.parse(v as String),
-        ),
-      );
-      return val;
-    });
+TagModel _$TagModelFromJson(
+  Map<String, dynamic> json,
+) => $checkedCreate('TagModel', json, ($checkedConvert) {
+  final val = TagModel(
+    id: $checkedConvert('id', (v) => v as String),
+    name: $checkedConvert('name', (v) => v as String),
+    color: $checkedConvert('color', (v) => (v as num).toInt()),
+    updatedAt: $checkedConvert('updatedAt', (v) => DateTime.parse(v as String)),
+    type: $checkedConvert(
+      'type',
+      (v) =>
+          $enumDecodeNullable(_$TagTypeEnumMap, v, unknownValue: TagType.score),
+    ),
+  );
+  return val;
+});
 
 Map<String, dynamic> _$TagModelToJson(TagModel instance) => <String, dynamic>{
   'id': instance.id,
   'name': instance.name,
   'color': instance.color,
+  'type': ?_$TagTypeEnumMap[instance.type],
   'updatedAt': instance.updatedAt.toIso8601String(),
 };
+
+const _$TagTypeEnumMap = {TagType.score: 'score', TagType.exercise: 'exercise'};
 
 TagsModel _$TagsModelFromJson(Map<String, dynamic> json) =>
     $checkedCreate('TagsModel', json, ($checkedConvert) {

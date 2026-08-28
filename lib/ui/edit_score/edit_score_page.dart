@@ -8,10 +8,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:sheetopia/ui/edit_score/edit_score_desktop.dart';
-import 'package:sheetopia/ui/edit_score/edit_score_mobile.dart';
+import 'package:sheetopia/ui/common/two_pane_page.dart';
+import 'package:sheetopia/ui/edit_score/edit_score_form.dart';
+import 'package:sheetopia/ui/edit_score/edit_score_preview.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_viewmodel.dart';
-import 'package:sheetopia/ui/edit_score/nextdonedelete_button.dart';
 
 class EditScorePage extends StatelessWidget {
   final String scoreId;
@@ -24,34 +24,22 @@ class EditScorePage extends StatelessWidget {
       create: (context) =>
           EditScoreViewModel(repo: context.read(), scoreId: scoreId),
       builder: (context, _) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final mobile = constraints.maxWidth < 900;
-            return Consumer<EditScoreViewModel>(
-              child: SafeArea(
-                child: mobile
-                    ? const EditScoreMobile()
-                    : const EditScoreDesktop(),
+        return Consumer<EditScoreViewModel>(
+          builder: (context, viewModel, _) {
+            return TwoPanePage(
+              appBar: AppBar(
+                title: viewModel.isImport
+                    ? (viewModel.hasNext
+                          ? const Text("Import scores")
+                          : const Text("Import score"))
+                    : const Text("Edit score"),
               ),
-              builder: (context, viewModel, child) {
-                return Scaffold(
-                  appBar: AppBar(
-                    title: viewModel.isImport
-                        ? (viewModel.hasNext
-                              ? const Text("Import scores")
-                              : const Text("Import score"))
-                        : const Text("Edit score"),
-                    actions: [
-                      if (mobile)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: NextDoneDeleteButton(viewModel: viewModel),
-                        ),
-                    ],
-                  ),
-                  body: child,
-                );
-              },
+              primaryLabel: "Metadata",
+              secondaryLabel: "File",
+              loading: viewModel.score == null,
+              lockSecondarySwipe: true,
+              primary: (context) => const EditScoreForm(),
+              secondary: (context) => EditScorePreview(score: viewModel.score!),
             );
           },
         );

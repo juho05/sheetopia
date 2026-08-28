@@ -11,6 +11,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
+import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/ui/common/auto_complete_field.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
@@ -19,6 +20,8 @@ import 'package:sheetopia/ui/common/tag_badge.dart';
 import 'package:sheetopia/ui/edit_score/add_tags_dialog.dart';
 import 'package:sheetopia/ui/edit_score/auto_complete_input_dialog.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_form_viewmodel.dart';
+import 'package:sheetopia/ui/edit_score/edit_score_viewmodel.dart';
+import 'package:sheetopia/ui/edit_score/nextdonedelete_button.dart';
 import 'package:sheetopia/ui/edit_score/select_tags_list.dart';
 import 'package:sheetopia/ui/edit_score/source_input_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -55,146 +58,165 @@ class _EditScoreFormState extends State<EditScoreForm> {
       builder: (context, _) {
         return Consumer<EditScoreFormViewModel>(
           builder: (context, viewModel, _) {
-            return ReactiveForm(
-              formGroup: viewModel.form,
-              child: ListView(
-                padding: const EdgeInsets.all(8),
-                children: [
-                  ReactiveTextField<String>(
-                    formControlName: EditScoreFormViewModel.formTitle,
-                    focusNode: _titleFocus,
-                    onTapOutside: (event) => _titleFocus.unfocus(),
-                    decoration: const InputDecoration(
-                      label: Text("Title"),
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: AutoCompleteField(
-                      controller: _composerController,
-                      focusNode: _composerFocus,
-                      getOptions: (filter) =>
-                          viewModel.getComposers(filter: filter),
-                      onSelected: (option) =>
-                          viewModel
-                                  .form
-                                  .controls[EditScoreFormViewModel
-                                      .formComposer]!
-                                  .value =
-                              option,
-                      fieldBuilder: (context, controller, focusNode) =>
-                          ReactiveTextField(
-                            onTapOutside: (event) => focusNode.unfocus(),
-                            formControlName:
-                                EditScoreFormViewModel.formComposer,
-                            controller: controller,
-                            focusNode: focusNode,
-                            decoration: const InputDecoration(
-                              label: Text("Composer"),
-                              border: OutlineInputBorder(),
+            return Column(
+              children: [
+                Expanded(
+                  child: ReactiveForm(
+                    formGroup: viewModel.form,
+                    child: ListView(
+                      padding: const EdgeInsets.all(8),
+                      children: [
+                        ReactiveTextField<String>(
+                          formControlName: EditScoreFormViewModel.formTitle,
+                          focusNode: _titleFocus,
+                          onTapOutside: (event) => _titleFocus.unfocus(),
+                          decoration: const InputDecoration(
+                            label: Text("Title"),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: AutoCompleteField(
+                            controller: _composerController,
+                            focusNode: _composerFocus,
+                            getOptions: (filter) =>
+                                viewModel.getComposers(filter: filter),
+                            onSelected: (option) =>
+                                viewModel
+                                        .form
+                                        .controls[EditScoreFormViewModel
+                                            .formComposer]!
+                                        .value =
+                                    option,
+                            fieldBuilder: (context, controller, focusNode) =>
+                                ReactiveTextField(
+                                  onTapOutside: (event) => focusNode.unfocus(),
+                                  formControlName:
+                                      EditScoreFormViewModel.formComposer,
+                                  controller: controller,
+                                  focusNode: focusNode,
+                                  decoration: const InputDecoration(
+                                    label: Text("Composer"),
+                                    border: OutlineInputBorder(),
+                                  ),
+                                ),
+                          ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.only(top: 12, bottom: 4),
+                          child: Heading(text: "Source"),
+                        ),
+                        _SourceRow(viewModel: viewModel),
+                        const Padding(
+                          padding: EdgeInsets.only(top: 12, bottom: 4),
+                          child: Heading(text: "Instruments"),
+                        ),
+                        SelectTagsList(
+                          tags: viewModel.instruments.map(
+                            (i) => CommonBadge(
+                              name: i,
+                              onRemove: () {
+                                viewModel.removeInstrument(i);
+                              },
                             ),
                           ),
+                          onAdd: () async {
+                            final instrument =
+                                await AutoCompleteInputDialog.show(
+                                  context,
+                                  title: "Add instrument",
+                                  inputLabel: "Instrument",
+                                  submitBtnText: "Add",
+                                  getOptions: (filter) =>
+                                      viewModel.getInstruments(filter: filter),
+                                );
+                            if (instrument == null) return;
+                            viewModel.addInstrument(instrument);
+                          },
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.only(top: 12, bottom: 4),
+                          child: Heading(text: "Genres"),
+                        ),
+                        SelectTagsList(
+                          tags: viewModel.genres.map(
+                            (g) => CommonBadge(
+                              name: g,
+                              onRemove: () {
+                                viewModel.removeGenre(g);
+                              },
+                            ),
+                          ),
+                          onAdd: () async {
+                            final genre = await AutoCompleteInputDialog.show(
+                              context,
+                              title: "Add genre",
+                              inputLabel: "Genre",
+                              submitBtnText: "Add",
+                              getOptions: (filter) =>
+                                  viewModel.getGenres(filter: filter),
+                            );
+                            if (genre == null) return;
+                            viewModel.addGenre(genre);
+                          },
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.only(top: 12, bottom: 4),
+                          child: Heading(text: "Tags"),
+                        ),
+                        SelectTagsList(
+                          tags: viewModel.tags.map(
+                            (t) => TagBadge(
+                              tag: t,
+                              onRemove: () {
+                                viewModel.removeTag(t);
+                              },
+                            ),
+                          ),
+                          onAdd: () async {
+                            final tags = await AddTagsDialog.show(
+                              context,
+                              alreadySelected: viewModel.tags.toSet(),
+                              enableTagEdits: true,
+                              type: TagType.score,
+                              reloadTags: viewModel.reloadScore,
+                            );
+                            if (tags == null || tags.isEmpty) return;
+                            viewModel.addTags(tags);
+                          },
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 18, bottom: 4),
+                          child: ReactiveTextField<String>(
+                            formControlName: EditScoreFormViewModel.formNotes,
+                            focusNode: _notesFocus,
+                            onTapOutside: (event) => _notesFocus.unfocus(),
+                            maxLines: 8,
+                            minLines: 3,
+                            decoration: const InputDecoration(
+                              label: Text("Notes"),
+                              border: OutlineInputBorder(),
+                              floatingLabelBehavior:
+                                  FloatingLabelBehavior.always,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const Padding(
-                    padding: EdgeInsets.only(top: 12, bottom: 4),
-                    child: Heading(text: "Source"),
-                  ),
-                  _SourceRow(viewModel: viewModel),
-                  const Padding(
-                    padding: EdgeInsets.only(top: 12, bottom: 4),
-                    child: Heading(text: "Instruments"),
-                  ),
-                  SelectTagsList(
-                    tags: viewModel.instruments.map(
-                      (i) => CommonBadge(
-                        name: i,
-                        onRemove: () {
-                          viewModel.removeInstrument(i);
-                        },
-                      ),
-                    ),
-                    onAdd: () async {
-                      final instrument = await AutoCompleteInputDialog.show(
-                        context,
-                        title: "Add instrument",
-                        inputLabel: "Instrument",
-                        submitBtnText: "Add",
-                        getOptions: (filter) =>
-                            viewModel.getInstruments(filter: filter),
-                      );
-                      if (instrument == null) return;
-                      viewModel.addInstrument(instrument);
-                    },
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.only(top: 12, bottom: 4),
-                    child: Heading(text: "Genres"),
-                  ),
-                  SelectTagsList(
-                    tags: viewModel.genres.map(
-                      (g) => CommonBadge(
-                        name: g,
-                        onRemove: () {
-                          viewModel.removeGenre(g);
-                        },
-                      ),
-                    ),
-                    onAdd: () async {
-                      final genre = await AutoCompleteInputDialog.show(
-                        context,
-                        title: "Add genre",
-                        inputLabel: "Genre",
-                        submitBtnText: "Add",
-                        getOptions: (filter) =>
-                            viewModel.getGenres(filter: filter),
-                      );
-                      if (genre == null) return;
-                      viewModel.addGenre(genre);
-                    },
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.only(top: 12, bottom: 4),
-                    child: Heading(text: "Tags"),
-                  ),
-                  SelectTagsList(
-                    tags: viewModel.tags.map(
-                      (t) => TagBadge(
-                        tag: t,
-                        onRemove: () {
-                          viewModel.removeTag(t);
-                        },
-                      ),
-                    ),
-                    onAdd: () async {
-                      final tags = await AddTagsDialog.show(
-                        context,
-                        alreadySelected: viewModel.tags.toSet(),
-                        enableTagEdits: true,
-                        reloadTags: viewModel.reloadScore,
-                      );
-                      if (tags == null || tags.isEmpty) return;
-                      viewModel.addTags(tags);
-                    },
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 18, bottom: 4),
-                    child: ReactiveTextField<String>(
-                      formControlName: EditScoreFormViewModel.formNotes,
-                      focusNode: _notesFocus,
-                      onTapOutside: (event) => _notesFocus.unfocus(),
-                      maxLines: 8,
-                      minLines: 3,
-                      decoration: const InputDecoration(
-                        label: Text("Notes"),
-                        border: OutlineInputBorder(),
-                        floatingLabelBehavior: FloatingLabelBehavior.always,
-                      ),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Consumer<EditScoreViewModel>(
+                      builder: (context, editScoreViewModel, _) =>
+                          NextDoneDeleteButton(viewModel: editScoreViewModel),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             );
           },
         );

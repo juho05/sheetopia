@@ -8,16 +8,20 @@
 
 import 'dart:ui';
 
+import 'package:sheetopia/data/services/database/tags_table.dart';
+
 class Tag {
   final String id;
   final String name;
   final Color color;
+  final TagType type;
   final DateTime updatedAt;
 
   const Tag({
     required this.id,
     required this.name,
     required this.color,
+    required this.type,
     required this.updatedAt,
   });
 

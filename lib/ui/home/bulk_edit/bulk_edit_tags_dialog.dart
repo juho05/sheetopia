@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
+import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/common/tag_badge.dart';
@@ -124,6 +125,7 @@ class _BulkEditTagsDialogState extends State<BulkEditTagsDialog> {
                 context,
                 alreadySelected: _addTags,
                 enableTagEdits: true,
+                type: TagType.score,
                 title: "Add tags",
               );
               if (tags == null || tags.isEmpty) return;
@@ -151,6 +153,7 @@ class _BulkEditTagsDialogState extends State<BulkEditTagsDialog> {
                 context,
                 alreadySelected: _removeTags,
                 enableTagEdits: true,
+                type: TagType.score,
                 title: "Remove tags",
               );
               if (tags == null || tags.isEmpty) return;

@@ -10,26 +10,29 @@ import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
+import 'package:sheetopia/data/services/database/tags_table.dart';
 
 class EditTagViewModel {
   static const formName = "name";
   static const formColor = "color";
 
   final String? _tagId;
+
   bool get editMode => _tagId != null;
 
   final ScoresRepository _repo;
 
+  final TagType _type;
+
   final FormGroup form;
 
   EditTagViewModel({
-    required ScoresRepository repo,
+    required this._repo,
+    required this._type,
     String? initialName,
     Color? initialColor,
-    String? tagId,
-  }) : _repo = repo,
-       _tagId = tagId,
-       form = FormGroup({
+    this._tagId,
+  }) : form = FormGroup({
          formName: FormControl<String>(
            value: initialName,
            validators: [Validators.required],
@@ -44,6 +47,7 @@ class EditTagViewModel {
     return await _repo.createTag(
       name: form.control(formName).value,
       color: form.control(formColor).value,
+      type: _type,
     );
   }
 

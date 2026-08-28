@@ -13,7 +13,6 @@ import 'dart:ui';
 
 import 'package:archive/archive_io.dart';
 import 'package:drift/drift.dart';
-import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
@@ -21,6 +20,7 @@ import 'package:io/io.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
@@ -68,16 +68,12 @@ class ImportExportRepository extends ChangeNotifier {
   ImportExportStatus get status => _status;
 
   ImportExportRepository({
-    required ScoresRepository scoresRepo,
-    required SetlistsRepository setlistsRepo,
-    required SyncRepository syncRepo,
-    required Database db,
-    required ThumbnailService thumbnailService,
-  }) : _thumbnailService = thumbnailService,
-       _scoresRepo = scoresRepo,
-       _setlistsRepo = setlistsRepo,
-       _syncRepo = syncRepo,
-       _db = db;
+    required this._scoresRepo,
+    required this._setlistsRepo,
+    required this._syncRepo,
+    required this._db,
+    required this._thumbnailService,
+  });
 
   Set<String> _changedScores = {};
   Set<String> _changedTags = {};
@@ -164,6 +160,7 @@ class ImportExportRepository extends ChangeNotifier {
                   id: t.id,
                   name: t.name,
                   color: t.color.toARGB32(),
+                  type: t.type,
                   updatedAt: t.updatedAt.toUtc(),
                 ),
               )
@@ -318,6 +315,7 @@ class ImportExportRepository extends ChangeNotifier {
           id: t.id,
           name: t.name,
           color: t.color,
+          type: t.type != null ? Value(t.type!) : const Value.absent(),
           updatedAt: Value(t.updatedAt.toUtc()),
           writtenAt: Value(importedAt),
           uploaded: const Value(false),
@@ -326,6 +324,7 @@ class ImportExportRepository extends ChangeNotifier {
           (old, excluded) => TagsTableCompanion.custom(
             name: excluded.name,
             color: excluded.color,
+            type: t.type != null ? excluded.type : null,
             uploaded: excluded.uploaded,
             updatedAt: excluded.updatedAt,
             writtenAt: excluded.writtenAt,

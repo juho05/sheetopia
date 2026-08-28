@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/home/score_grid_cell.dart';
 
@@ -35,6 +36,7 @@ void main() {
           id: "$i",
           name: "Tag $i",
           color: Colors.blue,
+          type: TagType.score,
           updatedAt: timestamp,
         ),
       ),
