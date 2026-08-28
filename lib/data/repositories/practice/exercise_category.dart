@@ -7,7 +7,8 @@
  */
 
 class ExerciseCategory {
+  final String id;
   final String name;
 
-  const ExerciseCategory({required this.name});
+  const ExerciseCategory({required this.id, required this.name});
 }

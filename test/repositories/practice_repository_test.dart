@@ -418,6 +418,87 @@ void main() {
     expect(await repo.getCategories(filter: "tud"), ["Etudes"]);
   });
 
+  test("categories are created at the end and can be reordered", () async {
+    final warmup = await repo.createCategory("Warmup");
+    final etudes = await repo.createCategory("Etudes");
+    final technique = await repo.createCategory("Technique");
+
+    expect(await repo.getCategories(), ["Warmup", "Etudes", "Technique"]);
+
+    await repo.moveCategory(2, 0);
+
+    expect(
+      (await repo.getAllCategories()).map((c) => c.id),
+      [technique.id, warmup.id, etudes.id],
+    );
+
+    await repo.moveCategory(0, 3);
+
+    expect(await repo.getCategories(), ["Technique", "Warmup", "Etudes"]);
+  });
+
+  test("a renamed category is reported with the exercise", () async {
+    final warmup = await repo.createCategory("Warmup");
+    final id = await createExercise("Chromatic", category: warmup.id);
+
+    await repo.renameCategory(warmup.id, "Warm up");
+
+    expect((await repo.getExercise(id))?.category?.name, "Warm up");
+  });
+
+  test("deleting a category detaches its exercises", () async {
+    final warmup = await repo.createCategory("Warmup");
+    final etudes = await repo.createCategory("Etudes");
+    final id = await createExercise("Chromatic", category: warmup.id);
+    final updates = <Set<String>>[];
+    final sub = repo.updatedExerciseIds.listen(updates.add);
+
+    await repo.deleteCategory(warmup.id);
+    await Future.delayed(Duration.zero);
+    await sub.cancel();
+
+    expect((await repo.getExercise(id))?.category, isNull);
+    expect(updates.last, {id});
+    final remaining = await db.managers.exerciseCategoriesTable.get();
+    expect(remaining.map((c) => c.id), [etudes.id]);
+    // the survivors close the gap left behind
+    expect(remaining.single.position, 0);
+    expect(
+      (await db.managers.deletedExerciseCategoriesTable.get()).map(
+        (c) => c.categoryId,
+      ),
+      [warmup.id],
+    );
+  });
+
+  test("exercises are counted per category", () async {
+    final warmup = await repo.createCategory("Warmup");
+    await repo.createCategory("Etudes");
+    await createExercise("Chromatic", category: warmup.id);
+    await createExercise("Bends", category: warmup.id);
+    await createExercise("Slides");
+
+    // empty categories are left out
+    expect(await repo.countExercisesPerCategory(), {warmup.id: 2});
+  });
+
+  test("category updates are announced to listeners", () async {
+    final updates = <Set<String>>[];
+    final sub = repo.updatedCategoryIds.listen(updates.add);
+
+    final category = await repo.createCategory("Warmup");
+    await repo.renameCategory(category.id, "Warm up");
+    await repo.deleteCategory(category.id);
+    await Future.delayed(Duration.zero);
+    await sub.cancel();
+
+    expect(updates, [
+      {category.id},
+      {category.id},
+      {category.id},
+    ]);
+  });
+
   test("updates are announced to listeners", () async {
     final updates = <Set<String>>[];
     final sub = repo.updatedExerciseIds.listen(updates.add);

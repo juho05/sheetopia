@@ -23,6 +23,10 @@ class PracticeRepository {
 
   Stream<Set<String>> get updatedExerciseIds => _updatedExerciseIds.stream;
 
+  final BehaviorSubject<Set<String>> _updatedCategoryIds = BehaviorSubject();
+
+  Stream<Set<String>> get updatedCategoryIds => _updatedCategoryIds.stream;
+
   PracticeRepository({required this._db});
 
   static final _whitespaceRegex = RegExp(r'\s+');
@@ -161,7 +165,7 @@ class PracticeRepository {
           name: exercise.name,
           category: category == null
               ? null
-              : ExerciseCategory(name: category.name),
+              : ExerciseCategory(id: category.id, name: category.name),
           instrument: exercise.instrument,
           tags: tags[exercise.id] ?? const [],
           description: exercise.description,
@@ -186,6 +190,132 @@ class PracticeRepository {
     return (await q.get()).map((c) => c.name).toList();
   }
 
+  Future<List<ExerciseCategory>> getAllCategories() async {
+    return (await _orderedCategories())
+        .map((c) => ExerciseCategory(id: c.id, name: c.name))
+        .toList();
+  }
+
+  Future<Map<String, int>> countExercisesPerCategory() async {
+    final countExpr = _db.exercisesTable.id.count();
+    final q = _db.selectOnly(_db.exercisesTable)
+      ..addColumns([_db.exercisesTable.category, countExpr])
+      ..where(_db.exercisesTable.category.isNotNull())
+      ..groupBy([_db.exercisesTable.category]);
+    return {
+      for (final row in await q.get())
+        row.read(_db.exercisesTable.category)!: row.read(countExpr) ?? 0,
+    };
+  }
+
+  Future<ExerciseCategory> createCategory(String name) async {
+    final categoryId = _db.newId();
+    await _db.transaction(() async {
+      final maxPosition = _db.exerciseCategoriesTable.position.max();
+      final q = _db.selectOnly(_db.exerciseCategoriesTable)
+        ..addColumns([maxPosition]);
+      final position = ((await q.getSingle()).read(maxPosition) ?? -1) + 1;
+      await _db.managers.exerciseCategoriesTable.create(
+        (o) => o(
+          id: categoryId,
+          name: name,
+          position: position,
+          updatedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+    });
+    _updatedCategoryIds.add({categoryId});
+    return ExerciseCategory(id: categoryId, name: name);
+  }
+
+  Future<void> renameCategory(String categoryId, String name) async {
+    await _db.managers.exerciseCategoriesTable
+        .filter((f) => f.id(categoryId))
+        .update(
+          (o) => o(
+            name: Value(name),
+            updatedAt: Value(DateTime.now().toUtc()),
+            uploaded: const Value(false),
+          ),
+        );
+    _updatedCategoryIds.add({categoryId});
+  }
+
+  Future<void> deleteCategory(String categoryId) async {
+    final exerciseIds = <String>{};
+    final movedIds = <String>{};
+    await _db.transaction(() async {
+      final query = _db.select(_db.exercisesTable)
+        ..where((t) => t.category.equals(categoryId));
+      exerciseIds.addAll((await query.get()).map((e) => e.id));
+      if (exerciseIds.isNotEmpty) {
+        await _db.managers.exercisesTable
+            .filter((f) => f.id.isIn(exerciseIds))
+            .update(
+              (o) => o(
+                category: const Value(null),
+                updatedAt: Value(DateTime.now().toUtc()),
+                uploaded: const Value(false),
+              ),
+            );
+      }
+      await _db.managers.exerciseCategoriesTable
+          .filter((f) => f.id(categoryId))
+          .delete();
+      await _db.managers.deletedExerciseCategoriesTable.create(
+        (o) => o(
+          categoryId: categoryId,
+          deletedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+      movedIds.addAll(await _writeCategoryPositions(await _orderedCategories()));
+    });
+    if (exerciseIds.isNotEmpty) _updatedExerciseIds.add(exerciseIds);
+    _updatedCategoryIds.add({categoryId, ...movedIds});
+  }
+
+  Future<void> moveCategory(int from, int to) async {
+    final movedIds = <String>{};
+    await _db.transaction(() async {
+      final categories = await _orderedCategories();
+      if (from < 0 || from >= categories.length) return;
+      if (to < 0 || to >= categories.length) return;
+      categories.insert(to, categories.removeAt(from));
+      movedIds.addAll(await _writeCategoryPositions(categories));
+    });
+    if (movedIds.isEmpty) return;
+    _updatedCategoryIds.add(movedIds);
+  }
+
+  Future<List<ExerciseCategoriesTableData>> _orderedCategories() async {
+    final query = _db.select(_db.exerciseCategoriesTable)
+      ..orderBy([
+        (t) => OrderingTerm.asc(t.position),
+        (t) => OrderingTerm.asc(t.name.lower()),
+      ]);
+    return await query.get();
+  }
+
+  Future<Set<String>> _writeCategoryPositions(
+    List<ExerciseCategoriesTableData> categories,
+  ) async {
+    final changed = <String>{};
+    for (final (position, category) in categories.indexed) {
+      if (category.position == position) continue;
+      await _db.managers.exerciseCategoriesTable
+          .filter((f) => f.id(category.id))
+          .update(
+            (o) => o(
+              position: Value(position),
+              updatedAt: Value(DateTime.now().toUtc()),
+              uploaded: const Value(false),
+            ),
+          );
+      changed.add(category.id);
+    }
+    return changed;
+  }
+
   Future<Exercise?> getExercise(String exerciseId) async {
     final query = _db.select(_db.exercisesTable).join([
       leftOuterJoin(
@@ -202,7 +332,9 @@ class PracticeRepository {
     return Exercise(
       id: exercise.id,
       name: exercise.name,
-      category: category == null ? null : ExerciseCategory(name: category.name),
+      category: category == null
+          ? null
+          : ExerciseCategory(id: category.id, name: category.name),
       instrument: exercise.instrument,
       tags: await _getExerciseTags(exercise.id),
       description: exercise.description,

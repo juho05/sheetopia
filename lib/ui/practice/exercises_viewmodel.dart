@@ -49,8 +49,11 @@ class ExercisesViewModel extends ChangeNotifier {
 
   StreamSubscription? _updatedExercisesSub;
 
-  ExercisesViewModel({required PracticeRepository repo}) : _repo = repo {
+  StreamSubscription? _updatedCategoriesSub;
+
+  ExercisesViewModel({required this._repo}) {
     _updatedExercisesSub = _repo.updatedExerciseIds.listen((_) => _refresh());
+    _updatedCategoriesSub = _repo.updatedCategoryIds.listen((_) => _refresh());
     _refreshCounts();
   }
 
@@ -254,6 +257,7 @@ class ExercisesViewModel extends ChangeNotifier {
     _disposed = true;
     _resetDebounce?.cancel();
     _updatedExercisesSub?.cancel();
+    _updatedCategoriesSub?.cancel();
     super.dispose();
   }
 

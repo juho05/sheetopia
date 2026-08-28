@@ -26,6 +26,7 @@ class RoundedListTile extends StatelessWidget {
   final void Function()? onLongPress;
   final bool selected;
   final Color? color;
+  final bool tooltip;
 
   final double? height;
 
@@ -39,6 +40,7 @@ class RoundedListTile extends StatelessWidget {
     this.onLongPress,
     this.selected = false,
     this.color,
+    this.tooltip = true,
     this.height,
   });
 
@@ -101,7 +103,7 @@ class RoundedListTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
                           child: OptionalTooltip(
-                            message: title,
+                            message: tooltip ? title : null,
                             child: Text(title),
                           ),
                         ),

@@ -22,6 +22,7 @@ import 'package:sheetopia/ui/common/section_header.dart';
 import 'package:sheetopia/ui/common/tag_badge.dart';
 import 'package:sheetopia/ui/practice/exercises_filter_dialog.dart';
 import 'package:sheetopia/ui/practice/exercises_viewmodel.dart';
+import 'package:sheetopia/ui/practice/manage_categories_dialog.dart';
 
 class ExercisesPage extends StatelessWidget {
   const ExercisesPage({super.key});
@@ -50,7 +51,7 @@ class ExercisesPage extends StatelessWidget {
               ),
               FabMenuItem(
                 label: "Manage categories",
-                onPressed: () {},
+                onPressed: () => ManageCategoriesDialog.show(context),
                 icon: Symbols.category,
               ),
             ],
