@@ -6,20 +6,41 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:io';
+
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
+import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
+import 'package:sheetopia/data/services/thumbnail_service.dart';
+
+class _FakePathProvider extends PathProviderPlatform
+    with MockPlatformInterfaceMixin {
+  final String root;
+
+  _FakePathProvider(this.root);
+
+  @override
+  Future<String?> getApplicationSupportPath() async => root;
+
+  @override
+  Future<String?> getTemporaryPath() async => root;
+}
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  late Directory tempDir;
   late Database db;
+  late ScoresRepository scoresRepo;
   late PracticeRepository repo;
 
   Future<String> insertTag(String name) async {
@@ -67,14 +88,41 @@ void main() {
   Future<List<String>> categoryNames() async =>
       (await repo.getAllCategories()).map((c) => c.name).toList();
 
+  Future<void> insertScore(
+    String id, {
+    ScoreType type = ScoreType.score,
+  }) async {
+    await db.managers.scoresTable.create(
+      (o) => o(
+        id: id,
+        title: "Title $id",
+        searchText: "title $id",
+        fileType: FileType.pdf,
+        fileDownloaded: true,
+        type: Value(type),
+      ),
+    );
+  }
+
+  Future<List<(String, int)>> scoreEntries(String exerciseId) async {
+    final query = db.select(db.exerciseScoresTable)
+      ..where((t) => t.exercise.equals(exerciseId))
+      ..orderBy([(t) => OrderingTerm.asc(t.position)]);
+    return (await query.get()).map((e) => (e.score, e.position)).toList();
+  }
+
   setUp(() async {
+    tempDir = await Directory.systemTemp.createTemp("practice_test");
+    PathProviderPlatform.instance = _FakePathProvider(tempDir.path);
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
-    repo = PracticeRepository(db: db);
+    scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
+    repo = PracticeRepository(db: db, scoresRepo: scoresRepo);
   });
 
   tearDown(() async {
     await db.close();
+    await tempDir.delete(recursive: true);
   });
 
   test("a created exercise is returned with all its values", () async {
@@ -557,6 +605,182 @@ void main() {
       {id},
       {id},
     ]);
+  });
+
+  test("scores linked at creation are stored in order", () async {
+    await insertScore("a");
+    await insertScore("b");
+    final id = await repo.createExercise(
+      name: "Chromatic",
+      description: "",
+      instrument: "",
+      source: "",
+      sourceLink: "",
+      tagIds: const [],
+      scoreIds: const ["b", "a"],
+    );
+
+    expect(await repo.getExerciseScoreIds(id), ["b", "a"]);
+    expect(await scoreEntries(id), [("b", 0), ("a", 1)]);
+  });
+
+  test("set scores are stored in the given order", () async {
+    await insertScore("a");
+    await insertScore("b");
+    await insertScore("c");
+    final id = await createExercise("Chromatic");
+
+    await repo.setExerciseScores(id, ["a", "b", "c"]);
+    expect(await scoreEntries(id), [("a", 0), ("b", 1), ("c", 2)]);
+
+    await repo.setExerciseScores(id, ["c", "a"]);
+    expect(await repo.getExerciseScoreIds(id), ["c", "a"]);
+    expect(await scoreEntries(id), [("c", 0), ("a", 1)]);
+  });
+
+  test("setting scores marks the exercise as not uploaded", () async {
+    await insertScore("a");
+    final id = await createExercise("Chromatic");
+    await db.managers.exercisesTable
+        .filter((f) => f.id(id))
+        .update((o) => o(uploaded: const Value(true)));
+
+    await repo.setExerciseScores(id, ["a"]);
+
+    final row = await db.managers.exercisesTable
+        .filter((f) => f.id(id))
+        .getSingle();
+    expect(row.uploaded, isFalse);
+  });
+
+  test("entries of scores missing locally are not returned", () async {
+    await insertScore("a");
+    final id = await createExercise("Chromatic");
+    await repo.setExerciseScores(id, ["a", "missing"]);
+
+    expect(await repo.getExerciseScoreIds(id), ["a"]);
+  });
+
+  test("the same score can be linked more than once", () async {
+    await insertScore("a");
+    final id = await createExercise("Chromatic");
+    await repo.setExerciseScores(id, ["a", "a"]);
+
+    expect(await repo.getExerciseScoreIds(id), ["a", "a"]);
+  });
+
+  test("unlinking an owned score deletes it", () async {
+    await insertScore("linked");
+    await insertScore("owned", type: ScoreType.exercise);
+    final id = await createExercise("Chromatic");
+    await repo.setExerciseScores(id, ["linked", "owned"]);
+
+    await repo.setExerciseScores(id, ["linked"]);
+
+    expect(
+      await db.managers.scoresTable.filter((f) => f.id("owned")).exists(),
+      isFalse,
+    );
+    expect(
+      await db.managers.scoresTable.filter((f) => f.id("linked")).exists(),
+      isTrue,
+    );
+    expect((await db.managers.deletedScoresTable.get()).map((d) => d.scoreId), [
+      "owned",
+    ]);
+  });
+
+  test("an owned score kept in the list survives a reorder", () async {
+    await insertScore("a");
+    await insertScore("owned", type: ScoreType.exercise);
+    final id = await createExercise("Chromatic");
+    await repo.setExerciseScores(id, ["a", "owned"]);
+
+    await repo.setExerciseScores(id, ["owned", "a"]);
+
+    expect(await repo.getExerciseScoreIds(id), ["owned", "a"]);
+    expect(
+      await db.managers.scoresTable.filter((f) => f.id("owned")).exists(),
+      isTrue,
+    );
+  });
+
+  test("deleting an exercise removes its entries and owned scores", () async {
+    await insertScore("linked");
+    await insertScore("owned", type: ScoreType.exercise);
+    final id = await createExercise("Chromatic");
+    await repo.setExerciseScores(id, ["linked", "owned"]);
+
+    await repo.deleteExercise(id);
+
+    expect(await scoreEntries(id), isEmpty);
+    expect(
+      await db.managers.scoresTable.filter((f) => f.id("owned")).exists(),
+      isFalse,
+    );
+    expect(
+      await db.managers.scoresTable.filter((f) => f.id("linked")).exists(),
+      isTrue,
+    );
+  });
+
+  test("deleting a linked score removes its entries", () async {
+    await insertScore("a");
+    await insertScore("b");
+    final id = await createExercise("Chromatic");
+    final other = await createExercise("Scales");
+    await repo.setExerciseScores(id, ["a", "b"]);
+    await repo.setExerciseScores(other, ["b"]);
+    await db.managers.exercisesTable
+        .filter((f) => f.id.isIn([id, other]))
+        .update((o) => o(uploaded: const Value(true)));
+
+    final updated = <Set<String>>[];
+    // the stream replays the event of the last setExerciseScores call
+    final sub = repo.updatedExerciseIds.skip(1).listen(updated.add);
+    await repo.removeDeletedScoreEntries({"b"});
+    await Future.delayed(Duration.zero);
+    await sub.cancel();
+
+    expect(await repo.getExerciseScoreIds(id), ["a"]);
+    expect(await repo.getExerciseScoreIds(other), isEmpty);
+    expect(updated, [
+      {id, other},
+    ]);
+    final rows = await db.managers.exercisesTable
+        .filter((f) => f.id.isIn([id, other]))
+        .get();
+    expect(rows.every((e) => !e.uploaded), isTrue);
+  });
+
+  test("deleting an unrelated score leaves the exercise untouched", () async {
+    await insertScore("a");
+    await insertScore("b");
+    final id = await createExercise("Chromatic");
+    await repo.setExerciseScores(id, ["a"]);
+    await db.managers.exercisesTable
+        .filter((f) => f.id(id))
+        .update((o) => o(uploaded: const Value(true)));
+
+    await repo.removeDeletedScoreEntries({"b"});
+
+    expect(await repo.getExerciseScoreIds(id), ["a"]);
+    final row = await db.managers.exercisesTable
+        .filter((f) => f.id(id))
+        .getSingle();
+    expect(row.uploaded, isTrue);
+  });
+
+  test("deleting a score from the library prunes its entries", () async {
+    await insertScore("a");
+    await insertScore("b");
+    final id = await createExercise("Chromatic");
+    await repo.setExerciseScores(id, ["a", "b"]);
+
+    await scoresRepo.deleteScore("b");
+    await Future.delayed(Duration.zero);
+
+    expect(await scoreEntries(id), [("a", 0)]);
   });
 
   test("instruments and sources come from exercises and scores", () async {

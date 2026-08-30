@@ -13,7 +13,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
+import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/practice/manage_categories_dialog.dart';
@@ -45,7 +47,13 @@ void main() {
   setUp(() async {
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
-    repo = PracticeRepository(db: db);
+    repo = PracticeRepository(
+      db: db,
+      scoresRepo: ScoresRepository(
+        db: db,
+        thumbnailService: ThumbnailService(),
+      ),
+    );
   });
 
   tearDown(() async {

@@ -13,11 +13,14 @@ import 'package:rxdart/rxdart.dart';
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
 import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
+import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/database/scores_table.dart';
 
 class PracticeRepository {
   final Database _db;
+  final ScoresRepository _scoresRepo;
 
   final BehaviorSubject<Set<String>> _updatedExerciseIds = BehaviorSubject();
 
@@ -27,7 +30,9 @@ class PracticeRepository {
 
   Stream<Set<String>> get updatedCategoryIds => _updatedCategoryIds.stream;
 
-  PracticeRepository({required this._db});
+  PracticeRepository({required this._db, required this._scoresRepo}) {
+    _scoresRepo.deletedScoreIds.listen(removeDeletedScoreEntries);
+  }
 
   static final _whitespaceRegex = RegExp(r'\s+');
 
@@ -387,6 +392,7 @@ class PracticeRepository {
     required String source,
     required String sourceLink,
     required Iterable<String> tagIds,
+    Iterable<String> scoreIds = const [],
     String? categoryId,
   }) async {
     final exerciseId = _db.newId();
@@ -413,6 +419,13 @@ class PracticeRepository {
         await _db.managers.exerciseTagsTable.bulkCreate(
           (o) => tagIds.map((id) => o(exercise: exerciseId, tag: id)),
           onConflict: DoNothing(),
+        );
+      }
+      if (scoreIds.isNotEmpty) {
+        await _db.managers.exerciseScoresTable.bulkCreate(
+          (o) => scoreIds.indexed.map(
+            (e) => o(exercise: exerciseId, score: e.$2, position: e.$1),
+          ),
         );
       }
     });
@@ -505,8 +518,88 @@ class PracticeRepository {
     _updatedExerciseIds.add({exerciseId});
   }
 
-  // TODO delete owned scores
+  Future<List<String>> getExerciseScoreIds(String exerciseId) async {
+    final query =
+        _db.select(_db.exerciseScoresTable).join([
+            innerJoin(
+              _db.scoresTable,
+              _db.scoresTable.id.equalsExp(_db.exerciseScoresTable.score),
+            ),
+          ])
+          ..where(_db.exerciseScoresTable.exercise.equals(exerciseId))
+          ..orderBy([OrderingTerm.asc(_db.exerciseScoresTable.position)]);
+    return [
+      for (final row in await query.get())
+        row.readTable(_db.exerciseScoresTable).score,
+    ];
+  }
+
+  Future<void> setExerciseScores(
+    String exerciseId,
+    List<String> scoreIds,
+  ) async {
+    Iterable<String?> scoreIdsToDelete = {};
+    await _db.transaction(() async {
+      final oldScores = await getExerciseScoreIds(exerciseId);
+
+      await _db.managers.exerciseScoresTable
+          .filter((f) => f.exercise.id(exerciseId))
+          .delete();
+      await _db.managers.exerciseScoresTable.bulkCreate(
+        (o) => scoreIds.indexed.map(
+          (e) => o(exercise: exerciseId, score: e.$2, position: e.$1),
+        ),
+      );
+
+      final linkedScoreIdsQuery = _db.selectOnly(_db.exerciseScoresTable)
+        ..addColumns([_db.exerciseScoresTable.score])
+        ..where(_db.exerciseScoresTable.exercise.equals(exerciseId));
+
+      scoreIdsToDelete =
+          (await (_db.selectOnly(_db.scoresTable)
+                    ..addColumns([_db.scoresTable.id])
+                    ..where(
+                      _db.scoresTable.id.isIn(oldScores) &
+                          _db.scoresTable.type.equalsValue(ScoreType.exercise) &
+                          _db.scoresTable.id.isNotInQuery(linkedScoreIdsQuery),
+                    ))
+                  .get())
+              .map((rs) => rs.read(_db.scoresTable.id));
+
+      await _markUpdated(exerciseId);
+    });
+    await _scoresRepo.deleteScores(scoreIdsToDelete.nonNulls.toSet());
+    _updatedExerciseIds.add({exerciseId});
+  }
+
+  Future<void> removeDeletedScoreEntries(Set<String> scoreIds) async {
+    if (scoreIds.isEmpty) return;
+    final affected = <String>{};
+    await _db.transaction(() async {
+      final exercise = _db.exerciseScoresTable.exercise;
+      final query = _db.selectOnly(_db.exerciseScoresTable, distinct: true)
+        ..addColumns([exercise])
+        ..where(_db.exerciseScoresTable.score.isIn(scoreIds));
+      affected.addAll((await query.get()).map((row) => row.read(exercise)!));
+      if (affected.isEmpty) return;
+      await _db.managers.exerciseScoresTable
+          .filter((f) => f.score.isIn(scoreIds))
+          .delete();
+      await _db.managers.exercisesTable
+          .filter((f) => f.id.isIn(affected))
+          .update(
+            (o) => o(
+              updatedAt: Value(DateTime.now().toUtc()),
+              uploaded: const Value(false),
+            ),
+          );
+    });
+    if (affected.isEmpty) return;
+    _updatedExerciseIds.add(affected);
+  }
+
   Future<void> deleteExercise(String exerciseId) async {
+    Iterable<String?> scoreIdsToDelete = {};
     await _db.transaction(() async {
       final routineIds =
           (await _db.managers.practiceRoutineEntriesTable
@@ -530,6 +623,25 @@ class PracticeRepository {
               ),
             );
       }
+      final q =
+          (_db.selectOnly(
+            _db.exerciseScoresTable,
+          )..addColumns([_db.exerciseScoresTable.score])).join([
+            innerJoin(
+              _db.scoresTable,
+              _db.scoresTable.id.equalsExp(_db.exerciseScoresTable.score),
+            ),
+          ]);
+
+      scoreIdsToDelete =
+          (await (q..where(
+                    _db.scoresTable.type.equalsValue(ScoreType.exercise) &
+                        _db.exerciseScoresTable.exercise.equals(exerciseId),
+                  ))
+                  .get())
+              .map((s) => s.read(_db.exerciseScoresTable.score))
+              .where((id) => id != null)
+              .map((id) => id!);
       await _db.managers.exercisesTable
           .filter((f) => f.id(exerciseId))
           .delete();
@@ -538,6 +650,7 @@ class PracticeRepository {
             o(exerciseId: exerciseId, deletedAt: Value(DateTime.now().toUtc())),
       );
     });
+    await _scoresRepo.deleteScores(scoreIdsToDelete.nonNulls.toSet());
     _updatedExerciseIds.add({exerciseId});
   }
 

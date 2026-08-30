@@ -39,6 +39,7 @@ class Button extends StatelessWidget {
   final bool darkTonal;
   final Widget child;
   final Color? color;
+  final Color? textColor;
   final bool enabled;
 
   const Button({
@@ -49,6 +50,7 @@ class Button extends StatelessWidget {
     this.style,
     this.darkTonal = false,
     this.color,
+    this.textColor,
     this.enabled = true,
     required this.child,
   });
@@ -63,10 +65,16 @@ class Button extends StatelessWidget {
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: OutlinedButton.styleFrom(
             side: color != null ? BorderSide(color: color!) : null,
+            foregroundColor: textColor,
+            iconColor: textColor,
           ),
         ),
         filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(backgroundColor: color),
+          style: FilledButton.styleFrom(
+            backgroundColor: color,
+            foregroundColor: textColor,
+            iconColor: textColor,
+          ),
         ),
       ),
       child: Builder(
@@ -75,7 +83,7 @@ class Button extends StatelessWidget {
             return OutlinedButton.icon(
               onPressed: callback,
               style: style,
-              icon: icon != null ? Icon(icon, color: color) : null,
+              icon: icon != null ? Icon(icon, color: textColor ?? color) : null,
               label: child,
             );
           }

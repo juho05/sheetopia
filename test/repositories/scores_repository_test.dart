@@ -6,20 +6,38 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'package:drift/drift.dart';
+import 'dart:io';
+
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 
+class _FakePathProvider extends PathProviderPlatform
+    with MockPlatformInterfaceMixin {
+  final String root;
+
+  _FakePathProvider(this.root);
+
+  @override
+  Future<String?> getApplicationSupportPath() async => root;
+
+  @override
+  Future<String?> getTemporaryPath() async => root;
+}
+
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  late Directory tempDir;
   late Database db;
   late ScoresRepository repo;
 
@@ -29,6 +47,7 @@ void main() {
     String id, {
     List<String> instruments = const [],
     List<String> genres = const [],
+    ScoreType type = ScoreType.score,
   }) async {
     await db.managers.scoresTable.create(
       (o) => o(
@@ -40,6 +59,7 @@ void main() {
         lastOpened: Value(timestamp),
         metadataUpdatedAt: Value(timestamp),
         fileUpdatedAt: Value(timestamp),
+        type: Value(type),
       ),
     );
     for (final instrument in instruments) {
@@ -53,6 +73,8 @@ void main() {
   }
 
   setUp(() async {
+    tempDir = await Directory.systemTemp.createTemp("scores_test");
+    PathProviderPlatform.instance = _FakePathProvider(tempDir.path);
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
     repo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
@@ -60,6 +82,7 @@ void main() {
 
   tearDown(() async {
     await db.close();
+    await tempDir.delete(recursive: true);
   });
 
   test(
@@ -238,5 +261,65 @@ void main() {
     expect((await repo.getScore("a"))!.genres, ["baroque", "jazz"]);
     expect((await repo.getScore("b"))!.genres, ["jazz"]);
     expect((await repo.getScore("c"))!.genres, ["baroque"]);
+  });
+
+  test("abandoned exercise scores are deleted with a tombstone", () async {
+    await insertScore("plain");
+    await insertScore("linked", type: ScoreType.exercise);
+    await insertScore("abandoned", type: ScoreType.exercise);
+    await db.managers.exercisesTable.create((o) => o(id: "ex", name: "Ex"));
+    await db.managers.exerciseScoresTable.create(
+      (o) => o(exercise: "ex", score: "linked", position: 0),
+    );
+
+    final deleted = <Set<String>>[];
+    final sub = repo.deletedScoreIds.listen(deleted.add);
+    await repo.deleteAbandonedScores();
+    await Future.delayed(Duration.zero);
+    await sub.cancel();
+
+    expect(await repo.getScore("abandoned"), isNull);
+    expect(await repo.getScore("linked"), isNotNull);
+    expect(await repo.getScore("plain"), isNotNull);
+    expect(deleted, [
+      {"abandoned"},
+    ]);
+    expect((await db.managers.deletedScoresTable.get()).map((d) => d.scoreId), [
+      "abandoned",
+    ]);
+  });
+
+  test("renaming a score keeps its composer in the search text", () async {
+    await insertScore("a", type: ScoreType.exercise);
+    await repo.updateScore(
+      "a",
+      title: "Title a",
+      composer: "Bach",
+      notes: "",
+    );
+
+    await repo.updateScoreTitle("a", "Etude");
+
+    final row = await db.managers.scoresTable
+        .filter((f) => f.id("a"))
+        .getSingle();
+    expect(row.title, "Etude");
+    expect(row.composer, "Bach");
+    expect(row.searchText, " etude bach ");
+    expect(row.metadataUploaded, isFalse);
+    expect(await repo.getScoreIds(filter: "etude"), ["a"]);
+  });
+
+  test("nothing is deleted when every exercise score is linked", () async {
+    await insertScore("linked", type: ScoreType.exercise);
+    await db.managers.exercisesTable.create((o) => o(id: "ex", name: "Ex"));
+    await db.managers.exerciseScoresTable.create(
+      (o) => o(exercise: "ex", score: "linked", position: 0),
+    );
+
+    await repo.deleteAbandonedScores();
+
+    expect(await repo.getScore("linked"), isNotNull);
+    expect(await db.managers.deletedScoresTable.get(), isEmpty);
   });
 }

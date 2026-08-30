@@ -49,4 +49,22 @@ class Score {
     required this.fileType,
     required this.file,
   });
+
+  Score copyWith({String? title}) => Score(
+    id: id,
+    title: title ?? this.title,
+    composer: composer,
+    source: source,
+    sourceLink: sourceLink,
+    notes: notes,
+    annotations: annotations,
+    genres: genres,
+    instruments: instruments,
+    tags: tags,
+    type: type,
+    metadataUpdatedAt: metadataUpdatedAt,
+    fileUpdatedAt: fileUpdatedAt,
+    fileType: fileType,
+    file: file,
+  );
 }

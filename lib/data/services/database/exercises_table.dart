@@ -56,10 +56,6 @@ class ExerciseScoresTable extends Table {
   late final score = text()();
   late final position = integer()();
 
-  late final name = text()();
-
-  late final owned = boolean()();
-
   @override
   String? get tableName => "exercise_scores";
 

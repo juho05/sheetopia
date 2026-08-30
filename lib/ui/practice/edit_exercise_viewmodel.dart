@@ -13,10 +13,26 @@ import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
+import 'package:sheetopia/data/repositories/scores/score.dart';
+import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
+import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/file_picker.dart';
+
+class ExerciseScoreEntry {
+  final int id;
+  final Score score;
+
+  const ExerciseScoreEntry({required this.id, required this.score});
+
+  ExerciseScoreEntry withScore(Score score) =>
+      ExerciseScoreEntry(id: id, score: score);
+}
 
 class EditExerciseViewModel extends ChangeNotifier {
   final PracticeRepository _repo;
+
+  final ScoresRepository _scoresRepo;
 
   final String? _exerciseId;
 
@@ -54,14 +70,30 @@ class EditExerciseViewModel extends ChangeNotifier {
 
   StreamSubscription? _valueSub;
 
-  EditExerciseViewModel({required this._repo, required this._exerciseId})
-    : isCreate = _exerciseId == null,
-      _loading = _exerciseId != null,
-      form = FormGroup({
-        formName: FormControl<String>(validators: [Validators.required]),
-        formDescription: FormControl<String>(),
-        formInstrument: FormControl<String>(),
-      }) {
+  List<ExerciseScoreEntry> _scoreEntries = [];
+
+  UnmodifiableListView<ExerciseScoreEntry> get scoreEntries =>
+      UnmodifiableListView(_scoreEntries);
+
+  int _nextEntryId = 0;
+
+  bool _scoresLoading = false;
+
+  bool get scoresLoading => _scoresLoading;
+
+  bool _created = false;
+
+  EditExerciseViewModel({
+    required this._repo,
+    required this._scoresRepo,
+    required this._exerciseId,
+  }) : isCreate = _exerciseId == null,
+       _loading = _exerciseId != null,
+       form = FormGroup({
+         formName: FormControl<String>(validators: [Validators.required]),
+         formDescription: FormControl<String>(),
+         formInstrument: FormControl<String>(),
+       }) {
     _load().then((_) {
       _valueSub = form.valueChanges.listen((_) {
         if (form.invalid) return;
@@ -88,6 +120,112 @@ class EditExerciseViewModel extends ChangeNotifier {
       sourceLink: sourceLink,
     );
   }
+
+  Future<void> linkScores(Iterable<String> scoreIds) async {
+    if (scoreIds.isEmpty) return;
+    _scoresLoading = true;
+    notifyListeners();
+    final linked = await _loadScores(scoreIds);
+    _scoreEntries.addAll(linked);
+    _scoresLoading = false;
+    notifyListeners();
+    await _persistExerciseScores();
+  }
+
+  Future<void> importScores() async {
+    _scoresLoading = true;
+    notifyListeners();
+    try {
+      final files = await selectScoreFiles();
+      if (files.isEmpty) return;
+
+      final scores = await _scoresRepo.importAll(
+        files,
+        type: ScoreType.exercise,
+      );
+      _scoreEntries.addAll(_toEntries(scores));
+      notifyListeners();
+      await _persistExerciseScores();
+    } finally {
+      _scoresLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> moveScore(int from, int to) async {
+    if (from == to) return;
+    _scoreEntries.insert(to, _scoreEntries.removeAt(from));
+    notifyListeners();
+    await _persistExerciseScores();
+  }
+
+  Future<void> removeScore(int entryId) async {
+    final index = _scoreEntries.indexWhere((e) => e.id == entryId);
+    if (index == -1) return;
+    final score = _scoreEntries.removeAt(index).score;
+    final stillLinked = _scoreEntries.any((e) => e.score.id == score.id);
+    if (!stillLinked) {
+      _scoreTitleDebounce.remove(score.id)?.cancel();
+    }
+    notifyListeners();
+    await _persistExerciseScores();
+    if (_exerciseId == null &&
+        !stillLinked &&
+        score.type == ScoreType.exercise) {
+      await _scoresRepo.deleteScore(score.id);
+    }
+  }
+
+  void setScoreTitle(String scoreId, String title) {
+    var changed = false;
+    for (final (i, e) in _scoreEntries.indexed) {
+      if (e.score.id != scoreId || e.score.title == title) continue;
+      _scoreEntries[i] = e.withScore(e.score.copyWith(title: title));
+      changed = true;
+    }
+    if (!changed) return;
+    notifyListeners();
+    _scoreTitleDebounce[scoreId]?.cancel();
+    _scoreTitleDebounce[scoreId] = Timer(
+      _valuesDebounceDuration,
+      () => _saveScoreTitle(scoreId),
+    );
+  }
+
+  Future<void> _saveScoreTitle(String scoreId) async {
+    if (_scoreTitleDebounce.remove(scoreId) == null) return;
+    final index = _scoreEntries.indexWhere((e) => e.score.id == scoreId);
+    if (index == -1) return;
+    final title = _scoreEntries[index].score.title.trim();
+    if (title.isEmpty) return;
+    await _scoresRepo.updateScoreTitle(scoreId, title);
+  }
+
+  Future<void> _saveScoreTitles() async {
+    for (final timer in _scoreTitleDebounce.values) {
+      timer.cancel();
+    }
+    await Future.wait(_scoreTitleDebounce.keys.toList().map(_saveScoreTitle));
+  }
+
+  Future<void> _persistExerciseScores() async {
+    if (_exerciseId == null) return;
+    await _repo.setExerciseScores(
+      _exerciseId,
+      _scoreEntries.map((e) => e.score.id).toList(),
+    );
+  }
+
+  Future<List<ExerciseScoreEntry>> _loadScores(
+    Iterable<String> scoreIds,
+  ) async {
+    final scores = await Future.wait(scoreIds.map(_scoresRepo.getScore));
+    return _toEntries(scores.nonNulls);
+  }
+
+  List<ExerciseScoreEntry> _toEntries(Iterable<Score> scores) => scores
+      .map((s) => ExerciseScoreEntry(id: _nextEntryId++, score: s))
+      .toList();
 
   Future<void> addTags(Iterable<Tag> tags) async {
     _tags.addAll(tags);
@@ -127,6 +265,7 @@ class EditExerciseViewModel extends ChangeNotifier {
     if (form.invalid) {
       throw StateError("Only call create when the form is valid!");
     }
+    _created = true;
     await _repo.createExercise(
       name: name,
       description: _formValue(formDescription),
@@ -134,6 +273,7 @@ class EditExerciseViewModel extends ChangeNotifier {
       source: _source ?? "",
       sourceLink: _sourceLink ?? "",
       tagIds: _tags.map((t) => t.id),
+      scoreIds: _scoreEntries.map((e) => e.score.id),
       categoryId: _category?.id,
     );
   }
@@ -142,12 +282,17 @@ class EditExerciseViewModel extends ChangeNotifier {
     if (_exerciseId == null) return;
     _valuesDebounce?.cancel();
     _valuesDebounce = null;
+    for (final timer in _scoreTitleDebounce.values) {
+      timer.cancel();
+    }
+    _scoreTitleDebounce.clear();
     await _repo.deleteExercise(_exerciseId);
   }
 
   Future<void> reloadExercise() async {
     if (_exerciseId == null) return;
     await _saveValues();
+    await _saveScoreTitles();
     await _load();
   }
 
@@ -170,12 +315,16 @@ class EditExerciseViewModel extends ChangeNotifier {
         formDescription: exercise.description,
         formInstrument: exercise.instrument ?? "",
       }, emitEvent: false);
+      _scoreEntries = await _loadScores(
+        await _repo.getExerciseScoreIds(_exerciseId),
+      );
     }
     _loading = false;
     notifyListeners();
   }
 
   Timer? _valuesDebounce;
+  final Map<String, Timer> _scoreTitleDebounce = {};
   static const _valuesDebounceDuration = Duration(milliseconds: 250);
 
   void _onValuesChanged() {
@@ -199,10 +348,27 @@ class EditExerciseViewModel extends ChangeNotifier {
   String _formValue(String control) =>
       (form.control(control).value as String? ?? "").trim();
 
+  Future<void> _discardImports() async {
+    for (final timer in _scoreTitleDebounce.values) {
+      timer.cancel();
+    }
+    _scoreTitleDebounce.clear();
+    final owned = _scoreEntries
+        .where((e) => e.score.type == ScoreType.exercise)
+        .map((e) => e.score.id)
+        .toSet();
+    _scoreEntries.clear();
+    await _scoresRepo.deleteScores(owned);
+  }
+
   @override
   void dispose() {
-    // pending edits would otherwise be lost when leaving the page
     _saveValues();
+    if (_exerciseId == null && !_created) {
+      _discardImports();
+    } else {
+      _saveScoreTitles();
+    }
     _valueSub?.cancel();
     super.dispose();
   }

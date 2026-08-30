@@ -5240,35 +5240,8 @@ class $ExerciseScoresTableTable extends ExerciseScoresTable
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
-  late final GeneratedColumn<String> name = GeneratedColumn<String>(
-    'name',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _ownedMeta = const VerificationMeta('owned');
-  @override
-  late final GeneratedColumn<bool> owned = GeneratedColumn<bool>(
-    'owned',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("owned" IN (0, 1))',
-    ),
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    exercise,
-    score,
-    position,
-    name,
-    owned,
-  ];
+  List<GeneratedColumn> get $columns => [exercise, score, position];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -5305,22 +5278,6 @@ class $ExerciseScoresTableTable extends ExerciseScoresTable
     } else if (isInserting) {
       context.missing(_positionMeta);
     }
-    if (data.containsKey('name')) {
-      context.handle(
-        _nameMeta,
-        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_nameMeta);
-    }
-    if (data.containsKey('owned')) {
-      context.handle(
-        _ownedMeta,
-        owned.isAcceptableOrUnknown(data['owned']!, _ownedMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_ownedMeta);
-    }
     return context;
   }
 
@@ -5345,14 +5302,6 @@ class $ExerciseScoresTableTable extends ExerciseScoresTable
         DriftSqlType.int,
         data['${effectivePrefix}position'],
       )!,
-      name: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}name'],
-      )!,
-      owned: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}owned'],
-      )!,
     );
   }
 
@@ -5367,14 +5316,10 @@ class ExerciseScoresTableData extends DataClass
   final String exercise;
   final String score;
   final int position;
-  final String name;
-  final bool owned;
   const ExerciseScoresTableData({
     required this.exercise,
     required this.score,
     required this.position,
-    required this.name,
-    required this.owned,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -5382,8 +5327,6 @@ class ExerciseScoresTableData extends DataClass
     map['exercise'] = Variable<String>(exercise);
     map['score'] = Variable<String>(score);
     map['position'] = Variable<int>(position);
-    map['name'] = Variable<String>(name);
-    map['owned'] = Variable<bool>(owned);
     return map;
   }
 
@@ -5392,8 +5335,6 @@ class ExerciseScoresTableData extends DataClass
       exercise: Value(exercise),
       score: Value(score),
       position: Value(position),
-      name: Value(name),
-      owned: Value(owned),
     );
   }
 
@@ -5406,8 +5347,6 @@ class ExerciseScoresTableData extends DataClass
       exercise: serializer.fromJson<String>(json['exercise']),
       score: serializer.fromJson<String>(json['score']),
       position: serializer.fromJson<int>(json['position']),
-      name: serializer.fromJson<String>(json['name']),
-      owned: serializer.fromJson<bool>(json['owned']),
     );
   }
   @override
@@ -5417,8 +5356,6 @@ class ExerciseScoresTableData extends DataClass
       'exercise': serializer.toJson<String>(exercise),
       'score': serializer.toJson<String>(score),
       'position': serializer.toJson<int>(position),
-      'name': serializer.toJson<String>(name),
-      'owned': serializer.toJson<bool>(owned),
     };
   }
 
@@ -5426,22 +5363,16 @@ class ExerciseScoresTableData extends DataClass
     String? exercise,
     String? score,
     int? position,
-    String? name,
-    bool? owned,
   }) => ExerciseScoresTableData(
     exercise: exercise ?? this.exercise,
     score: score ?? this.score,
     position: position ?? this.position,
-    name: name ?? this.name,
-    owned: owned ?? this.owned,
   );
   ExerciseScoresTableData copyWithCompanion(ExerciseScoresTableCompanion data) {
     return ExerciseScoresTableData(
       exercise: data.exercise.present ? data.exercise.value : this.exercise,
       score: data.score.present ? data.score.value : this.score,
       position: data.position.present ? data.position.value : this.position,
-      name: data.name.present ? data.name.value : this.name,
-      owned: data.owned.present ? data.owned.value : this.owned,
     );
   }
 
@@ -5450,24 +5381,20 @@ class ExerciseScoresTableData extends DataClass
     return (StringBuffer('ExerciseScoresTableData(')
           ..write('exercise: $exercise, ')
           ..write('score: $score, ')
-          ..write('position: $position, ')
-          ..write('name: $name, ')
-          ..write('owned: $owned')
+          ..write('position: $position')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(exercise, score, position, name, owned);
+  int get hashCode => Object.hash(exercise, score, position);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is ExerciseScoresTableData &&
           other.exercise == this.exercise &&
           other.score == this.score &&
-          other.position == this.position &&
-          other.name == this.name &&
-          other.owned == this.owned);
+          other.position == this.position);
 }
 
 class ExerciseScoresTableCompanion
@@ -5475,43 +5402,31 @@ class ExerciseScoresTableCompanion
   final Value<String> exercise;
   final Value<String> score;
   final Value<int> position;
-  final Value<String> name;
-  final Value<bool> owned;
   final Value<int> rowid;
   const ExerciseScoresTableCompanion({
     this.exercise = const Value.absent(),
     this.score = const Value.absent(),
     this.position = const Value.absent(),
-    this.name = const Value.absent(),
-    this.owned = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ExerciseScoresTableCompanion.insert({
     required String exercise,
     required String score,
     required int position,
-    required String name,
-    required bool owned,
     this.rowid = const Value.absent(),
   }) : exercise = Value(exercise),
        score = Value(score),
-       position = Value(position),
-       name = Value(name),
-       owned = Value(owned);
+       position = Value(position);
   static Insertable<ExerciseScoresTableData> custom({
     Expression<String>? exercise,
     Expression<String>? score,
     Expression<int>? position,
-    Expression<String>? name,
-    Expression<bool>? owned,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (exercise != null) 'exercise': exercise,
       if (score != null) 'score': score,
       if (position != null) 'position': position,
-      if (name != null) 'name': name,
-      if (owned != null) 'owned': owned,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -5520,16 +5435,12 @@ class ExerciseScoresTableCompanion
     Value<String>? exercise,
     Value<String>? score,
     Value<int>? position,
-    Value<String>? name,
-    Value<bool>? owned,
     Value<int>? rowid,
   }) {
     return ExerciseScoresTableCompanion(
       exercise: exercise ?? this.exercise,
       score: score ?? this.score,
       position: position ?? this.position,
-      name: name ?? this.name,
-      owned: owned ?? this.owned,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -5546,12 +5457,6 @@ class ExerciseScoresTableCompanion
     if (position.present) {
       map['position'] = Variable<int>(position.value);
     }
-    if (name.present) {
-      map['name'] = Variable<String>(name.value);
-    }
-    if (owned.present) {
-      map['owned'] = Variable<bool>(owned.value);
-    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -5564,8 +5469,6 @@ class ExerciseScoresTableCompanion
           ..write('exercise: $exercise, ')
           ..write('score: $score, ')
           ..write('position: $position, ')
-          ..write('name: $name, ')
-          ..write('owned: $owned, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -13607,8 +13510,6 @@ typedef $$ExerciseScoresTableTableCreateCompanionBuilder =
       required String exercise,
       required String score,
       required int position,
-      required String name,
-      required bool owned,
       Value<int> rowid,
     });
 typedef $$ExerciseScoresTableTableUpdateCompanionBuilder =
@@ -13616,8 +13517,6 @@ typedef $$ExerciseScoresTableTableUpdateCompanionBuilder =
       Value<String> exercise,
       Value<String> score,
       Value<int> position,
-      Value<String> name,
-      Value<bool> owned,
       Value<int> rowid,
     });
 
@@ -13671,16 +13570,6 @@ class $$ExerciseScoresTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get owned => $composableBuilder(
-    column: $table.owned,
-    builder: (column) => ColumnFilters(column),
-  );
-
   $$ExercisesTableTableFilterComposer get exercise {
     final $$ExercisesTableTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -13724,16 +13613,6 @@ class $$ExerciseScoresTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get owned => $composableBuilder(
-    column: $table.owned,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   $$ExercisesTableTableOrderingComposer get exercise {
     final $$ExercisesTableTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -13772,12 +13651,6 @@ class $$ExerciseScoresTableTableAnnotationComposer
 
   GeneratedColumn<int> get position =>
       $composableBuilder(column: $table.position, builder: (column) => column);
-
-  GeneratedColumn<String> get name =>
-      $composableBuilder(column: $table.name, builder: (column) => column);
-
-  GeneratedColumn<bool> get owned =>
-      $composableBuilder(column: $table.owned, builder: (column) => column);
 
   $$ExercisesTableTableAnnotationComposer get exercise {
     final $$ExercisesTableTableAnnotationComposer composer = $composerBuilder(
@@ -13842,15 +13715,11 @@ class $$ExerciseScoresTableTableTableManager
                 Value<String> exercise = const Value.absent(),
                 Value<String> score = const Value.absent(),
                 Value<int> position = const Value.absent(),
-                Value<String> name = const Value.absent(),
-                Value<bool> owned = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExerciseScoresTableCompanion(
                 exercise: exercise,
                 score: score,
                 position: position,
-                name: name,
-                owned: owned,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -13858,15 +13727,11 @@ class $$ExerciseScoresTableTableTableManager
                 required String exercise,
                 required String score,
                 required int position,
-                required String name,
-                required bool owned,
                 Value<int> rowid = const Value.absent(),
               }) => ExerciseScoresTableCompanion.insert(
                 exercise: exercise,
                 score: score,
                 position: position,
-                name: name,
-                owned: owned,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

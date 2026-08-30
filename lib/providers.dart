@@ -72,14 +72,17 @@ Future<List<SingleChildWidget>> createProviders({
       create: (context) => ScoresRepository(
         db: context.read(),
         thumbnailService: context.read(),
-      ),
+      )..deleteAbandonedScores(),
     ),
     Provider(
       create: (context) =>
           SetlistsRepository(db: context.read(), scoresRepo: context.read()),
       lazy: false,
     ),
-    Provider(create: (context) => PracticeRepository(db: context.read())),
+    Provider(
+      create: (context) =>
+          PracticeRepository(db: context.read(), scoresRepo: context.read()),
+    ),
     Provider(
       create: (context) => SyncRepository(
         scoresRepo: context.read(),

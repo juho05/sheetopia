@@ -6,6 +6,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
 import 'dart:ui';
@@ -507,6 +508,29 @@ class ScoresRepository {
             metadataUploaded: const Value(false),
           ),
         );
+    _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
+  }
+
+  Future<void> updateScoreTitle(String scoreId, String title) async {
+    await _db.transaction(() async {
+      final query = _db.selectOnly(_db.scoresTable)
+        ..addColumns([_db.scoresTable.composer])
+        ..where(_db.scoresTable.id.equals(scoreId));
+      final composer = await query
+          .map((r) => r.read(_db.scoresTable.composer))
+          .getSingleOrNull();
+
+      await _db.managers.scoresTable
+          .filter((f) => f.id(scoreId))
+          .update(
+            (o) => o(
+              title: Value(title),
+              searchText: Value(generateSearchText([title, composer])),
+              metadataUpdatedAt: Value(DateTime.now().toUtc()),
+              metadataUploaded: const Value(false),
+            ),
+          );
+    });
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
@@ -1019,7 +1043,9 @@ class ScoresRepository {
       rethrow;
     }
 
-    _freshImports = List.of(scores.map((s) => s.id));
+    if (type == ScoreType.score) {
+      _freshImports = List.of(scores.map((s) => s.id));
+    }
     _updatedScoreIds.add((
       changed: scores.map((s) => s.id).toSet(),
       remoteTriggered: false,
@@ -1155,15 +1181,48 @@ class ScoresRepository {
   }
 
   Future<void> deleteScore(String scoreId) async {
+    await deleteScores({scoreId});
+  }
+
+  Future<void> deleteScores(Set<String> scoreIds) async {
+    if (scoreIds.isEmpty) return;
     await _db.transaction(() async {
-      await _db.managers.scoresTable.filter((f) => f.id(scoreId)).delete();
-      await _db.managers.deletedScoresTable.create(
-        (o) => o(scoreId: scoreId, deletedAt: Value(DateTime.now().toUtc())),
+      await _db.managers.scoresTable
+          .filter((f) => f.id.isIn(scoreIds))
+          .delete();
+      await _db.managers.deletedScoresTable.bulkCreate(
+        (o) => scoreIds.map(
+          (scoreId) =>
+              o(scoreId: scoreId, deletedAt: Value(DateTime.now().toUtc())),
+        ),
       );
     });
-    await cleanupScoreFilesAfterDelete(scoreId);
-    _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
-    _deletedScoreIds.add({scoreId});
+
+    for (final scoreId in scoreIds) {
+      await cleanupScoreFilesAfterDelete(scoreId);
+    }
+    _updatedScoreIds.add((changed: scoreIds, remoteTriggered: false));
+    _deletedScoreIds.add(scoreIds);
+  }
+
+  /// Deletes all scores not of type score that have no owner.
+  /// DO NOT call while user could be on edit exercise page. In that state unlinked
+  /// exercises might exist and should NOT be deleted.
+  Future<void> deleteAbandonedScores() async {
+    final linkedScoreIds = _db.selectOnly(_db.exerciseScoresTable)
+      ..addColumns([_db.exerciseScoresTable.score]);
+    final query = _db.selectOnly(_db.scoresTable)
+      ..addColumns([_db.scoresTable.id])
+      ..where(
+        _db.scoresTable.type.equalsValue(ScoreType.exercise) &
+            _db.scoresTable.id.isNotInQuery(linkedScoreIds),
+      );
+    await deleteScores(
+      (await query.get())
+          .map((row) => row.read(_db.scoresTable.id))
+          .nonNulls
+          .toSet(),
+    );
   }
 
   Future<void> cleanupScoreFilesAfterDelete(String scoreId) async {

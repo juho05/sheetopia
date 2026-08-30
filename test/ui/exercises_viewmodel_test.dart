@@ -10,7 +10,9 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
+import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/practice/exercises_viewmodel.dart';
 
 void main() {
@@ -54,7 +56,13 @@ void main() {
   setUp(() async {
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
-    repo = PracticeRepository(db: db);
+    repo = PracticeRepository(
+      db: db,
+      scoresRepo: ScoresRepository(
+        db: db,
+        thumbnailService: ThumbnailService(),
+      ),
+    );
     viewModel = ExercisesViewModel(repo: repo);
   });
 
