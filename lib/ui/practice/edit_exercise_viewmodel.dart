@@ -221,8 +221,7 @@ class EditExerciseViewModel extends ChangeNotifier {
   Future<List<ExerciseScoreEntry>> _loadScores(
     Iterable<String> scoreIds,
   ) async {
-    final scores = await Future.wait(scoreIds.map(_scoresRepo.getScore));
-    return _toEntries(scores.nonNulls);
+    return _toEntries(await _scoresRepo.getScoresById(scoreIds));
   }
 
   List<ExerciseScoreEntry> _toEntries(Iterable<Score> scores) => scores
@@ -317,9 +316,7 @@ class EditExerciseViewModel extends ChangeNotifier {
         formDescription: exercise.description,
         formInstrument: exercise.instrument ?? "",
       }, emitEvent: false);
-      _scoreEntries = await _loadScores(
-        await _repo.getExerciseScoreIds(_exerciseId),
-      );
+      _scoreEntries = _toEntries(await _repo.getExerciseScores(_exerciseId));
     }
     _loading = false;
     notifyListeners();

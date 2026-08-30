@@ -131,6 +131,7 @@ class _ScoreViewerState extends State<ScoreViewer>
   @override
   Widget build(BuildContext context) {
     final child = SafeArea(
+      bottom: widget.bottomBar == null,
       child: ListenableBuilder(
         listenable: _viewModel,
         builder: (context, _) {

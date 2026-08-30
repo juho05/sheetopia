@@ -13,6 +13,7 @@ import 'package:rxdart/rxdart.dart';
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
 import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
+import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/database.dart';
@@ -532,6 +533,21 @@ class PracticeRepository {
       for (final row in await query.get())
         row.readTable(_db.exerciseScoresTable).score,
     ];
+  }
+
+  Future<List<Score>> getExerciseScores(String exerciseId) async {
+    final query =
+        _db.select(_db.exerciseScoresTable).join([
+            innerJoin(
+              _db.scoresTable,
+              _db.scoresTable.id.equalsExp(_db.exerciseScoresTable.score),
+            ),
+          ])
+          ..where(_db.exerciseScoresTable.exercise.equals(exerciseId))
+          ..orderBy([OrderingTerm.asc(_db.exerciseScoresTable.position)]);
+    return _scoresRepo.hydrateScores([
+      for (final row in await query.get()) row.readTable(_db.scoresTable),
+    ]);
   }
 
   Future<void> setExerciseScores(

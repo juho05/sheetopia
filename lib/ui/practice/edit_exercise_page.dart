@@ -7,6 +7,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/ui/common/two_pane_page.dart';
 import 'package:sheetopia/ui/practice/edit_exercise_form.dart';
@@ -29,11 +30,30 @@ class EditExercisePage extends StatelessWidget {
       builder: (context, _) {
         return Consumer<EditExerciseViewModel>(
           builder: (context, viewModel, _) {
+            final exerciseId = viewModel.exerciseId;
+            final playable = viewModel.scoreEntries.any(
+              (e) => e.score.file != null,
+            );
             return TwoPanePage(
               appBar: AppBar(
                 title: viewModel.isCreate
                     ? (const Text("Create exercise"))
                     : const Text("Edit exercise"),
+                actions: [
+                  if (exerciseId != null)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilledButton.icon(
+                        onPressed: playable
+                            ? () => context.go(
+                                "/practice/exercises/$exerciseId/play",
+                              )
+                            : null,
+                        icon: const Icon(Icons.play_arrow),
+                        label: const Text("Play"),
+                      ),
+                    ),
+                ],
               ),
               primaryLabel: "Metadata",
               secondaryLabel: "Scores",

@@ -155,7 +155,7 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
     final targetIndex = sequence.position;
     final target = sequence.currentScoreId;
     if (target == null) return;
-    if (targetIndex == _lastHandledIndex) return;
+    if (targetIndex == _lastHandledIndex && target == _scoreId) return;
     _lastHandledIndex = targetIndex;
     _switchGeneration++;
     final generation = _switchGeneration;

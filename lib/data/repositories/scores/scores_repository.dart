@@ -104,14 +104,8 @@ class ScoresRepository {
     final score = result.$1;
     final data = result.$2;
 
-    return Score(
-      id: score.id,
-      title: score.title,
-      composer: score.composer,
-      source: score.source,
-      sourceLink: score.sourceLink,
-      notes: score.notes,
-      annotations: score.annotations,
+    return _toScore(
+      score,
       genres:
           (data.genresTableRefs.prefetchedData ?? [])
               .map((e) => e.genre)
@@ -123,6 +117,57 @@ class ScoresRepository {
               .toList()
             ..sort(),
       tags: (await _getScoreTags(score.id)).toList(),
+    );
+  }
+
+  // in the order of the given ids, ids without a score are skipped
+  Future<List<Score>> getScoresById(Iterable<String> scoreIds) async {
+    if (scoreIds.isEmpty) return [];
+    final rows = await (_db.select(
+      _db.scoresTable,
+    )..where((t) => t.id.isIn(scoreIds))).get();
+    final byId = {for (final row in rows) row.id: row};
+    return hydrateScores([for (final id in scoreIds) ?byId[id]]);
+  }
+
+  /// loads genres, instruments, tags for the score rows
+  Future<List<Score>> hydrateScores(List<ScoresTableData> rows) async {
+    if (rows.isEmpty) return [];
+    final ids = rows.map((row) => row.id).toList();
+
+    final scoreGenres = await _getScoresGenres(ids);
+    final scoreInstruments = await _getScoresInstruments(ids);
+    final scoreTags = await _getScoresTags(ids);
+
+    return Future.wait(
+      rows.map(
+        (row) => _toScore(
+          row,
+          genres: scoreGenres[row.id] ?? const [],
+          instruments: scoreInstruments[row.id] ?? const [],
+          tags: scoreTags[row.id] ?? const [],
+        ),
+      ),
+    );
+  }
+
+  Future<Score> _toScore(
+    ScoresTableData score, {
+    required List<String> genres,
+    required List<String> instruments,
+    required List<Tag> tags,
+  }) async {
+    return Score(
+      id: score.id,
+      title: score.title,
+      composer: score.composer,
+      source: score.source,
+      sourceLink: score.sourceLink,
+      notes: score.notes,
+      annotations: score.annotations,
+      genres: genres,
+      instruments: instruments,
+      tags: tags,
       type: score.type,
       metadataUpdatedAt: score.metadataUpdatedAt.toUtc(),
       fileUpdatedAt: score.fileUpdatedAt.toUtc(),
@@ -388,22 +433,11 @@ class ScoresRepository {
 
     return Future.wait(
       scores.map(
-        (s) async => Score(
-          id: s.id,
-          title: s.title,
-          composer: s.composer,
-          source: s.source,
-          sourceLink: s.sourceLink,
-          notes: s.notes,
-          annotations: s.annotations,
+        (s) => _toScore(
+          s,
           genres: scoreGenres[s.id] ?? const [],
           instruments: scoreInstruments[s.id] ?? const [],
           tags: scoreTags[s.id] ?? const [],
-          type: s.type,
-          metadataUpdatedAt: s.metadataUpdatedAt.toUtc(),
-          fileUpdatedAt: s.fileUpdatedAt.toUtc(),
-          fileType: s.fileType,
-          file: s.fileDownloaded ? await scoreFile(s.id, s.fileType) : null,
         ),
       ),
     );

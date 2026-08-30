@@ -141,6 +141,18 @@ void main() {
     expect(scores[1].genres, isEmpty);
   });
 
+  test("scores by id keep the requested order and skip missing ones", () async {
+    await insertScore("a", instruments: ["piano"], genres: ["baroque"]);
+    await insertScore("b");
+
+    final scores = await repo.getScoresById(["b", "gone", "a"]);
+
+    expect(scores.map((s) => s.id), ["b", "a"]);
+    expect(scores.last.instruments, ["piano"]);
+    expect(scores.last.genres, ["baroque"]);
+    expect(await repo.getScoresById(const []), isEmpty);
+  });
+
   test("bulk editing the composer keeps the search text in sync", () async {
     await insertScore("a");
     await insertScore("b");

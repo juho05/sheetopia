@@ -624,6 +624,22 @@ void main() {
     expect(await scoreEntries(id), [("b", 0), ("a", 1)]);
   });
 
+  test("the scores of an exercise are loaded in order", () async {
+    await insertScore("a");
+    await insertScore("b");
+    final id = await createExercise("Chromatic");
+    await repo.setExerciseScores(id, ["b", "a"]);
+
+    final scores = await repo.getExerciseScores(id);
+
+    expect(scores.map((s) => s.id), ["b", "a"]);
+    expect(scores.map((s) => s.title), ["Title b", "Title a"]);
+    expect(scores.every((s) => s.file != null), isTrue);
+
+    await repo.setExerciseScores(id, ["a", "a"]);
+    expect((await repo.getExerciseScores(id)).map((s) => s.id), ["a", "a"]);
+  });
+
   test("set scores are stored in the given order", () async {
     await insertScore("a");
     await insertScore("b");
