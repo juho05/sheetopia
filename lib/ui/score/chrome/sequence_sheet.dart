@@ -9,29 +9,54 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/ui/home/thumbnail.dart';
-import 'package:sheetopia/ui/setlists/setlist_navigation_viewmodel.dart';
 
-class SetlistSheet extends StatefulWidget {
-  final SetlistNavigationViewModel navigation;
+class SequenceSheetItem {
+  final Score? score;
+  final String title;
 
-  const SetlistSheet._({required this.navigation});
+  const SequenceSheetItem({required this.score, required this.title});
+
+  bool get playable => score?.file != null;
+}
+
+class SequenceSheet extends StatefulWidget {
+  final String title;
+  final List<SequenceSheetItem> items;
+  final int currentIndex;
+  final void Function(int index) onSelect;
+
+  const SequenceSheet._({
+    required this.title,
+    required this.items,
+    required this.currentIndex,
+    required this.onSelect,
+  });
 
   static Future<void> show(
     BuildContext context, {
-    required SetlistNavigationViewModel navigation,
+    required String title,
+    required List<SequenceSheetItem> items,
+    required int currentIndex,
+    required void Function(int index) onSelect,
   }) {
     return showModalBottomSheet<void>(
       context: context,
-      builder: (context) => SetlistSheet._(navigation: navigation),
+      builder: (context) => SequenceSheet._(
+        title: title,
+        items: items,
+        currentIndex: currentIndex,
+        onSelect: onSelect,
+      ),
     );
   }
 
   @override
-  State<SetlistSheet> createState() => _SetlistSheetState();
+  State<SequenceSheet> createState() => _SequenceSheetState();
 }
 
-class _SetlistSheetState extends State<SetlistSheet> {
+class _SequenceSheetState extends State<SequenceSheet> {
   static const double _thumbnailWidth = 120;
   static const double _thumbnailHeight = 160;
   static const double _spacing = 12;
@@ -46,18 +71,16 @@ class _SetlistSheetState extends State<SetlistSheet> {
   }
 
   double _centeredOffset(double viewportWidth) {
-    final navigation = widget.navigation;
     final stride = _thumbnailWidth + _spacing;
     final contentWidth =
-        _horizontalPadding * 2 + navigation.entries.length * stride - _spacing;
-    final start = _horizontalPadding + navigation.index * stride;
+        _horizontalPadding * 2 + widget.items.length * stride - _spacing;
+    final start = _horizontalPadding + widget.currentIndex * stride;
     final offset = start + _thumbnailWidth / 2 - viewportWidth / 2;
     return offset.clamp(0.0, math.max(0.0, contentWidth - viewportWidth));
   }
 
   @override
   Widget build(BuildContext context) {
-    final navigation = widget.navigation;
     final theme = Theme.of(context);
     final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
     return SafeArea(
@@ -72,13 +95,13 @@ class _SetlistSheetState extends State<SetlistSheet> {
                 children: [
                   Expanded(
                     child: Text(
-                      navigation.name,
+                      widget.title,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleMedium,
                     ),
                   ),
                   Text(
-                    "${navigation.index + 1} of ${navigation.length}",
+                    "${widget.currentIndex + 1} of ${widget.items.length}",
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -100,22 +123,22 @@ class _SetlistSheetState extends State<SetlistSheet> {
                     padding: const EdgeInsets.symmetric(
                       horizontal: _horizontalPadding,
                     ),
-                    itemCount: navigation.entries.length,
+                    itemCount: widget.items.length,
                     separatorBuilder: (context, index) =>
                         const SizedBox(width: _spacing),
                     itemBuilder: (context, index) {
-                      final entry = navigation.entries[index];
-                      final score = entry.score;
-                      final current = index == navigation.index;
+                      final item = widget.items[index];
+                      final score = item.score;
+                      final current = index == widget.currentIndex;
                       return SizedBox(
                         key: ValueKey(index),
                         width: _thumbnailWidth,
                         child: Opacity(
-                          opacity: entry.playable ? 1 : 0.4,
+                          opacity: item.playable ? 1 : 0.4,
                           child: InkWell(
-                            onTap: entry.playable
+                            onTap: item.playable
                                 ? () {
-                                    navigation.jumpTo(index);
+                                    widget.onSelect(index);
                                     Navigator.pop(context);
                                   }
                                 : null,
@@ -164,7 +187,7 @@ class _SetlistSheetState extends State<SetlistSheet> {
                                         ),
                                 ),
                                 Text(
-                                  score?.title ?? "Unavailable",
+                                  item.title,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   textAlign: TextAlign.center,

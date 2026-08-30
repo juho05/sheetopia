@@ -92,7 +92,7 @@ void main() {
     await repo.addScores(setlistId, ["a", "b"]);
 
     final nav = await navigationFor();
-    expect(nav.index, 1);
+    expect(nav.position, 1);
     expect(nav.currentScoreId, "b");
     nav.dispose();
   });
@@ -104,16 +104,16 @@ void main() {
     await repo.addScores(setlistId, ["a", "b", "c", "missing"]);
 
     final nav = await navigationFor();
-    expect(nav.index, 0);
+    expect(nav.position, 0);
 
-    expect(nav.advance(), isTrue);
-    expect(nav.index, 2, reason: "b has no file, missing has no row");
-    expect(nav.advance(), isFalse, reason: "must not wrap");
-    expect(nav.index, 2);
+    expect(nav.next(), isTrue);
+    expect(nav.position, 2, reason: "b has no file, missing has no row");
+    expect(nav.next(), isFalse, reason: "must not wrap");
+    expect(nav.position, 2);
 
-    expect(nav.goBack(), isTrue);
-    expect(nav.index, 0);
-    expect(nav.goBack(), isFalse);
+    expect(nav.previous(), isTrue);
+    expect(nav.position, 0);
+    expect(nav.previous(), isFalse);
     nav.dispose();
   });
 
@@ -122,9 +122,9 @@ void main() {
     await repo.addScores(setlistId, ["a", "a"]);
 
     final nav = await navigationFor();
-    expect(nav.index, 0);
-    expect(nav.advance(), isTrue);
-    expect(nav.index, 1);
+    expect(nav.position, 0);
+    expect(nav.next(), isTrue);
+    expect(nav.position, 1);
     expect(nav.currentScoreId, "a");
     nav.dispose();
   });
@@ -136,9 +136,9 @@ void main() {
 
     final nav = await navigationFor();
     nav.jumpTo(1);
-    expect(nav.index, 0);
+    expect(nav.position, 0);
     nav.jumpTo(5);
-    expect(nav.index, 0);
+    expect(nav.position, 0);
     nav.dispose();
   });
 
@@ -148,13 +148,13 @@ void main() {
     await repo.addScores(setlistId, ["a", "b"]);
 
     final nav = await navigationFor();
-    expect(nav.index, -1);
+    expect(nav.position, -1);
     expect(nav.currentScoreId, isNull);
 
     await markDownloaded("b");
     await pumpEventQueue();
 
-    expect(nav.index, 1, reason: "recovers without a second subscription");
+    expect(nav.position, 1, reason: "recovers without a second subscription");
     expect(nav.currentScoreId, "b");
     nav.dispose();
   });
@@ -167,12 +167,12 @@ void main() {
 
     final nav = await navigationFor();
     nav.jumpTo(2);
-    expect(nav.index, 2);
+    expect(nav.position, 2);
 
     await markDownloaded("b");
     await pumpEventQueue();
 
-    expect(nav.index, 2, reason: "a background sync must not turn the page");
+    expect(nav.position, 2, reason: "a background sync must not turn the page");
     expect(nav.currentScoreId, "c");
     expect(nav.entries[1].playable, isTrue, reason: "but it does resolve");
     nav.dispose();
@@ -192,7 +192,7 @@ void main() {
     await repo.moveEntry(setlistId, 2, 0);
     await pumpEventQueue();
 
-    expect(nav.index, 0, reason: "followed the score, not the index");
+    expect(nav.position, 0, reason: "followed the score, not the index");
     expect(nav.currentScoreId, "c");
     nav.dispose();
   });

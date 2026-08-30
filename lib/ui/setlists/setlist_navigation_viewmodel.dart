@@ -7,13 +7,16 @@
  */
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlist.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
+import 'package:sheetopia/ui/score/score_sequence.dart';
 
-class SetlistNavigationViewModel extends ChangeNotifier {
+class SetlistNavigationViewModel extends ChangeNotifier
+    implements ScoreSequence {
   final SetlistsRepository _repo;
   final ScoresRepository _scoresRepo;
 
@@ -28,12 +31,10 @@ class SetlistNavigationViewModel extends ChangeNotifier {
 
   SetlistNavigationViewModel(
     this._setlist, {
-    required SetlistsRepository repo,
-    required ScoresRepository scoresRepo,
+    required this._repo,
+    required this._scoresRepo,
     int? startIndex,
-  }) : _repo = repo,
-       _scoresRepo = scoresRepo,
-       _index = startIndex ?? _setlist.entries.indexWhere((e) => e.playable) {
+  }) : _index = startIndex ?? _setlist.entries.indexWhere((e) => e.playable) {
     _setlistSub = _repo.updatedSetlistIds
         .where((ids) => ids.contains(_setlist.id))
         .listen((_) => _reload());
@@ -44,12 +45,14 @@ class SetlistNavigationViewModel extends ChangeNotifier {
 
   Setlist get setlist => _setlist;
 
-  int get index => _index;
+  @override
+  int get position => _index;
 
   int get length => _setlist.entries.length;
 
   String get name => _setlist.name;
 
+  @override
   bool get deleted => _deleted;
 
   List<SetlistEntry> get entries => _setlist.entries;
@@ -59,6 +62,7 @@ class SetlistNavigationViewModel extends ChangeNotifier {
       ? null
       : _setlist.entries[_index];
 
+  @override
   String? get currentScoreId => currentEntry?.scoreId;
 
   Set<String> get _scoreIds => _setlist.entries.map((e) => e.scoreId).toSet();
@@ -73,7 +77,14 @@ class SetlistNavigationViewModel extends ChangeNotifier {
     return previous == null ? null : _setlist.entries[previous];
   }
 
-  bool advance() {
+  @override
+  File? get nextFile => nextPlayableEntry?.score?.file;
+
+  @override
+  File? get previousFile => previousPlayableEntry?.score?.file;
+
+  @override
+  bool next() {
     final next = _nextPlayable();
     if (next == null) return false;
     _index = next;
@@ -81,7 +92,8 @@ class SetlistNavigationViewModel extends ChangeNotifier {
     return true;
   }
 
-  bool goBack() {
+  @override
+  bool previous() {
     final previous = _previousPlayable();
     if (previous == null) return false;
     _index = previous;

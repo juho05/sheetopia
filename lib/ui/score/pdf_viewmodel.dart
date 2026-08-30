@@ -12,17 +12,20 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
-import 'package:sheetopia/data/repositories/midi/midi_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
-import 'package:sheetopia/ui/score/score_viewmodel.dart';
-import 'package:sheetopia/ui/setlists/setlist_navigation_viewmodel.dart';
+import 'package:sheetopia/ui/score/score_file_view.dart';
 
-class PdfViewModel extends ChangeNotifier {
-  final MidiRepository _midiRepository;
-  final ScoreViewModel _scoreViewModel;
+class PdfViewModel extends ChangeNotifier implements ScoreFileView {
   final ScoresRepository _scoresRepository;
   String _scoreId;
+
+  final bool Function()? _onOverflowForward;
+  final bool Function()? _onOverflowBackward;
+  final void Function(bool forward)? _onPageTurned;
+
+  String? _nextPath;
+  String? _previousPath;
 
   final Map<int, List<Stroke>> _annotations = {};
 
@@ -61,21 +64,19 @@ class PdfViewModel extends ChangeNotifier {
 
   final Map<String, Future<PdfDocument>> _preloadedDocuments = {};
 
-  bool _isPreloaded(File? file) =>
-      file != null && _preloadedDocuments.containsKey(file.path);
+  bool _isPreloaded(String? path) =>
+      path != null && _preloadedDocuments.containsKey(path);
 
   PdfViewModel({
-    required File file,
-    required MidiRepository midiRepository,
-    required ScoreViewModel scoreViewModel,
-    required ScoresRepository scoresRepository,
-    required String scoreId,
-  }) : _file = file,
-       _midiRepository = midiRepository,
-       _scoreViewModel = scoreViewModel,
-       _scoresRepository = scoresRepository,
-       _scoreId = scoreId {
-    _midiRepository.addActionListener(_midiActionListener);
+    required this._file,
+    required this._scoresRepository,
+    required this._scoreId,
+    this._nextPath,
+    this._previousPath,
+    this._onOverflowForward,
+    this._onOverflowBackward,
+    this._onPageTurned,
+  }) {
     _loadDocument();
     _loadAnnotations();
     _annotationsSub = _scoresRepository.updatedScoreIds
@@ -91,24 +92,19 @@ class PdfViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  SetlistNavigationViewModel? get setlistNavigation =>
-      _scoreViewModel.setlistNavigation;
-
   List<Stroke> strokesForPage(int pageNumber) =>
       _annotations[pageNumber - 1] ?? const [];
-
-  void _midiActionListener(MidiAction action) {
-    switch (action) {
-      case MidiAction.nextPage:
-        nextPage();
-      case MidiAction.prevPage:
-        prevPage();
-    }
-  }
 
   Future<void> updateFile(File file) async {
     _file = file;
     await _loadDocument();
+  }
+
+  void updateNeighborPaths({String? next, String? previous}) {
+    if (next == _nextPath && previous == _previousPath) return;
+    _nextPath = next;
+    _previousPath = previous;
+    _syncPreloadedDocuments();
   }
 
   Future<void> updateScoreId(String scoreId) async {
@@ -158,7 +154,6 @@ class PdfViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
-    _midiRepository.removeActionListener(_midiActionListener);
     _annotationsSub?.cancel();
     _document?.dispose();
     for (final document in _preloadedDocuments.values) {
@@ -168,44 +163,42 @@ class PdfViewModel extends ChangeNotifier {
     super.dispose();
   }
 
+  @override
   void nextPage() {
     if (_document == null || _switchInFlight) return;
     final newIndex = _currentPageIndex + _forwardPageCount;
     if (newIndex >= _document!.pages.length) {
-      final navigation = _scoreViewModel.setlistNavigation;
-      final preloaded = _isPreloaded(navigation?.nextPlayableEntry?.score?.file);
-      if (navigation?.advance() ?? false) {
+      final preloaded = _isPreloaded(_nextPath);
+      if (_onOverflowForward?.call() ?? false) {
         _pendingLandOnLastPage = false;
         _switchInFlight = true;
         _switching = !preloaded;
-        _scoreViewModel.onNextPage();
+        _onPageTurned?.call(true);
         notifyListeners();
       }
       return;
     }
     _currentPageIndex = newIndex;
-    _scoreViewModel.onNextPage();
+    _onPageTurned?.call(true);
     notifyListeners();
   }
 
+  @override
   void prevPage() {
     if (_document == null || _switchInFlight) return;
     if (_currentPageIndex == 0) {
-      final navigation = _scoreViewModel.setlistNavigation;
-      final preloaded = _isPreloaded(
-        navigation?.previousPlayableEntry?.score?.file,
-      );
-      if (navigation?.goBack() ?? false) {
+      final preloaded = _isPreloaded(_previousPath);
+      if (_onOverflowBackward?.call() ?? false) {
         _pendingLandOnLastPage = true;
         _switchInFlight = true;
         _switching = !preloaded;
-        _scoreViewModel.onPrevPage();
+        _onPageTurned?.call(false);
         notifyListeners();
       }
       return;
     }
     _currentPageIndex = max(_currentPageIndex - _backwardPageCount, 0);
-    _scoreViewModel.onPrevPage();
+    _onPageTurned?.call(false);
     notifyListeners();
   }
 
@@ -219,24 +212,17 @@ class PdfViewModel extends ChangeNotifier {
   }
 
   void _syncPreloadedDocuments() {
-    final navigation = _scoreViewModel.setlistNavigation;
     final document = _document;
-    if (navigation == null ||
-        document == null ||
-        _switchInFlight ||
-        _switching ||
-        _loadInProgress) {
+    if (document == null || _switchInFlight || _switching || _loadInProgress) {
       return;
     }
 
     final wanted = <String>{};
     if (_currentPageIndex + _forwardPageCount >= document.pages.length) {
-      final file = navigation.nextPlayableEntry?.score?.file;
-      if (file != null) wanted.add(file.path);
+      if (_nextPath != null) wanted.add(_nextPath!);
     }
     if (_currentPageIndex == 0) {
-      final file = navigation.previousPlayableEntry?.score?.file;
-      if (file != null) wanted.add(file.path);
+      if (_previousPath != null) wanted.add(_previousPath!);
     }
     wanted.remove(_documentPath);
 

@@ -11,12 +11,11 @@ import 'dart:math';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/ui/annotate/annotation_painter.dart';
 import 'package:sheetopia/ui/score/pdf_viewmodel.dart';
-import 'package:sheetopia/ui/score/score_viewmodel.dart';
+import 'package:sheetopia/ui/score/score_file_view.dart';
 
 class PdfView extends StatefulWidget {
   final File file;
@@ -24,7 +23,15 @@ class PdfView extends StatefulWidget {
   final int switchToken;
   final int switchSettleCount;
 
-  final void Function()? onOpenSetlist;
+  final ScoreFileViewController controller;
+
+  final String? nextPath;
+  final String? previousPath;
+
+  final bool Function()? onOverflowForward;
+  final bool Function()? onOverflowBackward;
+  final void Function(bool forward)? onPageTurned;
+  final void Function()? onSwipeUp;
 
   const PdfView({
     super.key,
@@ -32,7 +39,13 @@ class PdfView extends StatefulWidget {
     required this.scoreId,
     required this.switchToken,
     required this.switchSettleCount,
-    this.onOpenSetlist,
+    required this.controller,
+    this.nextPath,
+    this.previousPath,
+    this.onOverflowForward,
+    this.onOverflowBackward,
+    this.onPageTurned,
+    this.onSwipeUp,
   });
 
   @override
@@ -45,19 +58,26 @@ class _PdfViewState extends State<PdfView> {
   @override
   void initState() {
     super.initState();
-    final scoreViewModel = context.read<ScoreViewModel>();
     _viewModel = PdfViewModel(
       file: widget.file,
-      midiRepository: context.read(),
-      scoreViewModel: scoreViewModel,
       scoresRepository: context.read(),
       scoreId: widget.scoreId,
+      nextPath: widget.nextPath,
+      previousPath: widget.previousPath,
+      onOverflowForward: () => widget.onOverflowForward?.call() ?? false,
+      onOverflowBackward: () => widget.onOverflowBackward?.call() ?? false,
+      onPageTurned: (forward) => widget.onPageTurned?.call(forward),
     );
+    widget.controller.attach(_viewModel);
   }
 
   @override
   void didUpdateWidget(covariant PdfView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.controller != oldWidget.controller) {
+      oldWidget.controller.detach(_viewModel);
+      widget.controller.attach(_viewModel);
+    }
     if (widget.switchToken != oldWidget.switchToken ||
         widget.file.path != oldWidget.file.path) {
       _viewModel.updateFile(widget.file);
@@ -68,10 +88,15 @@ class _PdfViewState extends State<PdfView> {
     if (widget.switchSettleCount != oldWidget.switchSettleCount) {
       _viewModel.clearSwitchInFlight();
     }
+    _viewModel.updateNeighborPaths(
+      next: widget.nextPath,
+      previous: widget.previousPath,
+    );
   }
 
   @override
   void dispose() {
+    widget.controller.detach(_viewModel);
     _viewModel.dispose();
     super.dispose();
   }
@@ -175,105 +200,79 @@ class _PdfViewState extends State<PdfView> {
 
             final loading = _viewModel.document == null || _viewModel.switching;
 
-            return CallbackShortcuts(
-              bindings: <ShortcutActivator, VoidCallback>{
-                const SingleActivator(LogicalKeyboardKey.arrowUp):
-                    _viewModel.prevPage,
-                const SingleActivator(LogicalKeyboardKey.arrowDown):
-                    _viewModel.nextPage,
-                const SingleActivator(LogicalKeyboardKey.arrowLeft):
-                    _viewModel.prevPage,
-                const SingleActivator(LogicalKeyboardKey.arrowRight):
-                    _viewModel.nextPage,
-                const SingleActivator(LogicalKeyboardKey.pageUp):
-                    _viewModel.prevPage,
-                const SingleActivator(LogicalKeyboardKey.pageDown):
-                    _viewModel.nextPage,
-                const SingleActivator(LogicalKeyboardKey.space):
-                    _viewModel.nextPage,
-                const SingleActivator(LogicalKeyboardKey.enter):
-                    _viewModel.nextPage,
-                const SingleActivator(LogicalKeyboardKey.backspace):
-                    _viewModel.prevPage,
+            return Listener(
+              onPointerSignal: (event) {
+                if (event is PointerScrollEvent &&
+                    event.kind == PointerDeviceKind.mouse) {
+                  if (event.scrollDelta.dy > 0) {
+                    _viewModel.nextPage();
+                  } else {
+                    _viewModel.prevPage();
+                  }
+                }
               },
-              child: Listener(
-                onPointerSignal: (event) {
-                  if (event is PointerScrollEvent &&
-                      event.kind == PointerDeviceKind.mouse) {
-                    if (event.scrollDelta.dy > 0) {
-                      _viewModel.nextPage();
-                    } else {
-                      _viewModel.prevPage();
-                    }
+              child: GestureDetector(
+                onVerticalDragEnd: widget.onSwipeUp == null
+                    ? null
+                    : (details) {
+                        final velocity = details.primaryVelocity;
+                        if (velocity != null && velocity < -300) {
+                          widget.onSwipeUp!();
+                        }
+                      },
+                onTapUp: (details) {
+                  if (details.localPosition.dx < constraints.maxWidth / 2) {
+                    _viewModel.prevPage();
+                  } else {
+                    _viewModel.nextPage();
                   }
                 },
-                child: GestureDetector(
-                  onVerticalDragEnd: widget.onOpenSetlist == null
-                      ? null
-                      : (details) {
-                          final velocity = details.primaryVelocity;
-                          if (velocity != null && velocity < -300) {
-                            widget.onOpenSetlist!();
-                          }
-                        },
-                  onTapUp: (details) {
-                    if (details.localPosition.dx < constraints.maxWidth / 2) {
-                      _viewModel.prevPage();
-                    } else {
-                      _viewModel.nextPage();
-                    }
-                  },
-                  child: FocusScope(
-                    autofocus: true,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          if (loading)
-                            const Center(
-                              child: CircularProgressIndicator.adaptive(),
-                            ),
-                          // back layer
-                          if (!loading && pageCount > 0 && nextPageCount > 0)
-                            Row(
-                              key: ValueKey(
-                                "${pageIndex + pageCount}-${_viewModel.documentPath}",
+                child: Material(
+                  color: Colors.transparent,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (loading)
+                        const Center(
+                          child: CircularProgressIndicator.adaptive(),
+                        ),
+                      // back layer
+                      if (!loading && pageCount > 0 && nextPageCount > 0)
+                        Row(
+                          key: ValueKey(
+                            "${pageIndex + pageCount}-${_viewModel.documentPath}",
+                          ),
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          spacing: nextGap,
+                          children: List.generate(nextPageCount, (index) {
+                            final page = pages[pageIndex + pageCount + index];
+                            return Flexible(
+                              child: Opacity(
+                                opacity: 0,
+                                child: buildPage(page),
                               ),
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              spacing: nextGap,
-                              children: List.generate(nextPageCount, (index) {
-                                final page =
-                                    pages[pageIndex + pageCount + index];
-                                return Flexible(
-                                  child: Opacity(
-                                    opacity: 0,
-                                    child: buildPage(page),
-                                  ),
-                                );
-                              }),
-                            ),
-                          // front layer
-                          if (!loading)
-                            Row(
-                              key: ValueKey(
-                                "$pageIndex-${_viewModel.documentPath}",
+                            );
+                          }),
+                        ),
+                      // front layer
+                      if (!loading)
+                        Row(
+                          key: ValueKey(
+                            "$pageIndex-${_viewModel.documentPath}",
+                          ),
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          spacing: gap,
+                          children: List.generate(pageCount, (index) {
+                            final page = pages[pageIndex + index];
+                            return Flexible(
+                              child: Opacity(
+                                opacity: 1,
+                                child: buildPage(page),
                               ),
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              spacing: gap,
-                              children: List.generate(pageCount, (index) {
-                                final page = pages[pageIndex + index];
-                                return Flexible(
-                                  child: Opacity(
-                                    opacity: 1,
-                                    child: buildPage(page),
-                                  ),
-                                );
-                              }),
-                            ),
-                        ],
-                      ),
-                    ),
+                            );
+                          }),
+                        ),
+                    ],
                   ),
                 ),
               ),

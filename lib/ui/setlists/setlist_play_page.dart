@@ -11,7 +11,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
-import 'package:sheetopia/ui/score/score_page.dart';
+import 'package:sheetopia/ui/score/chrome/sequence_bubble.dart';
+import 'package:sheetopia/ui/score/chrome/sequence_sheet.dart';
+import 'package:sheetopia/ui/score/score_viewer.dart';
 import 'package:sheetopia/ui/setlists/setlist_navigation_viewmodel.dart';
 
 class SetlistPlayPage extends StatefulWidget {
@@ -50,6 +52,23 @@ class _SetlistPlayPageState extends State<SetlistPlayPage> {
     _navigation?.removeListener(_onNavigationChanged);
     _navigation?.dispose();
     super.dispose();
+  }
+
+  void _openSheet() {
+    final navigation = _navigation!;
+    SequenceSheet.show(
+      context,
+      title: navigation.name,
+      items: [
+        for (final entry in navigation.entries)
+          SequenceSheetItem(
+            score: entry.score,
+            title: entry.score?.title ?? "Unavailable",
+          ),
+      ],
+      currentIndex: navigation.position,
+      onSelect: navigation.jumpTo,
+    );
   }
 
   void _onNavigationChanged() {
@@ -100,6 +119,16 @@ class _SetlistPlayPageState extends State<SetlistPlayPage> {
         ),
       );
     }
-    return ScorePage(scoreId: scoreId, setlistNavigation: navigation);
+    return ScoreViewer(
+      initialScoreId: scoreId,
+      sequence: navigation,
+      onSwipeUp: _openSheet,
+      topOverlay: SequenceBubble(
+        name: navigation.name,
+        index: navigation.position,
+        length: navigation.length,
+        onTap: _openSheet,
+      ),
+    );
   }
 }

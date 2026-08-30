@@ -12,16 +12,20 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_fullscreen/flutter_fullscreen.dart';
+import 'package:sheetopia/data/repositories/midi/midi_repository.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
-import 'package:sheetopia/ui/setlists/setlist_navigation_viewmodel.dart';
+import 'package:sheetopia/ui/score/score_file_view.dart';
+import 'package:sheetopia/ui/score/score_sequence.dart';
 
 class ScoreViewModel extends ChangeNotifier with FullScreenListener {
   final ScoresRepository _repo;
+  final MidiRepository _midiRepository;
 
-  // null on the plain /scores/:id route
-  final SetlistNavigationViewModel? setlistNavigation;
+  final ScoreFileViewController fileView = ScoreFileViewController();
+
+  final ScoreSequence? sequence;
 
   String _scoreId;
 
@@ -61,13 +65,13 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
   StreamSubscription? _updatedScoresSub;
 
   ScoreViewModel({
-    required ScoresRepository repo,
+    required this._repo,
+    required this._midiRepository,
     required String scoreId,
-    this.setlistNavigation,
-  }) : _repo = repo,
-       _scoreId = scoreId {
-    _lastHandledIndex = setlistNavigation?.index ?? -1;
-    setlistNavigation?.addListener(_onSetlistIndexChanged);
+    this.sequence,
+  }) : _scoreId = scoreId {
+    _lastHandledIndex = sequence?.position ?? -1;
+    sequence?.addListener(_onSequenceChanged);
     _load().then((_) {
       _updatedScoresSub = _repo.updatedScoreIds
           .where((s) => s.any((id) => id == _scoreId))
@@ -76,8 +80,10 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
           });
     });
     FullScreen.addListener(this);
+    _midiRepository.addActionListener(_midiActionListener);
     _repo.updateLastOpened(scoreId);
     showOverlay();
+    if (sequence != null) _pulseChrome();
   }
 
   bool _overlayVisible = true;
@@ -99,12 +105,41 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
     }
   }
 
-  void onNextPage() {
-    _pageChangedStreamController.add(true);
+  // chrome tied to the sequence (e.g. bubble showing score in setlist) stays up while the
+  // pointer overlay does, and flashes for a moment on every sequence change
+  bool _transientChromeVisible = false;
+
+  Timer? _transientChromeTimer;
+
+  bool get chromeVisible =>
+      (supportsFullScreen && _overlayVisible) || _transientChromeVisible;
+
+  void _pulseChrome() {
+    _transientChromeVisible = true;
+    _transientChromeTimer?.cancel();
+    _transientChromeTimer = Timer(const Duration(seconds: 2), () {
+      _transientChromeVisible = false;
+      _transientChromeTimer = null;
+      notifyListeners();
+    });
+    notifyListeners();
   }
 
-  void onPrevPage() {
-    _pageChangedStreamController.add(false);
+  void onPageTurned(bool forward) {
+    _pageChangedStreamController.add(forward);
+  }
+
+  void nextPage() => fileView.nextPage();
+
+  void prevPage() => fileView.prevPage();
+
+  void _midiActionListener(MidiAction action) {
+    switch (action) {
+      case MidiAction.nextPage:
+        nextPage();
+      case MidiAction.prevPage:
+        prevPage();
+    }
   }
 
   Future<void> _load() async {
@@ -114,10 +149,11 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
     notifyListeners();
   }
 
-  void _onSetlistIndexChanged() {
-    final nav = setlistNavigation!;
-    final targetIndex = nav.index;
-    final target = nav.currentScoreId;
+  void _onSequenceChanged() {
+    _pulseChrome();
+    final sequence = this.sequence!;
+    final targetIndex = sequence.position;
+    final target = sequence.currentScoreId;
     if (target == null) return;
     if (targetIndex == _lastHandledIndex) return;
     _lastHandledIndex = targetIndex;
@@ -144,9 +180,11 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
   void dispose() {
     _pageChangedStreamController.close();
     _hideOverlayTimer?.cancel();
+    _transientChromeTimer?.cancel();
+    _midiRepository.removeActionListener(_midiActionListener);
     FullScreen.removeListener(this);
     _updatedScoresSub?.cancel();
-    setlistNavigation?.removeListener(_onSetlistIndexChanged);
+    sequence?.removeListener(_onSequenceChanged);
     super.dispose();
   }
 
