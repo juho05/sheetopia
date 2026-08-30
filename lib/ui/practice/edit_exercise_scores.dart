@@ -56,6 +56,7 @@ class EditExerciseScores extends StatelessWidget {
                 itemCount: viewModel.scoreEntries.length,
                 itemBuilder: (context, index) => _ScoreListItem(
                   key: ValueKey(viewModel.scoreEntries[index].id),
+                  viewModel: viewModel,
                   entry: viewModel.scoreEntries[index],
                   index: index,
                 ),
@@ -80,10 +81,11 @@ class EditExerciseScores extends StatelessWidget {
 }
 
 class _ScoreListItem extends StatefulWidget {
+  final EditExerciseViewModel viewModel;
   final ExerciseScoreEntry entry;
   final int index;
 
-  const _ScoreListItem({super.key, required this.entry, required this.index});
+  const _ScoreListItem({super.key, required this.entry, required this.index, required this.viewModel});
 
   @override
   State<_ScoreListItem> createState() => _ScoreListItemState();
@@ -122,7 +124,6 @@ class _ScoreListItemState extends State<_ScoreListItem> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dpi = MediaQuery.devicePixelRatioOf(context);
-    final viewModel = context.read<EditExerciseViewModel>();
     return LayoutBuilder(
       builder: (context, constraints) {
         final thumbnailWidth = constraints.maxWidth >= 400 ? 110 : 90;
@@ -189,7 +190,7 @@ class _ScoreListItemState extends State<_ScoreListItem> {
                                     onChanged: (value) {
                                       final empty = value.trim().isEmpty;
                                       if (!empty) {
-                                        viewModel.setScoreTitle(
+                                        widget.viewModel.setScoreTitle(
                                           widget.entry.score.id,
                                           value,
                                         );
@@ -276,7 +277,7 @@ class _ScoreListItemState extends State<_ScoreListItem> {
                                                     : "The score will be unlinked from this exercise.",
                                               );
                                           if (confirmation != true) return;
-                                          await viewModel.removeScore(
+                                          await widget.viewModel.removeScore(
                                             widget.entry.id,
                                           );
                                         },
