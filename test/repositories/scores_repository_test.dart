@@ -48,6 +48,8 @@ void main() {
     List<String> instruments = const [],
     List<String> genres = const [],
     ScoreType type = ScoreType.score,
+    DateTime? metadataUpdatedAt,
+    DateTime? fileUpdatedAt,
   }) async {
     await db.managers.scoresTable.create(
       (o) => o(
@@ -57,8 +59,8 @@ void main() {
         fileDownloaded: false,
         fileType: FileType.pdf,
         lastOpened: Value(timestamp),
-        metadataUpdatedAt: Value(timestamp),
-        fileUpdatedAt: Value(timestamp),
+        metadataUpdatedAt: Value(metadataUpdatedAt ?? timestamp),
+        fileUpdatedAt: Value(fileUpdatedAt ?? timestamp),
         type: Value(type),
       ),
     );
@@ -286,6 +288,37 @@ void main() {
     ]);
     expect((await db.managers.deletedScoresTable.get()).map((d) => d.scoreId), [
       "abandoned",
+    ]);
+  });
+
+  test("recently modified unlinked exercise scores survive", () async {
+    final recent = DateTime.now().toUtc().subtract(const Duration(minutes: 30));
+    await insertScore(
+      "fresh",
+      type: ScoreType.exercise,
+      metadataUpdatedAt: recent,
+      fileUpdatedAt: recent,
+    );
+    await insertScore(
+      "fresh metadata",
+      type: ScoreType.exercise,
+      metadataUpdatedAt: recent,
+    );
+    await insertScore(
+      "fresh file",
+      type: ScoreType.exercise,
+      fileUpdatedAt: recent,
+    );
+    await insertScore("stale", type: ScoreType.exercise);
+
+    await repo.deleteAbandonedScores();
+
+    expect(await repo.getScore("fresh"), isNotNull);
+    expect(await repo.getScore("fresh metadata"), isNotNull);
+    expect(await repo.getScore("fresh file"), isNotNull);
+    expect(await repo.getScore("stale"), isNull);
+    expect((await db.managers.deletedScoresTable.get()).map((d) => d.scoreId), [
+      "stale",
     ]);
   });
 

@@ -36,6 +36,8 @@ class EditExerciseViewModel extends ChangeNotifier {
 
   final String? _exerciseId;
 
+  String? get exerciseId => _exerciseId;
+
   final bool isCreate;
 
   bool _loading;

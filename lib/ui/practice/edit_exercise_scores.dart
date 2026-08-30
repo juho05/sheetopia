@@ -8,6 +8,7 @@
 
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
@@ -85,7 +86,12 @@ class _ScoreListItem extends StatefulWidget {
   final ExerciseScoreEntry entry;
   final int index;
 
-  const _ScoreListItem({super.key, required this.entry, required this.index, required this.viewModel});
+  const _ScoreListItem({
+    super.key,
+    required this.entry,
+    required this.index,
+    required this.viewModel,
+  });
 
   @override
   State<_ScoreListItem> createState() => _ScoreListItemState();
@@ -255,7 +261,11 @@ class _ScoreListItemState extends State<_ScoreListItem> {
                                     children: [
                                       Button(
                                         child: const Text("View"),
-                                        onPressed: () {},
+                                        onPressed: () {
+                                          context.go(
+                                            "/practice/exercises/${widget.viewModel.exerciseId ?? "create"}/scores/${widget.entry.score.id}",
+                                          );
+                                        },
                                       ),
                                       Button(
                                         color: theme.colorScheme.errorContainer,

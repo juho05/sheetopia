@@ -129,12 +129,26 @@ GoRouter get goRouter {
                 path: "create",
                 builder: (context, state) =>
                     const EditExercisePage(exerciseId: null),
+                routes: [
+                  GoRoute(
+                    path: 'scores/:scoreId',
+                    builder: (context, state) =>
+                        AnnotatePage(scoreId: state.pathParameters["scoreId"]!),
+                  ),
+                ],
               ),
               GoRoute(
                 path: ":exerciseId",
                 builder: (context, state) => EditExercisePage(
                   exerciseId: state.pathParameters["exerciseId"],
                 ),
+                routes: [
+                  GoRoute(
+                    path: 'scores/:scoreId',
+                    builder: (context, state) =>
+                        AnnotatePage(scoreId: state.pathParameters["scoreId"]!),
+                  ),
+                ],
               ),
             ],
           ),
