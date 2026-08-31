@@ -111,6 +111,47 @@ void main() {
     return (await query.get()).map((e) => (e.score, e.position)).toList();
   }
 
+  Future<String> createRoutine(String name) async {
+    final id = db.newId();
+    await db.managers.practiceRoutinesTable.create(
+      (o) => o(id: id, name: name),
+    );
+    return id;
+  }
+
+  Future<void> addEntry(
+    String routineId,
+    String exerciseId, {
+    int position = 0,
+    Duration? targetDuration,
+  }) async {
+    await db.managers.practiceRoutineEntriesTable.create(
+      (o) => o(
+        id: db.newId(),
+        routine: routineId,
+        exercise: exerciseId,
+        position: position,
+        targetDuration: Value(targetDuration),
+      ),
+    );
+  }
+
+  Future<List<String>> routineNames({
+    int size = 100,
+    int offset = 0,
+    String filter = "",
+    String instrument = "",
+    Iterable<String> tagIds = const [],
+    FilterMatchType tagMatch = FilterMatchType.all,
+  }) async => (await repo.getRoutines(
+    size: size,
+    offset: offset,
+    filter: filter,
+    instrument: instrument,
+    tagIds: tagIds,
+    tagMatch: tagMatch,
+  )).map((r) => r.name).toList();
+
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp("practice_test");
     PathProviderPlatform.instance = _FakePathProvider(tempDir.path);
@@ -826,5 +867,162 @@ void main() {
     expect(await repo.getSources(), ["Archive", "Book"]);
     expect(await repo.getInstruments(filter: "gui"), ["guitar"]);
     expect(await repo.getSources(filter: "arc"), ["Archive"]);
+  });
+
+  test("routines are listed by name with their entry count", () async {
+    final first = await createExercise("Chromatic");
+    final second = await createExercise("Thirds");
+    final morning = await createRoutine("Morning");
+    final evening = await createRoutine("Evening");
+    await addEntry(morning, first, targetDuration: const Duration(minutes: 5));
+    await addEntry(
+      morning,
+      second,
+      position: 1,
+      targetDuration: const Duration(minutes: 10),
+    );
+    await addEntry(evening, first);
+
+    final routines = await repo.getRoutines(size: 10);
+
+    expect(routines.map((r) => r.name), ["Evening", "Morning"]);
+    expect(routines.map((r) => r.exerciseCount), [1, 2]);
+    expect(routines.map((r) => r.targetDuration), [
+      Duration.zero,
+      const Duration(minutes: 15),
+    ]);
+    expect(routines.map((r) => r.id), [evening, morning]);
+    expect(await repo.countRoutines(), 2);
+  });
+
+  test("a routine without entries is listed", () async {
+    await createRoutine("Empty");
+
+    final routines = await repo.getRoutines(size: 10);
+
+    expect(routines.single.exerciseCount, 0);
+    expect(routines.single.targetDuration, Duration.zero);
+  });
+
+  test("routine pages do not overlap and end at the last routine", () async {
+    for (final name in ["A", "B", "C"]) {
+      await createRoutine(name);
+    }
+
+    expect(await routineNames(size: 2), ["A", "B"]);
+    expect(await routineNames(size: 2, offset: 2), ["C"]);
+    expect(await routineNames(size: 2, offset: 4), isEmpty);
+  });
+
+  test("the routine search matches every word of the name", () async {
+    await createRoutine("Morning warm up");
+    await createRoutine("Evening warm up");
+
+    expect(await routineNames(filter: "warm morning"), ["Morning warm up"]);
+    expect(await routineNames(filter: "warm"), [
+      "Evening warm up",
+      "Morning warm up",
+    ]);
+    expect(await routineNames(filter: "scales"), isEmpty);
+    expect(await repo.countRoutines(filter: "warm morning"), 1);
+  });
+
+  test("the instrument filter looks at the exercises of a routine", () async {
+    final guitar = await createExercise("Chromatic", instrument: "Guitar");
+    final piano = await createExercise("Thirds", instrument: "Piano");
+    final mixed = await createRoutine("Mixed");
+    final pianoOnly = await createRoutine("Piano only");
+    await createRoutine("Empty");
+    await addEntry(mixed, guitar);
+    await addEntry(mixed, piano, position: 1);
+    await addEntry(pianoOnly, piano);
+
+    expect(await routineNames(instrument: "Guitar"), ["Mixed"]);
+    expect(await routineNames(instrument: "Piano"), ["Mixed", "Piano only"]);
+    expect(await routineNames(instrument: "Bass"), isEmpty);
+    expect(await repo.countRoutines(instrument: "Piano"), 2);
+  });
+
+  test("routine tag filters honour the match type", () async {
+    final scales = await insertTag("Scales");
+    final warmup = await insertTag("Warmup");
+    final etude = await insertTag("Etude");
+    final scalesExercise = await createExercise("Chromatic");
+    final warmupExercise = await createExercise("Long tones");
+    final etudeExercise = await createExercise("Etude no. 1");
+    await repo.addExerciseTags(scalesExercise, [scales]);
+    await repo.addExerciseTags(warmupExercise, [warmup]);
+    await repo.addExerciseTags(etudeExercise, [etude]);
+
+    // the tags of a routine are the tags of all its exercises together
+    final both = await createRoutine("Both");
+    await addEntry(both, scalesExercise);
+    await addEntry(both, warmupExercise, position: 1);
+    final onlyScales = await createRoutine("Only scales");
+    await addEntry(onlyScales, scalesExercise);
+    final extra = await createRoutine("Extra");
+    await addEntry(extra, scalesExercise);
+    await addEntry(extra, warmupExercise, position: 1);
+    await addEntry(extra, etudeExercise, position: 2);
+
+    expect(
+      await routineNames(
+        tagIds: [scales, warmup],
+        tagMatch: FilterMatchType.any,
+      ),
+      ["Both", "Extra", "Only scales"],
+    );
+    expect(
+      await routineNames(
+        tagIds: [scales, warmup],
+        tagMatch: FilterMatchType.all,
+      ),
+      ["Both", "Extra"],
+    );
+    expect(
+      await routineNames(
+        tagIds: [scales, warmup],
+        tagMatch: FilterMatchType.exact,
+      ),
+      ["Both"],
+    );
+    expect(
+      await repo.countRoutines(
+        tagIds: [scales, warmup],
+        tagMatch: FilterMatchType.exact,
+      ),
+      1,
+    );
+  });
+
+  test("routine filters are combined", () async {
+    final scales = await insertTag("Scales");
+    final guitar = await createExercise("Chromatic", instrument: "Guitar");
+    final piano = await createExercise("Thirds", instrument: "Piano");
+    await repo.addExerciseTags(guitar, [scales]);
+    await repo.addExerciseTags(piano, [scales]);
+    final morning = await createRoutine("Morning guitar");
+    final evening = await createRoutine("Evening piano");
+    await addEntry(morning, guitar);
+    await addEntry(evening, piano);
+
+    expect(await routineNames(filter: "morning", instrument: "Guitar"), [
+      "Morning guitar",
+    ]);
+    expect(await routineNames(filter: "morning", instrument: "Piano"), isEmpty);
+    expect(await routineNames(instrument: "Piano", tagIds: [scales]), [
+      "Evening piano",
+    ]);
+  });
+
+  test("deleting an exercise announces its routines", () async {
+    final exerciseId = await createExercise("Chromatic");
+    final routineId = await createRoutine("Morning");
+    await addEntry(routineId, exerciseId);
+
+    final announced = repo.updatedRoutineIds.first;
+    await repo.deleteExercise(exerciseId);
+
+    expect(await announced, {routineId});
   });
 }

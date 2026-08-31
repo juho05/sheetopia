@@ -12,6 +12,7 @@ import 'package:drift/drift.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
 import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
+import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
@@ -30,6 +31,10 @@ class PracticeRepository {
   final BehaviorSubject<Set<String>> _updatedCategoryIds = BehaviorSubject();
 
   Stream<Set<String>> get updatedCategoryIds => _updatedCategoryIds.stream;
+
+  final BehaviorSubject<Set<String>> _updatedRoutineIds = BehaviorSubject();
+
+  Stream<Set<String>> get updatedRoutineIds => _updatedRoutineIds.stream;
 
   PracticeRepository({required this._db, required this._scoresRepo}) {
     _scoresRepo.deletedScoreIds.listen(removeDeletedScoreEntries);
@@ -633,13 +638,14 @@ class PracticeRepository {
 
   Future<void> deleteExercise(String exerciseId) async {
     Iterable<String?> scoreIdsToDelete = {};
+    final routineIds = <String>{};
     await _db.transaction(() async {
-      final routineIds =
-          (await _db.managers.practiceRoutineEntriesTable
-                  .filter((f) => f.exercise.id(exerciseId))
-                  .map((e) => e.routine)
-                  .get())
-              .toSet();
+      routineIds.addAll(
+        await _db.managers.practiceRoutineEntriesTable
+            .filter((f) => f.exercise.id(exerciseId))
+            .map((e) => e.routine)
+            .get(),
+      );
       if (routineIds.isNotEmpty) {
         await _db.managers.practiceRoutineEntriesTable
             .filter((f) => f.exercise.id(exerciseId))
@@ -685,6 +691,7 @@ class PracticeRepository {
     });
     await _scoresRepo.deleteScores(scoreIdsToDelete.nonNulls.toSet());
     _updatedExerciseIds.add({exerciseId});
+    if (routineIds.isNotEmpty) _updatedRoutineIds.add(routineIds);
   }
 
   Future<List<String>> getInstruments({String filter = "", int? size}) async {
@@ -731,6 +738,128 @@ class PracticeRepository {
       ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     if (size == null || merged.length <= size) return merged;
     return merged.sublist(0, size);
+  }
+
+  Expression<bool> _routineInstrumentFilter(String instrument) {
+    final q = _db.selectOnly(_db.practiceRoutineEntriesTable).join([
+      innerJoin(
+        _db.exercisesTable,
+        _db.exercisesTable.id.equalsExp(
+          _db.practiceRoutineEntriesTable.exercise,
+        ),
+        useColumns: false,
+      ),
+    ]);
+    q.addColumns([_db.practiceRoutineEntriesTable.routine]);
+    q.where(_db.exercisesTable.instrument.equals(instrument));
+    return _db.practiceRoutinesTable.id.isInQuery(q);
+  }
+
+  Expression<bool> _routineTagFilter(
+    Iterable<String> tagIds,
+    FilterMatchType tagMatch,
+  ) {
+    final tag = _db.exerciseTagsTable.tag;
+    final q = _db.selectOnly(_db.practiceRoutineEntriesTable).join([
+      innerJoin(
+        _db.exerciseTagsTable,
+        _db.exerciseTagsTable.exercise.equalsExp(
+          _db.practiceRoutineEntriesTable.exercise,
+        ),
+        useColumns: false,
+      ),
+    ]);
+    q.addColumns([_db.practiceRoutineEntriesTable.routine]);
+    q.groupBy(
+      [_db.practiceRoutineEntriesTable.routine],
+      having: _matchHaving(
+        tagMatch,
+        tag.count(distinct: true, filter: tag.isIn(tagIds)),
+        tag.count(distinct: true),
+        tagIds.length,
+      ),
+    );
+    return _db.practiceRoutinesTable.id.isInQuery(q);
+  }
+
+  void _applyRoutineFilters(
+    JoinedSelectStatement q,
+    String filter,
+    String instrument,
+    Iterable<String> tagIds,
+    FilterMatchType tagMatch,
+  ) {
+    for (final word in _searchWords(filter)) {
+      q.where(_db.practiceRoutinesTable.name.contains(word));
+    }
+    if (instrument.isNotEmpty) {
+      q.where(_routineInstrumentFilter(instrument));
+    }
+    if (tagIds.isNotEmpty) {
+      q.where(_routineTagFilter(tagIds, tagMatch));
+    }
+  }
+
+  List<OrderingTerm> get _routineOrdering => [
+    OrderingTerm.asc(_db.practiceRoutinesTable.name.lower()),
+    OrderingTerm.asc(_db.practiceRoutinesTable.id),
+  ];
+
+  Future<int> countRoutines({
+    String filter = "",
+    String instrument = "",
+    Iterable<String> tagIds = const [],
+    FilterMatchType tagMatch = FilterMatchType.all,
+  }) async {
+    final countExpr = _db.practiceRoutinesTable.id.count(distinct: true);
+    final q = _db.selectOnly(_db.practiceRoutinesTable);
+    q.addColumns([countExpr]);
+    _applyRoutineFilters(q, filter, instrument, tagIds, tagMatch);
+    return (await q.getSingle()).read(countExpr) ?? 0;
+  }
+
+  Future<List<PracticeRoutine>> getRoutines({
+    required int size,
+    int offset = 0,
+    String filter = "",
+    String instrument = "",
+    Iterable<String> tagIds = const [],
+    FilterMatchType tagMatch = FilterMatchType.all,
+  }) async {
+    final entries = _db.practiceRoutineEntriesTable;
+    final countExpr = entries.id.count();
+    final durationExpr = entries.targetDuration.sum();
+    final q = _db.selectOnly(_db.practiceRoutinesTable).join([
+      leftOuterJoin(
+        entries,
+        entries.routine.equalsExp(_db.practiceRoutinesTable.id),
+        useColumns: false,
+      ),
+    ]);
+    q.addColumns([
+      _db.practiceRoutinesTable.id,
+      _db.practiceRoutinesTable.name,
+      _db.practiceRoutinesTable.description,
+      _db.practiceRoutinesTable.updatedAt,
+      countExpr,
+      durationExpr,
+    ]);
+    _applyRoutineFilters(q, filter, instrument, tagIds, tagMatch);
+    q.groupBy([_db.practiceRoutinesTable.id]);
+    q.orderBy(_routineOrdering);
+    q.limit(size, offset: offset);
+
+    return [
+      for (final row in await q.get())
+        PracticeRoutine(
+          id: row.read(_db.practiceRoutinesTable.id)!,
+          name: row.read(_db.practiceRoutinesTable.name)!,
+          description: row.read(_db.practiceRoutinesTable.description),
+          exerciseCount: row.read(countExpr) ?? 0,
+          targetDuration: Duration(milliseconds: row.read(durationExpr) ?? 0),
+          updatedAt: row.read(_db.practiceRoutinesTable.updatedAt)!.toUtc(),
+        ),
+    ];
   }
 
   Future<void> _renumberRoutineEntries(String routineId) async {

@@ -357,9 +357,9 @@ class _HomePageState extends State<HomePage> {
                                                 FabMenuItem(
                                                   label:
                                                       "Create practice routine",
-                                                  onPressed: () {
-                                                    // TODO
-                                                  },
+                                                  onPressed: () => context.go(
+                                                    "/practice/routines/create",
+                                                  ),
                                                 ),
                                               ],
                                               _ => [],
