@@ -87,6 +87,25 @@ FileType? fileTypeFromMimeType(String? mimeType) {
   return null;
 }
 
+const _pdfMagicBytes = [0x25, 0x50, 0x44, 0x46, 0x2D];
+
+FileType? fileTypeFromMagicBytes(List<int> bytes) {
+  if (_startsWith(bytes, _pdfMagicBytes)) {
+    return FileType.pdf;
+  }
+  return null;
+}
+
+int get maxMagicBytesLength => _pdfMagicBytes.length;
+
+bool _startsWith(List<int> bytes, List<int> magic) {
+  if (bytes.length < magic.length) return false;
+  for (int i = 0; i < magic.length; i++) {
+    if (bytes[i] != magic[i]) return false;
+  }
+  return true;
+}
+
 String fileTypeToExtension(FileType fileType) {
   return switch (fileType) {
     FileType.pdf => ".pdf",

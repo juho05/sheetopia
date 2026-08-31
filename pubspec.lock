@@ -229,10 +229,10 @@ packages:
     dependency: "direct main"
     description:
       name: cunning_document_scanner
-      sha256: "7fc553dc9c9413e041bc898cf234292e9923e1d8acd74055c8bb9a7501590ae6"
+      sha256: cc77a750b26fb6f9dec681456fe4896a8805f3490cb43f67c6f5585096c83155
       url: "https://pub.dev"
     source: hosted
-    version: "3.0.1"
+    version: "3.0.2"
   cupertino_icons:
     dependency: "direct main"
     description:
@@ -277,10 +277,10 @@ packages:
     dependency: "direct main"
     description:
       name: desktop_drop
-      sha256: c65d1f959ccf4bb6803f984303d03e1e0dd4c0f73a3a2eca2d1b46d48ea16999
+      sha256: "4c639b4cb80780d1cb94c3252309772e5e68522372181497bc9cd2fbd973aec1"
       url: "https://pub.dev"
     source: hosted
-    version: "0.8.2"
+    version: "0.8.3"
   device_info_plus:
     dependency: "direct main"
     description:
@@ -621,11 +621,12 @@ packages:
   flutter_sharing_intent:
     dependency: "direct main"
     description:
-      name: flutter_sharing_intent
-      sha256: "16663db343f444236c15cc8223f4e9e4df2823e5a91f901fda0d46ae78d89287"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.4"
+      path: "."
+      ref: "6bd0ab6cb49837e3c4f0ec400469fdeae523d4d3"
+      resolved-ref: "6bd0ab6cb49837e3c4f0ec400469fdeae523d4d3"
+      url: "https://github.com/TSPL-Bhagat/flutter_sharing_intent"
+    source: git
+    version: "2.1.0"
   flutter_staggered_grid_view:
     dependency: transitive
     description:
@@ -664,10 +665,10 @@ packages:
     dependency: "direct main"
     description:
       name: go_router
-      sha256: d7a3576cb312649eaa51f2356450aed686085fb58fcdebda5b359aa951eef7ea
+      sha256: "2e7fcb9ac4d52ec06cd940552f12e66ee71fccbcadb09a067cb9fe20462b5bf3"
       url: "https://pub.dev"
     source: hosted
-    version: "17.5.0"
+    version: "18.0.0"
   graphs:
     dependency: transitive
     description:

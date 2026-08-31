@@ -68,7 +68,7 @@ class App extends StatefulWidget {
 }
 
 class _AppState extends State<App> {
-  late final StreamSubscription _intentDataStreamSubscription;
+  StreamSubscription? _shareReceiveStream;
 
   static const _pageTransitions = PageTransitionsTheme(
     builders: <TargetPlatform, PageTransitionsBuilder>{
@@ -87,11 +87,17 @@ class _AppState extends State<App> {
   void initState() {
     super.initState();
     if (Platform.isAndroid || Platform.isIOS) {
-      _intentDataStreamSubscription = FlutterSharingIntent.instance
-          .getMediaStream()
-          .listen(_onFilesReceived);
-      FlutterSharingIntent.instance.getInitialSharing().then(_onFilesReceived);
+      unawaited(_receiveSharedFiles());
     }
+  }
+
+  Future<void> _receiveSharedFiles() async {
+    final initial = await FlutterSharingIntent.instance.getInitialSharing();
+    if (!mounted) return;
+    _shareReceiveStream = FlutterSharingIntent.instance.getMediaStream().listen(
+      _onFilesReceived,
+    );
+    await _onFilesReceived(initial);
   }
 
   Future<void> _onFilesReceived(Iterable<SharedFile> files) async {
@@ -144,7 +150,7 @@ class _AppState extends State<App> {
 
   @override
   void dispose() {
-    _intentDataStreamSubscription.cancel();
+    _shareReceiveStream?.cancel();
     super.dispose();
   }
 }

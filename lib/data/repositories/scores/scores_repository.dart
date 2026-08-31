@@ -9,6 +9,7 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:diacritic/diacritic.dart';
@@ -1017,9 +1018,7 @@ class ScoresRepository {
     List<Score> scores = [];
     try {
       for (final f in files) {
-        final fileType =
-            fileTypeFromMimeType(f.mimeType) ??
-            fileTypeFromExtension(path.extension(f.name));
+        final fileType = await _getFileType(f);
         if (fileType == null) {
           throw InvalidFileTypeException(filePath: f.path);
         }
@@ -1090,9 +1089,7 @@ class ScoresRepository {
   Future<void> updateScoreFile(String scoreId, XFile file) async {
     final score = (await getScore(scoreId))!;
 
-    final fileType =
-        fileTypeFromMimeType(file.mimeType) ??
-        fileTypeFromExtension(path.extension(file.name));
+    final fileType = await _getFileType(file);
     if (fileType == null) {
       throw InvalidFileTypeException(filePath: file.path);
     }
@@ -1360,5 +1357,27 @@ class ScoresRepository {
     input = input.trim().toLowerCase().replaceAll(_whitespaceRegex, " ");
     input = removeDiacritics(input);
     return input.split(" ").map((s) => " $s");
+  }
+
+  Future<FileType?> _getFileType(XFile file) async {
+    FileType? ft = fileTypeFromMimeType(file.mimeType);
+    if (ft != null) return ft;
+    ft = fileTypeFromExtension(path.extension(file.name));
+    if (ft != null) return ft;
+    return fileTypeFromMagicBytes(await _readHeader(file, maxMagicBytesLength));
+  }
+
+  Future<List<int>> _readHeader(XFile file, int length) async {
+    final builder = BytesBuilder(copy: false);
+    try {
+      await for (final chunk in file.openRead(0, length)) {
+        builder.add(chunk);
+        if (builder.length >= length) break;
+      }
+    } catch (e, st) {
+      Log.warn("Could not read header of ${file.name}", e: e, st: st);
+      return const [];
+    }
+    return builder.takeBytes();
   }
 }

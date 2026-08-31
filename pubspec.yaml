@@ -21,8 +21,11 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_secure_storage: ^11.0.0
-  flutter_sharing_intent: ^2.0.4
-  go_router: ^17.0.1
+  flutter_sharing_intent:
+    git:
+      url: https://github.com/TSPL-Bhagat/flutter_sharing_intent
+      ref: 6bd0ab6cb49837e3c4f0ec400469fdeae523d4d3
+  go_router: ^18.0.0
   image: ^4.9.1
   infinite_scroll_pagination: ^5.1.1
   intl: ^0.20.2

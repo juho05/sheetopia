@@ -382,7 +382,7 @@ open class FSIShareViewController: UIViewController {
     // filesystem path: the plugin only strips the `file://` prefix, it never
     // percent-decodes. Using `absoluteString` therefore breaks every file whose
     // name contains a space or another character that gets percent-encoded
-    // (e.g. "Klausur SEW.pdf" arrives as ".../Klausur%20SEW.pdf" and can't be
+    // (e.g. "score 1.pdf" arrives as ".../score%201.pdf" and can't be
     // opened). `path` is already decoded; the prefix is kept so the host app
     // recognises the value as a file path regardless of where the app group
     // container resolves to.
