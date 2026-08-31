@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
-import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/filter_button.dart';
 import 'package:sheetopia/ui/common/menu_button.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
@@ -19,7 +18,7 @@ import 'package:sheetopia/ui/common/section_header.dart';
 import 'package:sheetopia/ui/common/selection/selectable_tile_icon.dart';
 import 'package:sheetopia/ui/common/selection/selection_gestures.dart';
 import 'package:sheetopia/ui/common/selection/selection_shortcuts.dart';
-import 'package:sheetopia/ui/common/tag_badge.dart';
+import 'package:sheetopia/ui/practice/exercise_tile.dart';
 import 'package:sheetopia/ui/practice/exercises_filter_dialog.dart';
 import 'package:sheetopia/ui/practice/exercises_viewmodel.dart';
 
@@ -304,11 +303,9 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    final theme = Theme.of(context);
     return Container(
       height: height,
       alignment: Alignment.centerLeft,
-      color: theme.colorScheme.surface,
       padding: const EdgeInsets.symmetric(
         horizontal: RoundedListTile.horizontalMargin + 16,
       ),
@@ -328,8 +325,6 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
 }
 
 class _ExerciseTile extends StatelessWidget {
-  static const double _badgeStripHeight = 22;
-
   final Exercise exercise;
   final bool selecting;
   final bool selected;
@@ -348,9 +343,6 @@ class _ExerciseTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final instrument = exercise.instrument;
-    final hasBadges = instrument != null || exercise.tags.isNotEmpty;
     final gestures = SelectionGestures(
       item: exercise,
       selecting: selecting,
@@ -359,43 +351,14 @@ class _ExerciseTile extends StatelessWidget {
       onRangeSelect: onRangeSelect,
       onActivate: () => context.go("/practice/exercises/${exercise.id}"),
     );
-    return RoundedListTile(
-      height: RoundedListTile.defaultHeight,
+    return ExerciseTile(
+      exercise: exercise,
+      selected: selected,
       leading: SelectableTileIcon(
         icon: Symbols.exercise,
         selecting: selecting,
         selected: selected,
       ),
-      title: exercise.name,
-      selected: selected,
-      subtitle: !hasBadges
-          ? null
-          : SizedBox(
-              height: _badgeStripHeight,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  spacing: 6,
-                  children: [
-                    if (instrument != null)
-                      CommonBadge(
-                        name: instrument,
-                        tooltip: false,
-                        compact: true,
-                        color: theme.colorScheme.surfaceContainerHighest,
-                      ),
-                    if (instrument != null && exercise.tags.isNotEmpty)
-                      Container(
-                        width: 1,
-                        height: 14,
-                        color: theme.colorScheme.outlineVariant,
-                      ),
-                    for (final tag in exercise.tags)
-                      TagBadge(tag: tag, tooltip: false, compact: true),
-                  ],
-                ),
-              ),
-            ),
       trailing: selecting ? null : const MenuButton(options: []),
       onTap: gestures.onTap,
       onLongPress: gestures.onLongPress,

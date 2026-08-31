@@ -6,6 +6,27 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'package:sheetopia/data/repositories/practice/exercise.dart';
+
+class PracticeRoutineEntry {
+  final String id;
+  final Exercise exercise;
+  final Duration? targetDuration;
+
+  const PracticeRoutineEntry({
+    required this.id,
+    required this.exercise,
+    this.targetDuration,
+  });
+
+  PracticeRoutineEntry withTargetDuration(Duration? targetDuration) =>
+      PracticeRoutineEntry(
+        id: id,
+        exercise: exercise,
+        targetDuration: targetDuration,
+      );
+}
+
 class PracticeRoutine {
   final String id;
   final String name;
@@ -13,6 +34,7 @@ class PracticeRoutine {
   final int exerciseCount;
   final Duration targetDuration;
   final DateTime updatedAt;
+  final List<PracticeRoutineEntry> entries;
 
   const PracticeRoutine({
     required this.id,
@@ -21,5 +43,6 @@ class PracticeRoutine {
     required this.exerciseCount,
     required this.targetDuration,
     required this.updatedAt,
+    this.entries = const [],
   });
 }

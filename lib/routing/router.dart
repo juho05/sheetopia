@@ -14,10 +14,11 @@ import 'package:sheetopia/ui/annotate/annotate_page.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_page.dart';
 import 'package:sheetopia/ui/home/home_page.dart';
 import 'package:sheetopia/ui/install_update/install_update_page.dart';
-import 'package:sheetopia/ui/practice/create_practice_routine_page.dart';
 import 'package:sheetopia/ui/practice/edit_exercise_page.dart';
+import 'package:sheetopia/ui/practice/edit_routine_page.dart';
 import 'package:sheetopia/ui/practice/exercise_play_page.dart';
 import 'package:sheetopia/ui/practice/exercises_page.dart';
+import 'package:sheetopia/ui/practice/routine_detail_page.dart';
 import 'package:sheetopia/ui/score/score_page.dart';
 import 'package:sheetopia/ui/setlists/setlist_detail_page.dart';
 import 'package:sheetopia/ui/setlists/setlist_play_page.dart';
@@ -125,7 +126,26 @@ GoRouter get goRouter {
           ),
           GoRoute(
             path: "practice/routines/create",
-            builder: (context, state) => const CreatePracticeRoutinePage(),
+            builder: (context, state) => const EditRoutinePage(routineId: null),
+          ),
+          GoRoute(
+            path: "practice/routines/:routineId/details",
+            builder: (context, state) => RoutineDetailPage(
+              routineId: state.pathParameters["routineId"]!,
+            ),
+            routes: [
+              GoRoute(
+                path: "edit",
+                builder: (context, state) => EditRoutinePage(
+                  routineId: state.pathParameters["routineId"],
+                ),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: "practice/routines/:routineId/edit",
+            builder: (context, state) =>
+                EditRoutinePage(routineId: state.pathParameters["routineId"]),
           ),
           GoRoute(
             path: "practice/exercises",

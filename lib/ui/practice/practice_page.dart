@@ -17,6 +17,7 @@ import 'package:sheetopia/ui/common/rounded_list_tile.dart';
 import 'package:sheetopia/ui/common/rounded_tile_icon.dart';
 import 'package:sheetopia/ui/common/search_input.dart';
 import 'package:sheetopia/ui/common/section_header.dart';
+import 'package:sheetopia/ui/practice/delete_routine_dialog.dart';
 import 'package:sheetopia/ui/practice/practice_routines_viewmodel.dart';
 import 'package:sheetopia/ui/practice/routines_filter_dialog.dart';
 
@@ -152,16 +153,24 @@ class _PracticePageState extends State<PracticePage> {
           SliverFixedExtentList.builder(
             itemExtent: RoundedListTile.extentFor(subtitle: true),
             itemCount: routines.length,
-            itemBuilder: (context, index) =>
-                _RoutineTile(routine: routines[index]),
+            itemBuilder: (context, index) => _RoutineTile(
+              routine: routines[index],
+              onDuplicate: () => _viewModel.duplicate(routines[index].id),
+              onDelete: () => _delete(routines[index]),
+            ),
           ),
         const SliverToBoxAdapter(child: SizedBox(height: _fabPadding)),
       ],
     );
   }
 
+  Future<void> _delete(PracticeRoutine routine) async {
+    if (!await confirmDeleteRoutine(context, routine.name)) return;
+    await _viewModel.delete(routine.id);
+  }
+
   Widget _buildSummary(bool wide) {
-    const today = _TodayCard(practiced: Duration(hours: 1, minutes: 12));
+    const today = _TodayCard(practiced: Duration.zero);
     const exercises = _ExercisesCard();
     if (wide) {
       return const Row(
@@ -348,8 +357,14 @@ class _ExercisesCard extends StatelessWidget {
 
 class _RoutineTile extends StatelessWidget {
   final PracticeRoutine routine;
+  final void Function() onDuplicate;
+  final void Function() onDelete;
 
-  const _RoutineTile({required this.routine});
+  const _RoutineTile({
+    required this.routine,
+    required this.onDuplicate,
+    required this.onDelete,
+  });
 
   String get _subtitle {
     final count = routine.exerciseCount;
@@ -364,25 +379,24 @@ class _RoutineTile extends StatelessWidget {
       leading: const RoundedTileIcon(icon: Symbols.checklist),
       title: routine.name,
       subtitle: Text(_subtitle),
-      onTap: () {
-        // TODO
-      },
+      onTap: () => context.go("/practice/routines/${routine.id}/details"),
       trailing: MenuButton(
         options: [
           ContextMenuOption(
             icon: Symbols.edit,
-            title: "Rename",
-            onSelected: null,
+            title: "Edit",
+            onSelected: () =>
+                context.go("/practice/routines/${routine.id}/edit"),
           ),
           ContextMenuOption(
             icon: Symbols.content_copy,
             title: "Duplicate",
-            onSelected: null,
+            onSelected: onDuplicate,
           ),
           ContextMenuOption(
             icon: Symbols.delete,
             title: "Delete",
-            onSelected: null,
+            onSelected: onDelete,
           ),
         ],
       ),

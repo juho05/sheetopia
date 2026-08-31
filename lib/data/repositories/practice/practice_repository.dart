@@ -862,6 +862,239 @@ class PracticeRepository {
     ];
   }
 
+  Future<PracticeRoutine?> getRoutine(String routineId) async {
+    final routine = await _db.managers.practiceRoutinesTable
+        .filter((f) => f.id(routineId))
+        .getSingleOrNull();
+    if (routine == null) return null;
+
+    final query = _db.select(_db.practiceRoutineEntriesTable)
+      ..where((t) => t.routine.equals(routineId))
+      ..orderBy([(t) => OrderingTerm.asc(t.position)]);
+    final rows = await query.get();
+    final exercises = await getExercisesById(rows.map((e) => e.exercise));
+
+    final entries = [
+      for (final row in rows)
+        if (exercises[row.exercise] case final exercise?)
+          PracticeRoutineEntry(
+            id: row.id,
+            exercise: exercise,
+            targetDuration: row.targetDuration,
+          ),
+    ];
+
+    return PracticeRoutine(
+      id: routine.id,
+      name: routine.name,
+      description: routine.description,
+      exerciseCount: entries.length,
+      targetDuration: entries.fold(
+        Duration.zero,
+        (sum, e) => sum + (e.targetDuration ?? Duration.zero),
+      ),
+      updatedAt: routine.updatedAt.toUtc(),
+      entries: entries,
+    );
+  }
+
+  Future<Map<String, Exercise>> getExercisesById(Iterable<String> ids) async {
+    if (ids.isEmpty) return const {};
+    final query = _db.select(_db.exercisesTable).join([
+      leftOuterJoin(
+        _db.exerciseCategoriesTable,
+        _db.exerciseCategoriesTable.id.equalsExp(_db.exercisesTable.category),
+      ),
+    ])..where(_db.exercisesTable.id.isIn(ids));
+    final rows = [
+      for (final row in await query.get())
+        (
+          row.readTable(_db.exercisesTable),
+          row.readTableOrNull(_db.exerciseCategoriesTable),
+        ),
+    ];
+    final tags = await _getExercisesTags(rows.map((r) => r.$1.id));
+
+    return {
+      for (final (exercise, category) in rows)
+        exercise.id: Exercise(
+          id: exercise.id,
+          name: exercise.name,
+          category: category == null
+              ? null
+              : ExerciseCategory(id: category.id, name: category.name),
+          instrument: exercise.instrument,
+          tags: tags[exercise.id] ?? const [],
+          description: exercise.description,
+          source: exercise.source,
+          sourceLink: exercise.sourceLink,
+        ),
+    };
+  }
+
+  String newRoutineEntryId() => _db.newId();
+
+  Future<String> createRoutine({
+    required String name,
+    required String description,
+    List<PracticeRoutineEntry> entries = const [],
+  }) async {
+    final routineId = _db.newId();
+    await _db.transaction(() async {
+      await _db.managers.practiceRoutinesTable.create(
+        (o) => o(
+          id: routineId,
+          name: name,
+          description: description.isNotEmpty
+              ? Value(description)
+              : const Value(null),
+          updatedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+      await _writeRoutineEntries(routineId, entries);
+    });
+    _updatedRoutineIds.add({routineId});
+    return routineId;
+  }
+
+  Future<void> updateRoutine(
+    String routineId, {
+    required String name,
+    required String description,
+  }) async {
+    await _db.managers.practiceRoutinesTable
+        .filter((f) => f.id(routineId))
+        .update(
+          (o) => o(
+            name: Value(name),
+            description: description.isNotEmpty
+                ? Value(description)
+                : const Value(null),
+            updatedAt: Value(DateTime.now().toUtc()),
+            uploaded: const Value(false),
+          ),
+        );
+    _updatedRoutineIds.add({routineId});
+  }
+
+  Future<void> setRoutineEntries(
+    String routineId,
+    List<PracticeRoutineEntry> entries,
+  ) async {
+    await _db.transaction(() async {
+      await _writeRoutineEntries(routineId, entries);
+      await _markRoutineUpdated(routineId);
+    });
+    _updatedRoutineIds.add({routineId});
+  }
+
+  Future<void> _writeRoutineEntries(
+    String routineId,
+    List<PracticeRoutineEntry> entries,
+  ) async {
+    final keptIds = entries.map((e) => e.id).toSet();
+    await (_db.delete(_db.practiceRoutineEntriesTable)..where(
+          (t) => keptIds.isEmpty
+              ? t.routine.equals(routineId)
+              : t.routine.equals(routineId) & t.id.isIn(keptIds).not(),
+        ))
+        .go();
+
+    final existingIds =
+        (await _db.managers.practiceRoutineEntriesTable
+                .filter((f) => f.routine.id(routineId))
+                .map((e) => e.id)
+                .get())
+            .toSet();
+
+    for (final (position, entry) in entries.indexed) {
+      if (existingIds.contains(entry.id)) {
+        await _db.managers.practiceRoutineEntriesTable
+            .filter((f) => f.id(entry.id))
+            .update(
+              (o) => o(
+                exercise: Value(entry.exercise.id),
+                position: Value(position),
+                targetDuration: Value(entry.targetDuration),
+              ),
+            );
+        continue;
+      }
+      await _db.managers.practiceRoutineEntriesTable.create(
+        (o) => o(
+          id: entry.id,
+          routine: routineId,
+          exercise: entry.exercise.id,
+          position: position,
+          targetDuration: Value(entry.targetDuration),
+        ),
+      );
+    }
+  }
+
+  Future<String?> duplicateRoutine(String routineId) async {
+    final source = await _db.managers.practiceRoutinesTable
+        .filter((f) => f.id(routineId))
+        .getSingleOrNull();
+    if (source == null) return null;
+
+    final copyId = _db.newId();
+    await _db.transaction(() async {
+      await _db.managers.practiceRoutinesTable.create(
+        (o) => o(
+          id: copyId,
+          name: "${source.name} (copy)",
+          description: Value(source.description),
+          updatedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+      final query = _db.select(_db.practiceRoutineEntriesTable)
+        ..where((t) => t.routine.equals(routineId))
+        ..orderBy([(t) => OrderingTerm.asc(t.position)]);
+      final entries = await query.get();
+      if (entries.isEmpty) return;
+      await _db.managers.practiceRoutineEntriesTable.bulkCreate(
+        (o) => entries.indexed.map(
+          (e) => o(
+            id: _db.newId(),
+            routine: copyId,
+            exercise: e.$2.exercise,
+            position: e.$1,
+            extraNotes: Value(e.$2.extraNotes),
+            targetDuration: Value(e.$2.targetDuration),
+            defaultScore: Value(e.$2.defaultScore),
+          ),
+        ),
+      );
+    });
+    _updatedRoutineIds.add({copyId});
+    return copyId;
+  }
+
+  Future<void> deleteRoutine(String routineId) async {
+    await _db.transaction(() async {
+      await _db.managers.practiceRoutinesTable
+          .filter((f) => f.id(routineId))
+          .delete();
+      await _db.managers.deletedPracticeRoutinesTable.create(
+        (o) =>
+            o(routineId: routineId, deletedAt: Value(DateTime.now().toUtc())),
+      );
+    });
+    _updatedRoutineIds.add({routineId});
+  }
+
+  Future<void> _markRoutineUpdated(String routineId) async {
+    await _db.managers.practiceRoutinesTable
+        .filter((f) => f.id(routineId))
+        .update(
+          (o) => o(
+            updatedAt: Value(DateTime.now().toUtc()),
+            uploaded: const Value(false),
+          ),
+        );
+  }
+
   Future<void> _renumberRoutineEntries(String routineId) async {
     final query = _db.select(_db.practiceRoutineEntriesTable)
       ..where((t) => t.routine.equals(routineId))

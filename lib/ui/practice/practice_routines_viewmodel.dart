@@ -129,6 +129,10 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
     _reset();
   }
 
+  Future<void> duplicate(String routineId) => _repo.duplicateRoutine(routineId);
+
+  Future<void> delete(String routineId) => _repo.deleteRoutine(routineId);
+
   Future<Iterable<String>> getInstruments({String filter = ""}) async {
     return await _repo.getInstruments(filter: filter, size: 10);
   }

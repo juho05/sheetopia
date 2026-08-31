@@ -17,7 +17,7 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/common/filter_button.dart';
-import 'package:sheetopia/ui/practice/create_practice_routine_page.dart';
+import 'package:sheetopia/ui/practice/edit_routine_page.dart';
 import 'package:sheetopia/ui/practice/practice_page.dart';
 
 void main() {
@@ -90,7 +90,17 @@ void main() {
         ),
         GoRoute(
           path: "/practice/routines/create",
-          builder: (context, state) => const CreatePracticeRoutinePage(),
+          builder: (context, state) => const EditRoutinePage(routineId: null),
+        ),
+        GoRoute(
+          path: "/practice/routines/:routineId/details",
+          builder: (context, state) =>
+              Text("detail ${state.pathParameters["routineId"]}"),
+        ),
+        GoRoute(
+          path: "/practice/routines/:routineId/edit",
+          builder: (context, state) =>
+              Text("edit ${state.pathParameters["routineId"]}"),
         ),
       ],
     );
@@ -121,7 +131,7 @@ void main() {
     await tester.tap(find.text("Create routine"));
     await tester.pumpAndSettle();
 
-    expect(find.byType(CreatePracticeRoutinePage), findsOneWidget);
+    expect(find.byType(EditRoutinePage), findsOneWidget);
   });
 
   testWidgets("the exercises card opens the exercises page", (tester) async {
@@ -146,7 +156,7 @@ void main() {
 
     expect(find.text("2 routines"), findsOneWidget);
     expect(find.text("Morning"), findsOneWidget);
-    expect(find.text("1 exercise - 20min"), findsOneWidget);
+    expect(find.text("1 exercise • 20min"), findsOneWidget);
     expect(find.text("0 exercises"), findsOneWidget);
   });
 
@@ -183,5 +193,67 @@ void main() {
     expect(find.text("Morning"), findsOneWidget);
     expect(find.text("Evening"), findsNothing);
     expect(find.text("1 of 2"), findsOneWidget);
+  });
+
+  testWidgets("a routine opens its detail page", (tester) async {
+    final routineId = await createRoutine("Morning");
+
+    await pumpPractice(tester);
+    await tester.tap(find.text("Morning"));
+    await tester.pumpAndSettle();
+
+    expect(find.text("detail $routineId"), findsOneWidget);
+  });
+
+  testWidgets("the menu opens the edit page", (tester) async {
+    final routineId = await createRoutine("Morning");
+
+    await pumpPractice(tester);
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text("Edit"));
+    await tester.pumpAndSettle();
+
+    expect(find.text("edit $routineId"), findsOneWidget);
+  });
+
+  testWidgets("the menu duplicates a routine", (tester) async {
+    final exerciseId = await createExercise("Chromatic");
+    await createRoutine("Morning", exercises: [exerciseId]);
+
+    await pumpPractice(tester);
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text("Duplicate"));
+    await tester.pumpAndSettle();
+
+    expect(find.text("Morning"), findsOneWidget);
+    expect(find.text("Morning (copy)"), findsOneWidget);
+    expect(find.text("2 routines"), findsOneWidget);
+  });
+
+  testWidgets("the menu deletes a routine after asking", (tester) async {
+    final routineId = await createRoutine("Morning");
+
+    await pumpPractice(tester);
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text("Delete"));
+    await tester.pumpAndSettle();
+    expect(find.text("Delete routine?"), findsOneWidget);
+
+    await tester.tap(find.text("Cancel"));
+    await tester.pumpAndSettle();
+    expect(await repo.getRoutine(routineId), isNotNull);
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text("Delete"));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text("Yes"));
+    await tester.pumpAndSettle();
+
+    expect(await repo.getRoutine(routineId), isNull);
+    expect(find.text("No routines yet."), findsOneWidget);
   });
 }

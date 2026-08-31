@@ -221,11 +221,10 @@ void main() {
     expect(namesOf(viewModel), ["Evening", "Morning"]);
   });
 
-  test("the instrument options come from routines", () async {
-    final guitar = await createExercise("Chromatic", instrument: "Guitar");
-    await createExercise("Unused", instrument: "Bass");
-    await createRoutine("Morning", exercises: [guitar]);
+  test("the instrument options come from the exercises", () async {
+    await createExercise("Chromatic", instrument: "Guitar");
+    await createExercise("Long tones", instrument: "Bass");
 
-    expect(await viewModel.getInstruments(), ["Guitar"]);
+    expect(await viewModel.getInstruments(), ["Bass", "Guitar"]);
   });
 }

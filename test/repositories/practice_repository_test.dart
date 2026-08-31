@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
+import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
@@ -109,6 +110,24 @@ void main() {
       ..where((t) => t.exercise.equals(exerciseId))
       ..orderBy([(t) => OrderingTerm.asc(t.position)]);
     return (await query.get()).map((e) => (e.score, e.position)).toList();
+  }
+
+  Future<PracticeRoutineEntry> entry(
+    String exerciseId, {
+    Duration? targetDuration,
+  }) async => PracticeRoutineEntry(
+    id: repo.newRoutineEntryId(),
+    exercise: (await repo.getExercisesById([exerciseId]))[exerciseId]!,
+    targetDuration: targetDuration,
+  );
+
+  Future<List<(String, String, int)>> entryRows(String routineId) async {
+    final query = db.select(db.practiceRoutineEntriesTable)
+      ..where((t) => t.routine.equals(routineId))
+      ..orderBy([(t) => OrderingTerm.asc(t.position)]);
+    return (await query.get())
+        .map((e) => (e.id, e.exercise, e.position))
+        .toList();
   }
 
   Future<String> createRoutine(String name) async {
@@ -1024,5 +1043,252 @@ void main() {
     await repo.deleteExercise(exerciseId);
 
     expect(await announced, {routineId});
+  });
+
+  test("a created routine is returned with its entries", () async {
+    final first = await createExercise("Chromatic", instrument: "Guitar");
+    final second = await createExercise("Thirds");
+    final entries = [
+      await entry(first, targetDuration: const Duration(minutes: 5)),
+      await entry(second),
+      // the same exercise may be added more than once
+      await entry(first, targetDuration: const Duration(minutes: 10)),
+    ];
+
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "Every day",
+      entries: entries,
+    );
+    final routine = await repo.getRoutine(routineId);
+
+    expect(routine, isNotNull);
+    expect(routine!.name, "Morning");
+    expect(routine.description, "Every day");
+    expect(routine.exerciseCount, 3);
+    expect(routine.targetDuration, const Duration(minutes: 15));
+    expect(routine.entries.map((e) => e.id), entries.map((e) => e.id));
+    expect(routine.entries.map((e) => e.exercise.name), [
+      "Chromatic",
+      "Thirds",
+      "Chromatic",
+    ]);
+    expect(routine.entries.first.exercise.instrument, "Guitar");
+  });
+
+  test("an empty description is stored as null", () async {
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+    );
+
+    expect((await repo.getRoutine(routineId))!.description, isNull);
+  });
+
+  test("getRoutine returns null for an unknown id", () async {
+    expect(await repo.getRoutine("nope"), isNull);
+  });
+
+  test(
+    "updateRoutine overwrites the values and clears the description",
+    () async {
+      final routineId = await repo.createRoutine(
+        name: "Morning",
+        description: "Every day",
+      );
+
+      await repo.updateRoutine(routineId, name: "Evening", description: "");
+
+      final routine = await repo.getRoutine(routineId);
+      expect(routine!.name, "Evening");
+      expect(routine.description, isNull);
+      final row = await db.managers.practiceRoutinesTable
+          .filter((f) => f.id(routineId))
+          .getSingle();
+      expect(row.uploaded, isFalse);
+    },
+  );
+
+  test("reordered entries keep their ids", () async {
+    final first = await createExercise("Chromatic");
+    final second = await createExercise("Thirds");
+    final entries = [await entry(first), await entry(second)];
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: entries,
+    );
+
+    await repo.setRoutineEntries(routineId, entries.reversed.toList());
+
+    expect(await entryRows(routineId), [
+      (entries[1].id, second, 0),
+      (entries[0].id, first, 1),
+    ]);
+  });
+
+  test("setRoutineEntries adds and removes entries", () async {
+    final first = await createExercise("Chromatic");
+    final second = await createExercise("Thirds");
+    final kept = await entry(first);
+    final removed = await entry(second);
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [kept, removed],
+    );
+    final added = await entry(second, targetDuration: const Duration(hours: 1));
+
+    await repo.setRoutineEntries(routineId, [kept, added]);
+
+    expect(await entryRows(routineId), [
+      (kept.id, first, 0),
+      (added.id, second, 1),
+    ]);
+    final routine = await repo.getRoutine(routineId);
+    expect(routine!.entries.last.targetDuration, const Duration(hours: 1));
+    expect(routine.targetDuration, const Duration(hours: 1));
+  });
+
+  test("all entries can be removed", () async {
+    final exerciseId = await createExercise("Chromatic");
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId)],
+    );
+
+    await repo.setRoutineEntries(routineId, []);
+
+    expect(await entryRows(routineId), isEmpty);
+    expect((await repo.getRoutine(routineId))!.entries, isEmpty);
+  });
+
+  test("changing the entries marks the routine as not uploaded", () async {
+    final exerciseId = await createExercise("Chromatic");
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+    );
+    await db.managers.practiceRoutinesTable
+        .filter((f) => f.id(routineId))
+        .update((o) => o(uploaded: const Value(true)));
+
+    await repo.setRoutineEntries(routineId, [await entry(exerciseId)]);
+
+    final row = await db.managers.practiceRoutinesTable
+        .filter((f) => f.id(routineId))
+        .getSingle();
+    expect(row.uploaded, isFalse);
+  });
+
+  test("a deleted routine is recorded as deleted", () async {
+    final exerciseId = await createExercise("Chromatic");
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId)],
+    );
+
+    await repo.deleteRoutine(routineId);
+
+    expect(await repo.getRoutine(routineId), isNull);
+    expect(await entryRows(routineId), isEmpty);
+    final deleted = await db.managers.deletedPracticeRoutinesTable.get();
+    expect(deleted.map((r) => r.routineId), [routineId]);
+    // the exercise itself survives its routine
+    expect(await repo.getExercise(exerciseId), isNotNull);
+  });
+
+  test("routine updates are announced to listeners", () async {
+    final announced = <Set<String>>[];
+    final sub = repo.updatedRoutineIds.listen(announced.add);
+    addTearDown(sub.cancel);
+
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+    );
+    await repo.updateRoutine(routineId, name: "Evening", description: "");
+    await repo.setRoutineEntries(routineId, []);
+    await repo.deleteRoutine(routineId);
+    await Future.delayed(Duration.zero);
+
+    expect(announced, [
+      {routineId},
+      {routineId},
+      {routineId},
+      {routineId},
+    ]);
+  });
+
+  test("a duplicated routine carries over its entries", () async {
+    final first = await createExercise("Chromatic");
+    final second = await createExercise("Thirds");
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "Every day",
+      entries: [
+        await entry(first, targetDuration: const Duration(minutes: 5)),
+        await entry(second),
+      ],
+    );
+
+    final copyId = await repo.duplicateRoutine(routineId);
+
+    final copy = await repo.getRoutine(copyId!);
+    expect(copy!.name, "Morning (copy)");
+    expect(copy.description, "Every day");
+    expect(copy.entries.map((e) => e.exercise.name), ["Chromatic", "Thirds"]);
+    expect(copy.targetDuration, const Duration(minutes: 5));
+    // the copy owns its entries, the sessions of the original stay with it
+    final originalIds = (await repo.getRoutine(
+      routineId,
+    ))!.entries.map((e) => e.id).toSet();
+    expect(
+      copy.entries.map((e) => e.id).toSet().intersection(originalIds),
+      isEmpty,
+    );
+    expect(await entryRows(routineId), hasLength(2));
+  });
+
+  test("duplicating keeps the notes and the default score", () async {
+    final exerciseId = await createExercise("Chromatic");
+    final routineId = await createRoutine("Morning");
+    await db.managers.practiceRoutineEntriesTable.create(
+      (o) => o(
+        id: db.newId(),
+        routine: routineId,
+        exercise: exerciseId,
+        position: 0,
+        extraNotes: const Value("Slowly"),
+        defaultScore: const Value("score-id"),
+      ),
+    );
+
+    final copyId = await repo.duplicateRoutine(routineId);
+
+    final entries = await db.managers.practiceRoutineEntriesTable
+        .filter((f) => f.routine.id(copyId!))
+        .get();
+    expect(entries.single.extraNotes, "Slowly");
+    expect(entries.single.defaultScore, "score-id");
+  });
+
+  test("an empty routine can be duplicated", () async {
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+    );
+
+    final copyId = await repo.duplicateRoutine(routineId);
+
+    expect((await repo.getRoutine(copyId!))!.entries, isEmpty);
+    expect(await repo.countRoutines(), 2);
+  });
+
+  test("duplicating an unknown routine does nothing", () async {
+    expect(await repo.duplicateRoutine("nope"), isNull);
+    expect(await repo.countRoutines(), 0);
   });
 }
