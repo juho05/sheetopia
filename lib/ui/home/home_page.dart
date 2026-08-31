@@ -17,6 +17,8 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/integrate_appimage.dart';
 import 'package:sheetopia/ui/common/fab_menu.dart';
+import 'package:sheetopia/ui/common/selection/clear_selection_button.dart';
+import 'package:sheetopia/ui/common/selection/select_all_button.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_menu.dart';
 import 'package:sheetopia/ui/home/home_viewmodel.dart';
@@ -196,23 +198,16 @@ class _HomePageState extends State<HomePage> {
                                 child: Scaffold(
                                   appBar: AppBar(
                                     centerTitle: false,
-                                    title: selectionMode
-                                        ? Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            spacing: 8,
-                                            children: [
-                                              IconButton(
-                                                onPressed: () {
-                                                  viewModel.clearSelection();
-                                                },
-                                                icon: const Icon(Icons.close),
-                                              ),
-                                              Text(
-                                                "${viewModel.selectedScoreIds.length} selected",
-                                              ),
-                                            ],
+                                    leading: selectionMode
+                                        ? ClearSelectionButton(
+                                            onPressed: viewModel.clearSelection,
                                           )
-                                        : Text(_tabs[viewModel.tabIndex].label),
+                                        : null,
+                                    title: Text(
+                                      selectionMode
+                                          ? "${viewModel.selectedScoreIds.length} selected"
+                                          : _tabs[viewModel.tabIndex].label,
+                                    ),
                                     actions: selectionMode
                                         ? [
                                             _SelectAllButton(
@@ -437,25 +432,14 @@ class _SelectAllButton extends StatelessWidget {
       builder: (context, homeViewModel, _) {
         return ListenableBuilder(
           listenable: viewModel,
-          builder: (context, _) {
-            final resultCount = viewModel.resultCount;
-            final allSelected =
-                resultCount != null &&
-                homeViewModel.selectedScoreIds.length >= resultCount;
-            return IconButton(
-              tooltip: allSelected ? "Deselect all" : "Select all",
-              icon: Icon(allSelected ? Icons.deselect : Icons.select_all),
-              onPressed: () async {
-                if (allSelected) {
-                  homeViewModel.clearSelection();
-                  return;
-                }
-                homeViewModel.selectScores(
-                  await viewModel.getFilteredScoreIds(),
-                );
-              },
-            );
-          },
+          builder: (context, _) => SelectAllButton(
+            resultCount: viewModel.resultCount,
+            selectedCount: homeViewModel.selectedScoreIds.length,
+            onSelectAll: () async => homeViewModel.selectScores(
+              await viewModel.getFilteredScoreIds(),
+            ),
+            onClearSelection: homeViewModel.clearSelection,
+          ),
         );
       },
     );

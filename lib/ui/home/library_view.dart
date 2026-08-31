@@ -7,44 +7,19 @@
  */
 
 import 'dart:async';
-import 'dart:io';
-import 'dart:math';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/ui/common/filter_button.dart';
 import 'package:sheetopia/ui/common/search_input.dart';
+import 'package:sheetopia/ui/common/selection/selection_gestures.dart';
+import 'package:sheetopia/ui/common/selection/selection_shortcuts.dart';
 import 'package:sheetopia/ui/home/filter_dialog.dart';
 import 'package:sheetopia/ui/home/library_viewmodel.dart';
 import 'package:sheetopia/ui/home/score_grid_cell.dart';
 import 'package:sheetopia/ui/home/sliver_score_grid.dart';
-
-class _SelectAllScoresIntent extends Intent {
-  const _SelectAllScoresIntent();
-}
-
-class _SelectAllScoresAction extends Action<_SelectAllScoresIntent> {
-  final void Function() _onInvoke;
-
-  _SelectAllScoresAction(this._onInvoke);
-
-  // a focused text field owns ctrl+a for its own content
-  @override
-  bool get isActionEnabled =>
-      FocusManager.instance.primaryFocus?.context
-          ?.findAncestorWidgetOfExactType<EditableText>() ==
-      null;
-
-  @override
-  void invoke(_SelectAllScoresIntent intent) => _onInvoke();
-}
-
-class _ClearSelectionIntent extends Intent {
-  const _ClearSelectionIntent();
-}
 
 class LibraryView extends StatefulWidget {
   final LibraryViewModel viewModel;
@@ -83,7 +58,8 @@ class _LibraryViewState extends State<LibraryView> {
   final FocusScopeNode _focusScope = FocusScopeNode();
 
   bool _visible = true;
-  String? _rangeAnchorId;
+
+  final RangeSelectionAnchor _rangeAnchor = RangeSelectionAnchor();
 
   @override
   void initState() {
@@ -97,6 +73,12 @@ class _LibraryViewState extends State<LibraryView> {
         });
       });
     });
+  }
+
+  @override
+  void didUpdateWidget(LibraryView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.selectionMode) _rangeAnchor.clear();
   }
 
   @override
@@ -166,61 +148,33 @@ class _LibraryViewState extends State<LibraryView> {
   }
 
   void _selectScore(Score score) {
-    _rangeAnchorId = score.id;
+    _rangeAnchor.anchor = score.id;
     widget.onScoreSelected?.call(score);
   }
 
   void _deselectScore(Score score) {
-    _rangeAnchorId = score.id;
+    _rangeAnchor.anchor = score.id;
     widget.onScoreDeselected?.call(score);
   }
 
   void _selectRangeTo(Score score) {
-    final scores = _viewModel.scores;
-    final anchorId = _rangeAnchorId;
-    final anchor = anchorId == null || !widget.selectionMode
-        ? -1
-        : scores.indexWhere((s) => s.id == anchorId);
-    if (anchor < 0) {
+    final range = _rangeAnchor.rangeTo([
+      for (final s in _viewModel.scores) s.id,
+    ], score.id);
+    if (range == null) {
       _selectScore(score);
       return;
     }
-    final target = scores.indexWhere((s) => s.id == score.id);
-    if (target < 0) return;
-    widget.onScoresSelected?.call([
-      for (var i = min(anchor, target); i <= max(anchor, target); i++)
-        scores[i].id,
-    ]);
+    widget.onScoresSelected?.call(range);
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isApple = Platform.isIOS || Platform.isMacOS;
-    return Shortcuts(
-      shortcuts: {
-        if (widget.onScoresSelected != null)
-          SingleActivator(
-            LogicalKeyboardKey.keyA,
-            control: !isApple,
-            meta: isApple,
-          ): const _SelectAllScoresIntent(),
-        if (widget.selectionMode && widget.onClearSelection != null)
-          const SingleActivator(LogicalKeyboardKey.escape):
-              const _ClearSelectionIntent(),
-      },
-      child: Actions(
-        actions: {
-          _SelectAllScoresIntent: _SelectAllScoresAction(_selectAll),
-          _ClearSelectionIntent: CallbackAction<_ClearSelectionIntent>(
-            onInvoke: (_) => widget.onClearSelection?.call(),
-          ),
-        },
-        child: FocusScope(
-          node: _focusScope,
-          autofocus: true,
-          child: _buildBody(context),
-        ),
-      ),
+    return SelectionShortcuts(
+      onSelectAll: widget.onScoresSelected != null ? _selectAll : null,
+      onClearSelection: widget.selectionMode ? widget.onClearSelection : null,
+      focusScopeNode: _focusScope,
+      child: _buildBody(context),
     );
   }
 

@@ -71,20 +71,15 @@ class SliverScoreGrid extends StatelessWidget {
               i += columns * index;
               return ScoreGridCell(
                 score: scores[i],
-                onScoreTap: selectionMode
-                    ? (score) {
-                        if (selected.contains(score.id)) {
-                          onScoreDeselected?.call(score);
-                        } else {
-                          onScoreSelected?.call(score);
-                        }
-                      }
-                    : null,
-                onScoreSelectionStart: onScoreSelected != null
-                    ? (score) {
-                        onScoreSelected!(score);
-                      }
-                    : null,
+                selecting: selectionMode,
+                onScoreToggle: (score) {
+                  if (selected.contains(score.id)) {
+                    onScoreDeselected?.call(score);
+                  } else {
+                    onScoreSelected?.call(score);
+                  }
+                },
+                onScoreSelectionStart: onScoreSelected,
                 onScoreRangeSelect: onScoreRangeSelect,
                 selected: selected.contains(scores[i].id),
               );

@@ -14,6 +14,7 @@ import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
+import 'package:sheetopia/ui/common/selection/selection_check_badge.dart';
 import 'package:sheetopia/ui/home/score_grid_cell.dart';
 
 void main() {
@@ -48,13 +49,24 @@ void main() {
     );
   }
 
-  Future<void> pumpCell(WidgetTester tester, Score score) async {
+  Future<void> pumpCell(
+    WidgetTester tester,
+    Score score, {
+    bool selecting = false,
+    bool selected = false,
+  }) async {
     await tester.pumpWidget(
       Provider<ThumbnailService>.value(
         value: ThumbnailService(),
         child: MaterialApp(
           home: Scaffold(
-            body: Center(child: ScoreGridCell(score: score)),
+            body: Center(
+              child: ScoreGridCell(
+                score: score,
+                selecting: selecting,
+                selected: selected,
+              ),
+            ),
           ),
         ),
       ),
@@ -75,6 +87,42 @@ void main() {
     );
     expect(find.text("Instrument 0"), findsOneWidget);
     expect(find.text("Tag 3"), findsOneWidget);
+  });
+
+  testWidgets("the badge is empty for an unselected cell while selecting", (
+    tester,
+  ) async {
+    await pumpCell(tester, score(title: "Short"), selecting: true);
+
+    expect(find.byType(SelectionCheckBadge), findsOneWidget);
+    expect(find.byIcon(Icons.check), findsNothing);
+    expect(find.byIcon(Icons.edit), findsNothing);
+  });
+
+  testWidgets("a selected cell is checked and highlighted", (tester) async {
+    await pumpCell(
+      tester,
+      score(title: "Short"),
+      selecting: true,
+      selected: true,
+    );
+
+    expect(find.byIcon(Icons.check), findsOneWidget);
+    final context = tester.element(find.byType(ScoreGridCell));
+    final material = tester.widget<Material>(
+      find.descendant(
+        of: find.byType(ScoreGridCell),
+        matching: find.byType(Material),
+      ),
+    );
+    expect(material.color, Theme.of(context).colorScheme.secondaryContainer);
+  });
+
+  testWidgets("there is no badge outside of the selection", (tester) async {
+    await pumpCell(tester, score(title: "Short"));
+
+    expect(find.byType(SelectionCheckBadge), findsNothing);
+    expect(find.byIcon(Icons.edit), findsOneWidget);
   });
 
   testWidgets("a long title lays out inside the fixed cell size", (

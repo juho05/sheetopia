@@ -8,6 +8,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/ui/common/selection/select_all_button.dart';
+import 'package:sheetopia/ui/common/selection/selection_model.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/home/library_view.dart';
 import 'package:sheetopia/ui/home/library_viewmodel.dart';
@@ -27,7 +29,7 @@ class AddScoresDialog extends StatefulWidget {
 }
 
 class _AddScoresDialogState extends State<AddScoresDialog> {
-  final List<String> _selected = [];
+  final SelectionModel _selected = SelectionModel();
 
   late final LibraryViewModel _viewModel;
 
@@ -40,22 +42,20 @@ class _AddScoresDialogState extends State<AddScoresDialog> {
   @override
   void dispose() {
     _viewModel.dispose();
+    _selected.dispose();
     super.dispose();
-  }
-
-  void _selectAll(Iterable<String> scoreIds) {
-    setState(() {
-      final selected = _selected.toSet();
-      for (final scoreId in scoreIds) {
-        if (!selected.add(scoreId)) continue;
-        _selected.add(scoreId);
-      }
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    return ListenableBuilder(
+      listenable: _selected,
+      builder: (context, _) => _buildDialog(context, theme),
+    );
+  }
+
+  Widget _buildDialog(BuildContext context, ThemeData theme) {
     return SheetopiaDialog(
       maxWidth: 900,
       child: SizedBox(
@@ -77,39 +77,25 @@ class _AddScoresDialogState extends State<AddScoresDialog> {
                 ),
                 ListenableBuilder(
                   listenable: _viewModel,
-                  builder: (context, _) {
-                    final resultCount = _viewModel.resultCount;
-                    final allSelected =
-                        resultCount != null && _selected.length >= resultCount;
-                    return IconButton(
-                      tooltip: allSelected ? "Deselect all" : "Select all",
-                      icon: Icon(
-                        allSelected ? Icons.deselect : Icons.select_all,
-                      ),
-                      onPressed: () async {
-                        if (allSelected) {
-                          setState(_selected.clear);
-                          return;
-                        }
-                        _selectAll(await _viewModel.getFilteredScoreIds());
-                      },
-                    );
-                  },
+                  builder: (context, _) => SelectAllButton(
+                    resultCount: _viewModel.resultCount,
+                    selectedCount: _selected.length,
+                    onSelectAll: () async => _selected.selectAll(
+                      await _viewModel.getFilteredScoreIds(),
+                    ),
+                    onClearSelection: _selected.clear,
+                  ),
                 ),
               ],
             ),
             Expanded(
               child: LibraryView(
                 viewModel: _viewModel,
-                selected: _selected.toSet(),
+                selected: _selected.idSet,
                 selectionMode: true,
-                onScoreSelected: (score) => setState(() {
-                  _selected.add(score.id);
-                }),
-                onScoreDeselected: (score) => setState(() {
-                  _selected.remove(score.id);
-                }),
-                onScoresSelected: _selectAll,
+                onScoreSelected: (score) => _selected.select(score.id),
+                onScoreDeselected: (score) => _selected.deselect(score.id),
+                onScoresSelected: _selected.selectAll,
               ),
             ),
             Row(
@@ -123,7 +109,7 @@ class _AddScoresDialogState extends State<AddScoresDialog> {
                 FilledButton(
                   onPressed: _selected.isEmpty
                       ? null
-                      : () => Navigator.pop(context, _selected),
+                      : () => Navigator.pop(context, [..._selected.ids]),
                   child: const Text("Add"),
                 ),
               ],

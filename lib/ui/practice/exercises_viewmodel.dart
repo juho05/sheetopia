@@ -30,6 +30,8 @@ class ExercisesViewModel extends ChangeNotifier {
   UnmodifiableListView<ExerciseGroup> get exercises =>
       UnmodifiableListView(_groups);
 
+  List<String> get loadedExerciseIds => [for (final e in _exercises) e.id];
+
   int _currentPage = -1;
 
   bool _hasNextPage = true;
@@ -148,6 +150,16 @@ class ExercisesViewModel extends ChangeNotifier {
     _tagMatch = FilterMatchType.all;
     notifyListeners();
     _reset();
+  }
+
+  Future<List<String>> getFilteredExerciseIds() async {
+    return await _repo.getExerciseIds(
+      filter: _filterSearch,
+      categoryId: _filterCategory?.id,
+      instrument: _filterInstrument,
+      tagIds: _filterTags.map((t) => t.id),
+      tagMatch: _tagMatch,
+    );
   }
 
   Future<Iterable<String>> getInstruments({String filter = ""}) async {

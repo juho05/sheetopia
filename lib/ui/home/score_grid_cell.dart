@@ -6,14 +6,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/optional_tooltip.dart';
+import 'package:sheetopia/ui/common/selection/selection_check_badge.dart';
+import 'package:sheetopia/ui/common/selection/selection_gestures.dart';
 import 'package:sheetopia/ui/common/tag_badge.dart';
 import 'package:sheetopia/ui/common/text_scroll.dart';
 import 'package:sheetopia/ui/home/thumbnail.dart';
@@ -24,7 +23,8 @@ class ScoreGridCell extends StatelessWidget {
   static final int thumbnailHeight = (height / 2.1).toInt();
 
   final Score score;
-  final void Function(Score score)? onScoreTap;
+  final bool selecting;
+  final void Function(Score score)? onScoreToggle;
   final void Function(Score score)? onScoreSelectionStart;
   final void Function(Score score)? onScoreRangeSelect;
   final bool selected;
@@ -32,7 +32,8 @@ class ScoreGridCell extends StatelessWidget {
   const ScoreGridCell({
     super.key,
     required this.score,
-    this.onScoreTap,
+    this.selecting = false,
+    this.onScoreToggle,
     this.onScoreSelectionStart,
     this.onScoreRangeSelect,
     this.selected = false,
@@ -42,44 +43,28 @@ class ScoreGridCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
-    final picking = onScoreTap != null;
-
-    final bool isApple = Platform.isIOS || Platform.isMacOS;
+    final gestures = SelectionGestures(
+      item: score,
+      selecting: selecting,
+      onToggle: onScoreToggle,
+      onSelectionStart: onScoreSelectionStart,
+      onRangeSelect: onScoreRangeSelect,
+      onActivate: () => context.go("/scores/${score.id}"),
+    );
 
     return SizedBox(
       width: width.toDouble(),
       height: height.toDouble(),
       child: Material(
         borderRadius: BorderRadius.circular(12),
-        color: theme.colorScheme.surfaceContainer,
+        color: selected
+            ? theme.colorScheme.secondaryContainer
+            : theme.colorScheme.surfaceContainer,
         elevation: 2,
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            if (onScoreRangeSelect != null &&
-                HardwareKeyboard.instance.isShiftPressed) {
-              onScoreRangeSelect!(score);
-              return;
-            }
-            if (picking) {
-              onScoreTap!(score);
-              return;
-            }
-            if (onScoreSelectionStart != null &&
-                (isApple
-                    ? HardwareKeyboard.instance.isMetaPressed
-                    : HardwareKeyboard.instance.isControlPressed)) {
-              onScoreSelectionStart!(score);
-              return;
-            }
-            context.go("/scores/${score.id}");
-          },
-          onLongPress: !picking && onScoreSelectionStart != null
-              ? () {
-                  HapticFeedback.mediumImpact();
-                  onScoreSelectionStart!(score);
-                }
-              : null,
+          onTap: gestures.onTap,
+          onLongPress: gestures.onLongPress,
           child: Builder(
             builder: (context) {
               final title = OptionalTooltip(
@@ -152,26 +137,17 @@ class ScoreGridCell extends StatelessWidget {
                   ),
                 ],
               );
-              if (picking) {
+              if (selecting) {
                 return Stack(
                   children: [
                     widget,
-                    if (selected)
-                      Align(
-                        alignment: Alignment.topLeft,
-                        child: Padding(
-                          padding: const EdgeInsets.all(4),
-                          child: CircleAvatar(
-                            radius: 14,
-                            backgroundColor: theme.colorScheme.primary,
-                            child: Icon(
-                              Icons.check,
-                              size: 18,
-                              color: theme.colorScheme.onPrimary,
-                            ),
-                          ),
-                        ),
+                    Align(
+                      alignment: Alignment.topLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: SelectionCheckBadge(selected: selected),
                       ),
+                    ),
                   ],
                 );
               }

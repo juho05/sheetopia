@@ -16,9 +16,16 @@ class RoundedTileIcon extends StatelessWidget {
 
   final IconData? icon;
   final Widget? child;
+  final Color? color;
+  final Color? iconColor;
 
-  const RoundedTileIcon({super.key, this.icon, this.child})
-    : assert(icon != null || child != null);
+  const RoundedTileIcon({
+    super.key,
+    this.icon,
+    this.child,
+    this.color,
+    this.iconColor,
+  }) : assert(icon != null || child != null);
 
   @override
   Widget build(BuildContext context) {
@@ -26,12 +33,16 @@ class RoundedTileIcon extends StatelessWidget {
     return SizedBox.square(
       dimension: size,
       child: Material(
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: color ?? theme.colorScheme.surfaceContainerHighest,
         borderRadius: borderRadius,
         clipBehavior: Clip.antiAlias,
         child:
             child ??
-            Icon(icon, size: 22, color: theme.colorScheme.onSurfaceVariant),
+            Icon(
+              icon,
+              size: 22,
+              color: iconColor ?? theme.colorScheme.onSurfaceVariant,
+            ),
       ),
     );
   }

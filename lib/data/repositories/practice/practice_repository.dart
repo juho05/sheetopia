@@ -139,6 +139,23 @@ class PracticeRepository {
     return (await q.getSingle()).read(countExpr) ?? 0;
   }
 
+  Future<List<String>> getExerciseIds({
+    String filter = "",
+    String? categoryId,
+    String instrument = "",
+    Iterable<String> tagIds = const [],
+    FilterMatchType tagMatch = FilterMatchType.all,
+  }) async {
+    final q = _db
+        .selectOnly(_db.exercisesTable)
+        .join(_filterJoins(tagIds: tagIds, tagMatch: tagMatch));
+    q.addColumns([_db.exercisesTable.id]);
+    _applyExerciseFilters(q, _searchWords(filter), categoryId, instrument);
+    q.orderBy(_exerciseOrdering);
+    final rows = await q.get();
+    return rows.map((row) => row.read(_db.exercisesTable.id)!).toList();
+  }
+
   Future<List<Exercise>> getExercises({
     required int size,
     int offset = 0,

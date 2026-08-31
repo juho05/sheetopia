@@ -6,7 +6,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'dart:collection';
 import 'dart:io';
 
 import 'package:cross_file/cross_file.dart';
@@ -15,6 +14,7 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/file_picker.dart';
+import 'package:sheetopia/ui/common/selection/selection_model.dart';
 
 class HomeViewModel extends ChangeNotifier {
   final ScoresRepository _scoresRepo;
@@ -45,51 +45,31 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  final List<String> _selectedScoreIds = [];
-  final Set<String> _selectedScoreIdSet = {};
+  final SelectionModel _selection = SelectionModel();
 
-  List<String> get selectedScoreIds => UnmodifiableListView(_selectedScoreIds);
+  List<String> get selectedScoreIds => _selection.ids;
 
-  Set<String> get selectedScoreIdSet =>
-      UnmodifiableSetView(_selectedScoreIdSet);
+  Set<String> get selectedScoreIdSet => _selection.idSet;
 
-  HomeViewModel({required ScoresRepository scoresRepo})
-    : _scoresRepo = scoresRepo;
+  HomeViewModel({required this._scoresRepo}) {
+    _selection.addListener(notifyListeners);
+  }
 
   @override
   void dispose() {
+    _selection.dispose();
     importButtonVisible.dispose();
     super.dispose();
   }
 
-  void selectScore(String scoreId) {
-    if (!_selectedScoreIdSet.add(scoreId)) return;
-    _selectedScoreIds.add(scoreId);
-    notifyListeners();
-  }
+  void selectScore(String scoreId) => _selection.select(scoreId);
 
-  void selectScores(Iterable<String> scoreIds) {
-    var changed = false;
-    for (final scoreId in scoreIds) {
-      if (!_selectedScoreIdSet.add(scoreId)) continue;
-      _selectedScoreIds.add(scoreId);
-      changed = true;
-    }
-    if (!changed) return;
-    notifyListeners();
-  }
+  void selectScores(Iterable<String> scoreIds) =>
+      _selection.selectAll(scoreIds);
 
-  void deselectScore(String scoreId) {
-    if (!_selectedScoreIdSet.remove(scoreId)) return;
-    _selectedScoreIds.remove(scoreId);
-    notifyListeners();
-  }
+  void deselectScore(String scoreId) => _selection.deselect(scoreId);
 
-  void clearSelection() {
-    _selectedScoreIds.clear();
-    _selectedScoreIdSet.clear();
-    notifyListeners();
-  }
+  void clearSelection() => _selection.clear();
 
   Future<String?> importScores() async {
     _importing = true;
