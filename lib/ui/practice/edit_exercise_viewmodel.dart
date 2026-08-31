@@ -9,6 +9,7 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:cross_file/cross_file.dart';
 import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
@@ -141,17 +142,29 @@ class EditExerciseViewModel extends ChangeNotifier {
       final files = await selectScoreFiles();
       if (files.isEmpty) return;
 
-      final scores = await _scoresRepo.importAll(
-        files,
-        type: ScoreType.exercise,
-      );
-      _scoreEntries.addAll(_toEntries(scores));
-      notifyListeners();
-      await _persistExerciseScores();
+      await _importFiles(files);
     } finally {
       _scoresLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> receiveDrop(Iterable<XFile> files) async {
+    _scoresLoading = true;
+    notifyListeners();
+    try {
+      await _importFiles(files);
+    } finally {
+      _scoresLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _importFiles(Iterable<XFile> files) async {
+    final scores = await _scoresRepo.importAll(files, type: ScoreType.exercise);
+    _scoreEntries.addAll(_toEntries(scores));
+    notifyListeners();
+    await _persistExerciseScores();
   }
 
   Future<void> moveScore(int from, int to) async {

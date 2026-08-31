@@ -6,6 +6,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'package:cross_file/cross_file.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +16,7 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/ui/common/buttons.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
+import 'package:sheetopia/ui/common/drop_area.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/home/thumbnail.dart';
 import 'package:sheetopia/ui/practice/edit_exercise_viewmodel.dart';
@@ -32,12 +34,20 @@ class EditExerciseScores extends StatelessWidget {
     await viewModel.linkScores(scoreIds);
   }
 
-  Future<void> _importScores(
-    BuildContext context,
+  Future<void> _importScores(EditExerciseViewModel viewModel) async {
+    await _import(() => viewModel.importScores());
+  }
+
+  Future<void> _receiveDrop(
     EditExerciseViewModel viewModel,
+    List<XFile> files,
   ) async {
+    await _import(() => viewModel.receiveDrop(files));
+  }
+
+  Future<void> _import(Future<void> Function() action) async {
     try {
-      await viewModel.importScores();
+      await action();
     } on InvalidFileTypeException catch (e, st) {
       Toast.exception(e, st: st, errorMsg: "Unsupported file type!");
     } catch (e, st) {
@@ -49,32 +59,35 @@ class EditExerciseScores extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<EditExerciseViewModel>(
       builder: (context, viewModel, _) {
-        return CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              sliver: SliverReorderableList(
-                itemCount: viewModel.scoreEntries.length,
-                itemBuilder: (context, index) => _ScoreListItem(
-                  key: ValueKey(viewModel.scoreEntries[index].id),
-                  viewModel: viewModel,
-                  entry: viewModel.scoreEntries[index],
-                  index: index,
-                ),
-                onReorderItem: viewModel.moveScore,
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: _AddScorePlaceholder(
-                  onImport: () => _importScores(context, viewModel),
-                  onLink: () => _linkScores(context, viewModel),
-                  loading: viewModel.scoresLoading,
+        return DropArea(
+          onDrop: (files) => _receiveDrop(viewModel, files),
+          child: CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                sliver: SliverReorderableList(
+                  itemCount: viewModel.scoreEntries.length,
+                  itemBuilder: (context, index) => _ScoreListItem(
+                    key: ValueKey(viewModel.scoreEntries[index].id),
+                    viewModel: viewModel,
+                    entry: viewModel.scoreEntries[index],
+                    index: index,
+                  ),
+                  onReorderItem: viewModel.moveScore,
                 ),
               ),
-            ),
-          ],
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: _AddScorePlaceholder(
+                    onImport: () => _importScores(viewModel),
+                    onLink: () => _linkScores(context, viewModel),
+                    loading: viewModel.scoresLoading,
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
       },
     );

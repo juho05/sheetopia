@@ -10,7 +10,6 @@ import 'dart:io';
 
 import 'package:cross_file/cross_file.dart';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
-import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/file_picker.dart';
@@ -32,16 +31,6 @@ class HomeViewModel extends ChangeNotifier {
   set tabIndex(int index) {
     if (_tabIndex == index) return;
     _tabIndex = index;
-    notifyListeners();
-  }
-
-  bool _dragging = false;
-
-  bool get dragging => _dragging;
-
-  set dragging(bool dragging) {
-    if (_dragging == dragging) return;
-    _dragging = dragging;
     notifyListeners();
   }
 
@@ -111,11 +100,11 @@ class HomeViewModel extends ChangeNotifier {
     }
   }
 
-  Future<String?> receiveDrop(DropDoneDetails details) async {
+  Future<String?> receiveDrop(Iterable<XFile> files) async {
     _importing = true;
     notifyListeners();
     try {
-      final scores = await _scoresRepo.importAll(details.files);
+      final scores = await _scoresRepo.importAll(files);
       if (scores.isEmpty) return null;
       return scores.first.id;
     } finally {

@@ -8,7 +8,6 @@
 
 import 'dart:io';
 
-import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -16,6 +15,7 @@ import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/integrate_appimage.dart';
+import 'package:sheetopia/ui/common/drop_area.dart';
 import 'package:sheetopia/ui/common/fab_menu.dart';
 import 'package:sheetopia/ui/common/selection/clear_selection_button.dart';
 import 'package:sheetopia/ui/common/selection/select_all_button.dart';
@@ -111,16 +111,13 @@ class _HomePageState extends State<HomePage> {
           builder: (context, _) {
             return Consumer<HomeViewModel>(
               builder: (context, viewModel, _) {
-                return DropTarget(
-                  enable: viewModel.tabIndex == 0,
-                  onDragEntered: (_) => viewModel.dragging = true,
-                  onDragExited: (_) => viewModel.dragging = false,
-                  onDragDone: (details) async {
-                    viewModel.dragging = false;
+                return DropArea(
+                  enabled: viewModel.tabIndex == 0,
+                  onDrop: (files) async {
                     viewModel.tabIndex = 0;
 
                     try {
-                      final firstScoreId = await viewModel.receiveDrop(details);
+                      final firstScoreId = await viewModel.receiveDrop(files);
                       if (!context.mounted) {
                         return;
                       }
@@ -365,43 +362,6 @@ class _HomePageState extends State<HomePage> {
                                               _ => [],
                                             },
                                           ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          Builder(
-                            builder: (context) {
-                              final labelColor =
-                                  theme.brightness == Brightness.dark
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onPrimary;
-                              return IgnorePointer(
-                                child: AnimatedOpacity(
-                                  duration: const Duration(milliseconds: 150),
-                                  opacity: viewModel.dragging ? 1 : 0,
-                                  child: Container(
-                                    color: theme.colorScheme.scrim.withValues(
-                                      alpha: 0.8,
-                                    ),
-                                    child: Center(
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.file_download_outlined,
-                                            size: 96,
-                                            color: labelColor,
-                                          ),
-                                          const SizedBox(height: 16),
-                                          Text(
-                                            "Drop to import",
-                                            style: theme.textTheme.headlineSmall
-                                                ?.copyWith(color: labelColor),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
                                   ),
                                 ),
                               );
