@@ -8,8 +8,10 @@
 
 import 'dart:async';
 import 'dart:collection';
+import 'dart:io';
 
 import 'package:cross_file/cross_file.dart';
+import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
@@ -143,6 +145,30 @@ class EditExerciseViewModel extends ChangeNotifier {
       if (files.isEmpty) return;
 
       await _importFiles(files);
+    } finally {
+      _scoresLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> scanScores() async {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
+    _scoresLoading = true;
+    notifyListeners();
+    try {
+      final pdfPaths = await CunningDocumentScanner.getPictures(
+        scannerSource: ScannerSource.camera,
+        asPdf: true,
+      );
+      if (pdfPaths == null || pdfPaths.isEmpty) return;
+
+      try {
+        await _importFiles(
+          pdfPaths.map((p) => XFile(p, mimeType: "application/pdf")),
+        );
+      } finally {
+        await CunningDocumentScanner.cleanCache();
+      }
     } finally {
       _scoresLoading = false;
       notifyListeners();

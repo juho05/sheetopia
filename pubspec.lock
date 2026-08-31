@@ -622,9 +622,9 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "6bd0ab6cb49837e3c4f0ec400469fdeae523d4d3"
-      resolved-ref: "6bd0ab6cb49837e3c4f0ec400469fdeae523d4d3"
-      url: "https://github.com/TSPL-Bhagat/flutter_sharing_intent"
+      ref: "60b4a7d9070db8ac22312876ddf3093555592e55"
+      resolved-ref: "60b4a7d9070db8ac22312876ddf3093555592e55"
+      url: "https://github.com/juho05/flutter_sharing_intent"
     source: git
     version: "2.1.0"
   flutter_staggered_grid_view:

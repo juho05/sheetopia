@@ -17,6 +17,7 @@ import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/ui/common/buttons.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/drop_area.dart';
+import 'package:sheetopia/ui/common/import_source_dialog.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/home/thumbnail.dart';
 import 'package:sheetopia/ui/practice/edit_exercise_viewmodel.dart';
@@ -34,8 +35,27 @@ class EditExerciseScores extends StatelessWidget {
     await viewModel.linkScores(scoreIds);
   }
 
-  Future<void> _importScores(EditExerciseViewModel viewModel) async {
-    await _import(() => viewModel.importScores());
+  Future<void> _addScores(
+    BuildContext context,
+    EditExerciseViewModel viewModel,
+  ) async {
+    final source = await ImportSourceDialog.show(context);
+    switch (source) {
+      case null:
+        return;
+      case ImportSource.file:
+        await _import(() => viewModel.importScores());
+      case ImportSource.scan:
+        await _scan(viewModel);
+    }
+  }
+
+  Future<void> _scan(EditExerciseViewModel viewModel) async {
+    try {
+      await viewModel.scanScores();
+    } catch (e, st) {
+      Toast.exception(e, st: st, errorMsg: "Failed to scan score!");
+    }
   }
 
   Future<void> _receiveDrop(
@@ -80,7 +100,7 @@ class EditExerciseScores extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(8),
                   child: _AddScorePlaceholder(
-                    onImport: () => _importScores(viewModel),
+                    onAdd: () => _addScores(context, viewModel),
                     onLink: () => _linkScores(context, viewModel),
                     loading: viewModel.scoresLoading,
                   ),
@@ -331,12 +351,12 @@ class _ScoreListItemState extends State<_ScoreListItem> {
 }
 
 class _AddScorePlaceholder extends StatelessWidget {
-  final void Function() onImport;
+  final void Function() onAdd;
   final void Function() onLink;
   final bool loading;
 
   const _AddScorePlaceholder({
-    required this.onImport,
+    required this.onAdd,
     required this.onLink,
     this.loading = false,
   });
@@ -366,11 +386,11 @@ class _AddScorePlaceholder extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Button(
-                              onPressed: onImport,
+                              onPressed: onAdd,
                               icon: Symbols.upload_file,
                               darkTonal: true,
                               child: constraints.maxWidth >= 375
-                                  ? const Text("Import file")
+                                  ? const Text("Import score")
                                   : const Text("Import"),
                             ),
                           ),
