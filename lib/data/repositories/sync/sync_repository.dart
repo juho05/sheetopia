@@ -192,6 +192,7 @@ class SyncRepository {
     final conStr = await _encryptedStorage.read(_conKey);
     if (conStr == null) {
       await _keyValue.remove(_conKey);
+      await _scoresRepo.deleteAbandonedScores();
       return;
     }
     _con = SyncConnection.fromJson(jsonDecode(conStr));
@@ -290,6 +291,7 @@ class SyncRepository {
       await _updateLastSync(syncTime);
 
       state.value = _itemsFailed ? SyncState.partial : SyncState.success;
+      await _scoresRepo.deleteAbandonedScores();
     } on UnauthenticatedException catch (_) {
       await logout();
     } catch (e, st) {

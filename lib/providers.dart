@@ -72,7 +72,7 @@ Future<List<SingleChildWidget>> createProviders({
       create: (context) => ScoresRepository(
         db: context.read(),
         thumbnailService: context.read(),
-      )..deleteAbandonedScores(),
+      ),
     ),
     Provider(
       create: (context) =>
