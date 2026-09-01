@@ -6,13 +6,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:cross_file/cross_file.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
-import 'package:sheetopia/portal_file_transfer.dart';
 import 'package:sheetopia/ui/common/fading_overlay.dart';
 
 class DropArea extends StatefulWidget {
@@ -49,33 +45,10 @@ class _DropAreaState extends State<DropArea> {
     if (!widget.enabled) _setDragging(false);
   }
 
-  Future<void> _onDragDone(DropDoneDetails details) async {
+  void _onDragDone(DropDoneDetails details) {
     _setDragging(false);
-    final files = await _dropFiles(details);
-    if (files.isEmpty || !mounted) return;
-    widget.onDrop(files);
-  }
-
-  // desktop_drop cannot turn what KDE sends into files, so fall back to the
-  // raw payload, which is either plain paths or an XDG file transfer key.
-  Future<List<XFile>> _dropFiles(DropDoneDetails details) async {
-    if (details.files.isNotEmpty || !Platform.isLinux) {
-      return details.files;
-    }
-    final raw = details.rawText?.replaceAll("\u0000", "").trim();
-    if (raw == null || raw.isEmpty) return const [];
-
-    final lines = const LineSplitter()
-        .convert(raw)
-        .map((line) => line.trim())
-        .where((line) => line.isNotEmpty)
-        .toList();
-    final paths = lines.where((line) => line.startsWith("/"));
-    if (paths.isNotEmpty) return paths.map(XFile.new).toList();
-    if (lines.length != 1) return const [];
-
-    final resolved = await retrievePortalFiles(lines.first);
-    return resolved.map(XFile.new).toList();
+    if (details.files.isEmpty) return;
+    widget.onDrop(details.files);
   }
 
   @override

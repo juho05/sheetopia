@@ -10,6 +10,7 @@ import 'dart:io';
 
 import 'package:cross_file/cross_file.dart';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/file_picker.dart';
@@ -108,6 +109,7 @@ class HomeViewModel extends ChangeNotifier {
       if (scores.isEmpty) return null;
       return scores.first.id;
     } finally {
+      await DesktopDrop.instance.clearReceivingCache();
       _importing = false;
       notifyListeners();
     }
