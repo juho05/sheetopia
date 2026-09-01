@@ -9,6 +9,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/ui/home/thumbnail.dart';
 
@@ -16,9 +17,10 @@ class SequenceSheetItem {
   final Score? score;
   final String title;
 
-  const SequenceSheetItem({required this.score, required this.title});
+  final bool playable;
 
-  bool get playable => score?.file != null;
+  SequenceSheetItem({required this.score, required this.title, bool? playable})
+    : playable = playable ?? score?.file != null;
 }
 
 class SequenceSheet extends StatefulWidget {
@@ -170,7 +172,9 @@ class _SequenceSheetState extends State<SequenceSheet> {
                                             ),
                                           ),
                                           child: Icon(
-                                            Icons.music_off,
+                                            item.playable
+                                                ? Symbols.description
+                                                : Icons.music_off,
                                             color: theme
                                                 .colorScheme
                                                 .onSurfaceVariant,

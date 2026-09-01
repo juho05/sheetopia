@@ -37,7 +37,7 @@ class RoutinePlayEntry {
   Score? get score =>
       selected < 0 || selected >= scores.length ? null : scores[selected];
 
-  bool get playable => score != null;
+  bool get scoresUnavailable => score == null && scores.isNotEmpty;
 }
 
 class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
@@ -114,15 +114,16 @@ class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
   @override
   String? get currentScoreId => currentEntry?.score?.id;
 
-  bool get hasNext => _nextPlayable() != null;
+  bool get hasNext => _index >= 0 && _index < _entries.length - 1;
 
-  bool get hasPrevious => _previousPlayable() != null;
-
-  @override
-  File? get nextFile => _entryAt(_nextPlayable())?.score?.file;
+  bool get hasPrevious => _index > 0;
 
   @override
-  File? get previousFile => _entryAt(_previousPlayable())?.score?.file;
+  File? get nextFile => hasNext ? _entries[_index + 1].score?.file : null;
+
+  @override
+  File? get previousFile =>
+      hasPrevious ? _entries[_index - 1].score?.file : null;
 
   Set<String> get _exerciseIds => _entries.map((e) => e.exercise.id).toSet();
 
@@ -131,25 +132,22 @@ class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
 
   @override
   bool next() {
-    final next = _nextPlayable();
-    if (next == null) return false;
-    _index = next;
+    if (!hasNext) return false;
+    _index++;
     notifyListeners();
     return true;
   }
 
   @override
   bool previous() {
-    final previous = _previousPlayable();
-    if (previous == null) return false;
-    _index = previous;
+    if (!hasPrevious) return false;
+    _index--;
     notifyListeners();
     return true;
   }
 
   void jumpTo(int index) {
-    if (index < 0 || index >= _entries.length) return;
-    if (index == _index || !_entries[index].playable) return;
+    if (index < 0 || index >= _entries.length || index == _index) return;
     _index = index;
     notifyListeners();
   }
@@ -161,23 +159,6 @@ class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
     if (index == entry.selected || !_playable(entry.scores[index])) return;
     entry.selected = index;
     notifyListeners();
-  }
-
-  RoutinePlayEntry? _entryAt(int? index) =>
-      index == null ? null : _entries[index];
-
-  int? _nextPlayable() {
-    for (var i = _index + 1; i < _entries.length; i++) {
-      if (_entries[i].playable) return i;
-    }
-    return null;
-  }
-
-  int? _previousPlayable() {
-    for (var i = _index - 1; i >= 0; i--) {
-      if (_entries[i].playable) return i;
-    }
-    return null;
   }
 
   bool _playable(Score score) => score.file != null;
@@ -253,31 +234,14 @@ class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
   int _resolveIndex(bool first, String? previousEntryId, int previousIndex) {
     if (_entries.isEmpty) return -1;
     if (first) {
-      final start = startIndex;
-      if (start != null &&
-          start >= 0 &&
-          start < _entries.length &&
-          _entries[start].playable) {
-        return start;
-      }
-      return _entries.indexWhere((e) => e.playable);
+      final start = startIndex ?? 0;
+      return start.clamp(0, _entries.length - 1);
     }
-    var anchor = previousIndex;
     if (previousEntryId != null) {
       final index = _entries.indexWhere((e) => e.id == previousEntryId);
-      if (index >= 0) {
-        if (_entries[index].playable) return index;
-        anchor = index;
-      }
+      if (index >= 0) return index;
     }
-    final start = anchor < 0 ? 0 : anchor.clamp(0, _entries.length - 1);
-    for (var i = start; i < _entries.length; i++) {
-      if (_entries[i].playable) return i;
-    }
-    for (var i = start - 1; i >= 0; i--) {
-      if (_entries[i].playable) return i;
-    }
-    return -1;
+    return previousIndex.clamp(0, _entries.length - 1);
   }
 
   @override

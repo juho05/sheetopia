@@ -31,9 +31,6 @@ class EditExercisePage extends StatelessWidget {
         return Consumer<EditExerciseViewModel>(
           builder: (context, viewModel, _) {
             final exerciseId = viewModel.exerciseId;
-            final playable = viewModel.scoreEntries.any(
-              (e) => e.score.file != null,
-            );
             return TwoPanePage(
               appBar: AppBar(
                 title: viewModel.isCreate
@@ -44,11 +41,8 @@ class EditExercisePage extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: FilledButton.icon(
-                        onPressed: playable
-                            ? () => context.go(
-                                "/practice/exercises/$exerciseId/play",
-                              )
-                            : null,
+                        onPressed: () =>
+                            context.go("/practice/exercises/$exerciseId/play"),
                         icon: const Icon(Icons.play_arrow),
                         label: const Text("Play"),
                       ),

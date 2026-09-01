@@ -6,12 +6,17 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/ui/practice/exercise_card.dart';
 import 'package:sheetopia/ui/practice/exercise_score_selector.dart';
 import 'package:sheetopia/ui/practice/routine_play_viewmodel.dart';
+import 'package:sheetopia/ui/score/chrome/full_screen_button.dart';
+import 'package:sheetopia/ui/score/chrome/play_session.dart';
 import 'package:sheetopia/ui/score/chrome/play_toolbar.dart';
 import 'package:sheetopia/ui/score/chrome/sequence_bubble.dart';
 import 'package:sheetopia/ui/score/chrome/sequence_sheet.dart';
@@ -63,10 +68,46 @@ class _RoutinePlayPageState extends State<RoutinePlayPage> {
       title: _viewModel.name,
       items: [
         for (final entry in _viewModel.entries)
-          SequenceSheetItem(score: entry.score, title: entry.exercise.name),
+          SequenceSheetItem(
+            score: entry.score,
+            title: entry.exercise.name,
+            playable: true,
+          ),
       ],
       currentIndex: _viewModel.position,
       onSelect: _viewModel.jumpTo,
+    );
+  }
+
+  Widget _buildToolbar(BuildContext context, {required bool showScores}) {
+    final session = PlaySession.of(context);
+    return PlayToolbar(
+      leading: [
+        OutlinedButton(
+          onPressed: _viewModel.hasPrevious ? _viewModel.previous : null,
+          child: const Text("Prev"),
+        ),
+      ],
+      center: showScores
+          ? ExerciseScoreSelector(
+              scores: _viewModel.scores,
+              selectedIndex: _viewModel.scoreIndex,
+              onSelected: _viewModel.selectScore,
+            )
+          : null,
+      trailing: [
+        FilledButton(
+          onPressed: _viewModel.hasNext
+              ? _viewModel.next
+              : () {
+                  if (!Platform.isMacOS) {
+                    session?.exitFullScreen();
+                  }
+                  context.pop();
+                },
+          child: _viewModel.hasNext ? const Text("Next") : const Text("Done"),
+        ),
+      ],
     );
   }
 
@@ -82,9 +123,7 @@ class _RoutinePlayPageState extends State<RoutinePlayPage> {
             spacing: 16,
             children: [
               Text(
-                _viewModel.length == 0
-                    ? "This routine has no exercises."
-                    : "None of these exercises have a downloaded score.",
+                "This routine has no exercises.",
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
@@ -101,18 +140,76 @@ class _RoutinePlayPageState extends State<RoutinePlayPage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildCard(BuildContext context, RoutinePlayEntry entry) {
+    final theme = Theme.of(context);
+    final session = PlaySession.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: session?.backButtonVisible ?? true,
+        title: Text(_viewModel.name),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: TextButton(
+              onPressed: _openSheet,
+              child: Text(
+                "${_viewModel.position + 1} of ${_viewModel.length}",
+                style: theme.textTheme.bodyMedium,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: CallbackShortcuts(
+        bindings: {
+          if (session != null) ...{
+            const SingleActivator(LogicalKeyboardKey.escape):
+                session.exitFullScreen,
+            const SingleActivator(LogicalKeyboardKey.keyF):
+                session.toggleFullScreen,
+            const SingleActivator(LogicalKeyboardKey.f11):
+                session.toggleFullScreen,
+          },
+        },
+        child: FocusScope(
+          autofocus: true,
+          child: SafeArea(
+            child: Stack(
+              children: [
+                ExerciseCard(
+                  exercise: entry.exercise,
+                  scoresUnavailable: entry.scoresUnavailable,
+                ),
+                if (session != null)
+                  FullScreenButton(
+                    visible: session.overlayVisible,
+                    fullScreen: session.isFullScreen,
+                    onPressed: session.toggleFullScreen,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      bottomNavigationBar: _buildToolbar(context, showScores: false),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     if (_viewModel.loading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator.adaptive()),
       );
     }
+    final entry = _viewModel.currentEntry;
+    if (entry == null) return _buildEmpty(context);
     final scoreId = _viewModel.currentScoreId;
-    if (scoreId == null) return _buildEmpty(context);
+    if (scoreId == null) return _buildCard(context, entry);
     return ScoreViewer(
       initialScoreId: scoreId,
       sequence: _viewModel,
+      // only the toolbar moves on to the next exercise
+      advanceOnOverflow: false,
       onSwipeUp: _openSheet,
       topOverlay: SequenceBubble(
         name: _viewModel.exerciseName,
@@ -120,27 +217,12 @@ class _RoutinePlayPageState extends State<RoutinePlayPage> {
         length: _viewModel.length,
         onTap: _openSheet,
       ),
-      bottomBar: PlayToolbar(
-        leading: [
-          IconButton(
-            tooltip: "Previous exercise",
-            onPressed: _viewModel.hasPrevious ? _viewModel.previous : null,
-            icon: const Icon(Symbols.skip_previous),
-          ),
-        ],
-        center: ExerciseScoreSelector(
-          scores: _viewModel.scores,
-          selectedIndex: _viewModel.scoreIndex,
-          onSelected: _viewModel.selectScore,
-        ),
-        trailing: [
-          IconButton(
-            tooltip: "Next exercise",
-            onPressed: _viewModel.hasNext ? _viewModel.next : null,
-            icon: const Icon(Symbols.skip_next),
-          ),
-        ],
-      ),
+      bottomBar: _buildToolbar(context, showScores: true),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PlaySession(child: Builder(builder: _buildContent));
   }
 }

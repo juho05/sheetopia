@@ -18,6 +18,8 @@ import 'package:sheetopia/data/repositories/settings/appearance.dart';
 import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/ui/common/fading_overlay.dart';
+import 'package:sheetopia/ui/score/chrome/full_screen_button.dart';
+import 'package:sheetopia/ui/score/chrome/play_session.dart';
 import 'package:sheetopia/ui/score/pdf_view.dart';
 import 'package:sheetopia/ui/score/score_sequence.dart';
 import 'package:sheetopia/ui/score/score_viewmodel.dart';
@@ -31,6 +33,8 @@ class ScoreViewer extends StatefulWidget {
   final Widget? bottomBar;
   final void Function()? onSwipeUp;
 
+  final bool advanceOnOverflow;
+
   const ScoreViewer({
     super.key,
     required this.initialScoreId,
@@ -38,6 +42,7 @@ class ScoreViewer extends StatefulWidget {
     this.topOverlay,
     this.bottomBar,
     this.onSwipeUp,
+    this.advanceOnOverflow = true,
   });
 
   @override
@@ -58,11 +63,14 @@ class _ScoreViewerState extends State<ScoreViewer>
 
   StreamSubscription? _pageChangeSub;
 
+  bool _ownsSession = true;
+
   @override
   void initState() {
     super.initState();
 
-    WakelockPlus.enable();
+    _ownsSession = !PlaySession.isActive(context);
+    if (_ownsSession) WakelockPlus.enable();
 
     _viewModel = ScoreViewModel(
       repo: context.read(),
@@ -98,9 +106,11 @@ class _ScoreViewerState extends State<ScoreViewer>
 
   @override
   void dispose() {
-    WakelockPlus.disable();
-    if (FullScreen.isFullScreen && !Platform.isMacOS) {
-      FullScreen.setFullScreen(false);
+    if (_ownsSession) {
+      WakelockPlus.disable();
+      if (FullScreen.isFullScreen && !Platform.isMacOS) {
+        FullScreen.setFullScreen(false);
+      }
     }
     _pageChangeSub?.cancel();
     _viewModel.dispose();
@@ -196,8 +206,12 @@ class _ScoreViewerState extends State<ScoreViewer>
                                   controller: _viewModel.fileView,
                                   nextPath: sequence?.nextFile?.path,
                                   previousPath: sequence?.previousFile?.path,
-                                  onOverflowForward: sequence?.next,
-                                  onOverflowBackward: sequence?.previous,
+                                  onOverflowForward: widget.advanceOnOverflow
+                                      ? sequence?.next
+                                      : null,
+                                  onOverflowBackward: widget.advanceOnOverflow
+                                      ? sequence?.previous
+                                      : null,
                                   onPageTurned: _viewModel.onPageTurned,
                                   onSwipeUp: widget.onSwipeUp,
                                 ),
@@ -230,35 +244,11 @@ class _ScoreViewerState extends State<ScoreViewer>
                                 visible: _viewModel.chromeVisible,
                                 child: widget.topOverlay!,
                               ),
-                            if (Platform.isWindows ||
-                                Platform.isMacOS ||
-                                Platform.isLinux)
-                              FadingOverlay(
-                                visible: _viewModel.overlayVisible,
-                                child: Align(
-                                  alignment: Alignment.bottomRight,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: IconButton.filled(
-                                      onPressed: () {
-                                        _viewModel.toggleFullScreen();
-                                      },
-                                      color: Colors.white,
-                                      style: ButtonStyle(
-                                        backgroundColor:
-                                            WidgetStateProperty.all(
-                                              Colors.black.withAlpha(100),
-                                            ),
-                                      ),
-                                      iconSize: 26,
-                                      padding: const EdgeInsets.all(10),
-                                      icon: _viewModel.isFullScreen
-                                          ? const Icon(Icons.fullscreen_exit)
-                                          : const Icon(Icons.fullscreen),
-                                    ),
-                                  ),
-                                ),
-                              ),
+                            FullScreenButton(
+                              visible: _viewModel.overlayVisible,
+                              fullScreen: _viewModel.isFullScreen,
+                              onPressed: _viewModel.toggleFullScreen,
+                            ),
                           ],
                         ),
                       ),

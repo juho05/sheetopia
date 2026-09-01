@@ -117,12 +117,11 @@ void main() {
     await tempDir.delete(recursive: true);
   });
 
-  test("starts on the first playable exercise", () async {
-    await insertScore("a", downloaded: false);
+  test("starts on the first exercise", () async {
+    await insertScore("a");
     await insertScore("b");
-    await insertScore("c");
     final scales = await createExercise("Scales", ["a"]);
-    final arpeggios = await createExercise("Arpeggios", ["b", "c"]);
+    final arpeggios = await createExercise("Arpeggios", ["b"]);
     final routineId = await createRoutine("Warmup", [scales, arpeggios]);
 
     final viewModel = await viewModelFor(routineId);
@@ -130,9 +129,34 @@ void main() {
     expect(viewModel.loading, isFalse);
     expect(viewModel.name, "Warmup");
     expect(viewModel.length, 2);
-    expect(viewModel.position, 1);
-    expect(viewModel.exerciseName, "Arpeggios");
-    expect(viewModel.currentScoreId, "b");
+    expect(viewModel.position, 0);
+    expect(viewModel.exerciseName, "Scales");
+    expect(viewModel.currentScoreId, "a");
+    viewModel.dispose();
+  });
+
+  test("an exercise without scores is played from its description", () async {
+    final scales = await createExercise("Scales", []);
+    final routineId = await createRoutine("Warmup", [scales]);
+
+    final viewModel = await viewModelFor(routineId);
+
+    expect(viewModel.position, 0);
+    expect(viewModel.exerciseName, "Scales");
+    expect(viewModel.currentScoreId, isNull);
+    expect(viewModel.currentEntry?.scoresUnavailable, isFalse);
+    viewModel.dispose();
+  });
+
+  test("an exercise with no downloaded score says so", () async {
+    await insertScore("a", downloaded: false);
+    final scales = await createExercise("Scales", ["a"]);
+    final routineId = await createRoutine("Warmup", [scales]);
+
+    final viewModel = await viewModelFor(routineId);
+
+    expect(viewModel.currentScoreId, isNull);
+    expect(viewModel.currentEntry?.scoresUnavailable, isTrue);
     viewModel.dispose();
   });
 
@@ -150,26 +174,25 @@ void main() {
     viewModel.dispose();
   });
 
-  test("a start index without a playable score falls back", () async {
+  test("a start index is kept even without a score", () async {
     await insertScore("a");
-    await insertScore("b", downloaded: false);
     final scales = await createExercise("Scales", ["a"]);
-    final arpeggios = await createExercise("Arpeggios", ["b"]);
+    final arpeggios = await createExercise("Arpeggios", []);
     final routineId = await createRoutine("Warmup", [scales, arpeggios]);
 
     final viewModel = await viewModelFor(routineId, startIndex: 1);
 
-    expect(viewModel.position, 0);
-    expect(viewModel.currentScoreId, "a");
+    expect(viewModel.position, 1);
+    expect(viewModel.exerciseName, "Arpeggios");
+    expect(viewModel.currentScoreId, isNull);
     viewModel.dispose();
   });
 
-  test("next and previous skip exercises without a score", () async {
+  test("next and previous step through every exercise", () async {
     await insertScore("a");
-    await insertScore("b", downloaded: false);
     await insertScore("c");
     final scales = await createExercise("Scales", ["a"]);
-    final arpeggios = await createExercise("Arpeggios", ["b"]);
+    final arpeggios = await createExercise("Arpeggios", []);
     final etude = await createExercise("Etude", ["c"]);
     final routineId = await createRoutine("Warmup", [scales, arpeggios, etude]);
 
@@ -177,12 +200,15 @@ void main() {
 
     expect(viewModel.hasPrevious, isFalse);
     expect(viewModel.next(), isTrue);
+    expect(viewModel.position, 1);
+    expect(viewModel.currentScoreId, isNull);
+    expect(viewModel.next(), isTrue);
     expect(viewModel.position, 2);
     expect(viewModel.currentScoreId, "c");
     expect(viewModel.hasNext, isFalse);
     expect(viewModel.next(), isFalse);
     expect(viewModel.previous(), isTrue);
-    expect(viewModel.position, 0);
+    expect(viewModel.position, 1);
     viewModel.dispose();
   });
 
@@ -201,11 +227,16 @@ void main() {
     final viewModel = await viewModelFor(routineId);
 
     expect(viewModel.previousFile, isNull);
-    expect(viewModel.nextFile?.path, last);
+    expect(viewModel.nextFile, isNull);
 
     viewModel.next();
 
     expect(viewModel.previousFile?.path, first);
+    expect(viewModel.nextFile?.path, last);
+
+    viewModel.next();
+
+    expect(viewModel.previousFile, isNull);
     expect(viewModel.nextFile, isNull);
     viewModel.dispose();
   });

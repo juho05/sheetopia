@@ -26,6 +26,7 @@ import 'package:sheetopia/data/services/sharing/share_inbox.dart';
 import 'package:sheetopia/providers.dart';
 import 'package:sheetopia/routing/router.dart';
 import 'package:sheetopia/ui/common/toast.dart';
+import 'package:sheetopia/ui/score/chrome/play_session.dart';
 import 'package:sheetopia/window_listener.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -48,6 +49,7 @@ Future<void> main() async {
     windowManager.setPreventClose(true);
   }
   await FullScreen.ensureInitialized();
+  markFullScreenReady();
   await pdfrxFlutterInitialize();
 
   runApp(
