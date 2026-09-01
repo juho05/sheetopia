@@ -77,9 +77,9 @@ class _RoutineDetailPageState extends State<RoutineDetailPage> {
                   child: FilledButton.icon(
                     onPressed: routine.entries.isEmpty
                         ? null
-                        : () {
-                            // TODO
-                          },
+                        : () => context.go(
+                            "/practice/routines/${widget.routineId}/details/play",
+                          ),
                     icon: const Icon(Icons.play_arrow),
                     label: const Text("Play"),
                   ),
@@ -142,8 +142,12 @@ class _RoutineDetailPageState extends State<RoutineDetailPage> {
         ),
         SliverList.builder(
           itemCount: routine.entries.length,
-          itemBuilder: (context, index) =>
-              _RoutineEntryTile(entry: routine.entries[index]),
+          itemBuilder: (context, index) => _RoutineEntryTile(
+            entry: routine.entries[index],
+            onTap: () => context.go(
+              "/practice/routines/${widget.routineId}/details/play?startIndex=$index",
+            ),
+          ),
         ),
         if (routine.entries.isEmpty)
           SliverToBoxAdapter(
@@ -167,8 +171,9 @@ class _RoutineDetailPageState extends State<RoutineDetailPage> {
 
 class _RoutineEntryTile extends StatelessWidget {
   final PracticeRoutineEntry entry;
+  final void Function() onTap;
 
-  const _RoutineEntryTile({required this.entry});
+  const _RoutineEntryTile({required this.entry, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -177,6 +182,7 @@ class _RoutineEntryTile extends StatelessWidget {
     return ExerciseTile(
       exercise: entry.exercise,
       showCategory: true,
+      onTap: onTap,
       trailing: Padding(
         padding: const EdgeInsets.only(right: 12),
         child: Text(

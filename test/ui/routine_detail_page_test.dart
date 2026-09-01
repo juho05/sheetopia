@@ -88,6 +88,12 @@ void main() {
                 ),
               ],
             ),
+            GoRoute(
+              path: "practice/routines/:routineId/details/play",
+              builder: (context, state) => Text(
+                "play page ${state.uri.queryParameters["startIndex"] ?? "none"}",
+              ),
+            ),
           ],
         ),
       ],
@@ -178,6 +184,27 @@ void main() {
 
     final play = find.widgetWithText(FilledButton, "Play");
     expect(tester.widget<FilledButton>(play).onPressed, isNotNull);
+
+    await tester.tap(play);
+    await tester.pumpAndSettle();
+
+    expect(find.text("play page none"), findsOneWidget);
+  });
+
+  testWidgets("tapping an entry plays the routine from there", (tester) async {
+    final first = await createExercise("Chromatic");
+    final second = await createExercise("Long tones");
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(first), await entry(second)],
+    );
+
+    await pumpPage(tester, routineId);
+    await tester.tap(find.text("Long tones"));
+    await tester.pumpAndSettle();
+
+    expect(find.text("play page 1"), findsOneWidget);
   });
 
   testWidgets("the edit button opens the edit page", (tester) async {

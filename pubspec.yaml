@@ -24,7 +24,8 @@ dependencies:
   flutter_sharing_intent:
     git:
       url: https://github.com/juho05/flutter_sharing_intent
-      ref: 60b4a7d9070db8ac22312876ddf3093555592e55
+      ref: 66df86bb27eca12bc011e3a311bc78ca554af33d
+  # do not upgrade to 18 before migartion to material/cupertino packages
   go_router: ^17.5.0
   image: ^4.9.1
   infinite_scroll_pagination: ^5.1.1
