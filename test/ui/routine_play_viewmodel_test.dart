@@ -89,6 +89,15 @@ void main() {
     );
   }
 
+  // a load resolves score files from the file system, pumpEventQueue can return
+  // before that lands and leave the view model half loaded
+  Future<void> waitFor(bool Function() done) async {
+    for (var i = 0; i < 2000 && !done(); i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+    }
+    expect(done(), isTrue, reason: "timed out waiting for the view model");
+  }
+
   Future<RoutinePlayViewModel> viewModelFor(
     String routineId, {
     int? startIndex,
@@ -99,7 +108,7 @@ void main() {
       routineId: routineId,
       startIndex: startIndex,
     );
-    await pumpEventQueue();
+    await waitFor(() => !viewModel.loading);
     return viewModel;
   }
 
@@ -333,7 +342,7 @@ void main() {
     final viewModel = await viewModelFor(routineId);
     viewModel.selectScore(1);
     await repo.updateRoutine(routineId, name: "Evening", description: "");
-    await pumpEventQueue();
+    await waitFor(() => viewModel.name == "Evening");
 
     expect(viewModel.name, "Evening");
     expect(viewModel.position, 0);
@@ -353,7 +362,7 @@ void main() {
     expect(viewModel.position, 1);
 
     await repo.setRoutineEntries(routineId, await entriesFor([scales]));
-    await pumpEventQueue();
+    await waitFor(() => viewModel.length == 1);
 
     expect(viewModel.length, 1);
     expect(viewModel.position, 0);
@@ -370,7 +379,7 @@ void main() {
 
     final viewModel = await viewModelFor(routineId);
     await repo.deleteExercise(scales);
-    await pumpEventQueue();
+    await waitFor(() => viewModel.length == 1);
 
     expect(viewModel.length, 1);
     expect(viewModel.exerciseName, "Etude");
@@ -385,7 +394,7 @@ void main() {
 
     final viewModel = await viewModelFor(routineId);
     await repo.deleteRoutine(routineId);
-    await pumpEventQueue();
+    await waitFor(() => viewModel.deleted);
 
     expect(viewModel.deleted, isTrue);
     viewModel.dispose();

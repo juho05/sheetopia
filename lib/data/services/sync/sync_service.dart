@@ -16,9 +16,15 @@ import 'package:sheetopia/data/services/sync/exceptions.dart';
 import 'package:sheetopia/data/services/sync/models/auth_key.dart';
 import 'package:sheetopia/data/services/sync/models/datetime_converter.dart';
 import 'package:sheetopia/data/services/sync/models/deleted_item.dart';
+import 'package:sheetopia/data/services/sync/models/deleted_items.dart';
 import 'package:sheetopia/data/services/sync/models/deleted_scores.dart';
 import 'package:sheetopia/data/services/sync/models/deleted_setlists.dart';
 import 'package:sheetopia/data/services/sync/models/deleted_tags.dart';
+import 'package:sheetopia/data/services/sync/models/exercise_categories.dart';
+import 'package:sheetopia/data/services/sync/models/exercise_metadata.dart';
+import 'package:sheetopia/data/services/sync/models/exercises.dart';
+import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
+import 'package:sheetopia/data/services/sync/models/practice_sessions.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/server_info.dart';
@@ -170,6 +176,269 @@ class SyncService {
       authKey: con.authKey,
     );
     return _mergeDeleted(result.setlistIds, result.deletedSetlists);
+  }
+
+  Future<List<ExerciseCategoryModel>> getExerciseCategories(
+    SyncConnection con, {
+    DateTime? changedAfter,
+  }) async {
+    final result = await _requestObject(
+      con.baseUri,
+      "GET",
+      "practice/category",
+      ExerciseCategoriesModel.fromJson,
+      authKey: con.authKey,
+      queryParams: {
+        if (changedAfter != null) "changedAfter": [changedAfter.toRFC3339()],
+      },
+    );
+    return result.categories;
+  }
+
+  Future<void> updateExerciseCategory(
+    SyncConnection con,
+    String categoryId, {
+    required String name,
+    required int position,
+    required DateTime updatedAt,
+    DateTime? writtenAt,
+  }) async {
+    await _request(
+      con.baseUri,
+      "POST",
+      "practice/category/$categoryId",
+      authKey: con.authKey,
+      data: {
+        "name": name,
+        "position": position,
+        "updatedAt": updatedAt.toRFC3339(),
+        if (writtenAt != null) "writtenAt": writtenAt.toRFC3339(),
+      },
+    );
+  }
+
+  Future<void> deleteExerciseCategory(
+    SyncConnection con,
+    String categoryId,
+  ) async {
+    await _request(
+      con.baseUri,
+      "DELETE",
+      "practice/category/$categoryId",
+      authKey: con.authKey,
+    );
+  }
+
+  Future<List<RemotelyDeleted>> getDeletedExerciseCategories(
+    SyncConnection con, {
+    DateTime? since,
+  }) async {
+    return _getDeleted(con, "practice/category/deleted", since: since);
+  }
+
+  Future<List<ExerciseModel>> getExercises(
+    SyncConnection con, {
+    DateTime? changedAfter,
+  }) async {
+    final result = await _requestObject(
+      con.baseUri,
+      "GET",
+      "practice/exercise",
+      ExercisesModel.fromJson,
+      authKey: con.authKey,
+      queryParams: {
+        if (changedAfter != null) "changedAfter": [changedAfter.toRFC3339()],
+      },
+    );
+    return result.exercises;
+  }
+
+  Future<void> updateExercise(
+    SyncConnection con,
+    String exerciseId, {
+    required String name,
+    required String? categoryId,
+    required List<String> tagIds,
+    required List<String> scoreIds,
+    required ExerciseMetadataModel metadata,
+    required DateTime updatedAt,
+    DateTime? writtenAt,
+  }) async {
+    await _request(
+      con.baseUri,
+      "POST",
+      "practice/exercise/$exerciseId",
+      authKey: con.authKey,
+      data: {
+        "name": name,
+        "categoryId": categoryId,
+        "tagIds": tagIds,
+        "scoreIds": scoreIds,
+        "metadata": metadata,
+        "updatedAt": updatedAt.toRFC3339(),
+        if (writtenAt != null) "writtenAt": writtenAt.toRFC3339(),
+      },
+    );
+  }
+
+  Future<void> deleteExercise(SyncConnection con, String exerciseId) async {
+    await _request(
+      con.baseUri,
+      "DELETE",
+      "practice/exercise/$exerciseId",
+      authKey: con.authKey,
+    );
+  }
+
+  Future<List<RemotelyDeleted>> getDeletedExercises(
+    SyncConnection con, {
+    DateTime? since,
+  }) async {
+    return _getDeleted(con, "practice/exercise/deleted", since: since);
+  }
+
+  Future<List<PracticeRoutineModel>> getPracticeRoutines(
+    SyncConnection con, {
+    DateTime? changedAfter,
+  }) async {
+    final result = await _requestObject(
+      con.baseUri,
+      "GET",
+      "practice/routine",
+      PracticeRoutinesModel.fromJson,
+      authKey: con.authKey,
+      queryParams: {
+        if (changedAfter != null) "changedAfter": [changedAfter.toRFC3339()],
+      },
+    );
+    return result.routines;
+  }
+
+  Future<void> updatePracticeRoutine(
+    SyncConnection con,
+    String routineId, {
+    required String name,
+    required PracticeRoutineMetadataModel metadata,
+    required List<PracticeRoutineEntryModel> entries,
+    required DateTime updatedAt,
+    DateTime? writtenAt,
+  }) async {
+    await _request(
+      con.baseUri,
+      "POST",
+      "practice/routine/$routineId",
+      authKey: con.authKey,
+      data: {
+        "name": name,
+        "metadata": metadata,
+        "entries": entries,
+        "updatedAt": updatedAt.toRFC3339(),
+        if (writtenAt != null) "writtenAt": writtenAt.toRFC3339(),
+      },
+    );
+  }
+
+  Future<void> deletePracticeRoutine(
+    SyncConnection con,
+    String routineId,
+  ) async {
+    await _request(
+      con.baseUri,
+      "DELETE",
+      "practice/routine/$routineId",
+      authKey: con.authKey,
+    );
+  }
+
+  Future<List<RemotelyDeleted>> getDeletedPracticeRoutines(
+    SyncConnection con, {
+    DateTime? since,
+  }) async {
+    return _getDeleted(con, "practice/routine/deleted", since: since);
+  }
+
+  Future<List<PracticeSessionModel>> getPracticeSessions(
+    SyncConnection con, {
+    DateTime? changedAfter,
+  }) async {
+    final result = await _requestObject(
+      con.baseUri,
+      "GET",
+      "practice/session",
+      PracticeSessionsModel.fromJson,
+      authKey: con.authKey,
+      queryParams: {
+        if (changedAfter != null) "changedAfter": [changedAfter.toRFC3339()],
+      },
+    );
+    return result.sessions;
+  }
+
+  Future<void> updatePracticeSession(
+    SyncConnection con,
+    String sessionId, {
+    required DateTime startedAt,
+    required DateTime? endedAt,
+    required String? routineId,
+    required PracticeSessionMetadataModel metadata,
+    required List<PracticeSessionEntryModel> entries,
+    required DateTime updatedAt,
+    DateTime? writtenAt,
+  }) async {
+    await _request(
+      con.baseUri,
+      "POST",
+      "practice/session/$sessionId",
+      authKey: con.authKey,
+      data: {
+        "startedAt": startedAt.toRFC3339(),
+        "endedAt": endedAt?.toRFC3339(),
+        "routineId": routineId,
+        "metadata": metadata,
+        "entries": entries,
+        "updatedAt": updatedAt.toRFC3339(),
+        if (writtenAt != null) "writtenAt": writtenAt.toRFC3339(),
+      },
+    );
+  }
+
+  Future<void> deletePracticeSession(
+    SyncConnection con,
+    String sessionId,
+  ) async {
+    await _request(
+      con.baseUri,
+      "DELETE",
+      "practice/session/$sessionId",
+      authKey: con.authKey,
+    );
+  }
+
+  Future<List<RemotelyDeleted>> getDeletedPracticeSessions(
+    SyncConnection con, {
+    DateTime? since,
+  }) async {
+    return _getDeleted(con, "practice/session/deleted", since: since);
+  }
+
+  Future<List<RemotelyDeleted>> _getDeleted(
+    SyncConnection con,
+    String endpointName, {
+    DateTime? since,
+  }) async {
+    final result = await _requestObject<DeletedItemsModel>(
+      con.baseUri,
+      "GET",
+      endpointName,
+      DeletedItemsModel.fromJson,
+      queryParams: {
+        if (since != null) "since": [since.toRFC3339()],
+      },
+      authKey: con.authKey,
+    );
+    return result.deleted
+        .map((d) => (id: d.id, deletedAt: d.deletedAt))
+        .toList();
   }
 
   List<RemotelyDeleted> _mergeDeleted(

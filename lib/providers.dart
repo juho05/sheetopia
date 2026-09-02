@@ -87,6 +87,7 @@ Future<List<SingleChildWidget>> createProviders({
       create: (context) => SyncRepository(
         scoresRepo: context.read(),
         setlistsRepo: context.read(),
+        practiceRepo: context.read(),
         keyValue: context.read(),
         db: context.read(),
         syncService: context.read(),

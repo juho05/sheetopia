@@ -18,11 +18,15 @@ import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage_
 import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage_secure_storage.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
+import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/repositories/version/version.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/sync/exceptions.dart';
+import 'package:sheetopia/data/services/sync/models/exercise_metadata.dart';
+import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
+import 'package:sheetopia/data/services/sync/models/practice_sessions.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/sync_connection.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
@@ -41,8 +45,11 @@ class SyncRepository {
 
   static const minAPIVersionType = Version(major: 0, minor: 4);
 
+  static const minAPIVersionPractice = Version(major: 0, minor: 4);
+
   final ScoresRepository _scoresRepo;
   final SetlistsRepository _setlistsRepo;
+  final PracticeRepository _practiceRepo;
   final KeyValueRepository _keyValue;
   final Database _db;
   final SyncService _service;
@@ -59,6 +66,9 @@ class SyncRepository {
   Set<String> _changedScores = {};
   Set<String> _changedTags = {};
   Set<String> _changedSetlists = {};
+  Set<String> _changedCategories = {};
+  Set<String> _changedExercises = {};
+  Set<String> _changedRoutines = {};
 
   bool _itemsFailed = false;
 
@@ -79,6 +89,7 @@ class SyncRepository {
   SyncRepository({
     required this._scoresRepo,
     required this._setlistsRepo,
+    required this._practiceRepo,
     required KeyValueRepository keyValue,
     required this._db,
     required SyncService syncService,
@@ -95,6 +106,9 @@ class SyncRepository {
       _scoresRepo.locallyUpdatedScoreIds.listen((event) => requestSync());
       _scoresRepo.locallyUpdatedTagIds.listen((event) => requestSync());
       _setlistsRepo.locallyUpdatedSetlistIds.listen((event) => requestSync());
+      _practiceRepo.locallyUpdatedCategoryIds.listen((event) => requestSync());
+      _practiceRepo.locallyUpdatedExerciseIds.listen((event) => requestSync());
+      _practiceRepo.locallyUpdatedRoutineIds.listen((event) => requestSync());
       _listener = AppLifecycleListener(
         onDetach: _disableSyncing,
         onPause: _disableSyncing,
@@ -160,6 +174,10 @@ class SyncRepository {
     await _db.managers.deletedScoresTable.delete();
     await _db.managers.deletedTagsTable.delete();
     await _db.managers.deletedSetlistsTable.delete();
+    await _db.managers.deletedExerciseCategoriesTable.delete();
+    await _db.managers.deletedExercisesTable.delete();
+    await _db.managers.deletedPracticeRoutinesTable.delete();
+    await _db.managers.deletedPracticeSessionsTable.delete();
 
     _sync();
   }
@@ -184,6 +202,18 @@ class SyncRepository {
     );
     await _db.managers.tagsTable.update((o) => o(uploaded: const Value(false)));
     await _db.managers.setlistsTable.update(
+      (o) => o(uploaded: const Value(false)),
+    );
+    await _db.managers.exerciseCategoriesTable.update(
+      (o) => o(uploaded: const Value(false)),
+    );
+    await _db.managers.exercisesTable.update(
+      (o) => o(uploaded: const Value(false)),
+    );
+    await _db.managers.practiceRoutinesTable.update(
+      (o) => o(uploaded: const Value(false)),
+    );
+    await _db.managers.practiceSessionsTable.update(
       (o) => o(uploaded: const Value(false)),
     );
   }
@@ -268,6 +298,12 @@ class SyncRepository {
       if (apiVersion >= minAPIVersionSetlist) {
         await _uploadDeletedSetlists();
       }
+      if (apiVersion >= minAPIVersionPractice) {
+        await _uploadDeletedPracticeSessions();
+        await _uploadDeletedPracticeRoutines();
+        await _uploadDeletedExercises();
+        await _uploadDeletedExerciseCategories();
+      }
 
       await _downloadDeletedTags(honourDeletedAt);
 
@@ -288,6 +324,24 @@ class SyncRepository {
         await _downloadSetlistChanges();
       }
 
+      if (apiVersion >= minAPIVersionPractice) {
+        await _downloadDeletedExerciseCategories(honourDeletedAt);
+        await _uploadExerciseCategoryChanges(sendWrittenAt);
+        await _downloadExerciseCategoryChanges();
+
+        await _downloadDeletedExercises(honourDeletedAt);
+        await _uploadExerciseChanges(sendWrittenAt);
+        await _downloadExerciseChanges();
+
+        await _downloadDeletedPracticeRoutines(honourDeletedAt);
+        await _uploadPracticeRoutineChanges(sendWrittenAt);
+        await _downloadPracticeRoutineChanges();
+
+        await _downloadDeletedPracticeSessions(honourDeletedAt);
+        await _uploadPracticeSessionChanges(sendWrittenAt);
+        await _downloadPracticeSessionChanges();
+      }
+
       await _updateLastSync(syncTime);
 
       state.value = _itemsFailed ? SyncState.partial : SyncState.success;
@@ -303,9 +357,15 @@ class SyncRepository {
       _scoresRepo.remoteChangedTags(_changedTags);
       _scoresRepo.remoteChangedScores(_changedScores);
       _setlistsRepo.remoteChangedSetlists(_changedSetlists);
+      _practiceRepo.remoteChangedCategories(_changedCategories);
+      _practiceRepo.remoteChangedExercises(_changedExercises);
+      _practiceRepo.remoteChangedRoutines(_changedRoutines);
       _changedTags = {};
       _changedScores = {};
       _changedSetlists = {};
+      _changedCategories = {};
+      _changedExercises = {};
+      _changedRoutines = {};
       _scheduleSync();
     }
   }
@@ -493,6 +553,766 @@ class SyncRepository {
     }
   }
 
+  Future<void> _uploadDeletedExerciseCategories() async {
+    final startTime = DateTime.now();
+    final ids = (await _db.managers.deletedExerciseCategoriesTable.get()).map(
+      (c) => c.categoryId,
+    );
+
+    for (final id in ids) {
+      try {
+        await _service.deleteExerciseCategory(_con!, id);
+      } on NotFoundException catch (_) {
+        // already deleted on the server or never synced
+      }
+    }
+
+    await _db.managers.deletedExerciseCategoriesTable
+        .filter((f) => f.deletedAt.isBeforeOrOn(startTime))
+        .delete();
+  }
+
+  Future<void> _uploadDeletedExercises() async {
+    final startTime = DateTime.now();
+    final ids = (await _db.managers.deletedExercisesTable.get()).map(
+      (e) => e.exerciseId,
+    );
+
+    for (final id in ids) {
+      try {
+        await _service.deleteExercise(_con!, id);
+      } on NotFoundException catch (_) {
+        // already deleted on the server or never synced
+      }
+    }
+
+    await _db.managers.deletedExercisesTable
+        .filter((f) => f.deletedAt.isBeforeOrOn(startTime))
+        .delete();
+  }
+
+  Future<void> _uploadDeletedPracticeRoutines() async {
+    final startTime = DateTime.now();
+    final ids = (await _db.managers.deletedPracticeRoutinesTable.get()).map(
+      (r) => r.routineId,
+    );
+
+    for (final id in ids) {
+      try {
+        await _service.deletePracticeRoutine(_con!, id);
+      } on NotFoundException catch (_) {
+        // already deleted on the server or never synced
+      }
+    }
+
+    await _db.managers.deletedPracticeRoutinesTable
+        .filter((f) => f.deletedAt.isBeforeOrOn(startTime))
+        .delete();
+  }
+
+  Future<void> _uploadDeletedPracticeSessions() async {
+    final startTime = DateTime.now();
+    final ids = (await _db.managers.deletedPracticeSessionsTable.get()).map(
+      (s) => s.sessionId,
+    );
+
+    for (final id in ids) {
+      try {
+        await _service.deletePracticeSession(_con!, id);
+      } on NotFoundException catch (_) {
+        // already deleted on the server or never synced
+      }
+    }
+
+    await _db.managers.deletedPracticeSessionsTable
+        .filter((f) => f.deletedAt.isBeforeOrOn(startTime))
+        .delete();
+  }
+
+  Future<void> _downloadDeletedExerciseCategories(bool honourDeletedAt) async {
+    final deleted = await _service.getDeletedExerciseCategories(
+      _con!,
+      since: lastSync.value,
+    );
+    for (final d in deleted) {
+      await _db.transaction(() async {
+        final category = await _db.managers.exerciseCategoriesTable
+            .filter((f) => f.id(d.id))
+            .getSingleOrNull();
+        if (category == null) return;
+
+        if (honourDeletedAt &&
+            _shouldKeepAfterRemoteDelete(
+              deletedAt: d.deletedAt,
+              writtenAt: category.writtenAt,
+            )) {
+          Log.debug(
+            "Keeping exercise category ${d.id} deleted on the server at ${d.deletedAt}: restored by an import at ${category.writtenAt}",
+          );
+          await _db.managers.exerciseCategoriesTable
+              .filter((f) => f.id(d.id))
+              .update((o) => o(uploaded: const Value(false)));
+          return;
+        }
+
+        if (!category.uploaded) {
+          Log.warn(
+            "Discarding unsynced local changes to exercise category ${d.id}: deleted on the server",
+          );
+        }
+
+        // the exercises are only unlinked, the device that deleted the category uploads their new state
+        final affected = await _db.managers.exercisesTable
+            .filter((f) => f.category.id(d.id))
+            .map((e) => e.id)
+            .get();
+        if (affected.isNotEmpty) {
+          await _db.managers.exercisesTable
+              .filter((f) => f.category.id(d.id))
+              .update((o) => o(category: const Value(null)));
+          _changedExercises.addAll(affected);
+        }
+
+        await _db.managers.exerciseCategoriesTable
+            .filter((f) => f.id(d.id))
+            .delete();
+        _changedCategories.add(d.id);
+      });
+    }
+  }
+
+  Future<void> _uploadExerciseCategoryChanges(bool sendWrittenAt) async {
+    final changed = await _db.managers.exerciseCategoriesTable
+        .filter((f) => f.uploaded.isFalse())
+        .get();
+
+    for (final c in changed) {
+      try {
+        await _service.updateExerciseCategory(
+          _con!,
+          c.id,
+          name: c.name,
+          position: c.position,
+          updatedAt: c.updatedAt.toUtc(),
+          writtenAt: sendWrittenAt ? c.writtenAt?.toUtc() : null,
+        );
+        await _markExerciseCategoryUploaded(c.id, c.updatedAt, sendWrittenAt);
+      } on ConflictException catch (_) {
+        // the server holds equal or newer content, the local write is settled
+        await _markExerciseCategoryUploaded(c.id, c.updatedAt, sendWrittenAt);
+      } on DeletedException catch (e) {
+        Log.warn(
+          "Skipping upload of exercise category ${c.id}: deleted on the server at ${e.deletedAt}",
+        );
+      } on UnauthenticatedException catch (_) {
+        rethrow;
+      } on StatusCodeException catch (e) {
+        _itemsFailed = true;
+        Log.warn("Failed to upload exercise category ${c.id}", e: e);
+      }
+    }
+  }
+
+  Future<void> _markExerciseCategoryUploaded(
+    String id,
+    DateTime updatedAt,
+    bool clearWrittenAt,
+  ) async {
+    await _db.managers.exerciseCategoriesTable
+        .filter((f) => f.id(id) & f.updatedAt.equals(updatedAt))
+        .update(
+          (o) => o(
+            uploaded: const Value(true),
+            writtenAt: clearWrittenAt
+                ? const Value(null)
+                : const Value.absent(),
+          ),
+        );
+  }
+
+  Future<void> _downloadExerciseCategoryChanges() async {
+    final categories = await _service.getExerciseCategories(
+      _con!,
+      changedAfter: lastSync.value,
+    );
+    for (final c in categories) {
+      final result = await _db.managers.exerciseCategoriesTable
+          .createReturningOrNull(
+            (o) => o(
+              id: c.id,
+              name: c.name,
+              position: c.position,
+              updatedAt: Value(c.updatedAt.toUtc()),
+              uploaded: const Value(true),
+            ),
+            onConflict: DoUpdate.withExcluded(
+              (old, excluded) => ExerciseCategoriesTableCompanion.custom(
+                name: excluded.name,
+                position: excluded.position,
+                uploaded: excluded.uploaded,
+                updatedAt: excluded.updatedAt,
+              ),
+              where: (old, excluded) =>
+                  old.updatedAt.isSmallerThan(excluded.updatedAt),
+            ),
+          );
+      if (result != null) _changedCategories.add(c.id);
+    }
+  }
+
+  Future<void> _downloadDeletedExercises(bool honourDeletedAt) async {
+    final deleted = await _service.getDeletedExercises(
+      _con!,
+      since: lastSync.value,
+    );
+    for (final d in deleted) {
+      await _db.transaction(() async {
+        final exercise = await _db.managers.exercisesTable
+            .filter((f) => f.id(d.id))
+            .getSingleOrNull();
+        if (exercise == null) return;
+
+        if (honourDeletedAt &&
+            _shouldKeepAfterRemoteDelete(
+              deletedAt: d.deletedAt,
+              writtenAt: exercise.writtenAt,
+            )) {
+          Log.debug(
+            "Keeping exercise ${d.id} deleted on the server at ${d.deletedAt}: restored by an import at ${exercise.writtenAt}",
+          );
+          await _db.managers.exercisesTable
+              .filter((f) => f.id(d.id))
+              .update((o) => o(uploaded: const Value(false)));
+          return;
+        }
+
+        if (!exercise.uploaded) {
+          Log.warn(
+            "Discarding unsynced local changes to exercise ${d.id}: deleted on the server",
+          );
+        }
+
+        // the routine entries block the delete, the device that deleted the exercise uploads the new routines
+        final affected = await _db.managers.practiceRoutineEntriesTable
+            .filter((f) => f.exercise.id(d.id))
+            .map((e) => e.routine)
+            .get();
+        if (affected.isNotEmpty) {
+          await _db.managers.practiceRoutineEntriesTable
+              .filter((f) => f.exercise.id(d.id))
+              .delete();
+          await _practiceRepo.renumberRoutineEntries(affected.toSet());
+          _changedRoutines.addAll(affected);
+        }
+
+        await _db.managers.exercisesTable.filter((f) => f.id(d.id)).delete();
+        _changedExercises.add(d.id);
+      });
+    }
+  }
+
+  Future<void> _uploadExerciseChanges(bool sendWrittenAt) async {
+    final changed = await _db.managers.exercisesTable
+        .filter((f) => f.uploaded.isFalse())
+        .get();
+
+    for (final e in changed) {
+      final tagIds = await _db.managers.exerciseTagsTable
+          .filter((f) => f.exercise.id(e.id))
+          .map((t) => t.tag)
+          .get();
+      final scores =
+          await (_db.select(_db.exerciseScoresTable)
+                ..where((t) => t.exercise.equals(e.id))
+                ..orderBy([(t) => OrderingTerm.asc(t.position)]))
+              .get();
+      try {
+        await _service.updateExercise(
+          _con!,
+          e.id,
+          name: e.name,
+          categoryId: e.category,
+          tagIds: tagIds.toList(),
+          scoreIds: scores.map((s) => s.score).toList(),
+          metadata: ExerciseMetadataModel(
+            description: e.description ?? "",
+            source: e.source ?? "",
+            sourceLink: e.sourceLink ?? "",
+            instrument: e.instrument ?? "",
+            targetBpm: e.targetBpm ?? 0,
+          ),
+          updatedAt: e.updatedAt.toUtc(),
+          writtenAt: sendWrittenAt ? e.writtenAt?.toUtc() : null,
+        );
+        await _markExerciseUploaded(e.id, e.updatedAt, sendWrittenAt);
+      } on ConflictException catch (_) {
+        // the server holds equal or newer content, the local write is settled
+        await _markExerciseUploaded(e.id, e.updatedAt, sendWrittenAt);
+      } on DeletedException catch (err) {
+        Log.warn(
+          "Skipping upload of exercise ${e.id}: deleted on the server at ${err.deletedAt}",
+        );
+      } on UnauthenticatedException catch (_) {
+        rethrow;
+      } on StatusCodeException catch (err) {
+        _itemsFailed = true;
+        Log.warn("Failed to upload exercise ${e.id}", e: err);
+      }
+    }
+  }
+
+  Future<void> _markExerciseUploaded(
+    String id,
+    DateTime updatedAt,
+    bool clearWrittenAt,
+  ) async {
+    await _db.managers.exercisesTable
+        .filter((f) => f.id(id) & f.updatedAt.equals(updatedAt))
+        .update(
+          (o) => o(
+            uploaded: const Value(true),
+            writtenAt: clearWrittenAt
+                ? const Value(null)
+                : const Value.absent(),
+          ),
+        );
+  }
+
+  Future<void> _downloadExerciseChanges() async {
+    final exercises = await _service.getExercises(
+      _con!,
+      changedAfter: lastSync.value,
+    );
+    for (final e in exercises) {
+      await _db.transaction(() async {
+        final categoryId = await _knownCategoryId(e.id, e.categoryId);
+        final result = await _db.managers.exercisesTable.createReturningOrNull(
+          (o) => o(
+            id: e.id,
+            name: e.name,
+            category: Value(categoryId),
+            description: _optionalStringValue(e.metadata.description),
+            source: _optionalStringValue(e.metadata.source),
+            sourceLink: _optionalStringValue(e.metadata.sourceLink),
+            instrument: _optionalStringValue(e.metadata.instrument),
+            targetBpm: _optionalIntValue(e.metadata.targetBpm),
+            updatedAt: Value(e.updatedAt.toUtc()),
+            uploaded: const Value(true),
+          ),
+          onConflict: DoUpdate.withExcluded(
+            (old, excluded) => ExercisesTableCompanion.custom(
+              name: excluded.name,
+              category: excluded.category,
+              description: e.metadata.description != null
+                  ? excluded.description
+                  : null,
+              source: e.metadata.source != null ? excluded.source : null,
+              sourceLink: e.metadata.sourceLink != null
+                  ? excluded.sourceLink
+                  : null,
+              instrument: e.metadata.instrument != null
+                  ? excluded.instrument
+                  : null,
+              targetBpm: e.metadata.targetBpm != null
+                  ? excluded.targetBpm
+                  : null,
+              uploaded: excluded.uploaded,
+              updatedAt: excluded.updatedAt,
+            ),
+            where: (old, excluded) =>
+                old.updatedAt.isSmallerThan(excluded.updatedAt),
+          ),
+        );
+        if (result == null) return;
+
+        await _db.managers.exerciseTagsTable
+            .filter((f) => f.exercise.id(e.id))
+            .delete();
+        final tagIds = await _knownTagIds("exercise ${e.id}", e.tagIds);
+        if (tagIds.isNotEmpty) {
+          await _db.managers.exerciseTagsTable.bulkCreate(
+            (o) => tagIds.map((t) => o(exercise: e.id, tag: t)),
+          );
+        }
+
+        await _db.managers.exerciseScoresTable
+            .filter((f) => f.exercise.id(e.id))
+            .delete();
+        if (e.scoreIds.isNotEmpty) {
+          await _db.managers.exerciseScoresTable.bulkCreate(
+            (o) => e.scoreIds.indexed.map(
+              (s) => o(exercise: e.id, score: s.$2, position: s.$1),
+            ),
+          );
+        }
+
+        _changedExercises.add(e.id);
+      });
+    }
+  }
+
+  Future<String?> _knownCategoryId(
+    String exerciseId,
+    String? categoryId,
+  ) async {
+    if (categoryId == null) return null;
+    final category = await _db.managers.exerciseCategoriesTable
+        .filter((f) => f.id(categoryId))
+        .getSingleOrNull();
+    if (category != null) return categoryId;
+    Log.warn("Dropping unknown category $categoryId of exercise $exerciseId");
+    return null;
+  }
+
+  Future<void> _downloadDeletedPracticeRoutines(bool honourDeletedAt) async {
+    final deleted = await _service.getDeletedPracticeRoutines(
+      _con!,
+      since: lastSync.value,
+    );
+    for (final d in deleted) {
+      final routine = await _db.managers.practiceRoutinesTable
+          .filter((f) => f.id(d.id))
+          .getSingleOrNull();
+      if (routine == null) continue;
+
+      if (honourDeletedAt &&
+          _shouldKeepAfterRemoteDelete(
+            deletedAt: d.deletedAt,
+            writtenAt: routine.writtenAt,
+          )) {
+        Log.debug(
+          "Keeping practice routine ${d.id} deleted on the server at ${d.deletedAt}: restored by an import at ${routine.writtenAt}",
+        );
+        await _db.managers.practiceRoutinesTable
+            .filter((f) => f.id(d.id))
+            .update((o) => o(uploaded: const Value(false)));
+        continue;
+      }
+
+      if (!routine.uploaded) {
+        Log.warn(
+          "Discarding unsynced local changes to practice routine ${d.id}: deleted on the server",
+        );
+      }
+      await _db.managers.practiceRoutinesTable
+          .filter((f) => f.id(d.id))
+          .delete();
+      _changedRoutines.add(d.id);
+    }
+  }
+
+  Future<void> _uploadPracticeRoutineChanges(bool sendWrittenAt) async {
+    final changed = await _db.managers.practiceRoutinesTable
+        .filter((f) => f.uploaded.isFalse())
+        .get();
+
+    for (final r in changed) {
+      final entries =
+          await (_db.select(_db.practiceRoutineEntriesTable)
+                ..where((t) => t.routine.equals(r.id))
+                ..orderBy([(t) => OrderingTerm.asc(t.position)]))
+              .get();
+      try {
+        await _service.updatePracticeRoutine(
+          _con!,
+          r.id,
+          name: r.name,
+          metadata: PracticeRoutineMetadataModel(
+            description: r.description ?? "",
+          ),
+          entries: [
+            for (final e in entries)
+              PracticeRoutineEntryModel(
+                id: e.id,
+                exerciseId: e.exercise,
+                metadata: PracticeRoutineEntryMetadataModel(
+                  extraNotes: e.extraNotes ?? "",
+                  defaultScoreId: e.defaultScore ?? "",
+                  targetDuration: e.targetDuration?.inMilliseconds ?? 0,
+                ),
+              ),
+          ],
+          updatedAt: r.updatedAt.toUtc(),
+          writtenAt: sendWrittenAt ? r.writtenAt?.toUtc() : null,
+        );
+        await _markPracticeRoutineUploaded(r.id, r.updatedAt, sendWrittenAt);
+      } on ConflictException catch (_) {
+        // the server holds equal or newer content, the local write is settled
+        await _markPracticeRoutineUploaded(r.id, r.updatedAt, sendWrittenAt);
+      } on DeletedException catch (e) {
+        Log.warn(
+          "Skipping upload of practice routine ${r.id}: deleted on the server at ${e.deletedAt}",
+        );
+      } on UnauthenticatedException catch (_) {
+        rethrow;
+      } on StatusCodeException catch (e) {
+        _itemsFailed = true;
+        Log.warn("Failed to upload practice routine ${r.id}", e: e);
+      }
+    }
+  }
+
+  Future<void> _markPracticeRoutineUploaded(
+    String id,
+    DateTime updatedAt,
+    bool clearWrittenAt,
+  ) async {
+    await _db.managers.practiceRoutinesTable
+        .filter((f) => f.id(id) & f.updatedAt.equals(updatedAt))
+        .update(
+          (o) => o(
+            uploaded: const Value(true),
+            writtenAt: clearWrittenAt
+                ? const Value(null)
+                : const Value.absent(),
+          ),
+        );
+  }
+
+  Future<void> _downloadPracticeRoutineChanges() async {
+    final routines = await _service.getPracticeRoutines(
+      _con!,
+      changedAfter: lastSync.value,
+    );
+    for (final r in routines) {
+      await _db.transaction(() async {
+        final result = await _db.managers.practiceRoutinesTable
+            .createReturningOrNull(
+              (o) => o(
+                id: r.id,
+                name: r.name,
+                description: _optionalStringValue(r.metadata.description),
+                updatedAt: Value(r.updatedAt.toUtc()),
+                uploaded: const Value(true),
+              ),
+              onConflict: DoUpdate.withExcluded(
+                (old, excluded) => PracticeRoutinesTableCompanion.custom(
+                  name: excluded.name,
+                  description: r.metadata.description != null
+                      ? excluded.description
+                      : null,
+                  uploaded: excluded.uploaded,
+                  updatedAt: excluded.updatedAt,
+                ),
+                where: (old, excluded) =>
+                    old.updatedAt.isSmallerThan(excluded.updatedAt),
+              ),
+            );
+        if (result == null) return;
+
+        await _db.managers.practiceRoutineEntriesTable
+            .filter((f) => f.routine.id(r.id))
+            .delete();
+        final entries = await _knownExerciseEntries(r.id, r.entries);
+        if (entries.isNotEmpty) {
+          await _db.managers.practiceRoutineEntriesTable.bulkCreate(
+            (o) => entries.indexed.map(
+              (e) => o(
+                id: e.$2.id,
+                routine: r.id,
+                exercise: e.$2.exerciseId,
+                position: e.$1,
+                extraNotes: _optionalStringValue(e.$2.metadata.extraNotes),
+                defaultScore: _optionalStringValue(
+                  e.$2.metadata.defaultScoreId,
+                ),
+                targetDuration: _optionalDurationValue(
+                  e.$2.metadata.targetDuration,
+                ),
+              ),
+            ),
+          );
+        }
+        _changedRoutines.add(r.id);
+      });
+    }
+  }
+
+  Future<List<PracticeRoutineEntryModel>> _knownExerciseEntries(
+    String routineId,
+    List<PracticeRoutineEntryModel> entries,
+  ) async {
+    if (entries.isEmpty) return entries;
+    final known =
+        (await _db.managers.exercisesTable
+                .filter((f) => f.id.isIn(entries.map((e) => e.exerciseId)))
+                .map((e) => e.id)
+                .get())
+            .toSet();
+    final unknown = entries
+        .where((e) => !known.contains(e.exerciseId))
+        .map((e) => e.exerciseId);
+    if (unknown.isNotEmpty) {
+      Log.warn(
+        "Dropping entries of unknown exercises ${unknown.join(", ")} of practice routine $routineId",
+      );
+    }
+    return entries.where((e) => known.contains(e.exerciseId)).toList();
+  }
+
+  Future<void> _downloadDeletedPracticeSessions(bool honourDeletedAt) async {
+    final deleted = await _service.getDeletedPracticeSessions(
+      _con!,
+      since: lastSync.value,
+    );
+    for (final d in deleted) {
+      final session = await _db.managers.practiceSessionsTable
+          .filter((f) => f.id(d.id))
+          .getSingleOrNull();
+      if (session == null) continue;
+
+      if (honourDeletedAt &&
+          _shouldKeepAfterRemoteDelete(
+            deletedAt: d.deletedAt,
+            writtenAt: session.writtenAt,
+          )) {
+        Log.debug(
+          "Keeping practice session ${d.id} deleted on the server at ${d.deletedAt}: restored by an import at ${session.writtenAt}",
+        );
+        await _db.managers.practiceSessionsTable
+            .filter((f) => f.id(d.id))
+            .update((o) => o(uploaded: const Value(false)));
+        continue;
+      }
+
+      if (!session.uploaded) {
+        Log.warn(
+          "Discarding unsynced local changes to practice session ${d.id}: deleted on the server",
+        );
+      }
+      await _db.managers.practiceSessionsTable
+          .filter((f) => f.id(d.id))
+          .delete();
+    }
+  }
+
+  Future<void> _uploadPracticeSessionChanges(bool sendWrittenAt) async {
+    final changed = await _db.managers.practiceSessionsTable
+        .filter((f) => f.uploaded.isFalse())
+        .get();
+
+    for (final s in changed) {
+      final entries =
+          await (_db.select(_db.practiceSessionEntriesTable)
+                ..where((t) => t.session.equals(s.id))
+                ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+              .get();
+
+      try {
+        await _service.updatePracticeSession(
+          _con!,
+          s.id,
+          startedAt: s.startedAt.toUtc(),
+          endedAt: s.endedAt?.toUtc(),
+          routineId: s.routine,
+          metadata: PracticeSessionMetadataModel(
+            description: s.description ?? "",
+          ),
+          entries: [
+            for (final e in entries)
+              PracticeSessionEntryModel(
+                id: e.id,
+                exerciseId: e.exercise,
+                routineEntryId: e.routineEntry,
+                metadata: PracticeSessionEntryMetadataModel(
+                  duration: e.duration.inMilliseconds,
+                ),
+              ),
+          ],
+          updatedAt: s.updatedAt.toUtc(),
+          writtenAt: sendWrittenAt ? s.writtenAt?.toUtc() : null,
+        );
+        await _markPracticeSessionUploaded(s.id, s.updatedAt, sendWrittenAt);
+      } on ConflictException catch (_) {
+        // the server holds equal or newer content, the local write is settled
+        await _markPracticeSessionUploaded(s.id, s.updatedAt, sendWrittenAt);
+      } on DeletedException catch (e) {
+        Log.warn(
+          "Skipping upload of practice session ${s.id}: deleted on the server at ${e.deletedAt}",
+        );
+      } on UnauthenticatedException catch (_) {
+        rethrow;
+      } on StatusCodeException catch (e) {
+        _itemsFailed = true;
+        Log.warn("Failed to upload practice session ${s.id}", e: e);
+      }
+    }
+  }
+
+  Future<void> _markPracticeSessionUploaded(
+    String id,
+    DateTime updatedAt,
+    bool clearWrittenAt,
+  ) async {
+    await _db.managers.practiceSessionsTable
+        .filter((f) => f.id(id) & f.updatedAt.equals(updatedAt))
+        .update(
+          (o) => o(
+            uploaded: const Value(true),
+            writtenAt: clearWrittenAt
+                ? const Value(null)
+                : const Value.absent(),
+          ),
+        );
+  }
+
+  Future<void> _downloadPracticeSessionChanges() async {
+    final sessions = await _service.getPracticeSessions(
+      _con!,
+      changedAfter: lastSync.value,
+    );
+    for (final s in sessions) {
+      await _db.transaction(() async {
+        final result = await _db.managers.practiceSessionsTable
+            .createReturningOrNull(
+              (o) => o(
+                id: s.id,
+                startedAt: s.startedAt.toUtc(),
+                endedAt: Value(s.endedAt?.toUtc()),
+                routine: Value(s.routineId),
+                description: _optionalStringValue(s.metadata.description),
+                updatedAt: Value(s.updatedAt.toUtc()),
+                uploaded: const Value(true),
+              ),
+              onConflict: DoUpdate.withExcluded(
+                (old, excluded) => PracticeSessionsTableCompanion.custom(
+                  startedAt: excluded.startedAt,
+                  endedAt: excluded.endedAt,
+                  routine: excluded.routine,
+                  description: s.metadata.description != null
+                      ? excluded.description
+                      : null,
+                  uploaded: excluded.uploaded,
+                  updatedAt: excluded.updatedAt,
+                ),
+                where: (old, excluded) =>
+                    old.updatedAt.isSmallerThan(excluded.updatedAt),
+              ),
+            );
+        if (result == null) return;
+
+        await _db.managers.practiceSessionEntriesTable
+            .filter((f) => f.session.id(s.id))
+            .delete();
+        if (s.entries.isNotEmpty) {
+          await _db.managers.practiceSessionEntriesTable.bulkCreate(
+            (o) => s.entries.map(
+              (e) => o(
+                id: e.id,
+                session: s.id,
+                exercise: e.exerciseId,
+                routineEntry: Value(e.routineEntryId),
+                duration: Value(
+                  Duration(milliseconds: e.metadata.duration ?? 0),
+                ),
+              ),
+            ),
+          );
+        }
+      });
+    }
+  }
+
   Future<void> _downloadDeletedTags(bool honourDeletedAt) async {
     final deletedTags = await _service.getDeletedTags(
       _con!,
@@ -530,7 +1350,15 @@ class SyncRepository {
             .get();
         _changedScores.addAll(affectedScores.map((s) => s.score));
 
+        final affectedExercises = await _db.managers.exerciseTagsTable
+            .filter((f) => f.tag.id(d.id))
+            .get();
+        _changedExercises.addAll(affectedExercises.map((e) => e.exercise));
+
         await _db.managers.scoreTagsTable
+            .filter((f) => f.tag.id(d.id))
+            .delete();
+        await _db.managers.exerciseTagsTable
             .filter((f) => f.tag.id(d.id))
             .delete();
         await _db.managers.tagsTable.filter((f) => f.id(d.id)).delete();
@@ -913,7 +1741,7 @@ class SyncRepository {
         }
         if (score == null || metadataChanged) {
           if (s.tagIds.isNotEmpty) {
-            final tagIds = await _knownTagIds(s.id, s.tagIds);
+            final tagIds = await _knownTagIds("score ${s.id}", s.tagIds);
             if (tagIds.isNotEmpty) {
               await _db.managers.scoreTagsTable.bulkCreate(
                 (o) => tagIds.map((t) => o(score: s.id, tag: t)),
@@ -944,7 +1772,7 @@ class SyncRepository {
     }
   }
 
-  Future<List<String>> _knownTagIds(String scoreId, List<String> tagIds) async {
+  Future<List<String>> _knownTagIds(String owner, List<String> tagIds) async {
     final known =
         (await _db.managers.tagsTable
                 .filter((f) => f.id.isIn(tagIds))
@@ -953,7 +1781,7 @@ class SyncRepository {
             .toSet();
     final unknown = tagIds.where((t) => !known.contains(t));
     if (unknown.isNotEmpty) {
-      Log.warn("Dropping unknown tags ${unknown.join(", ")} of score $scoreId");
+      Log.warn("Dropping unknown tags ${unknown.join(", ")} of $owner");
     }
     return tagIds.where(known.contains).toList();
   }
@@ -1008,6 +1836,18 @@ class SyncRepository {
     if (str == null) return const Value.absent();
     if (str == "") return const Value(null);
     return Value(str);
+  }
+
+  Value<int?> _optionalIntValue(int? value) {
+    if (value == null) return const Value.absent();
+    if (value == 0) return const Value(null);
+    return Value(value);
+  }
+
+  Value<Duration?> _optionalDurationValue(int? milliseconds) {
+    if (milliseconds == null) return const Value.absent();
+    if (milliseconds == 0) return const Value(null);
+    return Value(Duration(milliseconds: milliseconds));
   }
 
   Value<String?> _annotationsColumnValue(Map<String, dynamic>? a) {

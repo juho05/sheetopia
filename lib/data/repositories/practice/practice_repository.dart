@@ -24,20 +24,43 @@ class PracticeRepository {
   final Database _db;
   final ScoresRepository _scoresRepo;
 
-  final BehaviorSubject<Set<String>> _updatedExerciseIds = BehaviorSubject();
+  final BehaviorSubject<({Set<String> changed, bool needsUpload})>
+  _updatedExerciseIds = BehaviorSubject();
 
-  Stream<Set<String>> get updatedExerciseIds => _updatedExerciseIds.stream;
+  Stream<Set<String>> get updatedExerciseIds =>
+      _updatedExerciseIds.stream.map((event) => event.changed);
 
-  final BehaviorSubject<Set<String>> _updatedCategoryIds = BehaviorSubject();
+  Stream<Set<String>> get locallyUpdatedExerciseIds => _updatedExerciseIds
+      .stream
+      .where((event) => event.needsUpload)
+      .map((event) => event.changed);
 
-  Stream<Set<String>> get updatedCategoryIds => _updatedCategoryIds.stream;
+  final BehaviorSubject<({Set<String> changed, bool needsUpload})>
+  _updatedCategoryIds = BehaviorSubject();
 
-  final BehaviorSubject<Set<String>> _updatedRoutineIds = BehaviorSubject();
+  Stream<Set<String>> get updatedCategoryIds =>
+      _updatedCategoryIds.stream.map((event) => event.changed);
 
-  Stream<Set<String>> get updatedRoutineIds => _updatedRoutineIds.stream;
+  Stream<Set<String>> get locallyUpdatedCategoryIds => _updatedCategoryIds
+      .stream
+      .where((event) => event.needsUpload)
+      .map((event) => event.changed);
+
+  final BehaviorSubject<({Set<String> changed, bool needsUpload})>
+  _updatedRoutineIds = BehaviorSubject();
+
+  Stream<Set<String>> get updatedRoutineIds =>
+      _updatedRoutineIds.stream.map((event) => event.changed);
+
+  Stream<Set<String>> get locallyUpdatedRoutineIds => _updatedRoutineIds.stream
+      .where((event) => event.needsUpload)
+      .map((event) => event.changed);
 
   PracticeRepository({required this._db, required this._scoresRepo}) {
     _scoresRepo.deletedScoreIds.listen(removeDeletedScoreEntries);
+    _scoresRepo.untaggedExerciseIds.listen(
+      (ids) => _updatedExerciseIds.add((changed: ids, needsUpload: false)),
+    );
   }
 
   static final _whitespaceRegex = RegExp(r'\s+');
@@ -237,7 +260,7 @@ class PracticeRepository {
         ),
       );
     });
-    _updatedCategoryIds.add({categoryId});
+    _updatedCategoryIds.add((changed: {categoryId}, needsUpload: true));
     return ExerciseCategory(id: categoryId, name: name);
   }
 
@@ -251,7 +274,7 @@ class PracticeRepository {
             uploaded: const Value(false),
           ),
         );
-    _updatedCategoryIds.add({categoryId});
+    _updatedCategoryIds.add((changed: {categoryId}, needsUpload: true));
   }
 
   Future<void> deleteCategory(String categoryId) async {
@@ -283,8 +306,13 @@ class PracticeRepository {
         await _writeCategoryPositions(await _orderedCategories()),
       );
     });
-    if (exerciseIds.isNotEmpty) _updatedExerciseIds.add(exerciseIds);
-    _updatedCategoryIds.add({categoryId, ...movedIds});
+    if (exerciseIds.isNotEmpty) {
+      _updatedExerciseIds.add((changed: exerciseIds, needsUpload: true));
+    }
+    _updatedCategoryIds.add((
+      changed: {categoryId, ...movedIds},
+      needsUpload: true,
+    ));
   }
 
   Future<void> moveCategory(int from, int to) async {
@@ -297,7 +325,7 @@ class PracticeRepository {
       movedIds.addAll(await _writeCategoryPositions(categories));
     });
     if (movedIds.isEmpty) return;
-    _updatedCategoryIds.add(movedIds);
+    _updatedCategoryIds.add((changed: movedIds, needsUpload: true));
   }
 
   Future<List<ExerciseCategoriesTableData>> _orderedCategories() async {
@@ -452,7 +480,7 @@ class PracticeRepository {
         );
       }
     });
-    _updatedExerciseIds.add({exerciseId});
+    _updatedExerciseIds.add((changed: {exerciseId}, needsUpload: true));
     return exerciseId;
   }
 
@@ -477,7 +505,7 @@ class PracticeRepository {
             uploaded: const Value(false),
           ),
         );
-    _updatedExerciseIds.add({exerciseId});
+    _updatedExerciseIds.add((changed: {exerciseId}, needsUpload: true));
   }
 
   Future<void> updateExerciseCategory(
@@ -493,7 +521,7 @@ class PracticeRepository {
             uploaded: const Value(false),
           ),
         );
-    _updatedExerciseIds.add({exerciseId});
+    _updatedExerciseIds.add((changed: {exerciseId}, needsUpload: true));
   }
 
   Future<void> updateExerciseSource(
@@ -513,7 +541,7 @@ class PracticeRepository {
             uploaded: const Value(false),
           ),
         );
-    _updatedExerciseIds.add({exerciseId});
+    _updatedExerciseIds.add((changed: {exerciseId}, needsUpload: true));
   }
 
   Future<void> addExerciseTags(
@@ -528,7 +556,7 @@ class PracticeRepository {
       );
       await _markUpdated(exerciseId);
     });
-    _updatedExerciseIds.add({exerciseId});
+    _updatedExerciseIds.add((changed: {exerciseId}, needsUpload: true));
   }
 
   Future<void> removeExerciseTag(String exerciseId, String tagId) async {
@@ -538,7 +566,7 @@ class PracticeRepository {
           .delete();
       await _markUpdated(exerciseId);
     });
-    _updatedExerciseIds.add({exerciseId});
+    _updatedExerciseIds.add((changed: {exerciseId}, needsUpload: true));
   }
 
   Future<List<String>> getExerciseScoreIds(String exerciseId) async {
@@ -607,7 +635,7 @@ class PracticeRepository {
       await _markUpdated(exerciseId);
     });
     await _scoresRepo.deleteScores(scoreIdsToDelete.nonNulls.toSet());
-    _updatedExerciseIds.add({exerciseId});
+    _updatedExerciseIds.add((changed: {exerciseId}, needsUpload: true));
   }
 
   Future<void> removeDeletedScoreEntries(Set<String> scoreIds) async {
@@ -633,7 +661,7 @@ class PracticeRepository {
           );
     });
     if (affected.isEmpty) return;
-    _updatedExerciseIds.add(affected);
+    _updatedExerciseIds.add((changed: affected, needsUpload: true));
   }
 
   Future<void> deleteExercise(String exerciseId) async {
@@ -690,8 +718,10 @@ class PracticeRepository {
       );
     });
     await _scoresRepo.deleteScores(scoreIdsToDelete.nonNulls.toSet());
-    _updatedExerciseIds.add({exerciseId});
-    if (routineIds.isNotEmpty) _updatedRoutineIds.add(routineIds);
+    _updatedExerciseIds.add((changed: {exerciseId}, needsUpload: true));
+    if (routineIds.isNotEmpty) {
+      _updatedRoutineIds.add((changed: routineIds, needsUpload: true));
+    }
   }
 
   Future<List<String>> getInstruments({String filter = "", int? size}) async {
@@ -953,7 +983,7 @@ class PracticeRepository {
       );
       await _writeRoutineEntries(routineId, entries);
     });
-    _updatedRoutineIds.add({routineId});
+    _updatedRoutineIds.add((changed: {routineId}, needsUpload: true));
     return routineId;
   }
 
@@ -974,7 +1004,7 @@ class PracticeRepository {
             uploaded: const Value(false),
           ),
         );
-    _updatedRoutineIds.add({routineId});
+    _updatedRoutineIds.add((changed: {routineId}, needsUpload: true));
   }
 
   Future<void> setRoutineEntries(
@@ -985,7 +1015,7 @@ class PracticeRepository {
       await _writeRoutineEntries(routineId, entries);
       await _markRoutineUpdated(routineId);
     });
-    _updatedRoutineIds.add({routineId});
+    _updatedRoutineIds.add((changed: {routineId}, needsUpload: true));
   }
 
   Future<void> _writeRoutineEntries(
@@ -1067,7 +1097,7 @@ class PracticeRepository {
         ),
       );
     });
-    _updatedRoutineIds.add({copyId});
+    _updatedRoutineIds.add((changed: {copyId}, needsUpload: true));
     return copyId;
   }
 
@@ -1081,7 +1111,7 @@ class PracticeRepository {
             o(routineId: routineId, deletedAt: Value(DateTime.now().toUtc())),
       );
     });
-    _updatedRoutineIds.add({routineId});
+    _updatedRoutineIds.add((changed: {routineId}, needsUpload: true));
   }
 
   Future<void> _markRoutineUpdated(String routineId) async {
@@ -1095,6 +1125,12 @@ class PracticeRepository {
         );
   }
 
+  Future<void> renumberRoutineEntries(Iterable<String> routineIds) async {
+    for (final routineId in routineIds) {
+      await _renumberRoutineEntries(routineId);
+    }
+  }
+
   Future<void> _renumberRoutineEntries(String routineId) async {
     final query = _db.select(_db.practiceRoutineEntriesTable)
       ..where((t) => t.routine.equals(routineId))
@@ -1106,6 +1142,21 @@ class PracticeRepository {
           .filter((f) => f.id(entry.id))
           .update((o) => o(position: Value(position)));
     }
+  }
+
+  void remoteChangedExercises(Set<String> exerciseIds) {
+    if (exerciseIds.isEmpty) return;
+    _updatedExerciseIds.add((changed: exerciseIds, needsUpload: false));
+  }
+
+  void remoteChangedCategories(Set<String> categoryIds) {
+    if (categoryIds.isEmpty) return;
+    _updatedCategoryIds.add((changed: categoryIds, needsUpload: false));
+  }
+
+  void remoteChangedRoutines(Set<String> routineIds) {
+    if (routineIds.isEmpty) return;
+    _updatedRoutineIds.add((changed: routineIds, needsUpload: false));
   }
 
   Future<void> _markUpdated(String exerciseId) async {

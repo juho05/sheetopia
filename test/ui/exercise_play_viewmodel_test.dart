@@ -67,13 +67,22 @@ void main() {
     );
   }
 
+  // a load resolves score files from the file system, pumpEventQueue can return
+  // before that lands and leave the view model half loaded
+  Future<void> waitFor(bool Function() done) async {
+    for (var i = 0; i < 2000 && !done(); i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+    }
+    expect(done(), isTrue, reason: "timed out waiting for the view model");
+  }
+
   Future<ExercisePlayViewModel> viewModelFor(String exerciseId) async {
     final viewModel = ExercisePlayViewModel(
       repo: repo,
       scoresRepo: scoresRepo,
       exerciseId: exerciseId,
     );
-    await pumpEventQueue();
+    await waitFor(() => !viewModel.loading);
     return viewModel;
   }
 
@@ -139,7 +148,7 @@ void main() {
     final viewModel = await viewModelFor(exerciseId);
     viewModel.selectScore(1);
     await repo.setExerciseScores(exerciseId, ["a"]);
-    await pumpEventQueue();
+    await waitFor(() => viewModel.scores.length == 1);
 
     expect(viewModel.scores.map((s) => s.id), ["a"]);
     expect(viewModel.currentScoreId, "a");
@@ -152,7 +161,7 @@ void main() {
 
     final viewModel = await viewModelFor(exerciseId);
     await repo.deleteExercise(exerciseId);
-    await pumpEventQueue();
+    await waitFor(() => viewModel.deleted);
 
     expect(viewModel.deleted, isTrue);
     viewModel.dispose();
@@ -167,8 +176,10 @@ void main() {
     viewModel.selectScore(2);
     expect(viewModel.position, 2);
 
+    var loads = 0;
+    viewModel.addListener(() => loads++);
     await scoresRepo.saveAnnotations("a", const {});
-    await pumpEventQueue();
+    await waitFor(() => loads > 0);
 
     expect(viewModel.scores.map((s) => s.id), ["a", "b", "a"]);
     expect(viewModel.position, 2);
@@ -184,7 +195,7 @@ void main() {
     final viewModel = await viewModelFor(exerciseId);
     viewModel.selectScore(2);
     await repo.setExerciseScores(exerciseId, ["b", "a"]);
-    await pumpEventQueue();
+    await waitFor(() => viewModel.scores.map((s) => s.id).join() == "ba");
 
     expect(viewModel.scores.map((s) => s.id), ["b", "a"]);
     expect(viewModel.position, 1);

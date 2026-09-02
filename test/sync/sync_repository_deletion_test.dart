@@ -18,12 +18,17 @@ import 'package:logger/logger.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/logger/log_repository.dart';
+import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
+import 'package:sheetopia/data/services/sync/models/exercise_categories.dart';
+import 'package:sheetopia/data/services/sync/models/exercises.dart';
+import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
+import 'package:sheetopia/data/services/sync/models/practice_sessions.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/server_info.dart';
@@ -137,6 +142,54 @@ class _FakeSyncService extends SyncService {
   }) async => [];
 
   @override
+  Future<List<ExerciseCategoryModel>> getExerciseCategories(
+    SyncConnection con, {
+    DateTime? changedAfter,
+  }) async => [];
+
+  @override
+  Future<List<ExerciseModel>> getExercises(
+    SyncConnection con, {
+    DateTime? changedAfter,
+  }) async => [];
+
+  @override
+  Future<List<PracticeRoutineModel>> getPracticeRoutines(
+    SyncConnection con, {
+    DateTime? changedAfter,
+  }) async => [];
+
+  @override
+  Future<List<PracticeSessionModel>> getPracticeSessions(
+    SyncConnection con, {
+    DateTime? changedAfter,
+  }) async => [];
+
+  @override
+  Future<List<RemotelyDeleted>> getDeletedExerciseCategories(
+    SyncConnection con, {
+    DateTime? since,
+  }) async => [];
+
+  @override
+  Future<List<RemotelyDeleted>> getDeletedExercises(
+    SyncConnection con, {
+    DateTime? since,
+  }) async => [];
+
+  @override
+  Future<List<RemotelyDeleted>> getDeletedPracticeRoutines(
+    SyncConnection con, {
+    DateTime? since,
+  }) async => [];
+
+  @override
+  Future<List<RemotelyDeleted>> getDeletedPracticeSessions(
+    SyncConnection con, {
+    DateTime? since,
+  }) async => [];
+
+  @override
   Future<UpdateScoreResultModel?> updateScore(
     SyncConnection con,
     String scoreId, {
@@ -218,12 +271,14 @@ void main() {
   late Database db;
   late ScoresRepository scoresRepo;
   late SetlistsRepository setlistsRepo;
+  late PracticeRepository practiceRepo;
   late _FakeSyncService service;
   late SyncRepository repo;
 
   const scoreId = "score-1";
   const tagId = "tag-1";
   const setlistId = "setlist-1";
+  const exerciseId = "exercise-1";
 
   final deletedAt = DateTime.utc(2026, 7, 28, 15);
   final importedAt = deletedAt.add(const Duration(minutes: 5));
@@ -233,23 +288,39 @@ void main() {
     DateTime? writtenAt,
     bool uploaded = true,
     ScoreType type = ScoreType.score,
+    // an exercise owned score is abandoned garbage while no exercise links to it
+    bool ownedByExercise = false,
   }) async {
-    await db.managers.scoresTable.create(
-      (o) => o(
-        id: scoreId,
-        title: "Title",
-        searchText: " title ",
-        fileDownloaded: false,
-        fileType: FileType.pdf,
-        lastOpened: Value(contentTime),
-        metadataUpdatedAt: Value(contentTime),
-        fileUpdatedAt: Value(contentTime),
-        writtenAt: Value(writtenAt),
-        metadataUploaded: Value(uploaded),
-        fileUploaded: Value(uploaded),
-        type: Value(type),
-      ),
-    );
+    await db.transaction(() async {
+      await db.managers.scoresTable.create(
+        (o) => o(
+          id: scoreId,
+          title: "Title",
+          searchText: " title ",
+          fileDownloaded: false,
+          fileType: FileType.pdf,
+          lastOpened: Value(contentTime),
+          metadataUpdatedAt: Value(contentTime),
+          fileUpdatedAt: Value(contentTime),
+          writtenAt: Value(writtenAt),
+          metadataUploaded: Value(uploaded),
+          fileUploaded: Value(uploaded),
+          type: Value(type),
+        ),
+      );
+      if (!ownedByExercise) return;
+      await db.managers.exercisesTable.create(
+        (o) => o(
+          id: exerciseId,
+          name: "Exercise",
+          updatedAt: Value(contentTime),
+          uploaded: const Value(true),
+        ),
+      );
+      await db.managers.exerciseScoresTable.create(
+        (o) => o(exercise: exerciseId, score: scoreId, position: 0),
+      );
+    });
   }
 
   Future<void> createTag({
@@ -303,10 +374,12 @@ void main() {
     await db.customStatement("PRAGMA foreign_keys = ON");
     scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
     setlistsRepo = SetlistsRepository(db: db, scoresRepo: scoresRepo);
+    practiceRepo = PracticeRepository(db: db, scoresRepo: scoresRepo);
     service = _FakeSyncService();
     repo = SyncRepository(
       scoresRepo: scoresRepo,
       setlistsRepo: setlistsRepo,
+      practiceRepo: practiceRepo,
       keyValue: KeyValueRepository(database: db),
       db: db,
       syncService: service,
@@ -511,7 +584,7 @@ void main() {
   }
 
   test("a downloaded score without a type keeps the local one", () async {
-    await createScore(type: ScoreType.exercise);
+    await createScore(type: ScoreType.exercise, ownedByExercise: true);
     service.scores = [remoteScore()];
 
     await syncAndWait();
@@ -523,7 +596,7 @@ void main() {
   });
 
   test("a downloaded score with a type applies it", () async {
-    await createScore();
+    await createScore(ownedByExercise: true);
     service.scores = [remoteScore(type: ScoreType.exercise)];
 
     await syncAndWait();
@@ -546,7 +619,11 @@ void main() {
   });
 
   Future<void> createUnuploadedTypedRows() async {
-    await createScore(uploaded: false, type: ScoreType.exercise);
+    await createScore(
+      uploaded: false,
+      type: ScoreType.exercise,
+      ownedByExercise: true,
+    );
     await createTag(type: TagType.exercise);
     await db.managers.tagsTable
         .filter((f) => f.id(tagId))

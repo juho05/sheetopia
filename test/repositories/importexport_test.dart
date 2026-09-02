@@ -19,6 +19,7 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage.dart';
 import 'package:sheetopia/data/repositories/importexport/importexport_repository.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
+import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
@@ -88,6 +89,7 @@ void main() {
   late Database db;
   late ScoresRepository scoresRepo;
   late SetlistsRepository setlistsRepo;
+  late PracticeRepository practiceRepo;
   late SyncRepository syncRepo;
   late ImportExportRepository repo;
   late _FakeFileSelector fileSelector;
@@ -164,9 +166,11 @@ void main() {
     await db.customStatement("PRAGMA foreign_keys = ON");
     scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
     setlistsRepo = SetlistsRepository(db: db, scoresRepo: scoresRepo);
+    practiceRepo = PracticeRepository(db: db, scoresRepo: scoresRepo);
     syncRepo = SyncRepository(
       scoresRepo: scoresRepo,
       setlistsRepo: setlistsRepo,
+      practiceRepo: practiceRepo,
       keyValue: KeyValueRepository(database: db),
       db: db,
       syncService: SyncService(),

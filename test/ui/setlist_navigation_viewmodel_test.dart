@@ -62,6 +62,15 @@ void main() {
     scoresRepo.remoteChangedScores({id});
   }
 
+  // a reload resolves score files from the file system, pumpEventQueue can
+  // return before that lands and leave the view model on its old state
+  Future<void> waitFor(bool Function() done) async {
+    for (var i = 0; i < 2000 && !done(); i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+    }
+    expect(done(), isTrue, reason: "timed out waiting for the view model");
+  }
+
   Future<SetlistNavigationViewModel> navigationFor() async {
     final setlist = (await repo.getSetlist(setlistId))!;
     return SetlistNavigationViewModel(
@@ -152,7 +161,7 @@ void main() {
     expect(nav.currentScoreId, isNull);
 
     await markDownloaded("b");
-    await pumpEventQueue();
+    await waitFor(() => nav.position == 1);
 
     expect(nav.position, 1, reason: "recovers without a second subscription");
     expect(nav.currentScoreId, "b");
@@ -170,7 +179,7 @@ void main() {
     expect(nav.position, 2);
 
     await markDownloaded("b");
-    await pumpEventQueue();
+    await waitFor(() => nav.entries[1].playable);
 
     expect(nav.position, 2, reason: "a background sync must not turn the page");
     expect(nav.currentScoreId, "c");
@@ -190,7 +199,7 @@ void main() {
 
     // a peer reorders the setlist while it is being played
     await repo.moveEntry(setlistId, 2, 0);
-    await pumpEventQueue();
+    await waitFor(() => nav.position == 0);
 
     expect(nav.position, 0, reason: "followed the score, not the index");
     expect(nav.currentScoreId, "c");
@@ -208,7 +217,7 @@ void main() {
     expect(nav.currentScoreId, "b");
 
     await scoresRepo.deleteScore("b");
-    await pumpEventQueue();
+    await waitFor(() => nav.length == 2);
 
     expect(nav.length, 2);
     expect(nav.currentScoreId, "c");
@@ -223,7 +232,7 @@ void main() {
     expect(nav.deleted, isFalse);
 
     await repo.deleteSetlist(setlistId);
-    await pumpEventQueue();
+    await waitFor(() => nav.deleted);
 
     expect(nav.deleted, isTrue);
     expect(nav.name, "Set", reason: "must not null out the setlist");

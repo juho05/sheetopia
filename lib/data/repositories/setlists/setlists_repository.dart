@@ -27,11 +27,7 @@ class SetlistsRepository {
       .where((event) => event.needsUpload)
       .map((event) => event.changed);
 
-  SetlistsRepository({
-    required Database db,
-    required ScoresRepository scoresRepo,
-  }) : _db = db,
-       _scoresRepo = scoresRepo {
+  SetlistsRepository({required this._db, required this._scoresRepo}) {
     _scoresRepo.deletedScoreIds.listen(removeDeletedScoreEntries);
   }
 

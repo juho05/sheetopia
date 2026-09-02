@@ -79,6 +79,10 @@ class ScoresRepository {
 
   Stream<Set<String>> get deletedScoreIds => _deletedScoreIds.stream;
 
+  final BehaviorSubject<Set<String>> _untaggedExerciseIds = BehaviorSubject();
+
+  Stream<Set<String>> get untaggedExerciseIds => _untaggedExerciseIds.stream;
+
   final BehaviorSubject<String> _lastOpenedChanged = BehaviorSubject();
 
   Stream<String> get lastOpenedChanged => _lastOpenedChanged.stream;
@@ -788,6 +792,10 @@ class ScoresRepository {
           .filter((f) => f.tag.id(tagId))
           .map((s) => s.score)
           .get();
+      final affectedExercises = await _db.managers.exerciseTagsTable
+          .filter((f) => f.tag.id(tagId))
+          .map((e) => e.exercise)
+          .get();
       await _db.managers.tagsTable.filter((f) => f.id(tagId)).delete();
       await _db.managers.deletedTagsTable.create(
         (o) => o(tagId: tagId, deletedAt: Value(DateTime.now().toUtc())),
@@ -797,6 +805,9 @@ class ScoresRepository {
         remoteTriggered: false,
       ));
       _updatedTagIds.add((changed: {tagId}, remoteTriggered: false));
+      if (affectedExercises.isNotEmpty) {
+        _untaggedExerciseIds.add(affectedExercises.toSet());
+      }
     });
   }
 
