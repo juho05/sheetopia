@@ -235,6 +235,31 @@ class EditExerciseViewModel extends ChangeNotifier {
     );
   }
 
+  Future<void> changeScoreFile(String scoreId) async {
+    final file = await selectScoreFile();
+    if (file == null) return;
+    await _scoresRepo.updateScoreFile(scoreId, file);
+    await _reloadScore(scoreId);
+  }
+
+  Future<void> _reloadScore(String scoreId) async {
+    final scores = await _scoresRepo.getScoresById([scoreId]);
+    if (scores.isEmpty) return;
+    final score = scores.first;
+    var changed = false;
+    for (final (i, e) in _scoreEntries.indexed) {
+      if (e.score.id != scoreId) continue;
+      _scoreEntries[i] = e.withScore(
+        _scoreTitleDebounce.containsKey(scoreId)
+            ? score.copyWith(title: e.score.title)
+            : score,
+      );
+      changed = true;
+    }
+    if (!changed) return;
+    notifyListeners();
+  }
+
   Future<void> _saveScoreTitle(String scoreId) async {
     if (_scoreTitleDebounce.remove(scoreId) == null) return;
     final index = _scoreEntries.indexWhere((e) => e.score.id == scoreId);

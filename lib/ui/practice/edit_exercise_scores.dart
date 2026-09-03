@@ -6,22 +6,27 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:io';
+
 import 'package:cross_file/cross_file.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/ui/common/buttons.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/drop_area.dart';
 import 'package:sheetopia/ui/common/import_source_dialog.dart';
+import 'package:sheetopia/ui/common/menu_button.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/home/thumbnail.dart';
 import 'package:sheetopia/ui/practice/edit_exercise_viewmodel.dart';
 import 'package:sheetopia/ui/setlists/add_scores_dialog.dart';
+import 'package:sheetopia/utils/score_file.dart';
 
 class EditExerciseScores extends StatelessWidget {
   const EditExerciseScores({super.key});
@@ -219,71 +224,99 @@ class _ScoreListItemState extends State<_ScoreListItem> {
                               mainAxisSize: MainAxisSize.max,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (widget.entry.score.type ==
-                                    ScoreType.exercise)
-                                  TextField(
-                                    controller: _titleController,
-                                    focusNode: _titleFocus,
-                                    onTapOutside: (event) =>
-                                        _titleFocus.unfocus(),
-                                    onChanged: (value) {
-                                      final empty = value.trim().isEmpty;
-                                      if (!empty) {
-                                        widget.viewModel.setScoreTitle(
-                                          widget.entry.score.id,
-                                          value,
-                                        );
-                                      }
-                                      if (empty == _titleEmpty) return;
-                                      setState(() => _titleEmpty = empty);
-                                    },
-                                    decoration: InputDecoration(
-                                      label: const Text("Title"),
-                                      border: const OutlineInputBorder(),
-                                      errorText: _titleEmpty
-                                          ? "Title is required"
-                                          : null,
-                                    ),
-                                  )
-                                else
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 4,
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          spacing: 4,
-                                          children: [
-                                            Icon(
-                                              Symbols.link,
-                                              size: 14,
-                                              color: theme
-                                                  .colorScheme
-                                                  .onSurfaceVariant,
-                                            ),
-                                            Text(
-                                              "Linked score",
-                                              style: theme.textTheme.labelSmall
-                                                  ?.copyWith(
-                                                    color: theme
-                                                        .colorScheme
-                                                        .onSurfaceVariant,
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child:
+                                          widget.entry.score.type ==
+                                              ScoreType.exercise
+                                          ? TextField(
+                                              controller: _titleController,
+                                              focusNode: _titleFocus,
+                                              onTapOutside: (event) =>
+                                                  _titleFocus.unfocus(),
+                                              onChanged: (value) {
+                                                final empty = value
+                                                    .trim()
+                                                    .isEmpty;
+                                                if (!empty) {
+                                                  widget.viewModel
+                                                      .setScoreTitle(
+                                                        widget.entry.score.id,
+                                                        value,
+                                                      );
+                                                }
+                                                if (empty == _titleEmpty) {
+                                                  return;
+                                                }
+                                                setState(
+                                                  () => _titleEmpty = empty,
+                                                );
+                                              },
+                                              decoration: InputDecoration(
+                                                label: const Text("Title"),
+                                                border:
+                                                    const OutlineInputBorder(),
+                                                errorText: _titleEmpty
+                                                    ? "Title is required"
+                                                    : null,
+                                              ),
+                                            )
+                                          : Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 4,
                                                   ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    spacing: 4,
+                                                    children: [
+                                                      Icon(
+                                                        Symbols.link,
+                                                        size: 14,
+                                                        color: theme
+                                                            .colorScheme
+                                                            .onSurfaceVariant,
+                                                      ),
+                                                      Text(
+                                                        "Linked score",
+                                                        style: theme
+                                                            .textTheme
+                                                            .labelSmall
+                                                            ?.copyWith(
+                                                              color: theme
+                                                                  .colorScheme
+                                                                  .onSurfaceVariant,
+                                                            ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  Text(
+                                                    widget.entry.score.title,
+                                                    maxLines: 2,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: theme
+                                                        .textTheme
+                                                        .titleMedium,
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                          ],
-                                        ),
-                                        Text(
-                                          widget.entry.score.title,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: theme.textTheme.titleMedium,
-                                        ),
-                                      ],
                                     ),
-                                  ),
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 8),
+                                      child: _ScoreFileMenu(
+                                        viewModel: widget.viewModel,
+                                        score: widget.entry.score,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                                 const Spacer(),
                                 Align(
                                   alignment: AlignmentGeometry.bottomRight,
@@ -346,6 +379,69 @@ class _ScoreListItemState extends State<_ScoreListItem> {
           ),
         );
       },
+    );
+  }
+}
+
+class _ScoreFileMenu extends StatelessWidget {
+  final EditExerciseViewModel viewModel;
+  final Score score;
+
+  const _ScoreFileMenu({required this.viewModel, required this.score});
+
+  Future<void> _share(BuildContext context) async {
+    Rect? sharePositionOrigin;
+    if (Platform.isIOS) {
+      final box = context.findRenderObject() as RenderBox?;
+      if (box != null) {
+        sharePositionOrigin = box.localToGlobal(Offset.zero) & box.size;
+      }
+    }
+    await shareScoreFile(score, sharePositionOrigin: sharePositionOrigin);
+  }
+
+  Future<void> _export() async {
+    if (!await exportScoreFile(score)) return;
+    Toast.show("Successfully saved score file!");
+  }
+
+  Future<void> _changeFile() async {
+    try {
+      await viewModel.changeScoreFile(score.id);
+    } on InvalidFileTypeException catch (e, st) {
+      Toast.exception(e, st: st, errorMsg: "Unsupported file type!");
+    } catch (e, st) {
+      Toast.exception(e, st: st, errorMsg: "Failed to change score file!");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mobile = Platform.isAndroid || Platform.isIOS;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: MenuButton(
+        tooltip: "Score file actions",
+        options: [
+          if (mobile)
+            ContextMenuOption(
+              icon: Icons.share,
+              title: "Share",
+              onSelected: () => _share(context),
+            ),
+          if (!Platform.isIOS)
+            ContextMenuOption(
+              icon: Icons.save_alt,
+              title: "Export",
+              onSelected: _export,
+            ),
+          ContextMenuOption(
+            icon: Icons.edit,
+            title: "Change file",
+            onSelected: _changeFile,
+          ),
+        ],
+      ),
     );
   }
 }
