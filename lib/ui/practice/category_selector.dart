@@ -198,7 +198,10 @@ class _SelectCategoryDialogState extends State<_SelectCategoryDialog> {
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxHeight:
-            min(rows.length, _SelectCategoryDialog._maxVisibleCategories) *
+            min(
+              rows.length,
+              _SelectCategoryDialog._maxVisibleCategories + 0.5,
+            ) *
             extent,
       ),
       child: ListView.builder(

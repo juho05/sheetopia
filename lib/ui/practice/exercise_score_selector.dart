@@ -133,7 +133,7 @@ class _SelectScoreDialog extends StatelessWidget {
           Flexible(
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: min(scores.length, _maxVisibleScores) * extent,
+                maxHeight: min(scores.length, _maxVisibleScores + 0.5) * extent,
               ),
               child: ListView.builder(
                 itemExtent: extent,

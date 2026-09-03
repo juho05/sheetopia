@@ -155,7 +155,7 @@ class _ManageCategoriesDialogState extends State<ManageCategoriesDialog> {
         maxHeight:
             min(
               _viewModel.categories.length,
-              ManageCategoriesDialog._maxVisibleCategories,
+              ManageCategoriesDialog._maxVisibleCategories + 0.5,
             ) *
             extent,
       ),
