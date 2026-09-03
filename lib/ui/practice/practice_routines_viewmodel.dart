@@ -59,6 +59,7 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
         ? await _repo.countRoutines(
             filter: _filterSearch,
             instrument: _filterInstrument,
+            source: _filterSource,
             tagIds: _filterTags.map((t) => t.id),
             tagMatch: _tagMatch,
           )
@@ -87,6 +88,17 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
     _reset();
   }
 
+  String _filterSource = "";
+
+  String get filterSource => _filterSource;
+
+  set filterSource(String source) {
+    if (_filterSource == source) return;
+    _filterSource = source;
+    notifyListeners();
+    _reset();
+  }
+
   final SplayTreeSet<Tag> _filterTags = SplayTreeSet(
     (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
   );
@@ -104,7 +116,10 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
     _reset();
   }
 
-  bool get hasFilters => _filterInstrument.isNotEmpty || _filterTags.isNotEmpty;
+  bool get hasFilters =>
+      _filterInstrument.isNotEmpty ||
+      _filterSource.isNotEmpty ||
+      _filterTags.isNotEmpty;
 
   bool get isFiltered => _filterSearch.isNotEmpty || hasFilters;
 
@@ -123,6 +138,7 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
   void clearFilters() {
     if (!hasFilters) return;
     _filterInstrument = "";
+    _filterSource = "";
     _filterTags.clear();
     _tagMatch = FilterMatchType.all;
     notifyListeners();
@@ -135,6 +151,10 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
 
   Future<Iterable<String>> getInstruments({String filter = ""}) async {
     return await _repo.getInstruments(filter: filter, size: 10);
+  }
+
+  Future<Iterable<String>> getSources({String filter = ""}) async {
+    return await _repo.getSources(filter: filter, size: 10);
   }
 
   int _generation = 0;
@@ -193,6 +213,7 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
       offset: offset,
       filter: _filterSearch,
       instrument: _filterInstrument,
+      source: _filterSource,
       tagIds: _filterTags.map((t) => t.id),
       tagMatch: _tagMatch,
     );
@@ -202,7 +223,7 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
 
   void _reset() {
     _resetDebounce?.cancel();
-    _resetDebounce = Timer(const Duration(milliseconds: 250), () async {
+    _resetDebounce = Timer(const Duration(milliseconds: 50), () async {
       _generation++;
       _pendingLoad = null;
       _currentPage = -1;

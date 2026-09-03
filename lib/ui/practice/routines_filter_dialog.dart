@@ -41,6 +41,10 @@ class _RoutinesFilterDialogState extends State<RoutinesFilterDialog> {
   late final TextEditingController _instrumentController =
       TextEditingController(text: _viewModel.filterInstrument);
   final FocusNode _instrumentFocus = FocusNode();
+  late final TextEditingController _sourceController = TextEditingController(
+    text: _viewModel.filterSource,
+  );
+  final FocusNode _sourceFocus = FocusNode();
 
   @override
   void initState() {
@@ -53,6 +57,8 @@ class _RoutinesFilterDialogState extends State<RoutinesFilterDialog> {
     _viewModel.removeListener(_onFiltersChanged);
     _instrumentController.dispose();
     _instrumentFocus.dispose();
+    _sourceController.dispose();
+    _sourceFocus.dispose();
     super.dispose();
   }
 
@@ -60,6 +66,9 @@ class _RoutinesFilterDialogState extends State<RoutinesFilterDialog> {
     if (_viewModel.filterInstrument.isEmpty &&
         _instrumentController.text.isNotEmpty) {
       _instrumentController.clear();
+    }
+    if (_viewModel.filterSource.isEmpty && _sourceController.text.isNotEmpty) {
+      _sourceController.clear();
     }
   }
 
@@ -119,6 +128,32 @@ class _RoutinesFilterDialogState extends State<RoutinesFilterDialog> {
                                 _instrumentController.clear();
                                 _viewModel.filterInstrument = "";
                                 _instrumentFocus.unfocus();
+                              },
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: AutoCompleteField(
+                    controller: _sourceController,
+                    focusNode: _sourceFocus,
+                    getOptions: (filter) =>
+                        _viewModel.getSources(filter: filter),
+                    onChanged: (value) => _viewModel.filterSource = value.trim(),
+                    onSelected: (option) =>
+                        _viewModel.filterSource = option.trim(),
+                    decoration: InputDecoration(
+                      label: const Text("Source"),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: _viewModel.filterSource.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _sourceController.clear();
+                                _viewModel.filterSource = "";
+                                _sourceFocus.unfocus();
                               },
                             )
                           : null,

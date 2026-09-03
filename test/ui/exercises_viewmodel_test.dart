@@ -31,12 +31,16 @@ void main() {
     return id;
   }
 
-  Future<String> createExercise(String name, {String? category}) async {
+  Future<String> createExercise(
+    String name, {
+    String? category,
+    String source = "",
+  }) async {
     final id = await repo.createExercise(
       name: name,
       description: "",
       instrument: "",
-      source: "",
+      source: source,
       sourceLink: "",
       tagIds: const [],
     );
@@ -195,6 +199,28 @@ void main() {
     expect(namesOf(viewModel), ["Chromatic scale"]);
     expect(viewModel.isFiltered, isTrue);
     expect(viewModel.hasFilters, isFalse);
+  });
+
+  test("the source filter keeps only exercises of that source", () async {
+    await createExercise("Chromatic scale", source: "Method book");
+    await createExercise("Bends", source: "Etudes");
+    await createExercise("Improvising");
+    await viewModel.loadNextPage();
+
+    viewModel.filterSource = "Method book";
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    expect(namesOf(viewModel), ["Chromatic scale"]);
+    expect(viewModel.hasFilters, isTrue);
+    expect(viewModel.resultCount, 1);
+    expect(viewModel.totalCount, 3);
+  });
+
+  test("the source options come from the exercises", () async {
+    await createExercise("Chromatic scale", source: "Method book");
+    await createExercise("Bends", source: "Etudes");
+
+    expect(await viewModel.getSources(), ["Etudes", "Method book"]);
   });
 
   test("clearing the filters restores every exercise", () async {

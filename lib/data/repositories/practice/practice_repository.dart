@@ -129,6 +129,7 @@ class PracticeRepository {
     Iterable<String> searchWords,
     String? categoryId,
     String instrument,
+    String source,
   ) {
     for (final word in searchWords) {
       q.where(_db.exercisesTable.name.contains(word));
@@ -138,6 +139,9 @@ class PracticeRepository {
     }
     if (instrument.isNotEmpty) {
       q.where(_db.exercisesTable.instrument.equals(instrument));
+    }
+    if (source.isNotEmpty) {
+      q.where(_db.exercisesTable.source.equals(source));
     }
   }
 
@@ -155,6 +159,7 @@ class PracticeRepository {
     String filter = "",
     String? categoryId,
     String instrument = "",
+    String source = "",
     Iterable<String> tagIds = const [],
     FilterMatchType tagMatch = FilterMatchType.all,
   }) async {
@@ -163,7 +168,13 @@ class PracticeRepository {
         .selectOnly(_db.exercisesTable)
         .join(_filterJoins(tagIds: tagIds, tagMatch: tagMatch));
     q.addColumns([countExpr]);
-    _applyExerciseFilters(q, _searchWords(filter), categoryId, instrument);
+    _applyExerciseFilters(
+      q,
+      _searchWords(filter),
+      categoryId,
+      instrument,
+      source,
+    );
     return (await q.getSingle()).read(countExpr) ?? 0;
   }
 
@@ -171,6 +182,7 @@ class PracticeRepository {
     String filter = "",
     String? categoryId,
     String instrument = "",
+    String source = "",
     Iterable<String> tagIds = const [],
     FilterMatchType tagMatch = FilterMatchType.all,
   }) async {
@@ -178,7 +190,13 @@ class PracticeRepository {
         .selectOnly(_db.exercisesTable)
         .join(_filterJoins(tagIds: tagIds, tagMatch: tagMatch));
     q.addColumns([_db.exercisesTable.id]);
-    _applyExerciseFilters(q, _searchWords(filter), categoryId, instrument);
+    _applyExerciseFilters(
+      q,
+      _searchWords(filter),
+      categoryId,
+      instrument,
+      source,
+    );
     q.orderBy(_exerciseOrdering);
     final rows = await q.get();
     return rows.map((row) => row.read(_db.exercisesTable.id)!).toList();
@@ -190,13 +208,20 @@ class PracticeRepository {
     String filter = "",
     String? categoryId,
     String instrument = "",
+    String source = "",
     Iterable<String> tagIds = const [],
     FilterMatchType tagMatch = FilterMatchType.all,
   }) async {
     final q = _db
         .select(_db.exercisesTable)
         .join(_filterJoins(tagIds: tagIds, tagMatch: tagMatch));
-    _applyExerciseFilters(q, _searchWords(filter), categoryId, instrument);
+    _applyExerciseFilters(
+      q,
+      _searchWords(filter),
+      categoryId,
+      instrument,
+      source,
+    );
     q.orderBy(_exerciseOrdering);
     q.limit(size, offset: offset);
 
@@ -785,6 +810,21 @@ class PracticeRepository {
     return _db.practiceRoutinesTable.id.isInQuery(q);
   }
 
+  Expression<bool> _routineSourceFilter(String source) {
+    final q = _db.selectOnly(_db.practiceRoutineEntriesTable).join([
+      innerJoin(
+        _db.exercisesTable,
+        _db.exercisesTable.id.equalsExp(
+          _db.practiceRoutineEntriesTable.exercise,
+        ),
+        useColumns: false,
+      ),
+    ]);
+    q.addColumns([_db.practiceRoutineEntriesTable.routine]);
+    q.where(_db.exercisesTable.source.equals(source));
+    return _db.practiceRoutinesTable.id.isInQuery(q);
+  }
+
   Expression<bool> _routineTagFilter(
     Iterable<String> tagIds,
     FilterMatchType tagMatch,
@@ -816,6 +856,7 @@ class PracticeRepository {
     JoinedSelectStatement q,
     String filter,
     String instrument,
+    String source,
     Iterable<String> tagIds,
     FilterMatchType tagMatch,
   ) {
@@ -824,6 +865,9 @@ class PracticeRepository {
     }
     if (instrument.isNotEmpty) {
       q.where(_routineInstrumentFilter(instrument));
+    }
+    if (source.isNotEmpty) {
+      q.where(_routineSourceFilter(source));
     }
     if (tagIds.isNotEmpty) {
       q.where(_routineTagFilter(tagIds, tagMatch));
@@ -838,13 +882,14 @@ class PracticeRepository {
   Future<int> countRoutines({
     String filter = "",
     String instrument = "",
+    String source = "",
     Iterable<String> tagIds = const [],
     FilterMatchType tagMatch = FilterMatchType.all,
   }) async {
     final countExpr = _db.practiceRoutinesTable.id.count(distinct: true);
     final q = _db.selectOnly(_db.practiceRoutinesTable);
     q.addColumns([countExpr]);
-    _applyRoutineFilters(q, filter, instrument, tagIds, tagMatch);
+    _applyRoutineFilters(q, filter, instrument, source, tagIds, tagMatch);
     return (await q.getSingle()).read(countExpr) ?? 0;
   }
 
@@ -853,6 +898,7 @@ class PracticeRepository {
     int offset = 0,
     String filter = "",
     String instrument = "",
+    String source = "",
     Iterable<String> tagIds = const [],
     FilterMatchType tagMatch = FilterMatchType.all,
   }) async {
@@ -874,7 +920,7 @@ class PracticeRepository {
       countExpr,
       durationExpr,
     ]);
-    _applyRoutineFilters(q, filter, instrument, tagIds, tagMatch);
+    _applyRoutineFilters(q, filter, instrument, source, tagIds, tagMatch);
     q.groupBy([_db.practiceRoutinesTable.id]);
     q.orderBy(_routineOrdering);
     q.limit(size, offset: offset);

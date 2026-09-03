@@ -250,7 +250,7 @@ class LibraryViewModel extends ChangeNotifier {
 
   void _reset() {
     _resetDebounce?.cancel();
-    _resetDebounce = Timer(const Duration(milliseconds: 250), () async {
+    _resetDebounce = Timer(const Duration(milliseconds: 50), () async {
       _generation++;
       _pendingLoad = null;
       _currentPage = -1;
