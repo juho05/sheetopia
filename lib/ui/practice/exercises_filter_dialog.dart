@@ -113,7 +113,6 @@ class _ExercisesFilterDialogState extends State<ExercisesFilterDialog> {
                   child: AutoCompleteField(
                     controller: _instrumentController,
                     focusNode: _instrumentFocus,
-                    onDialog: true,
                     getOptions: (filter) =>
                         _viewModel.getInstruments(filter: filter),
                     onChanged: (value) =>

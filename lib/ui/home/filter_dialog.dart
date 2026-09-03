@@ -104,7 +104,6 @@ class _FilterDialogState extends State<FilterDialog> {
                   child: AutoCompleteField(
                     controller: _composerController,
                     focusNode: _composerFocus,
-                    onDialog: true,
                     getOptions: (filter) =>
                         _viewModel.getComposers(filter: filter),
                     onChanged: (value) =>
@@ -132,7 +131,6 @@ class _FilterDialogState extends State<FilterDialog> {
                   child: AutoCompleteField(
                     controller: _sourceController,
                     focusNode: _sourceFocus,
-                    onDialog: true,
                     getOptions: (filter) =>
                         _viewModel.getSources(filter: filter),
                     onChanged: (value) =>
@@ -172,7 +170,6 @@ class _FilterDialogState extends State<FilterDialog> {
                   tags: _viewModel.filterInstruments.map(
                     (i) => CommonBadge(
                       name: i,
-                      onDialog: true,
                       onRemove: () {
                         _viewModel.removeFilterInstrument(i);
                       },
@@ -208,7 +205,6 @@ class _FilterDialogState extends State<FilterDialog> {
                   tags: _viewModel.filterGenres.map(
                     (g) => CommonBadge(
                       name: g,
-                      onDialog: true,
                       onRemove: () {
                         _viewModel.removeFilterGenre(g);
                       },

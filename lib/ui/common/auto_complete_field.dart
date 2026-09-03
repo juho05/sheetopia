@@ -19,7 +19,6 @@ class AutoCompleteField extends StatefulWidget {
   final bool autofocus;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
-  final bool onDialog;
   final Widget Function(
     BuildContext context,
     TextEditingController controller,
@@ -37,7 +36,6 @@ class AutoCompleteField extends StatefulWidget {
     this.autofocus = false,
     this.onChanged,
     this.onSubmitted,
-    this.onDialog = false,
     this.fieldBuilder,
   });
 
@@ -208,7 +206,6 @@ class _AutoCompleteFieldState extends State<AutoCompleteField> {
                                   },
                                   child: CommonBadge(
                                     name: option,
-                                    onDialog: widget.onDialog,
                                     onTap: () => _select(option),
                                   ),
                                 ),

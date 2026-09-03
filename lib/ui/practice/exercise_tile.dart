@@ -74,7 +74,6 @@ class ExerciseTile extends StatelessWidget {
                         name: instrument,
                         tooltip: false,
                         compact: true,
-                        color: theme.colorScheme.surfaceContainerHighest,
                       ),
                     if (instrument != null && exercise.tags.isNotEmpty)
                       Container(

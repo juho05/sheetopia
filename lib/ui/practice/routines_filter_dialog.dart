@@ -103,7 +103,6 @@ class _RoutinesFilterDialogState extends State<RoutinesFilterDialog> {
                   child: AutoCompleteField(
                     controller: _instrumentController,
                     focusNode: _instrumentFocus,
-                    onDialog: true,
                     getOptions: (filter) =>
                         _viewModel.getInstruments(filter: filter),
                     onChanged: (value) =>

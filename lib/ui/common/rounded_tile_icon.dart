@@ -7,6 +7,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:sheetopia/ui/common/surface.dart';
 
 class RoundedTileIcon extends StatelessWidget {
   static const double size = 40;
@@ -33,7 +34,7 @@ class RoundedTileIcon extends StatelessWidget {
     return SizedBox.square(
       dimension: size,
       child: Material(
-        color: color ?? theme.colorScheme.surfaceContainerHighest,
+        color: color ?? Surface.raisedOf(context),
         borderRadius: borderRadius,
         clipBehavior: Clip.antiAlias,
         child:

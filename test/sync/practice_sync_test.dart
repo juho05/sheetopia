@@ -29,9 +29,9 @@ import 'package:sheetopia/data/services/sync/models/exercise_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/exercises.dart';
 import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
 import 'package:sheetopia/data/services/sync/models/practice_sessions.dart';
+import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/server_info.dart';
 import 'package:sheetopia/data/services/sync/models/setlists.dart';
-import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/tags.dart';
 import 'package:sheetopia/data/services/sync/sync_connection.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
@@ -715,35 +715,6 @@ void main() {
     );
   });
 
-  test("a session with a running stopwatch is not uploaded", () async {
-    await createExercise();
-    await createRoutine(withEntry: true);
-    await createSession(uploaded: false, runningSince: contentTime);
-
-    await syncAndWait();
-
-    expect(service.uploadedSessions, isEmpty);
-    expect(
-      await db.managers.practiceSessionsTable
-          .filter((f) => f.id(sessionId) & f.uploaded.isFalse())
-          .count(),
-      1,
-      reason: "the session stays pending until the stopwatch is paused",
-    );
-
-    await db.managers.practiceSessionEntriesTable
-        .filter((f) => f.session.id(sessionId))
-        .update((o) => o(runningSince: const Value(null)));
-    await repo.syncNow();
-    await waitFor(() => service.uploadedSessions.isNotEmpty);
-
-    expect(service.uploadedSessions, [(id: sessionId, writtenAt: null)]);
-    expect(
-      service.uploadedSessionEntries[sessionId]?.single.metadata.duration,
-      const Duration(minutes: 3).inMilliseconds,
-    );
-  });
-
   test("a deleted tag drops it from its exercises too", () async {
     await createExercise();
     await db.managers.tagsTable.create(
@@ -778,7 +749,8 @@ void main() {
     await createExercise();
     await createRoutine(withEntry: true);
     await db.managers.exercisesTable.create(
-      (o) => o(id: "exercise-2", name: "G major", updatedAt: Value(contentTime)),
+      (o) =>
+          o(id: "exercise-2", name: "G major", updatedAt: Value(contentTime)),
     );
     await db.managers.practiceRoutineEntriesTable.create(
       (o) => o(

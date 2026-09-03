@@ -156,7 +156,6 @@ class _SourceInputDialogState extends State<SourceInputDialog> {
             focusNode: _sourceFocus,
             getOptions: widget.getOptions,
             onSubmitted: (value) => _submit(),
-            onDialog: true,
             decoration: InputDecoration(
               label: const Text("Source"),
               border: const OutlineInputBorder(),

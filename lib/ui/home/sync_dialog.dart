@@ -13,6 +13,7 @@ import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
+import 'package:sheetopia/ui/common/surface.dart';
 import 'package:sheetopia/ui/home/sync_dialog_viewmodel.dart';
 
 class SyncDialog extends StatelessWidget {
@@ -165,7 +166,7 @@ class _StatusView extends StatelessWidget {
       children: [
         Material(
           borderRadius: BorderRadius.circular(12),
-          color: theme.colorScheme.surfaceContainerHighest,
+          color: Surface.raisedOf(context),
           child: Padding(
             padding: const EdgeInsets.all(8.0),
             child: Column(
@@ -228,7 +229,7 @@ class _StatusView extends StatelessWidget {
         ),
         Material(
           borderRadius: BorderRadius.circular(12),
-          color: theme.colorScheme.surfaceContainerHighest,
+          color: Surface.raisedOf(context),
           child: Padding(
             padding: const EdgeInsets.all(8.0),
             child: Column(

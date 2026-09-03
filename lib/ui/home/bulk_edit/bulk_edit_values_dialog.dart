@@ -92,7 +92,6 @@ class _BulkEditValuesDialogState extends State<BulkEditValuesDialog> {
             tags: _addValues.map(
               (v) => CommonBadge(
                 name: v,
-                onDialog: true,
                 onRemove: () {
                   setState(() {
                     _addValues.remove(v);
@@ -121,7 +120,6 @@ class _BulkEditValuesDialogState extends State<BulkEditValuesDialog> {
             tags: _removeValues.map(
               (v) => CommonBadge(
                 name: v,
-                onDialog: true,
                 onRemove: () {
                   setState(() {
                     _removeValues.remove(v);

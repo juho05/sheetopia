@@ -8,6 +8,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:sheetopia/ui/common/optional_tooltip.dart';
+import 'package:sheetopia/ui/common/surface.dart';
 
 class RoundedListTile extends StatelessWidget {
   static const double spacing = 8;
@@ -54,7 +55,7 @@ class RoundedListTile extends StatelessWidget {
     final leading = this.leading;
     final subtitle = this.subtitle;
 
-    return Padding(
+    final tile = Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: horizontalMargin,
         vertical: spacing / 2,
@@ -64,7 +65,7 @@ class RoundedListTile extends StatelessWidget {
             color ??
             (selected
                 ? theme.colorScheme.secondaryContainer
-                : theme.colorScheme.surfaceContainer),
+                : Surface.raisedOf(context)),
         borderRadius: borderRadius,
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -131,5 +132,6 @@ class RoundedListTile extends StatelessWidget {
         ),
       ),
     );
+    return Surface.tile(context, child: tile);
   }
 }

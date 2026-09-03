@@ -119,7 +119,6 @@ class _AutoCompleteInputDialogState extends State<AutoCompleteInputDialog> {
             focusNode: _focusNode,
             getOptions: widget.getOptions,
             onSubmitted: (value) => _submit(),
-            onDialog: true,
             decoration: InputDecoration(
               label: Text(widget.inputLabel),
               border: const OutlineInputBorder(),

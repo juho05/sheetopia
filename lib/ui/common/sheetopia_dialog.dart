@@ -7,6 +7,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:sheetopia/ui/common/surface.dart';
 
 Future<T?> showSheetopiaDialog<T>({
   required BuildContext context,
@@ -15,7 +16,8 @@ Future<T?> showSheetopiaDialog<T>({
   return showDialog<T>(
     context: context,
     barrierDismissible: true,
-    builder: builder,
+    builder: (context) =>
+        Surface(level: SurfaceLevel.dialog, child: builder(context)),
   );
 }
 

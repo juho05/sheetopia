@@ -9,12 +9,12 @@
 import 'package:flutter/material.dart';
 
 import 'optional_tooltip.dart';
+import 'surface.dart';
 
 class CommonBadge extends StatelessWidget {
   final String name;
   final Color? color;
   final Color? foreground;
-  final bool onDialog;
   final IconData? trailingIcon;
   final bool compact;
 
@@ -27,7 +27,6 @@ class CommonBadge extends StatelessWidget {
     required this.name,
     this.color,
     this.foreground,
-    this.onDialog = false,
     this.trailingIcon,
     this.compact = false,
     this.tooltip = true,
@@ -70,14 +69,8 @@ class CommonBadge extends StatelessWidget {
               ],
             ),
     );
-    final backgroundColor =
-        color ??
-        (onDialog
-            ? theme.colorScheme.surfaceContainer
-            : theme.colorScheme.surfaceContainerHigh);
-    final borderRadius = BorderRadius.all(
-      Radius.circular(compact ? 10 : 14),
-    );
+    final backgroundColor = color ?? Surface.badgeOf(context);
+    final borderRadius = BorderRadius.all(Radius.circular(compact ? 10 : 14));
 
     if (onTap != null) {
       widget = Material(

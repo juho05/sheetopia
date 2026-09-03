@@ -18,6 +18,7 @@ import 'package:sheetopia/ui/common/section_header.dart';
 import 'package:sheetopia/ui/common/selection/selectable_tile_icon.dart';
 import 'package:sheetopia/ui/common/selection/selection_gestures.dart';
 import 'package:sheetopia/ui/common/selection/selection_shortcuts.dart';
+import 'package:sheetopia/ui/common/surface.dart';
 import 'package:sheetopia/ui/practice/exercise_tile.dart';
 import 'package:sheetopia/ui/practice/exercises_filter_dialog.dart';
 import 'package:sheetopia/ui/practice/exercises_viewmodel.dart';
@@ -257,6 +258,7 @@ class _ExercisesViewState extends State<ExercisesView> {
                     pinned: true,
                     delegate: _CategoryHeaderDelegate(
                       title: group.category?.name ?? "No category",
+                      background: Surface.backgroundOf(context),
                     ),
                   ),
                 SliverFixedExtentList.builder(
@@ -294,8 +296,12 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
   static const double height = 40;
 
   final String title;
+  final Color background;
 
-  const _CategoryHeaderDelegate({required this.title});
+  const _CategoryHeaderDelegate({
+    required this.title,
+    required this.background,
+  });
 
   @override
   Widget build(
@@ -303,13 +309,16 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    return Container(
-      height: height,
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(
-        horizontal: RoundedListTile.horizontalMargin + 16,
+    return Material(
+      color: background,
+      child: Container(
+        height: height,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(
+          horizontal: RoundedListTile.horizontalMargin + 16,
+        ),
+        child: SectionHeader(text: title),
       ),
-      child: SectionHeader(text: title),
     );
   }
 
@@ -321,7 +330,7 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_CategoryHeaderDelegate oldDelegate) =>
-      oldDelegate.title != title;
+      oldDelegate.title != title || oldDelegate.background != background;
 }
 
 class _ExerciseTile extends StatelessWidget {

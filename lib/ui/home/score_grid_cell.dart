@@ -13,6 +13,7 @@ import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/optional_tooltip.dart';
 import 'package:sheetopia/ui/common/selection/selection_check_badge.dart';
 import 'package:sheetopia/ui/common/selection/selection_gestures.dart';
+import 'package:sheetopia/ui/common/surface.dart';
 import 'package:sheetopia/ui/common/tag_badge.dart';
 import 'package:sheetopia/ui/common/text_scroll.dart';
 import 'package:sheetopia/ui/home/thumbnail.dart';
@@ -52,14 +53,14 @@ class ScoreGridCell extends StatelessWidget {
       onActivate: () => context.go("/scores/${score.id}"),
     );
 
-    return SizedBox(
+    final cell = SizedBox(
       width: width.toDouble(),
       height: height.toDouble(),
       child: Material(
         borderRadius: BorderRadius.circular(12),
         color: selected
             ? theme.colorScheme.secondaryContainer
-            : theme.colorScheme.surfaceContainer,
+            : Surface.raisedOf(context),
         elevation: 2,
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -116,12 +117,7 @@ class ScoreGridCell extends StatelessWidget {
                           child: _BadgeStrip(
                             badges: [
                               for (final instrument in score.instruments)
-                                CommonBadge(
-                                  name: instrument,
-                                  tooltip: false,
-                                  color:
-                                      theme.colorScheme.surfaceContainerHighest,
-                                ),
+                                CommonBadge(name: instrument, tooltip: false),
                             ],
                           ),
                         ),
@@ -184,6 +180,7 @@ class ScoreGridCell extends StatelessWidget {
         ),
       ),
     );
+    return Surface.tile(context, child: cell);
   }
 }
 
