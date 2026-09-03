@@ -69,23 +69,31 @@ void main() {
   }
 
   Future<List<PracticeRoutineEntry>> entriesFor(
-    List<String> exerciseIds,
-  ) async {
+    List<String> exerciseIds, {
+    List<String?> defaultScoreIds = const [],
+  }) async {
     final exercises = await repo.getExercisesById(exerciseIds);
     return [
-      for (final exerciseId in exerciseIds)
+      for (final (index, exerciseId) in exerciseIds.indexed)
         PracticeRoutineEntry(
           id: repo.newRoutineEntryId(),
           exercise: exercises[exerciseId]!,
+          defaultScoreId: index < defaultScoreIds.length
+              ? defaultScoreIds[index]
+              : null,
         ),
     ];
   }
 
-  Future<String> createRoutine(String name, List<String> exerciseIds) async {
+  Future<String> createRoutine(
+    String name,
+    List<String> exerciseIds, {
+    List<String?> defaultScoreIds = const [],
+  }) async {
     return repo.createRoutine(
       name: name,
       description: "",
-      entries: await entriesFor(exerciseIds),
+      entries: await entriesFor(exerciseIds, defaultScoreIds: defaultScoreIds),
     );
   }
 
@@ -313,6 +321,93 @@ void main() {
     viewModel.previous();
 
     expect(viewModel.currentScoreId, "b");
+    viewModel.dispose();
+  });
+
+  test("an entry opens on its default score", () async {
+    await insertScore("a");
+    await insertScore("b");
+    await insertScore("c");
+    final scales = await createExercise("Scales", ["a", "b"]);
+    final etude = await createExercise("Etude", ["c"]);
+    final routineId = await createRoutine(
+      "Warmup",
+      [scales, etude],
+      defaultScoreIds: ["b"],
+    );
+
+    final viewModel = await viewModelFor(routineId);
+
+    expect(viewModel.currentScoreId, "b");
+    viewModel.dispose();
+  });
+
+  test("the same exercise can default to different scores", () async {
+    await insertScore("a");
+    await insertScore("b");
+    final scales = await createExercise("Scales", ["a", "b"]);
+    final routineId = await createRoutine(
+      "Warmup",
+      [scales, scales],
+      defaultScoreIds: ["b", "a"],
+    );
+
+    final viewModel = await viewModelFor(routineId);
+    expect(viewModel.currentScoreId, "b");
+    viewModel.next();
+
+    expect(viewModel.currentScoreId, "a");
+    viewModel.dispose();
+  });
+
+  test("a default score that is not linked falls back to the first", () async {
+    await insertScore("a");
+    await insertScore("b");
+    final scales = await createExercise("Scales", ["a", "b"]);
+    final routineId = await createRoutine(
+      "Warmup",
+      [scales],
+      defaultScoreIds: ["gone"],
+    );
+
+    final viewModel = await viewModelFor(routineId);
+
+    expect(viewModel.currentScoreId, "a");
+    viewModel.dispose();
+  });
+
+  test("a default score that is not downloaded is skipped", () async {
+    await insertScore("a");
+    await insertScore("b", downloaded: false);
+    final scales = await createExercise("Scales", ["a", "b"]);
+    final routineId = await createRoutine(
+      "Warmup",
+      [scales],
+      defaultScoreIds: ["b"],
+    );
+
+    final viewModel = await viewModelFor(routineId);
+
+    expect(viewModel.currentScoreId, "a");
+    viewModel.dispose();
+  });
+
+  test("a session selection wins over the default score", () async {
+    await insertScore("a");
+    await insertScore("b");
+    final scales = await createExercise("Scales", ["a", "b"]);
+    final routineId = await createRoutine(
+      "Warmup",
+      [scales],
+      defaultScoreIds: ["b"],
+    );
+
+    final viewModel = await viewModelFor(routineId);
+    viewModel.selectScore(0);
+    await repo.updateRoutine(routineId, name: "Evening", description: "");
+    await waitFor(() => viewModel.name == "Evening");
+
+    expect(viewModel.currentScoreId, "a");
     viewModel.dispose();
   });
 

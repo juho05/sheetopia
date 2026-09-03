@@ -666,7 +666,27 @@ class PracticeRepository {
   Future<void> removeDeletedScoreEntries(Set<String> scoreIds) async {
     if (scoreIds.isEmpty) return;
     final affected = <String>{};
+    final affectedRoutines = <String>{};
     await _db.transaction(() async {
+      final routine = _db.practiceRoutineEntriesTable.routine;
+      final routineQuery =
+          _db.selectOnly(_db.practiceRoutineEntriesTable, distinct: true)
+            ..addColumns([routine])
+            ..where(
+              _db.practiceRoutineEntriesTable.defaultScore.isIn(scoreIds),
+            );
+      affectedRoutines.addAll(
+        (await routineQuery.get()).map((row) => row.read(routine)!),
+      );
+      if (affectedRoutines.isNotEmpty) {
+        await _db.managers.practiceRoutineEntriesTable
+            .filter((f) => f.defaultScore.isIn(scoreIds))
+            .update((o) => o(defaultScore: const Value(null)));
+        for (final routineId in affectedRoutines) {
+          await _markRoutineUpdated(routineId);
+        }
+      }
+
       final exercise = _db.exerciseScoresTable.exercise;
       final query = _db.selectOnly(_db.exerciseScoresTable, distinct: true)
         ..addColumns([exercise])
@@ -685,6 +705,9 @@ class PracticeRepository {
             ),
           );
     });
+    if (affectedRoutines.isNotEmpty) {
+      _updatedRoutineIds.add((changed: affectedRoutines, needsUpload: true));
+    }
     if (affected.isEmpty) return;
     _updatedExerciseIds.add((changed: affected, needsUpload: true));
   }
@@ -957,6 +980,7 @@ class PracticeRepository {
             id: row.id,
             exercise: exercise,
             targetDuration: row.targetDuration,
+            defaultScoreId: row.defaultScore,
           ),
     ];
 
@@ -1092,6 +1116,7 @@ class PracticeRepository {
                 exercise: Value(entry.exercise.id),
                 position: Value(position),
                 targetDuration: Value(entry.targetDuration),
+                defaultScore: Value(entry.defaultScoreId),
               ),
             );
         continue;
@@ -1103,6 +1128,7 @@ class PracticeRepository {
           exercise: entry.exercise.id,
           position: position,
           targetDuration: Value(entry.targetDuration),
+          defaultScore: Value(entry.defaultScoreId),
         ),
       );
     }

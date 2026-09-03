@@ -18,6 +18,7 @@ import 'package:sheetopia/ui/common/auto_complete_field.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/heading.dart';
+import 'package:sheetopia/ui/common/optional_tooltip.dart';
 import 'package:sheetopia/ui/common/tag_badge.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/edit_score/add_tags_dialog.dart';
@@ -271,7 +272,7 @@ class _SourceRow extends StatelessWidget {
           if (link == null)
             CommonBadge(name: source, onRemove: () => _remove(context))
           else
-            Tooltip(
+            OptionalTooltip(
               message: link,
               child: CommonBadge(
                 name: source,

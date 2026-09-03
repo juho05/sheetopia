@@ -6,35 +6,86 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:io';
+
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/practice/edit_routine_page.dart';
+import 'package:sheetopia/ui/practice/exercise_score_selector.dart';
+import 'package:sheetopia/ui/common/rounded_list_tile.dart';
+import 'package:sheetopia/ui/practice/exercise_tile.dart';
+
+class _FakePathProvider extends PathProviderPlatform
+    with MockPlatformInterfaceMixin {
+  final String root;
+
+  _FakePathProvider(this.root);
+
+  @override
+  Future<String?> getApplicationSupportPath() async => root;
+
+  @override
+  Future<String?> getTemporaryPath() async => root;
+}
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  late Directory tempDir;
   late Database db;
   late PracticeRepository repo;
   late ScoresRepository scoresRepo;
 
-  Future<String> createExercise(String name) => repo.createExercise(
+  Future<String> createExercise(
+    String name, {
+    List<String> scoreIds = const [],
+  }) => repo.createExercise(
     name: name,
     description: "",
     instrument: "",
     source: "",
     sourceLink: "",
     tagIds: const [],
+    scoreIds: scoreIds,
   );
+
+  Future<void> insertScore(String id) async {
+    await db.managers.scoresTable.create(
+      (o) => o(
+        id: id,
+        title: "Title $id",
+        searchText: "title $id",
+        fileDownloaded: true,
+        fileType: FileType.pdf,
+        type: const Value(ScoreType.exercise),
+      ),
+    );
+  }
+
+  void setWidth(WidgetTester tester, double width) {
+    tester.view.physicalSize = Size(width, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+  }
+
+  Future<String?> defaultScoreOf(String routineId) async =>
+      (await db.managers.practiceRoutineEntriesTable
+              .filter((f) => f.routine.id(routineId))
+              .getSingle())
+          .defaultScore;
 
   Future<PracticeRoutineEntry> entry(
     String exerciseId, {
@@ -46,14 +97,20 @@ void main() {
   );
 
   setUp(() async {
+    tempDir = await Directory.systemTemp.createTemp("edit_routine_page_test");
+    PathProviderPlatform.instance = _FakePathProvider(tempDir.path);
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
     scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
     repo = PracticeRepository(db: db, scoresRepo: scoresRepo);
+    // resolving score files creates directories, the fake async zone of a
+    // widget test never lets that land
+    await scoresRepo.scoresDir;
   });
 
   tearDown(() async {
     await db.close();
+    await tempDir.delete(recursive: true);
   });
 
   Future<void> settle(WidgetTester tester) async {
@@ -195,6 +252,94 @@ void main() {
 
     expect(find.text("Chromatic"), findsNothing);
     expect((await repo.getRoutine(routineId))!.entries, isEmpty);
+  });
+
+  testWidgets("a wide entry shows the default score inline", (tester) async {
+    await insertScore("a");
+    await insertScore("b");
+    final exerciseId = await createExercise("Chromatic", scoreIds: ["a", "b"]);
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId)],
+    );
+
+    await pumpPage(tester, routineId: routineId);
+
+    final tile = tester.widget<ExerciseTile>(find.byType(ExerciseTile));
+    expect(tile.subtitle, isNull);
+    expect(tile.showBadges, isTrue);
+    expect(find.byType(ExerciseScoreSelector), findsOneWidget);
+    expect(find.text("Title a"), findsOneWidget);
+  });
+
+  testWidgets("a narrow entry moves the selector below the title", (
+    tester,
+  ) async {
+    setWidth(tester, 360);
+    await insertScore("a");
+    await insertScore("b");
+    final exerciseId = await createExercise("Chromatic", scoreIds: ["a", "b"]);
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId)],
+    );
+
+    await pumpPage(tester, routineId: routineId);
+
+    final tile = tester.widget<ExerciseTile>(find.byType(ExerciseTile));
+    expect(tile.subtitle, isNotNull);
+    expect(tile.showBadges, isFalse);
+    expect(find.byType(ExerciseScoreSelector), findsOneWidget);
+    // the tile keeps the height every other exercise tile has
+    expect(
+      tester.getSize(find.byType(ExerciseTile)).height,
+      RoundedListTile.defaultHeight + RoundedListTile.spacing,
+    );
+  });
+
+  testWidgets("a single score entry has no selector", (tester) async {
+    setWidth(tester, 360);
+    await insertScore("a");
+    final exerciseId = await createExercise("Chromatic", scoreIds: ["a"]);
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId)],
+    );
+
+    await pumpPage(tester, routineId: routineId);
+
+    expect(
+      tester.widget<ExerciseTile>(find.byType(ExerciseTile)).subtitle,
+      isNull,
+    );
+    expect(find.byType(ExerciseScoreSelector), findsNothing);
+  });
+
+  testWidgets("choosing an alternative saves it as the default", (
+    tester,
+  ) async {
+    await insertScore("a");
+    await insertScore("b");
+    final exerciseId = await createExercise("Chromatic", scoreIds: ["a", "b"]);
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId)],
+    );
+
+    await pumpPage(tester, routineId: routineId);
+    await tester.tap(find.byType(ExerciseScoreSelector));
+    await tester.pumpAndSettle();
+
+    expect(find.text("Default score"), findsOneWidget);
+
+    await tester.tap(find.text("Title b").last);
+    await settle(tester);
+
+    expect(await defaultScoreOf(routineId), "b");
   });
 
   testWidgets("a missing routine is reported", (tester) async {

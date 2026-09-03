@@ -14,11 +14,14 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
+import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/ui/common/buttons.dart';
+import 'package:sheetopia/ui/common/optional_tooltip.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/practice/delete_routine_dialog.dart';
 import 'package:sheetopia/ui/practice/edit_routine_viewmodel.dart';
+import 'package:sheetopia/ui/practice/exercise_score_selector.dart';
 import 'package:sheetopia/ui/practice/exercise_tile.dart';
 import 'package:sheetopia/ui/practice/routine_summary.dart';
 import 'package:sheetopia/ui/practice/select_exercises_dialog.dart';
@@ -110,96 +113,108 @@ class _EditRoutineFormState extends State<_EditRoutineForm> {
   Widget build(BuildContext context) {
     return Consumer<EditRoutineViewModel>(
       builder: (context, viewModel, _) {
-        return ReactiveForm(
-          formGroup: viewModel.form,
-          child: Column(
-            children: [
-              Expanded(
-                child: CustomScrollView(
-                  slivers: [
-                    SliverPadding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: RoundedListTile.horizontalMargin,
-                        vertical: 8,
-                      ),
-                      sliver: SliverToBoxAdapter(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          spacing: 12,
-                          children: [
-                            ReactiveTextField<String>(
-                              formControlName: EditRoutineViewModel.formName,
-                              focusNode: _nameFocus,
-                              onTapOutside: (event) => _nameFocus.unfocus(),
-                              decoration: const InputDecoration(
-                                label: Text("Name"),
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                            ReactiveTextField<String>(
-                              formControlName:
-                                  EditRoutineViewModel.formDescription,
-                              focusNode: _descriptionFocus,
-                              onTapOutside: (event) =>
-                                  _descriptionFocus.unfocus(),
-                              maxLines: 8,
-                              minLines: 3,
-                              decoration: const InputDecoration(
-                                label: Text("Description"),
-                                border: OutlineInputBorder(),
-                                floatingLabelBehavior:
-                                    FloatingLabelBehavior.always,
-                              ),
-                            ),
-                            RoutineExercisesHeader(
-                              count: viewModel.entries.length,
-                              targetDuration: viewModel.targetDuration,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SliverReorderableList(
-                      itemCount: viewModel.entries.length,
-                      itemBuilder: (context, index) => _RoutineEntryTile(
-                        key: ValueKey(viewModel.entries[index].id),
-                        viewModel: viewModel,
-                        entry: viewModel.entries[index],
-                        index: index,
-                      ),
-                      onReorderItem: viewModel.moveEntry,
-                      onReorderStart: (_) {
-                        HapticFeedback.lightImpact();
-                      },
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: RoundedListTile.horizontalMargin,
-                          vertical: 8,
-                        ),
-                        child: _AddExercisesPlaceholder(
-                          onAdd: () => _addExercises(context, viewModel),
-                          loading: viewModel.exercisesLoading,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: viewModel.isCreate
-                      ? _CreateButton(viewModel: viewModel)
-                      : _DeleteButton(viewModel: viewModel),
-                ),
-              ),
-            ],
+        return LayoutBuilder(
+          builder: (context, constraints) => _buildForm(
+            context,
+            viewModel,
+            narrow: constraints.maxWidth < routineEntryNarrowBreakpoint,
           ),
         );
       },
+    );
+  }
+
+  Widget _buildForm(
+    BuildContext context,
+    EditRoutineViewModel viewModel, {
+    required bool narrow,
+  }) {
+    return ReactiveForm(
+      formGroup: viewModel.form,
+      child: Column(
+        children: [
+          Expanded(
+            child: CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: RoundedListTile.horizontalMargin,
+                    vertical: 8,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      spacing: 12,
+                      children: [
+                        ReactiveTextField<String>(
+                          formControlName: EditRoutineViewModel.formName,
+                          focusNode: _nameFocus,
+                          onTapOutside: (event) => _nameFocus.unfocus(),
+                          decoration: const InputDecoration(
+                            label: Text("Name"),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        ReactiveTextField<String>(
+                          formControlName: EditRoutineViewModel.formDescription,
+                          focusNode: _descriptionFocus,
+                          onTapOutside: (event) => _descriptionFocus.unfocus(),
+                          maxLines: 8,
+                          minLines: 3,
+                          decoration: const InputDecoration(
+                            label: Text("Description"),
+                            border: OutlineInputBorder(),
+                            floatingLabelBehavior: FloatingLabelBehavior.always,
+                          ),
+                        ),
+                        RoutineExercisesHeader(
+                          count: viewModel.entries.length,
+                          targetDuration: viewModel.targetDuration,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SliverReorderableList(
+                  itemCount: viewModel.entries.length,
+                  itemBuilder: (context, index) => _RoutineEntryTile(
+                    key: ValueKey(viewModel.entries[index].id),
+                    viewModel: viewModel,
+                    entry: viewModel.entries[index],
+                    index: index,
+                    narrow: narrow,
+                  ),
+                  onReorderItem: viewModel.moveEntry,
+                  onReorderStart: (_) {
+                    HapticFeedback.lightImpact();
+                  },
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: RoundedListTile.horizontalMargin,
+                      vertical: 8,
+                    ),
+                    child: _AddExercisesPlaceholder(
+                      onAdd: () => _addExercises(context, viewModel),
+                      loading: viewModel.exercisesLoading,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: viewModel.isCreate
+                  ? _CreateButton(viewModel: viewModel)
+                  : _DeleteButton(viewModel: viewModel),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -208,12 +223,14 @@ class _RoutineEntryTile extends StatefulWidget {
   final EditRoutineViewModel viewModel;
   final PracticeRoutineEntry entry;
   final int index;
+  final bool narrow;
 
   const _RoutineEntryTile({
     super.key,
     required this.viewModel,
     required this.entry,
     required this.index,
+    required this.narrow,
   });
 
   @override
@@ -255,14 +272,71 @@ class _RoutineEntryTileState extends State<_RoutineEntryTile> {
     );
   }
 
+  Widget _buildDuration(BuildContext context) {
+    final theme = Theme.of(context);
+    return OptionalTooltip(
+      message: "Target duration",
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        spacing: 6,
+        children: [
+          SizedBox(
+            width: 56,
+            child: TextField(
+              controller: _durationController,
+              focusNode: _durationFocus,
+              onTapOutside: (event) => _durationFocus.unfocus(),
+              onChanged: _onDurationChanged,
+              textAlign: TextAlign.end,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 10,
+                ),
+                border: OutlineInputBorder(),
+                hintText: "0",
+              ),
+            ),
+          ),
+          Text(
+            "min",
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScoreSelector(List<Score> scores) {
+    final selected = widget.entry.defaultScoreId == null
+        ? 0
+        : scores.indexWhere((s) => s.id == widget.entry.defaultScoreId);
+    return ExerciseScoreSelector(
+      scores: scores,
+      selectedIndex: selected < 0 ? 0 : selected,
+      label: "Default score",
+      onSelected: (index) =>
+          widget.viewModel.setDefaultScore(widget.entry.id, scores[index]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final scores = widget.viewModel.scoresFor(widget.entry.exercise.id);
+    final selectorBelow = widget.narrow && scores.length > 1;
+
     return ReorderableDelayedDragStartListener(
       index: widget.index,
       child: ExerciseTile(
         exercise: widget.entry.exercise,
         showCategory: true,
+        showBadges: !widget.narrow,
+        subtitle: selectorBelow ? _buildScoreSelector(scores) : null,
         leading: ReorderableDragStartListener(
           index: widget.index,
           child: const Padding(
@@ -272,42 +346,14 @@ class _RoutineEntryTileState extends State<_RoutineEntryTile> {
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
+          spacing: 8,
           children: [
-            Tooltip(
-              message: "Target duration",
-              child: Row(
-                spacing: 6,
-                children: [
-                  SizedBox(
-                    width: 56,
-                    child: TextField(
-                      controller: _durationController,
-                      focusNode: _durationFocus,
-                      onTapOutside: (event) => _durationFocus.unfocus(),
-                      onChanged: _onDurationChanged,
-                      textAlign: TextAlign.end,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 10,
-                        ),
-                        border: OutlineInputBorder(),
-                        hintText: "0",
-                      ),
-                    ),
-                  ),
-                  Text(
-                    "min",
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+            if (!selectorBelow && scores.length > 1)
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 160),
+                child: _buildScoreSelector(scores),
               ),
-            ),
+            _buildDuration(context),
             IconButton(
               onPressed: () => widget.viewModel.removeEntry(widget.entry.id),
               tooltip: "Remove exercise",

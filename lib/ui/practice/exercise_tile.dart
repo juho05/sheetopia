@@ -18,7 +18,13 @@ class ExerciseTile extends StatelessWidget {
   final Exercise exercise;
   final Widget? leading;
   final Widget? trailing;
+
+  final Widget? subtitle;
+
+  final Widget? leadingBadge;
+
   final bool showCategory;
+  final bool showBadges;
   final bool selected;
   final void Function()? onTap;
   final void Function()? onLongPress;
@@ -28,7 +34,10 @@ class ExerciseTile extends StatelessWidget {
     required this.exercise,
     this.leading,
     this.trailing,
+    this.subtitle,
+    this.leadingBadge,
     this.showCategory = false,
+    this.showBadges = true,
     this.selected = false,
     this.onTap,
     this.onLongPress,
@@ -39,54 +48,70 @@ class ExerciseTile extends StatelessWidget {
     final theme = Theme.of(context);
     final instrument = exercise.instrument;
     final category = exercise.category;
-    final hasBadges = instrument != null || exercise.tags.isNotEmpty;
+    final hasBadges =
+        showBadges &&
+        (leadingBadge != null ||
+            instrument != null ||
+            exercise.tags.isNotEmpty);
     return RoundedListTile(
       height: RoundedListTile.defaultHeight,
       leading: leading,
       title: exercise.name,
       selected: selected,
-      subtitle: !hasBadges
-          ? null
-          : SizedBox(
-              height: badgeStripHeight,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  spacing: 6,
-                  children: [
-                    if (showCategory && category != null)
-                      Text(
-                        category.name,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    if (showCategory &&
-                        category != null &&
-                        (instrument != null || exercise.tags.isNotEmpty))
-                      Container(
-                        width: 1,
-                        height: 14,
-                        color: theme.colorScheme.outlineVariant,
-                      ),
-                    if (instrument != null)
-                      CommonBadge(
-                        name: instrument,
-                        tooltip: false,
-                        compact: true,
-                      ),
-                    if (instrument != null && exercise.tags.isNotEmpty)
-                      Container(
-                        width: 1,
-                        height: 14,
-                        color: theme.colorScheme.outlineVariant,
-                      ),
-                    for (final tag in exercise.tags)
-                      TagBadge(tag: tag, tooltip: false, compact: true),
-                  ],
-                ),
-              ),
-            ),
+      subtitle:
+          subtitle ??
+          (!hasBadges
+              ? null
+              : SizedBox(
+                  height: badgeStripHeight,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      spacing: 6,
+                      children: [
+                        ?leadingBadge,
+                        if (leadingBadge != null &&
+                            ((showCategory && category != null) ||
+                                instrument != null ||
+                                exercise.tags.isNotEmpty))
+                          Container(
+                            width: 1,
+                            height: 14,
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                        if (showCategory && category != null)
+                          Text(
+                            category.name,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        if (showCategory &&
+                            category != null &&
+                            (instrument != null || exercise.tags.isNotEmpty))
+                          Container(
+                            width: 1,
+                            height: 14,
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                        if (instrument != null)
+                          CommonBadge(
+                            name: instrument,
+                            tooltip: false,
+                            compact: true,
+                          ),
+                        if (instrument != null && exercise.tags.isNotEmpty)
+                          Container(
+                            width: 1,
+                            height: 14,
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                        for (final tag in exercise.tags)
+                          TagBadge(tag: tag, tooltip: false, compact: true),
+                      ],
+                    ),
+                  ),
+                )),
       trailing: trailing,
       onTap: onTap,
       onLongPress: onLongPress,

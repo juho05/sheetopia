@@ -9,6 +9,8 @@
 import 'package:flutter/material.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 
+const double routineEntryNarrowBreakpoint = 480;
+
 String formatRoutineDuration(Duration duration) {
   final hours = duration.inHours;
   final minutes = duration.inMinutes.remainder(60);

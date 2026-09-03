@@ -115,10 +115,12 @@ void main() {
   Future<PracticeRoutineEntry> entry(
     String exerciseId, {
     Duration? targetDuration,
+    String? defaultScoreId,
   }) async => PracticeRoutineEntry(
     id: repo.newRoutineEntryId(),
     exercise: (await repo.getExercisesById([exerciseId]))[exerciseId]!,
     targetDuration: targetDuration,
+    defaultScoreId: defaultScoreId,
   );
 
   Future<List<(String, String, int)>> entryRows(String routineId) async {
@@ -1162,6 +1164,113 @@ void main() {
 
     expect(await entryRows(routineId), isEmpty);
     expect((await repo.getRoutine(routineId))!.entries, isEmpty);
+  });
+
+  test("the default score of an entry is returned", () async {
+    final exerciseId = await createExercise("Chromatic");
+    await insertScore("a");
+    await insertScore("b");
+    await repo.setExerciseScores(exerciseId, ["a", "b"]);
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId, defaultScoreId: "b")],
+    );
+
+    final routine = await repo.getRoutine(routineId);
+
+    expect(routine!.entries.single.defaultScoreId, "b");
+  });
+
+  test("a default score that is not available locally is kept", () async {
+    final exerciseId = await createExercise("Chromatic");
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId, defaultScoreId: "elsewhere")],
+    );
+
+    final routine = await repo.getRoutine(routineId);
+
+    expect(routine!.entries.single.defaultScoreId, "elsewhere");
+  });
+
+  test("setRoutineEntries writes the default score", () async {
+    final exerciseId = await createExercise("Chromatic");
+    await insertScore("a");
+    await insertScore("b");
+    await repo.setExerciseScores(exerciseId, ["a", "b"]);
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId)],
+    );
+    final existing = (await repo.getRoutine(routineId))!.entries.single;
+
+    await repo.setRoutineEntries(routineId, [
+      existing.withDefaultScore(
+        (await repo.getExerciseScores(exerciseId)).last,
+      ),
+    ]);
+
+    expect(
+      (await repo.getRoutine(routineId))!.entries.single.defaultScoreId,
+      "b",
+    );
+
+    await repo.setRoutineEntries(routineId, [existing.withDefaultScore(null)]);
+
+    expect(
+      (await repo.getRoutine(routineId))!.entries.single.defaultScoreId,
+      isNull,
+    );
+  });
+
+  test("setRoutineEntries keeps the notes it does not know about", () async {
+    final exerciseId = await createExercise("Chromatic");
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId)],
+    );
+    await db.managers.practiceRoutineEntriesTable
+        .filter((f) => f.routine.id(routineId))
+        .update((o) => o(extraNotes: const Value("Slowly")));
+    final existing = (await repo.getRoutine(routineId))!.entries.single;
+
+    await repo.setRoutineEntries(routineId, [
+      existing.withTargetDuration(const Duration(minutes: 5)),
+    ]);
+
+    final row = await db.managers.practiceRoutineEntriesTable
+        .filter((f) => f.routine.id(routineId))
+        .getSingle();
+    expect(row.extraNotes, "Slowly");
+    expect(row.targetDuration, const Duration(minutes: 5));
+  });
+
+  test("deleting a score clears it as a routine entry default", () async {
+    final exerciseId = await createExercise("Chromatic");
+    await insertScore("a");
+    await insertScore("b");
+    await repo.setExerciseScores(exerciseId, ["a", "b"]);
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId, defaultScoreId: "b")],
+    );
+    await db.managers.practiceRoutinesTable
+        .filter((f) => f.id(routineId))
+        .update((o) => o(uploaded: const Value(true)));
+
+    await scoresRepo.deleteScores({"b"});
+
+    final routine = await repo.getRoutine(routineId);
+    expect(routine!.entries.single.defaultScoreId, isNull);
+    final row = await db.managers.practiceRoutinesTable
+        .filter((f) => f.id(routineId))
+        .getSingle();
+    expect(row.uploaded, isFalse);
   });
 
   test("changing the entries marks the routine as not uploaded", () async {

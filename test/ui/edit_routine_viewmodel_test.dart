@@ -6,31 +6,68 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:io';
+
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/practice/edit_routine_viewmodel.dart';
+
+class _FakePathProvider extends PathProviderPlatform
+    with MockPlatformInterfaceMixin {
+  final String root;
+
+  _FakePathProvider(this.root);
+
+  @override
+  Future<String?> getApplicationSupportPath() async => root;
+
+  @override
+  Future<String?> getTemporaryPath() async => root;
+}
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  late Directory tempDir;
   late Database db;
+  late ScoresRepository scoresRepo;
   late PracticeRepository repo;
 
-  Future<String> createExercise(String name) => repo.createExercise(
+  Future<String> createExercise(
+    String name, {
+    List<String> scoreIds = const [],
+  }) => repo.createExercise(
     name: name,
     description: "",
     instrument: "",
     source: "",
     sourceLink: "",
     tagIds: const [],
+    scoreIds: scoreIds,
   );
+
+  Future<void> insertScore(String id) async {
+    await db.managers.scoresTable.create(
+      (o) => o(
+        id: id,
+        title: "Title $id",
+        searchText: "title $id",
+        fileDownloaded: true,
+        fileType: FileType.pdf,
+        type: const Value(ScoreType.exercise),
+      ),
+    );
+  }
 
   Future<PracticeRoutineEntry> entry(
     String exerciseId, {
@@ -64,19 +101,18 @@ void main() {
   }
 
   setUp(() async {
+    tempDir = await Directory.systemTemp.createTemp("edit_routine_vm_test");
+    PathProviderPlatform.instance = _FakePathProvider(tempDir.path);
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
-    repo = PracticeRepository(
-      db: db,
-      scoresRepo: ScoresRepository(
-        db: db,
-        thumbnailService: ThumbnailService(),
-      ),
-    );
+    scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
+    repo = PracticeRepository(db: db, scoresRepo: scoresRepo);
+    await scoresRepo.scoresDir;
   });
 
   tearDown(() async {
     await db.close();
+    await tempDir.delete(recursive: true);
   });
 
   test("a new routine is only written on create", () async {
@@ -243,6 +279,43 @@ void main() {
       const Duration(minutes: 15),
     );
     expect((await repo.getRoutine(routineId))!.entries.single.id, entryId);
+  });
+
+  test("the default score is saved right away", () async {
+    await insertScore("a");
+    await insertScore("b");
+    final exerciseId = await createExercise("Chromatic", scoreIds: ["a", "b"]);
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId)],
+    );
+    final viewModel = await loadedViewModel(routineId);
+    final scores = viewModel.scoresFor(exerciseId);
+    expect(scores.map((s) => s.id), ["a", "b"]);
+
+    await viewModel.setDefaultScore(viewModel.entries.single.id, scores.last);
+
+    expect(viewModel.entries.single.defaultScoreId, "b");
+    expect(
+      (await repo.getRoutine(routineId))!.entries.single.defaultScoreId,
+      "b",
+    );
+  });
+
+  test("added exercises get their scores loaded", () async {
+    await insertScore("a");
+    await insertScore("b");
+    final exerciseId = await createExercise("Chromatic", scoreIds: ["a", "b"]);
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+    );
+    final viewModel = await loadedViewModel(routineId);
+
+    await viewModel.addExercises([exerciseId]);
+
+    expect(viewModel.scoresFor(exerciseId).map((s) => s.id), ["a", "b"]);
   });
 
   test("a deleted routine is gone", () async {

@@ -207,7 +207,7 @@ class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
     return RoutinePlayEntry(
       entry: entry,
       scores: scores,
-      selected: _resolveSelection(scores, scoreId, index),
+      selected: _resolveSelection(scores, scoreId, index, entry.defaultScoreId),
     );
   }
 
@@ -215,6 +215,7 @@ class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
     List<Score> scores,
     String? previousScoreId,
     int previousIndex,
+    String? defaultScoreId,
   ) {
     if (previousScoreId != null) {
       if (previousIndex >= 0 &&
@@ -225,6 +226,12 @@ class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
       }
       final index = scores.indexWhere(
         (s) => s.id == previousScoreId && _playable(s),
+      );
+      if (index >= 0) return index;
+    }
+    if (defaultScoreId != null) {
+      final index = scores.indexWhere(
+        (s) => s.id == defaultScoreId && _playable(s),
       );
       if (index >= 0) return index;
     }

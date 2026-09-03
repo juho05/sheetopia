@@ -11,6 +11,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
+import 'package:sheetopia/ui/common/optional_tooltip.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 
@@ -18,12 +19,14 @@ class ExerciseScoreSelector extends StatelessWidget {
   final List<Score> scores;
   final int selectedIndex;
   final void Function(int index) onSelected;
+  final String label;
 
   const ExerciseScoreSelector({
     super.key,
     required this.scores,
     required this.selectedIndex,
     required this.onSelected,
+    this.label = "Select score",
   });
 
   bool get _enabled => scores.length > 1;
@@ -37,6 +40,7 @@ class ExerciseScoreSelector extends StatelessWidget {
       context,
       scores: scores,
       selectedIndex: selectedIndex,
+      title: label,
     );
     if (index == null) return;
     onSelected(index);
@@ -59,9 +63,8 @@ class ExerciseScoreSelector extends StatelessWidget {
       );
     }
 
-    return Tooltip(
-      message: "Select score",
-      waitDuration: const Duration(milliseconds: 500),
+    return OptionalTooltip(
+      message: label,
       child: Material(
         color: theme.colorScheme.surfaceContainerHighest,
         shape: StadiumBorder(
@@ -100,18 +103,27 @@ class _SelectScoreDialog extends StatelessWidget {
 
   final List<Score> scores;
   final int selectedIndex;
+  final String title;
 
-  const _SelectScoreDialog({required this.scores, required this.selectedIndex});
+  const _SelectScoreDialog({
+    required this.scores,
+    required this.selectedIndex,
+    required this.title,
+  });
 
   static Future<int?> show(
     BuildContext context, {
     required List<Score> scores,
     required int selectedIndex,
+    required String title,
   }) {
     return showSheetopiaDialog<int>(
       context: context,
-      builder: (context) =>
-          _SelectScoreDialog(scores: scores, selectedIndex: selectedIndex),
+      builder: (context) => _SelectScoreDialog(
+        scores: scores,
+        selectedIndex: selectedIndex,
+        title: title,
+      ),
     );
   }
 
@@ -126,7 +138,7 @@ class _SelectScoreDialog extends StatelessWidget {
         spacing: 8,
         children: [
           Text(
-            "Select score",
+            title,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.headlineSmall,
           ),

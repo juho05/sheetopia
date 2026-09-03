@@ -7,16 +7,19 @@
  */
 
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
+import 'package:sheetopia/data/repositories/scores/score.dart';
 
 class PracticeRoutineEntry {
   final String id;
   final Exercise exercise;
   final Duration? targetDuration;
+  final String? defaultScoreId;
 
   const PracticeRoutineEntry({
     required this.id,
     required this.exercise,
     this.targetDuration,
+    this.defaultScoreId,
   });
 
   PracticeRoutineEntry withTargetDuration(Duration? targetDuration) =>
@@ -24,7 +27,15 @@ class PracticeRoutineEntry {
         id: id,
         exercise: exercise,
         targetDuration: targetDuration,
+        defaultScoreId: defaultScoreId,
       );
+
+  PracticeRoutineEntry withDefaultScore(Score? score) => PracticeRoutineEntry(
+    id: id,
+    exercise: exercise,
+    targetDuration: targetDuration,
+    defaultScoreId: score?.id,
+  );
 }
 
 class PracticeRoutine {

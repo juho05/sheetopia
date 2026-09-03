@@ -151,7 +151,8 @@ class _ExercisesFilterDialogState extends State<ExercisesFilterDialog> {
                     focusNode: _sourceFocus,
                     getOptions: (filter) =>
                         _viewModel.getSources(filter: filter),
-                    onChanged: (value) => _viewModel.filterSource = value.trim(),
+                    onChanged: (value) =>
+                        _viewModel.filterSource = value.trim(),
                     onSelected: (option) =>
                         _viewModel.filterSource = option.trim(),
                     decoration: InputDecoration(

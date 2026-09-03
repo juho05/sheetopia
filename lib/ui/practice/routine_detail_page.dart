@@ -11,6 +11,9 @@ import 'package:go_router/go_router.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
+import 'package:sheetopia/data/repositories/scores/score.dart';
+import 'package:sheetopia/ui/common/common_badge.dart';
+import 'package:sheetopia/ui/common/optional_tooltip.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
 import 'package:sheetopia/ui/practice/exercise_tile.dart';
 import 'package:sheetopia/ui/practice/routine_detail_viewmodel.dart';
@@ -93,7 +96,13 @@ class _RoutineDetailPageState extends State<RoutineDetailPage> {
                 constraints: const BoxConstraints(
                   maxWidth: RoutineDetailPage._maxWidth,
                 ),
-                child: _buildBody(context, routine),
+                child: LayoutBuilder(
+                  builder: (context, constraints) => _buildBody(
+                    context,
+                    routine,
+                    narrow: constraints.maxWidth < routineEntryNarrowBreakpoint,
+                  ),
+                ),
               ),
             ),
           ),
@@ -102,7 +111,11 @@ class _RoutineDetailPageState extends State<RoutineDetailPage> {
     );
   }
 
-  Widget _buildBody(BuildContext context, PracticeRoutine? routine) {
+  Widget _buildBody(
+    BuildContext context,
+    PracticeRoutine? routine, {
+    required bool narrow,
+  }) {
     if (_viewModel.loading) {
       return const Center(child: CircularProgressIndicator.adaptive());
     }
@@ -142,12 +155,17 @@ class _RoutineDetailPageState extends State<RoutineDetailPage> {
         ),
         SliverList.builder(
           itemCount: routine.entries.length,
-          itemBuilder: (context, index) => _RoutineEntryTile(
-            entry: routine.entries[index],
-            onTap: () => context.go(
-              "/practice/routines/${widget.routineId}/details/play?startIndex=$index",
-            ),
-          ),
+          itemBuilder: (context, index) {
+            final entry = routine.entries[index];
+            return _RoutineEntryTile(
+              entry: entry,
+              scores: _viewModel.scoresFor(entry.exercise.id),
+              narrow: narrow,
+              onTap: () => context.go(
+                "/practice/routines/${widget.routineId}/details/play?startIndex=$index",
+              ),
+            );
+          },
         ),
         if (routine.entries.isEmpty)
           SliverToBoxAdapter(
@@ -171,28 +189,62 @@ class _RoutineDetailPageState extends State<RoutineDetailPage> {
 
 class _RoutineEntryTile extends StatelessWidget {
   final PracticeRoutineEntry entry;
+  final List<Score> scores;
+  final bool narrow;
   final void Function() onTap;
 
-  const _RoutineEntryTile({required this.entry, required this.onTap});
+  const _RoutineEntryTile({
+    required this.entry,
+    required this.scores,
+    required this.narrow,
+    required this.onTap,
+  });
+
+  String? get _defaultScore {
+    if (scores.length < 2) return null;
+    final index = scores.indexWhere((s) => s.id == entry.defaultScoreId);
+    return scores[index < 0 ? 0 : index].title;
+  }
+
+  Widget _buildBadge(String name, {required bool compact}) => OptionalTooltip(
+    message: name,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: compact ? 160 : 200),
+      child: CommonBadge(name: name, tooltip: false, compact: compact),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final targetDuration = entry.targetDuration;
+    final defaultScore = _defaultScore;
+
     return ExerciseTile(
       exercise: entry.exercise,
       showCategory: true,
       onTap: onTap,
-      trailing: Padding(
-        padding: const EdgeInsets.only(right: 12),
-        child: Text(
-          targetDuration == null
-              ? "No target"
-              : formatRoutineDuration(targetDuration),
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+      leadingBadge: narrow && defaultScore != null
+          ? _buildBadge(defaultScore, compact: true)
+          : null,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        spacing: 8,
+        children: [
+          if (!narrow && defaultScore != null)
+            _buildBadge(defaultScore, compact: false),
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Text(
+              targetDuration == null
+                  ? "No target"
+                  : formatRoutineDuration(targetDuration),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

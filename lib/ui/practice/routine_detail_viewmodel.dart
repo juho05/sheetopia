@@ -11,6 +11,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
+import 'package:sheetopia/data/repositories/scores/score.dart';
 
 class RoutineDetailViewModel extends ChangeNotifier {
   final PracticeRepository _repo;
@@ -26,6 +27,11 @@ class RoutineDetailViewModel extends ChangeNotifier {
   PracticeRoutine? get routine => _routine;
 
   bool get missing => !_loading && _routine == null;
+
+  final Map<String, List<Score>> _scoresByExercise = {};
+
+  List<Score> scoresFor(String exerciseId) =>
+      _scoresByExercise[exerciseId] ?? const [];
 
   /// True once the routine was loaded and has been deleted since.
   bool get deleted => _deleted;
@@ -44,10 +50,26 @@ class RoutineDetailViewModel extends ChangeNotifier {
     load();
   }
 
+  int _loadGeneration = 0;
+
   Future<void> load() async {
+    final generation = ++_loadGeneration;
     final routine = await _repo.getRoutine(routineId);
+    if (generation != _loadGeneration) return;
     if (routine == null && _routine != null) _deleted = true;
+
+    final scores = <String, List<Score>>{};
+    for (final exerciseId
+        in routine?.entries.map((e) => e.exercise.id).toSet() ??
+            const <String>{}) {
+      scores[exerciseId] = await _repo.getExerciseScores(exerciseId);
+      if (generation != _loadGeneration) return;
+    }
+
     _routine = routine;
+    _scoresByExercise
+      ..clear()
+      ..addAll(scores);
     _loading = false;
     notifyListeners();
   }

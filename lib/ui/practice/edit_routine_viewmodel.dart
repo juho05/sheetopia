@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
+import 'package:sheetopia/data/repositories/scores/score.dart';
 
 class EditRoutineViewModel extends ChangeNotifier {
   static const String formName = "name";
@@ -50,6 +51,11 @@ class EditRoutineViewModel extends ChangeNotifier {
     Duration.zero,
     (sum, e) => sum + (e.targetDuration ?? Duration.zero),
   );
+
+  final Map<String, List<Score>> _scoresByExercise = {};
+
+  List<Score> scoresFor(String exerciseId) =>
+      _scoresByExercise[exerciseId] ?? const [];
 
   bool _exercisesLoading = false;
 
@@ -91,11 +97,19 @@ class EditRoutineViewModel extends ChangeNotifier {
           ),
         );
       }
+      await _loadScores(exerciseIds);
     } finally {
       _exercisesLoading = false;
       notifyListeners();
     }
     await _persistEntries();
+  }
+
+  Future<void> _loadScores(Iterable<String> exerciseIds) async {
+    for (final exerciseId in exerciseIds.toSet()) {
+      if (_scoresByExercise.containsKey(exerciseId)) continue;
+      _scoresByExercise[exerciseId] = await _repo.getExerciseScores(exerciseId);
+    }
   }
 
   Future<void> moveEntry(int from, int to) async {
@@ -128,6 +142,14 @@ class EditRoutineViewModel extends ChangeNotifier {
     });
   }
 
+  Future<void> setDefaultScore(String entryId, Score? score) async {
+    final index = _entries.indexWhere((e) => e.id == entryId);
+    if (index == -1 || _entries[index].defaultScoreId == score?.id) return;
+    _entries[index] = _entries[index].withDefaultScore(score);
+    notifyListeners();
+    await _persistEntries();
+  }
+
   Future<void> create() async {
     if (form.invalid) {
       throw StateError("Only call create when the form is valid!");
@@ -157,6 +179,7 @@ class EditRoutineViewModel extends ChangeNotifier {
       _missing = true;
     } else {
       _entries = [...routine.entries];
+      await _loadScores(_entries.map((e) => e.exercise.id));
       form.updateValue({
         formName: routine.name,
         formDescription: routine.description ?? "",

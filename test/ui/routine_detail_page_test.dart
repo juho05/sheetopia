@@ -6,24 +6,46 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:io';
+
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
+import 'package:sheetopia/ui/common/rounded_list_tile.dart';
+import 'package:sheetopia/ui/practice/exercise_tile.dart';
 import 'package:sheetopia/ui/practice/routine_detail_page.dart';
+
+class _FakePathProvider extends PathProviderPlatform
+    with MockPlatformInterfaceMixin {
+  final String root;
+
+  _FakePathProvider(this.root);
+
+  @override
+  Future<String?> getApplicationSupportPath() async => root;
+
+  @override
+  Future<String?> getTemporaryPath() async => root;
+}
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  late Directory tempDir;
   late Database db;
+  late ScoresRepository scoresRepo;
   late PracticeRepository repo;
 
   Future<String> createExercise(String name, {String instrument = ""}) =>
@@ -39,26 +61,48 @@ void main() {
   Future<PracticeRoutineEntry> entry(
     String exerciseId, {
     Duration? targetDuration,
+    String? defaultScoreId,
   }) async => PracticeRoutineEntry(
     id: repo.newRoutineEntryId(),
     exercise: (await repo.getExercisesById([exerciseId]))[exerciseId]!,
     targetDuration: targetDuration,
+    defaultScoreId: defaultScoreId,
   );
 
-  setUp(() async {
-    db = Database(NativeDatabase.memory());
-    await db.customStatement("PRAGMA foreign_keys = ON");
-    repo = PracticeRepository(
-      db: db,
-      scoresRepo: ScoresRepository(
-        db: db,
-        thumbnailService: ThumbnailService(),
+  Future<void> insertScore(String id) async {
+    await db.managers.scoresTable.create(
+      (o) => o(
+        id: id,
+        title: "Title $id",
+        searchText: "title $id",
+        fileDownloaded: true,
+        fileType: FileType.pdf,
+        type: const Value(ScoreType.exercise),
       ),
     );
+  }
+
+  void setWidth(WidgetTester tester, double width) {
+    tester.view.physicalSize = Size(width, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+  }
+
+  setUp(() async {
+    tempDir = await Directory.systemTemp.createTemp("routine_detail_page_test");
+    PathProviderPlatform.instance = _FakePathProvider(tempDir.path);
+    db = Database(NativeDatabase.memory());
+    await db.customStatement("PRAGMA foreign_keys = ON");
+    scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
+    repo = PracticeRepository(db: db, scoresRepo: scoresRepo);
+    // resolving score files creates directories, the fake async zone of a
+    // widget test never lets that land
+    await scoresRepo.scoresDir;
   });
 
   tearDown(() async {
     await db.close();
+    await tempDir.delete(recursive: true);
   });
 
   Future<void> settle(WidgetTester tester) async {
@@ -251,5 +295,149 @@ void main() {
     await pumpPage(tester, "nope");
 
     expect(find.text("This routine no longer exists."), findsOneWidget);
+  });
+
+  testWidgets("the default score is shown on the right when wide", (
+    tester,
+  ) async {
+    await insertScore("a");
+    await insertScore("b");
+    final exerciseId = await createExercise("Chromatic", instrument: "Guitar");
+    await repo.setExerciseScores(exerciseId, ["a", "b"]);
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [
+        await entry(
+          exerciseId,
+          targetDuration: const Duration(minutes: 20),
+          defaultScoreId: "b",
+        ),
+      ],
+    );
+
+    await pumpPage(tester, routineId);
+
+    expect(find.text("Title b"), findsOneWidget);
+    // out of the badge strip, next to the target duration instead
+    expect(
+      tester.widget<ExerciseTile>(find.byType(ExerciseTile)).leadingBadge,
+      isNull,
+    );
+    expect(
+      tester.getRect(find.text("Title b")).left,
+      greaterThan(tester.getRect(find.text("Guitar")).left),
+    );
+    expect(
+      tester.getRect(find.text("Title b")).left,
+      lessThan(tester.getRect(find.text("20min")).left),
+    );
+  });
+
+  testWidgets("the default score moves into the badge strip when narrow", (
+    tester,
+  ) async {
+    setWidth(tester, 360);
+    await insertScore("a");
+    await insertScore("b");
+    final exerciseId = await createExercise("Chromatic", instrument: "Guitar");
+    await repo.setExerciseScores(exerciseId, ["a", "b"]);
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId, defaultScoreId: "b")],
+    );
+
+    await pumpPage(tester, routineId);
+
+    expect(
+      tester.widget<ExerciseTile>(find.byType(ExerciseTile)).leadingBadge,
+      isNotNull,
+    );
+    expect(find.text("Title b"), findsOneWidget);
+    // it sits before the instrument so the tags scroll off instead
+    expect(
+      tester.getRect(find.text("Title b")).left,
+      lessThan(tester.getRect(find.text("Guitar")).left),
+    );
+    expect(
+      tester.getSize(find.byType(ExerciseTile)).height,
+      RoundedListTile.defaultHeight + RoundedListTile.spacing,
+    );
+  });
+
+  testWidgets("without an explicit default the first score is shown", (
+    tester,
+  ) async {
+    await insertScore("a");
+    await insertScore("b");
+    final exerciseId = await createExercise("Chromatic");
+    await repo.setExerciseScores(exerciseId, ["a", "b"]);
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId)],
+    );
+
+    await pumpPage(tester, routineId);
+
+    expect(find.text("Title a"), findsOneWidget);
+    expect(find.text("Title b"), findsNothing);
+  });
+
+  testWidgets("a default score that is gone falls back to the first", (
+    tester,
+  ) async {
+    await insertScore("a");
+    await insertScore("b");
+    final exerciseId = await createExercise("Chromatic");
+    await repo.setExerciseScores(exerciseId, ["a", "b"]);
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId, defaultScoreId: "elsewhere")],
+    );
+
+    await pumpPage(tester, routineId);
+
+    expect(find.text("Title a"), findsOneWidget);
+  });
+
+  testWidgets("an exercise with a single score shows no default", (
+    tester,
+  ) async {
+    await insertScore("a");
+    final exerciseId = await createExercise("Chromatic");
+    await repo.setExerciseScores(exerciseId, ["a"]);
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId, defaultScoreId: "a")],
+    );
+
+    await pumpPage(tester, routineId);
+
+    expect(
+      tester.widget<ExerciseTile>(find.byType(ExerciseTile)).leadingBadge,
+      isNull,
+    );
+    expect(find.textContaining("Title"), findsNothing);
+  });
+
+  testWidgets("an exercise without scores shows no default", (tester) async {
+    final exerciseId = await createExercise("Chromatic");
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId)],
+    );
+
+    await pumpPage(tester, routineId);
+
+    expect(
+      tester.widget<ExerciseTile>(find.byType(ExerciseTile)).leadingBadge,
+      isNull,
+    );
+    expect(find.textContaining("Title"), findsNothing);
   });
 }
