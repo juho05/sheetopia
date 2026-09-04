@@ -177,6 +177,11 @@ class ExercisesViewModel extends ChangeNotifier {
     );
   }
 
+  Future<void> delete(String exerciseId) => _repo.deleteExercise(exerciseId);
+
+  Future<void> addToRoutine(String routineId, String exerciseId) =>
+      _repo.addRoutineEntries(routineId, [exerciseId]);
+
   Future<Iterable<String>> getInstruments({String filter = ""}) async {
     return await _repo.getInstruments(filter: filter, size: 10);
   }

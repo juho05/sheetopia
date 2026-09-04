@@ -14,30 +14,64 @@ import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/menu_button.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
-import 'package:sheetopia/ui/common/rounded_tile_icon.dart';
 import 'package:sheetopia/ui/common/search_input.dart';
+import 'package:sheetopia/ui/common/selection/selectable_tile_icon.dart';
+import 'package:sheetopia/ui/common/selection/selection_gestures.dart';
+import 'package:sheetopia/ui/common/selection/selection_shortcuts.dart';
 import 'package:sheetopia/ui/setlists/setlist_name_dialog.dart';
 import 'package:sheetopia/ui/setlists/setlists_viewmodel.dart';
 
 class SetlistsView extends StatefulWidget {
-  const SetlistsView({super.key});
+  final SetlistsViewModel viewModel;
+
+  final bool selectionMode;
+  final void Function(Setlist setlist)? onSetlistSelected;
+  final void Function(Setlist setlist)? onSetlistDeselected;
+  final void Function(List<String> setlistIds)? onSetlistsSelected;
+  final void Function()? onClearSelection;
+  final Set<String> selected;
+
+  const SetlistsView({
+    super.key,
+    required this.viewModel,
+    this.selectionMode = false,
+    this.onSetlistSelected,
+    this.onSetlistDeselected,
+    this.onSetlistsSelected,
+    this.onClearSelection,
+    this.selected = const {},
+  });
 
   @override
   State<SetlistsView> createState() => _SetlistsViewState();
 }
 
 class _SetlistsViewState extends State<SetlistsView> {
-  late final SetlistsViewModel _viewModel;
+  late final SetlistsViewModel _viewModel = widget.viewModel;
+
+  final FocusScopeNode _focusScope = FocusScopeNode();
+  final RangeSelectionAnchor _rangeAnchor = RangeSelectionAnchor();
+
+  bool _visible = true;
 
   @override
-  void initState() {
-    super.initState();
-    _viewModel = SetlistsViewModel(repo: context.read());
+  void didUpdateWidget(SetlistsView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.selectionMode) _rangeAnchor.clear();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = Visibility.of(context);
+    if (visible == _visible) return;
+    _visible = visible;
+    if (visible) _focusScope.requestFocus();
   }
 
   @override
   void dispose() {
-    _viewModel.dispose();
+    _focusScope.dispose();
     super.dispose();
   }
 
@@ -75,30 +109,65 @@ class _SetlistsViewState extends State<SetlistsView> {
     await _viewModel.delete(setlist.id);
   }
 
+  void _selectAll() =>
+      widget.onSetlistsSelected?.call(_viewModel.loadedSetlistIds);
+
+  void _selectSetlist(Setlist setlist) {
+    _rangeAnchor.anchor = setlist.id;
+    widget.onSetlistSelected?.call(setlist);
+  }
+
+  void _deselectSetlist(Setlist setlist) {
+    _rangeAnchor.anchor = setlist.id;
+    widget.onSetlistDeselected?.call(setlist);
+  }
+
+  void _toggleSetlist(Setlist setlist) {
+    if (widget.selected.contains(setlist.id)) {
+      _deselectSetlist(setlist);
+    } else {
+      _selectSetlist(setlist);
+    }
+  }
+
+  void _selectRangeTo(Setlist setlist) {
+    final range = _rangeAnchor.rangeTo(_viewModel.loadedSetlistIds, setlist.id);
+    if (range == null) {
+      _selectSetlist(setlist);
+      return;
+    }
+    widget.onSetlistsSelected?.call(range);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
-          child: SearchInput(
-            label: "Search",
-            onSearch: (query) {
-              _viewModel.filterSearch = query;
-            },
+    return SelectionShortcuts(
+      onSelectAll: widget.onSetlistsSelected != null ? _selectAll : null,
+      onClearSelection: widget.selectionMode ? widget.onClearSelection : null,
+      focusScopeNode: _focusScope,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
+            child: SearchInput(
+              label: "Search",
+              onSearch: (query) {
+                _viewModel.filterSearch = query;
+              },
+            ),
           ),
-        ),
-        ListenableBuilder(
-          listenable: _viewModel,
-          builder: (context, _) => _buildCountLabel(context),
-        ),
-        Expanded(
-          child: ListenableBuilder(
+          ListenableBuilder(
             listenable: _viewModel,
-            builder: (context, _) => _buildContent(context),
+            builder: (context, _) => _buildCountLabel(context),
           ),
-        ),
-      ],
+          Expanded(
+            child: ListenableBuilder(
+              listenable: _viewModel,
+              builder: (context, _) => _buildContent(context),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -167,30 +236,88 @@ class _SetlistsViewState extends State<SetlistsView> {
       itemCount: _viewModel.setlists.length,
       itemBuilder: (context, index) {
         final setlist = _viewModel.setlists[index];
-        return RoundedListTile(
-          leading: const RoundedTileIcon(icon: Icons.queue_music),
-          title: setlist.name,
-          subtitle: Text(
-            "${setlist.entryCount} "
-            "${setlist.entryCount == 1 ? "score" : "scores"}",
-          ),
-          onTap: () => context.go("/setlists/${setlist.id}"),
-          trailing: MenuButton(
-            options: [
-              ContextMenuOption(
-                icon: Icons.edit,
-                title: "Rename",
-                onSelected: () => _rename(setlist),
-              ),
-              ContextMenuOption(
-                icon: Icons.delete,
-                title: "Delete",
-                onSelected: () => _delete(setlist),
-              ),
-            ],
-          ),
+        return _SetlistTile(
+          setlist: setlist,
+          selecting: widget.selectionMode,
+          selected: widget.selected.contains(setlist.id),
+          onToggle: _toggleSetlist,
+          onSelectionStart: widget.onSetlistSelected != null
+              ? _selectSetlist
+              : null,
+          onRangeSelect:
+              widget.onSetlistSelected != null &&
+                  widget.onSetlistsSelected != null
+              ? _selectRangeTo
+              : null,
+          onRename: () => _rename(setlist),
+          onDelete: () => _delete(setlist),
         );
       },
+    );
+  }
+}
+
+class _SetlistTile extends StatelessWidget {
+  final Setlist setlist;
+  final bool selecting;
+  final bool selected;
+  final void Function(Setlist setlist) onToggle;
+  final void Function(Setlist setlist)? onSelectionStart;
+  final void Function(Setlist setlist)? onRangeSelect;
+  final void Function() onRename;
+  final void Function() onDelete;
+
+  const _SetlistTile({
+    required this.setlist,
+    required this.selecting,
+    required this.selected,
+    required this.onToggle,
+    required this.onRename,
+    required this.onDelete,
+    this.onSelectionStart,
+    this.onRangeSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final gestures = SelectionGestures(
+      item: setlist,
+      selecting: selecting,
+      onToggle: onToggle,
+      onSelectionStart: onSelectionStart,
+      onRangeSelect: onRangeSelect,
+      onActivate: () => context.go("/setlists/${setlist.id}"),
+    );
+    return RoundedListTile(
+      leading: SelectableTileIcon(
+        icon: Icons.queue_music,
+        selecting: selecting,
+        selected: selected,
+      ),
+      title: setlist.name,
+      selected: selected,
+      subtitle: Text(
+        "${setlist.entryCount} "
+        "${setlist.entryCount == 1 ? "score" : "scores"}",
+      ),
+      onTap: gestures.onTap,
+      onLongPress: gestures.onLongPress,
+      trailing: selecting
+          ? null
+          : MenuButton(
+              options: [
+                ContextMenuOption(
+                  icon: Icons.edit,
+                  title: "Rename",
+                  onSelected: onRename,
+                ),
+                ContextMenuOption(
+                  icon: Icons.delete,
+                  title: "Delete",
+                  onSelected: onDelete,
+                ),
+              ],
+            ),
     );
   }
 }

@@ -28,12 +28,17 @@ class BulkEditTagsResult {
 }
 
 class BulkEditTagsDialog extends StatefulWidget {
-  const BulkEditTagsDialog({super.key});
+  final TagType type;
 
-  static Future<BulkEditTagsResult?> show(BuildContext context) async {
+  const BulkEditTagsDialog({super.key, this.type = TagType.score});
+
+  static Future<BulkEditTagsResult?> show(
+    BuildContext context, {
+    TagType type = TagType.score,
+  }) async {
     return showSheetopiaDialog<BulkEditTagsResult>(
       context: context,
-      builder: (context) => const BulkEditTagsDialog(),
+      builder: (context) => BulkEditTagsDialog(type: type),
     );
   }
 
@@ -125,7 +130,7 @@ class _BulkEditTagsDialogState extends State<BulkEditTagsDialog> {
                 context,
                 alreadySelected: _addTags,
                 enableTagEdits: true,
-                type: TagType.score,
+                type: widget.type,
                 title: "Add tags",
               );
               if (tags == null || tags.isEmpty) return;
@@ -153,7 +158,7 @@ class _BulkEditTagsDialogState extends State<BulkEditTagsDialog> {
                 context,
                 alreadySelected: _removeTags,
                 enableTagEdits: true,
-                type: TagType.score,
+                type: widget.type,
                 title: "Remove tags",
               );
               if (tags == null || tags.isEmpty) return;

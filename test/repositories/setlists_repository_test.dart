@@ -236,4 +236,50 @@ void main() {
   test("getSetlist returns null for an unknown id", () async {
     expect(await repo.getSetlist("nope"), isNull);
   });
+
+  test("deleteSetlists removes them all and their entries", () async {
+    await insertScore("s1");
+    final first = await repo.createSetlist(name: "First");
+    final second = await repo.createSetlist(name: "Second");
+    final kept = await repo.createSetlist(name: "Kept");
+    await repo.addScores(first.id, ["s1"]);
+
+    await repo.deleteSetlists({first.id, second.id});
+
+    expect((await repo.getSetlists()).map((s) => s.name), ["Kept"]);
+    expect(await repo.getSetlist(kept.id), isNotNull);
+    expect(await db.managers.setlistEntriesTable.count(), 0);
+  });
+
+  test("deleteSetlists records a tombstone per setlist", () async {
+    final first = await repo.createSetlist(name: "First");
+    final second = await repo.createSetlist(name: "Second");
+
+    await repo.deleteSetlists({first.id, second.id});
+
+    final deleted = await db.managers.deletedSetlistsTable.get();
+    expect(deleted.map((d) => d.setlistId).toSet(), {first.id, second.id});
+  });
+
+  test("deleteSetlists announces every deleted id at once", () async {
+    final first = await repo.createSetlist(name: "First");
+    final second = await repo.createSetlist(name: "Second");
+    final events = <Set<String>>[];
+    final sub = repo.updatedSetlistIds.listen(events.add);
+
+    await repo.deleteSetlists({first.id, second.id});
+    await pumpEventQueue();
+    await sub.cancel();
+
+    expect(events.last, {first.id, second.id});
+  });
+
+  test("deleting an empty selection does nothing", () async {
+    await repo.createSetlist(name: "First");
+
+    await repo.deleteSetlists({});
+
+    expect(await repo.countSetlists(), 1);
+    expect(await db.managers.deletedSetlistsTable.count(), 0);
+  });
 }

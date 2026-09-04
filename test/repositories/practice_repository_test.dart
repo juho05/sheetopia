@@ -1400,4 +1400,209 @@ void main() {
     expect(await repo.duplicateRoutine("nope"), isNull);
     expect(await repo.countRoutines(), 0);
   });
+
+  test("bulk editing the category moves every selected exercise", () async {
+    final categoryId = await insertCategory("Warmup");
+    final bends = await createExercise("Bends");
+    final chromatic = await createExercise("Chromatic");
+    final scales = await createExercise("Scales");
+
+    await repo.bulkUpdateExerciseCategory([bends, chromatic], categoryId);
+
+    expect((await repo.getExercise(bends))!.category?.name, "Warmup");
+    expect((await repo.getExercise(chromatic))!.category?.name, "Warmup");
+    expect((await repo.getExercise(scales))!.category, isNull);
+  });
+
+  test("bulk editing the category can clear it", () async {
+    final categoryId = await insertCategory("Warmup");
+    final bends = await createExercise("Bends", category: categoryId);
+
+    await repo.bulkUpdateExerciseCategory([bends], null);
+
+    expect((await repo.getExercise(bends))!.category, isNull);
+  });
+
+  test("bulk editing the instrument clears an empty value", () async {
+    final bends = await createExercise("Bends", instrument: "Guitar");
+    final chromatic = await createExercise("Chromatic");
+
+    await repo.bulkUpdateExerciseInstrument([bends, chromatic], "Bass");
+    expect((await repo.getExercise(bends))!.instrument, "Bass");
+    expect((await repo.getExercise(chromatic))!.instrument, "Bass");
+
+    await repo.bulkUpdateExerciseInstrument([bends], "");
+    expect((await repo.getExercise(bends))!.instrument, isNull);
+  });
+
+  test("bulk editing the source drops the link without a source", () async {
+    final bends = await createExercise("Bends");
+
+    await repo.bulkUpdateExerciseSource(
+      [bends],
+      source: "Book",
+      sourceLink: "https://example.com",
+    );
+    expect((await repo.getExercise(bends))!.source, "Book");
+    expect((await repo.getExercise(bends))!.sourceLink, "https://example.com");
+
+    await repo.bulkUpdateExerciseSource(
+      [bends],
+      source: "",
+      sourceLink: "https://example.com",
+    );
+    expect((await repo.getExercise(bends))!.source, isNull);
+    expect((await repo.getExercise(bends))!.sourceLink, isNull);
+  });
+
+  test("bulk editing tags adds and removes them at once", () async {
+    final keep = await insertTag("keep");
+    final drop = await insertTag("drop");
+    final bends = await repo.createExercise(
+      name: "Bends",
+      description: "",
+      instrument: "",
+      source: "",
+      sourceLink: "",
+      tagIds: [drop],
+    );
+    final chromatic = await createExercise("Chromatic");
+
+    await repo.bulkEditExerciseTags([bends, chromatic], [keep], [drop]);
+
+    expect((await repo.getExercise(bends))!.tags.map((t) => t.name), ["keep"]);
+    expect((await repo.getExercise(chromatic))!.tags.map((t) => t.name), [
+      "keep",
+    ]);
+  });
+
+  test("bulk edits mark every touched exercise as not uploaded", () async {
+    final bends = await createExercise("Bends");
+    final chromatic = await createExercise("Chromatic");
+    await db.managers.exercisesTable
+        .filter((f) => f.id.isIn([bends, chromatic]))
+        .update((o) => o(uploaded: const Value(true)));
+
+    await repo.bulkUpdateExerciseInstrument([bends, chromatic], "Bass");
+
+    final rows = await db.managers.exercisesTable.get();
+    expect(rows.every((e) => !e.uploaded), isTrue);
+  });
+
+  test("bulk edits of an empty selection do nothing", () async {
+    final bends = await createExercise("Bends", instrument: "Guitar");
+
+    await repo.bulkUpdateExerciseInstrument([], "Bass");
+
+    expect((await repo.getExercise(bends))!.instrument, "Guitar");
+  });
+
+  test("deleting exercises records every one as deleted", () async {
+    final bends = await createExercise("Bends");
+    final chromatic = await createExercise("Chromatic");
+    final scales = await createExercise("Scales");
+
+    await repo.deleteExercises({bends, chromatic});
+
+    expect(await repo.countExercises(), 1);
+    expect((await repo.getExercise(scales))!.name, "Scales");
+    final deleted = await db.managers.deletedExercisesTable.get();
+    expect(deleted.map((d) => d.exerciseId).toSet(), {bends, chromatic});
+  });
+
+  test("deleting exercises renumbers the routines they were in", () async {
+    final bends = await createExercise("Bends");
+    final chromatic = await createExercise("Chromatic");
+    final scales = await createExercise("Scales");
+    final routineId = await createRoutine("Morning");
+    await addEntry(routineId, bends, position: 0);
+    await addEntry(routineId, chromatic, position: 1);
+    await addEntry(routineId, scales, position: 2);
+
+    await repo.deleteExercises({bends, chromatic});
+
+    final rows = await entryRows(routineId);
+    expect(rows.map((r) => (r.$2, r.$3)), [(scales, 0)]);
+  });
+
+  test("deleting exercises deletes the scores they own", () async {
+    await insertScore("owned", type: ScoreType.exercise);
+    await insertScore("linked");
+    final bends = await createExercise("Bends");
+    final chromatic = await createExercise("Chromatic");
+    await repo.setExerciseScores(bends, ["owned"]);
+    await repo.setExerciseScores(chromatic, ["linked"]);
+
+    await repo.deleteExercises({bends, chromatic});
+
+    expect(await scoresRepo.getScore("owned"), isNull);
+    expect(await scoresRepo.getScore("linked"), isNotNull);
+  });
+
+  test("routines are deleted together and recorded as deleted", () async {
+    final morning = await createRoutine("Morning");
+    final evening = await createRoutine("Evening");
+    await createRoutine("Weekly");
+
+    await repo.deleteRoutines({morning, evening});
+
+    expect(await routineNames(), ["Weekly"]);
+    final deleted = await db.managers.deletedPracticeRoutinesTable.get();
+    expect(deleted.map((d) => d.routineId).toSet(), {morning, evening});
+  });
+
+  test("duplicating routines returns one copy per routine", () async {
+    final morning = await createRoutine("Morning");
+    final evening = await createRoutine("Evening");
+
+    final copies = await repo.duplicateRoutines([morning, evening, "nope"]);
+
+    expect(copies, hasLength(2));
+    expect(await routineNames(), [
+      "Evening",
+      "Evening (copy)",
+      "Morning",
+      "Morning (copy)",
+    ]);
+  });
+
+  test("added routine entries land after the existing ones", () async {
+    final bends = await createExercise("Bends");
+    final chromatic = await createExercise("Chromatic");
+    final scales = await createExercise("Scales");
+    final routineId = await createRoutine("Morning");
+    await addEntry(routineId, bends, position: 0);
+
+    await repo.addRoutineEntries(routineId, [chromatic, scales]);
+
+    final rows = await entryRows(routineId);
+    expect(rows.map((r) => (r.$2, r.$3)), [
+      (bends, 0),
+      (chromatic, 1),
+      (scales, 2),
+    ]);
+  });
+
+  test("adding routine entries marks the routine as not uploaded", () async {
+    final bends = await createExercise("Bends");
+    final routineId = await createRoutine("Morning");
+    await db.managers.practiceRoutinesTable
+        .filter((f) => f.id(routineId))
+        .update((o) => o(uploaded: const Value(true)));
+
+    await repo.addRoutineEntries(routineId, [bends]);
+
+    final row = await db.managers.practiceRoutinesTable
+        .filter((f) => f.id(routineId))
+        .getSingle();
+    expect(row.uploaded, isFalse);
+  });
+
+  test("getRoutineIds honours the search filter", () async {
+    final morning = await createRoutine("Morning");
+    await createRoutine("Evening");
+
+    expect(await repo.getRoutineIds(filter: "morn"), [morning]);
+    expect(await repo.getRoutineIds(), hasLength(2));
+  });
 }

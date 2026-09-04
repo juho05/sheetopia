@@ -165,14 +165,19 @@ class SetlistsRepository {
     _updatedSetlistIds.add((changed: {id}, needsUpload: true));
   }
 
-  Future<void> deleteSetlist(String id) async {
+  Future<void> deleteSetlist(String id) => deleteSetlists({id});
+
+  Future<void> deleteSetlists(Set<String> ids) async {
+    if (ids.isEmpty) return;
     await _db.transaction(() async {
-      await _db.managers.setlistsTable.filter((f) => f.id(id)).delete();
-      await _db.managers.deletedSetlistsTable.create(
-        (o) => o(setlistId: id, deletedAt: Value(DateTime.now().toUtc())),
+      await _db.managers.setlistsTable.filter((f) => f.id.isIn(ids)).delete();
+      await _db.managers.deletedSetlistsTable.bulkCreate(
+        (o) => ids.map(
+          (id) => o(setlistId: id, deletedAt: Value(DateTime.now().toUtc())),
+        ),
       );
     });
-    _updatedSetlistIds.add((changed: {id}, needsUpload: true));
+    _updatedSetlistIds.add((changed: ids, needsUpload: true));
   }
 
   Future<void> addScores(String setlistId, List<String> scoreIds) async {

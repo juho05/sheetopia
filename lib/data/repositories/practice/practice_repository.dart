@@ -569,6 +569,98 @@ class PracticeRepository {
     _updatedExerciseIds.add((changed: {exerciseId}, needsUpload: true));
   }
 
+  Future<void> bulkUpdateExerciseCategory(
+    Iterable<String> exerciseIds,
+    String? categoryId,
+  ) async {
+    if (exerciseIds.isEmpty) return;
+    await _db.managers.exercisesTable
+        .filter((f) => f.id.isIn(exerciseIds))
+        .update(
+          (o) => o(
+            category: Value(categoryId),
+            updatedAt: Value(DateTime.now().toUtc()),
+            uploaded: const Value(false),
+          ),
+        );
+    _updatedExerciseIds.add((changed: exerciseIds.toSet(), needsUpload: true));
+  }
+
+  Future<void> bulkUpdateExerciseInstrument(
+    Iterable<String> exerciseIds,
+    String instrument,
+  ) async {
+    if (exerciseIds.isEmpty) return;
+    await _db.managers.exercisesTable
+        .filter((f) => f.id.isIn(exerciseIds))
+        .update(
+          (o) => o(
+            instrument: instrument.isNotEmpty
+                ? Value(instrument)
+                : const Value(null),
+            updatedAt: Value(DateTime.now().toUtc()),
+            uploaded: const Value(false),
+          ),
+        );
+    _updatedExerciseIds.add((changed: exerciseIds.toSet(), needsUpload: true));
+  }
+
+  Future<void> bulkUpdateExerciseSource(
+    Iterable<String> exerciseIds, {
+    required String source,
+    required String sourceLink,
+  }) async {
+    if (exerciseIds.isEmpty) return;
+    await _db.managers.exercisesTable
+        .filter((f) => f.id.isIn(exerciseIds))
+        .update(
+          (o) => o(
+            source: source.isNotEmpty ? Value(source) : const Value(null),
+            sourceLink: source.isNotEmpty && sourceLink.isNotEmpty
+                ? Value(sourceLink)
+                : const Value(null),
+            updatedAt: Value(DateTime.now().toUtc()),
+            uploaded: const Value(false),
+          ),
+        );
+    _updatedExerciseIds.add((changed: exerciseIds.toSet(), needsUpload: true));
+  }
+
+  Future<void> bulkEditExerciseTags(
+    Iterable<String> exerciseIds,
+    Iterable<String> addTagIds,
+    Iterable<String> removeTagIds,
+  ) async {
+    if (exerciseIds.isEmpty) return;
+    await _db.transaction(() async {
+      if (addTagIds.isNotEmpty) {
+        await _db.managers.exerciseTagsTable.bulkCreate(
+          (o) => exerciseIds.expand(
+            (e) => addTagIds.map((t) => o(exercise: e, tag: t)),
+          ),
+          onConflict: DoNothing(),
+        );
+      }
+      if (removeTagIds.isNotEmpty) {
+        await _db.managers.exerciseTagsTable
+            .filter(
+              (f) =>
+                  f.exercise.id.isIn(exerciseIds) & f.tag.id.isIn(removeTagIds),
+            )
+            .delete();
+      }
+      await _db.managers.exercisesTable
+          .filter((f) => f.id.isIn(exerciseIds))
+          .update(
+            (o) => o(
+              updatedAt: Value(DateTime.now().toUtc()),
+              uploaded: const Value(false),
+            ),
+          );
+    });
+    _updatedExerciseIds.add((changed: exerciseIds.toSet(), needsUpload: true));
+  }
+
   Future<void> addExerciseTags(
     String exerciseId,
     Iterable<String> tagIds,
@@ -712,19 +804,23 @@ class PracticeRepository {
     _updatedExerciseIds.add((changed: affected, needsUpload: true));
   }
 
-  Future<void> deleteExercise(String exerciseId) async {
+  Future<void> deleteExercise(String exerciseId) =>
+      deleteExercises({exerciseId});
+
+  Future<void> deleteExercises(Set<String> exerciseIds) async {
+    if (exerciseIds.isEmpty) return;
     Iterable<String?> scoreIdsToDelete = {};
     final routineIds = <String>{};
     await _db.transaction(() async {
       routineIds.addAll(
         await _db.managers.practiceRoutineEntriesTable
-            .filter((f) => f.exercise.id(exerciseId))
+            .filter((f) => f.exercise.id.isIn(exerciseIds))
             .map((e) => e.routine)
             .get(),
       );
       if (routineIds.isNotEmpty) {
         await _db.managers.practiceRoutineEntriesTable
-            .filter((f) => f.exercise.id(exerciseId))
+            .filter((f) => f.exercise.id.isIn(exerciseIds))
             .delete();
         for (final routineId in routineIds) {
           await _renumberRoutineEntries(routineId);
@@ -751,22 +847,26 @@ class PracticeRepository {
       scoreIdsToDelete =
           (await (q..where(
                     _db.scoresTable.type.equalsValue(ScoreType.exercise) &
-                        _db.exerciseScoresTable.exercise.equals(exerciseId),
+                        _db.exerciseScoresTable.exercise.isIn(exerciseIds),
                   ))
                   .get())
               .map((s) => s.read(_db.exerciseScoresTable.score))
               .where((id) => id != null)
               .map((id) => id!);
       await _db.managers.exercisesTable
-          .filter((f) => f.id(exerciseId))
+          .filter((f) => f.id.isIn(exerciseIds))
           .delete();
-      await _db.managers.deletedExercisesTable.create(
-        (o) =>
-            o(exerciseId: exerciseId, deletedAt: Value(DateTime.now().toUtc())),
+      await _db.managers.deletedExercisesTable.bulkCreate(
+        (o) => exerciseIds.map(
+          (exerciseId) => o(
+            exerciseId: exerciseId,
+            deletedAt: Value(DateTime.now().toUtc()),
+          ),
+        ),
       );
     });
     await _scoresRepo.deleteScores(scoreIdsToDelete.nonNulls.toSet());
-    _updatedExerciseIds.add((changed: {exerciseId}, needsUpload: true));
+    _updatedExerciseIds.add((changed: exerciseIds, needsUpload: true));
     if (routineIds.isNotEmpty) {
       _updatedRoutineIds.add((changed: routineIds, needsUpload: true));
     }
@@ -914,6 +1014,21 @@ class PracticeRepository {
     q.addColumns([countExpr]);
     _applyRoutineFilters(q, filter, instrument, source, tagIds, tagMatch);
     return (await q.getSingle()).read(countExpr) ?? 0;
+  }
+
+  Future<List<String>> getRoutineIds({
+    String filter = "",
+    String instrument = "",
+    String source = "",
+    Iterable<String> tagIds = const [],
+    FilterMatchType tagMatch = FilterMatchType.all,
+  }) async {
+    final q = _db.selectOnly(_db.practiceRoutinesTable);
+    q.addColumns([_db.practiceRoutinesTable.id]);
+    _applyRoutineFilters(q, filter, instrument, source, tagIds, tagMatch);
+    q.orderBy(_routineOrdering);
+    final rows = await q.get();
+    return rows.map((row) => row.read(_db.practiceRoutinesTable.id)!).toList();
   }
 
   Future<List<PracticeRoutine>> getRoutines({
@@ -1173,17 +1288,57 @@ class PracticeRepository {
     return copyId;
   }
 
-  Future<void> deleteRoutine(String routineId) async {
+  Future<List<String>> duplicateRoutines(Iterable<String> routineIds) async {
+    final copyIds = <String>[];
+    for (final routineId in routineIds) {
+      final copyId = await duplicateRoutine(routineId);
+      if (copyId != null) copyIds.add(copyId);
+    }
+    return copyIds;
+  }
+
+  Future<void> addRoutineEntries(
+    String routineId,
+    Iterable<String> exerciseIds,
+  ) async {
+    if (exerciseIds.isEmpty) return;
     await _db.transaction(() async {
-      await _db.managers.practiceRoutinesTable
-          .filter((f) => f.id(routineId))
-          .delete();
-      await _db.managers.deletedPracticeRoutinesTable.create(
-        (o) =>
-            o(routineId: routineId, deletedAt: Value(DateTime.now().toUtc())),
+      final maxPosition = _db.practiceRoutineEntriesTable.position.max();
+      final query = _db.selectOnly(_db.practiceRoutineEntriesTable)
+        ..addColumns([maxPosition])
+        ..where(_db.practiceRoutineEntriesTable.routine.equals(routineId));
+      final start = ((await query.getSingle()).read(maxPosition) ?? -1) + 1;
+      await _db.managers.practiceRoutineEntriesTable.bulkCreate(
+        (o) => exerciseIds.indexed.map(
+          (e) => o(
+            id: _db.newId(),
+            routine: routineId,
+            exercise: e.$2,
+            position: start + e.$1,
+          ),
+        ),
       );
+      await _markRoutineUpdated(routineId);
     });
     _updatedRoutineIds.add((changed: {routineId}, needsUpload: true));
+  }
+
+  Future<void> deleteRoutine(String routineId) => deleteRoutines({routineId});
+
+  Future<void> deleteRoutines(Set<String> routineIds) async {
+    if (routineIds.isEmpty) return;
+    await _db.transaction(() async {
+      await _db.managers.practiceRoutinesTable
+          .filter((f) => f.id.isIn(routineIds))
+          .delete();
+      await _db.managers.deletedPracticeRoutinesTable.bulkCreate(
+        (o) => routineIds.map(
+          (routineId) =>
+              o(routineId: routineId, deletedAt: Value(DateTime.now().toUtc())),
+        ),
+      );
+    });
+    _updatedRoutineIds.add((changed: routineIds, needsUpload: true));
   }
 
   Future<void> _markRoutineUpdated(String routineId) async {

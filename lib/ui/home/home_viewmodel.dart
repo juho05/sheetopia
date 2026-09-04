@@ -35,31 +35,34 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  final SelectionModel _selection = SelectionModel();
+  final SelectionModel scoreSelection = SelectionModel();
+  final SelectionModel setlistSelection = SelectionModel();
+  final SelectionModel routineSelection = SelectionModel();
 
-  List<String> get selectedScoreIds => _selection.ids;
+  /// the selection belonging to the tab that is currently open
+  SelectionModel? get selection => switch (_tabIndex) {
+    0 => scoreSelection,
+    1 => setlistSelection,
+    2 => routineSelection,
+    _ => null,
+  };
 
-  Set<String> get selectedScoreIdSet => _selection.idSet;
+  bool get selecting => selection?.isNotEmpty ?? false;
 
   HomeViewModel({required this._scoresRepo}) {
-    _selection.addListener(notifyListeners);
+    scoreSelection.addListener(notifyListeners);
+    setlistSelection.addListener(notifyListeners);
+    routineSelection.addListener(notifyListeners);
   }
 
   @override
   void dispose() {
-    _selection.dispose();
+    scoreSelection.dispose();
+    setlistSelection.dispose();
+    routineSelection.dispose();
     importButtonVisible.dispose();
     super.dispose();
   }
-
-  void selectScore(String scoreId) => _selection.select(scoreId);
-
-  void selectScores(Iterable<String> scoreIds) =>
-      _selection.selectAll(scoreIds);
-
-  void deselectScore(String scoreId) => _selection.deselect(scoreId);
-
-  void clearSelection() => _selection.clear();
 
   Future<String?> importScores() async {
     _importing = true;

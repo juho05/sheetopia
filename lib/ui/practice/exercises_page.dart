@@ -14,6 +14,7 @@ import 'package:sheetopia/ui/common/fab_menu.dart';
 import 'package:sheetopia/ui/common/selection/clear_selection_button.dart';
 import 'package:sheetopia/ui/common/selection/select_all_button.dart';
 import 'package:sheetopia/ui/common/selection/selection_model.dart';
+import 'package:sheetopia/ui/practice/bulk_edit/exercises_bulk_edit_menu.dart';
 import 'package:sheetopia/ui/practice/exercises_view.dart';
 import 'package:sheetopia/ui/practice/exercises_viewmodel.dart';
 import 'package:sheetopia/ui/practice/manage_categories_dialog.dart';
@@ -66,6 +67,10 @@ class _ExercisesPageState extends State<ExercisesPage> {
                   onSelectAll: _selectAll,
                   onClearSelection: _selection.clear,
                 ),
+              ),
+              ExercisesBulkEditMenu(
+                selectedExerciseIds: _selection.ids,
+                onDeleted: _selection.clear,
               ),
             ]
           : null,

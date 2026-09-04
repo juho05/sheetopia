@@ -40,9 +40,9 @@ class CategorySelector extends StatelessWidget {
   });
 
   Future<void> _select(BuildContext context) async {
-    final choice = await _SelectCategoryDialog.show(
+    final choice = await SelectCategoryDialog.show(
       context,
-      selected: category,
+      selected: (category: category),
       emptyLabel: emptyLabel,
       allowCreate: allowCreate,
     );
@@ -78,15 +78,17 @@ class CategorySelector extends StatelessWidget {
   }
 }
 
-class _SelectCategoryDialog extends StatefulWidget {
+class SelectCategoryDialog extends StatefulWidget {
   static const int _maxVisibleCategories = 6;
 
   final CategorySelectorViewModel viewModel;
-  final ExerciseCategory? selected;
+
+  final CategoryChoice? selected;
+
   final String emptyLabel;
   final bool allowCreate;
 
-  const _SelectCategoryDialog({
+  const SelectCategoryDialog._({
     required this.viewModel,
     required this.selected,
     required this.emptyLabel,
@@ -95,14 +97,14 @@ class _SelectCategoryDialog extends StatefulWidget {
 
   static Future<CategoryChoice?> show(
     BuildContext context, {
-    required ExerciseCategory? selected,
+    required CategoryChoice? selected,
     required String emptyLabel,
     required bool allowCreate,
   }) async {
     final viewModel = CategorySelectorViewModel(repo: context.read());
     final choice = await showSheetopiaDialog<CategoryChoice>(
       context: context,
-      builder: (context) => _SelectCategoryDialog(
+      builder: (context) => SelectCategoryDialog._(
         viewModel: viewModel,
         selected: selected,
         emptyLabel: emptyLabel,
@@ -114,10 +116,10 @@ class _SelectCategoryDialog extends StatefulWidget {
   }
 
   @override
-  State<_SelectCategoryDialog> createState() => _SelectCategoryDialogState();
+  State<SelectCategoryDialog> createState() => _SelectCategoryDialogState();
 }
 
-class _SelectCategoryDialogState extends State<_SelectCategoryDialog> {
+class _SelectCategoryDialogState extends State<SelectCategoryDialog> {
   late final CategorySelectorViewModel _viewModel = widget.viewModel;
 
   void _pick(ExerciseCategory? category) {
@@ -140,7 +142,7 @@ class _SelectCategoryDialogState extends State<_SelectCategoryDialog> {
 
   List<ExerciseCategory?> _rows() {
     final results = _viewModel.results;
-    final selectedId = widget.selected?.id;
+    final selectedId = widget.selected?.category?.id;
     final filter = _viewModel.filter.trim().toLowerCase();
     return [
       for (final category in results)
@@ -157,13 +159,13 @@ class _SelectCategoryDialogState extends State<_SelectCategoryDialog> {
       return RoundedListTile(
         title: widget.emptyLabel,
         titleStyle: const TextStyle(fontStyle: FontStyle.italic),
-        selected: widget.selected == null,
+        selected: widget.selected != null && widget.selected!.category == null,
         onTap: () => _pick(null),
       );
     }
     return RoundedListTile(
       title: category.name,
-      selected: widget.selected?.id == category.id,
+      selected: widget.selected?.category?.id == category.id,
       onTap: () => _pick(category),
     );
   }
@@ -198,10 +200,7 @@ class _SelectCategoryDialogState extends State<_SelectCategoryDialog> {
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxHeight:
-            min(
-              rows.length,
-              _SelectCategoryDialog._maxVisibleCategories + 0.5,
-            ) *
+            min(rows.length, SelectCategoryDialog._maxVisibleCategories + 0.5) *
             extent,
       ),
       child: ListView.builder(

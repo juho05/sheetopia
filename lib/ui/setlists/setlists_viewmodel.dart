@@ -22,22 +22,27 @@ class SetlistsViewModel extends ChangeNotifier {
 
   List<Setlist> get setlists => _setlists;
 
+  List<String> get loadedSetlistIds => [for (final s in _setlists) s.id];
+
   bool get loading => _loading;
 
   int? _totalCount;
+
   int? get totalCount => _totalCount;
 
   int? get resultCount => _loading ? null : _setlists.length;
 
   String _filterSearch = "";
+
   bool get isFiltered => _filterSearch.isNotEmpty;
+
   set filterSearch(String filter) {
     if (_filterSearch == filter) return;
     _filterSearch = filter;
     load();
   }
 
-  SetlistsViewModel({required SetlistsRepository repo}) : _repo = repo {
+  SetlistsViewModel({required this._repo}) {
     _updatedSub = _repo.updatedSetlistIds.listen((_) => load());
     load();
   }

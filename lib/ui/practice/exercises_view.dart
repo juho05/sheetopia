@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
+import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/filter_button.dart';
 import 'package:sheetopia/ui/common/menu_button.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
@@ -19,9 +20,11 @@ import 'package:sheetopia/ui/common/selection/selectable_tile_icon.dart';
 import 'package:sheetopia/ui/common/selection/selection_gestures.dart';
 import 'package:sheetopia/ui/common/selection/selection_shortcuts.dart';
 import 'package:sheetopia/ui/common/surface.dart';
+import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/practice/exercise_tile.dart';
 import 'package:sheetopia/ui/practice/exercises_filter_dialog.dart';
 import 'package:sheetopia/ui/practice/exercises_viewmodel.dart';
+import 'package:sheetopia/ui/practice/select_routine_dialog.dart';
 
 class ExercisesView extends StatefulWidget {
   final ExercisesViewModel viewModel;
@@ -128,6 +131,28 @@ class _ExercisesViewState extends State<ExercisesView> {
     } else {
       _selectExercise(exercise);
     }
+  }
+
+  Future<void> _addToRoutine(Exercise exercise) async {
+    final routine = await SelectRoutineDialog.show(
+      context,
+      title: "Add to routine",
+    );
+    if (routine == null) return;
+    await _viewModel.addToRoutine(routine.id, exercise.id);
+    Toast.show("Added \"${exercise.name}\" to \"${routine.name}\"");
+  }
+
+  Future<void> _delete(Exercise exercise) async {
+    final confirmed = await ConfirmationDialog.showCancel(
+      context,
+      title: "Delete exercise?",
+      message:
+          "\"${exercise.name}\" will be deleted on all your devices and "
+          "removed from every routine that uses it.",
+    );
+    if (!confirmed) return;
+    await _viewModel.delete(exercise.id);
   }
 
   void _selectRangeTo(Exercise exercise) {
@@ -279,6 +304,8 @@ class _ExercisesViewState extends State<ExercisesView> {
                               widget.onExercisesSelected != null
                           ? _selectRangeTo
                           : null,
+                      onAddToRoutine: () => _addToRoutine(exercise),
+                      onDelete: () => _delete(exercise),
                     );
                   },
                 ),
@@ -340,12 +367,16 @@ class _ExerciseTile extends StatelessWidget {
   final void Function(Exercise exercise) onToggle;
   final void Function(Exercise exercise)? onSelectionStart;
   final void Function(Exercise exercise)? onRangeSelect;
+  final void Function() onAddToRoutine;
+  final void Function() onDelete;
 
   const _ExerciseTile({
     required this.exercise,
     required this.selecting,
     required this.selected,
     required this.onToggle,
+    required this.onAddToRoutine,
+    required this.onDelete,
     this.onSelectionStart,
     this.onRangeSelect,
   });
@@ -368,7 +399,22 @@ class _ExerciseTile extends StatelessWidget {
         selecting: selecting,
         selected: selected,
       ),
-      trailing: selecting ? null : const MenuButton(options: []),
+      trailing: selecting
+          ? null
+          : MenuButton(
+              options: [
+                ContextMenuOption(
+                  icon: Symbols.playlist_add,
+                  title: "Add to routine",
+                  onSelected: onAddToRoutine,
+                ),
+                ContextMenuOption(
+                  icon: Symbols.delete,
+                  title: "Delete",
+                  onSelected: onDelete,
+                ),
+              ],
+            ),
       onTap: gestures.onTap,
       onLongPress: gestures.onLongPress,
     );

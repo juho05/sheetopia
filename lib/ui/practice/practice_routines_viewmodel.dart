@@ -25,6 +25,18 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
   UnmodifiableListView<PracticeRoutine> get routines =>
       UnmodifiableListView(_routines);
 
+  List<String> get loadedRoutineIds => [for (final r in _routines) r.id];
+
+  Future<List<String>> getFilteredRoutineIds() async {
+    return await _repo.getRoutineIds(
+      filter: _filterSearch,
+      instrument: _filterInstrument,
+      source: _filterSource,
+      tagIds: _filterTags.map((t) => t.id),
+      tagMatch: _tagMatch,
+    );
+  }
+
   int _currentPage = -1;
 
   bool _hasNextPage = true;

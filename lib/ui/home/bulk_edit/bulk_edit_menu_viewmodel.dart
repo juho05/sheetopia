@@ -16,12 +16,10 @@ class BulkEditMenuViewModel {
   final SetlistsRepository _setlistsRepo;
 
   BulkEditMenuViewModel({
-    required ScoresRepository repo,
-    required SetlistsRepository setlistsRepo,
+    required this._repo,
+    required this._setlistsRepo,
     required Iterable<String> selectedScores,
-  }) : _repo = repo,
-       _setlistsRepo = setlistsRepo,
-       _selectedScores = selectedScores.toList();
+  }) : _selectedScores = selectedScores.toList();
 
   void updateSelectedScores(Iterable<String> selectedScores) {
     _selectedScores = selectedScores.toList();
@@ -74,6 +72,12 @@ class BulkEditMenuViewModel {
     Iterable<String> exclude = const [],
   }) async {
     return await _repo.getGenres(filter: filter, size: 10, exclude: exclude);
+  }
+
+  Future<int> delete() async {
+    final scoreIds = _selectedScores.toSet();
+    await _repo.deleteScores(scoreIds);
+    return scoreIds.length;
   }
 
   Future<int> addToSetlist(String setlistId) async {

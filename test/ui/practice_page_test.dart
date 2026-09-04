@@ -19,6 +19,7 @@ import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/common/filter_button.dart';
 import 'package:sheetopia/ui/practice/edit_routine_page.dart';
 import 'package:sheetopia/ui/practice/practice_page.dart';
+import 'package:sheetopia/ui/practice/practice_routines_viewmodel.dart';
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -77,12 +78,15 @@ void main() {
   });
 
   Future<void> pumpPractice(WidgetTester tester) async {
+    final viewModel = PracticeRoutinesViewModel(repo: repo);
+    addTearDown(viewModel.dispose);
     final router = GoRouter(
       routes: [
         GoRoute(
           path: "/",
-          builder: (context, state) =>
-              const Scaffold(body: SafeArea(child: PracticePage())),
+          builder: (context, state) => Scaffold(
+            body: SafeArea(child: PracticePage(viewModel: viewModel)),
+          ),
         ),
         GoRoute(
           path: "/practice/exercises",

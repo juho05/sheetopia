@@ -19,15 +19,20 @@ import 'package:sheetopia/ui/common/drop_area.dart';
 import 'package:sheetopia/ui/common/fab_menu.dart';
 import 'package:sheetopia/ui/common/selection/clear_selection_button.dart';
 import 'package:sheetopia/ui/common/selection/select_all_button.dart';
+import 'package:sheetopia/ui/common/selection/selection_model.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_menu.dart';
 import 'package:sheetopia/ui/home/home_viewmodel.dart';
 import 'package:sheetopia/ui/home/library_view.dart';
 import 'package:sheetopia/ui/home/library_viewmodel.dart';
 import 'package:sheetopia/ui/home/sync_icon.dart';
+import 'package:sheetopia/ui/practice/bulk_edit/routines_bulk_edit_menu.dart';
 import 'package:sheetopia/ui/practice/practice_page.dart';
+import 'package:sheetopia/ui/practice/practice_routines_viewmodel.dart';
+import 'package:sheetopia/ui/setlists/bulk_edit/setlists_bulk_edit_menu.dart';
 import 'package:sheetopia/ui/setlists/setlist_name_dialog.dart';
 import 'package:sheetopia/ui/setlists/setlists_view.dart';
+import 'package:sheetopia/ui/setlists/setlists_viewmodel.dart';
 import 'package:sheetopia/version_checker.dart';
 
 class HomePage extends StatefulWidget {
@@ -45,16 +50,22 @@ class _HomePageState extends State<HomePage> {
   ];
 
   late final LibraryViewModel _libraryViewModel;
+  late final SetlistsViewModel _setlistsViewModel;
+  late final PracticeRoutinesViewModel _routinesViewModel;
 
   @override
   void initState() {
     super.initState();
     _libraryViewModel = LibraryViewModel(repo: context.read());
+    _setlistsViewModel = SetlistsViewModel(repo: context.read());
+    _routinesViewModel = PracticeRoutinesViewModel(repo: context.read());
   }
 
   @override
   void dispose() {
     _libraryViewModel.dispose();
+    _setlistsViewModel.dispose();
+    _routinesViewModel.dispose();
     super.dispose();
   }
 
@@ -93,6 +104,50 @@ class _HomePageState extends State<HomePage> {
     );
     if (name == null) return;
     await repo.createSetlist(name: name);
+  }
+
+  List<Widget> _selectionActions(HomeViewModel viewModel) {
+    final selection = viewModel.selection;
+    if (selection == null) return [];
+    return switch (viewModel.tabIndex) {
+      0 => [
+        _SelectAllButton(
+          selection: selection,
+          viewModel: _libraryViewModel,
+          resultCount: () => _libraryViewModel.resultCount,
+          getAllIds: _libraryViewModel.getFilteredScoreIds,
+        ),
+        BulkEditMenu(
+          selectedScoreIds: selection.ids,
+          onDeleted: selection.clear,
+        ),
+      ],
+      1 => [
+        _SelectAllButton(
+          selection: selection,
+          viewModel: _setlistsViewModel,
+          resultCount: () => _setlistsViewModel.resultCount,
+          getAllIds: () async => _setlistsViewModel.loadedSetlistIds,
+        ),
+        SetlistsBulkEditMenu(
+          selectedSetlistIds: selection.ids,
+          onDeleted: selection.clear,
+        ),
+      ],
+      2 => [
+        _SelectAllButton(
+          selection: selection,
+          viewModel: _routinesViewModel,
+          resultCount: () => _routinesViewModel.resultCount,
+          getAllIds: _routinesViewModel.getFilteredRoutineIds,
+        ),
+        RoutinesBulkEditMenu(
+          selectedRoutineIds: selection.ids,
+          onDeleted: selection.clear,
+        ),
+      ],
+      _ => [],
+    };
   }
 
   @override
@@ -145,6 +200,12 @@ class _HomePageState extends State<HomePage> {
                           Builder(
                             builder: (context) {
                               final library = viewModel.tabIndex == 0;
+                              final selecting = viewModel.selecting;
+                              final scoreSelection = viewModel.scoreSelection;
+                              final setlistSelection =
+                                  viewModel.setlistSelection;
+                              final routineSelection =
+                                  viewModel.routineSelection;
                               final body = SafeArea(
                                 child: IndexedStack(
                                   index: viewModel.tabIndex,
@@ -157,37 +218,58 @@ class _HomePageState extends State<HomePage> {
                                       onScrollDown: () =>
                                           viewModel.importButtonVisible.value =
                                               false,
-                                      onScoreSelected: (score) {
-                                        viewModel.selectScore(score.id);
-                                      },
-                                      onScoreDeselected: (score) {
-                                        viewModel.deselectScore(score.id);
-                                      },
+                                      onScoreSelected: (score) =>
+                                          scoreSelection.select(score.id),
+                                      onScoreDeselected: (score) =>
+                                          scoreSelection.deselect(score.id),
                                       onScoresSelected: (scoreIds) {
                                         if (viewModel.tabIndex != 0) return;
-                                        viewModel.selectScores(scoreIds);
+                                        scoreSelection.selectAll(scoreIds);
                                       },
-                                      onClearSelection:
-                                          viewModel.clearSelection,
-                                      selectionMode:
-                                          viewModel.selectedScoreIds.isNotEmpty,
-                                      selected: viewModel.selectedScoreIdSet,
+                                      onClearSelection: scoreSelection.clear,
+                                      selectionMode: scoreSelection.isNotEmpty,
+                                      selected: scoreSelection.idSet,
                                     ),
-                                    const SetlistsView(),
-                                    const PracticePage(),
+                                    SetlistsView(
+                                      viewModel: _setlistsViewModel,
+                                      onSetlistSelected: (setlist) =>
+                                          setlistSelection.select(setlist.id),
+                                      onSetlistDeselected: (setlist) =>
+                                          setlistSelection.deselect(setlist.id),
+                                      onSetlistsSelected: (setlistIds) {
+                                        if (viewModel.tabIndex != 1) return;
+                                        setlistSelection.selectAll(setlistIds);
+                                      },
+                                      onClearSelection: setlistSelection.clear,
+                                      selectionMode:
+                                          setlistSelection.isNotEmpty,
+                                      selected: setlistSelection.idSet,
+                                    ),
+                                    PracticePage(
+                                      viewModel: _routinesViewModel,
+                                      onRoutineSelected: (routine) =>
+                                          routineSelection.select(routine.id),
+                                      onRoutineDeselected: (routine) =>
+                                          routineSelection.deselect(routine.id),
+                                      onRoutinesSelected: (routineIds) {
+                                        if (viewModel.tabIndex != 2) return;
+                                        routineSelection.selectAll(routineIds);
+                                      },
+                                      onClearSelection: routineSelection.clear,
+                                      selectionMode:
+                                          routineSelection.isNotEmpty,
+                                      selected: routineSelection.idSet,
+                                    ),
                                   ],
                                 ),
                               );
                               final importing = library && viewModel.importing;
-                              bool selectionMode =
-                                  viewModel.tabIndex == 0 &&
-                                  viewModel.selectedScoreIds.isNotEmpty;
                               return PopScope(
-                                canPop: !selectionMode && library,
+                                canPop: !selecting && library,
                                 onPopInvokedWithResult: (didPop, _) {
                                   if (didPop) return;
-                                  if (selectionMode) {
-                                    viewModel.clearSelection();
+                                  if (selecting) {
+                                    viewModel.selection?.clear();
                                   } else {
                                     viewModel.tabIndex = 0;
                                   }
@@ -195,26 +277,20 @@ class _HomePageState extends State<HomePage> {
                                 child: Scaffold(
                                   appBar: AppBar(
                                     centerTitle: false,
-                                    leading: selectionMode
+                                    leading:
+                                        selecting && viewModel.selection != null
                                         ? ClearSelectionButton(
-                                            onPressed: viewModel.clearSelection,
+                                            onPressed:
+                                                viewModel.selection!.clear,
                                           )
                                         : null,
                                     title: Text(
-                                      selectionMode
-                                          ? "${viewModel.selectedScoreIds.length} selected"
+                                      selecting
+                                          ? "${viewModel.selection?.length} selected"
                                           : _tabs[viewModel.tabIndex].label,
                                     ),
-                                    actions: selectionMode
-                                        ? [
-                                            _SelectAllButton(
-                                              viewModel: _libraryViewModel,
-                                            ),
-                                            BulkEditMenu(
-                                              selectedScoreIds:
-                                                  viewModel.selectedScoreIds,
-                                            ),
-                                          ]
+                                    actions: selecting
+                                        ? _selectionActions(viewModel)
                                         : [
                                             const SyncIcon(),
                                             const SizedBox(width: 4),
@@ -382,26 +458,28 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _SelectAllButton extends StatelessWidget {
-  final LibraryViewModel viewModel;
+  final SelectionModel selection;
+  final Listenable viewModel;
+  final int? Function() resultCount;
+  final Future<List<String>> Function() getAllIds;
 
-  const _SelectAllButton({required this.viewModel});
+  const _SelectAllButton({
+    required this.selection,
+    required this.viewModel,
+    required this.resultCount,
+    required this.getAllIds,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<HomeViewModel>(
-      builder: (context, homeViewModel, _) {
-        return ListenableBuilder(
-          listenable: viewModel,
-          builder: (context, _) => SelectAllButton(
-            resultCount: viewModel.resultCount,
-            selectedCount: homeViewModel.selectedScoreIds.length,
-            onSelectAll: () async => homeViewModel.selectScores(
-              await viewModel.getFilteredScoreIds(),
-            ),
-            onClearSelection: homeViewModel.clearSelection,
-          ),
-        );
-      },
+    return ListenableBuilder(
+      listenable: viewModel,
+      builder: (context, _) => SelectAllButton(
+        resultCount: resultCount(),
+        selectedCount: selection.length,
+        onSelectAll: () async => selection.selectAll(await getAllIds()),
+        onClearSelection: selection.clear,
+      ),
     );
   }
 }

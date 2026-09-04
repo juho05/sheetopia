@@ -9,19 +9,25 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/menu_button.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_menu_viewmodel.dart';
 import 'package:sheetopia/ui/edit_score/auto_complete_input_dialog.dart';
 import 'package:sheetopia/ui/edit_score/source_input_dialog.dart';
-import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_tags_dialog.dart';
-import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_values_dialog.dart';
+import 'package:sheetopia/ui/common/bulk_edit/bulk_edit_tags_dialog.dart';
+import 'package:sheetopia/ui/common/bulk_edit/bulk_edit_values_dialog.dart';
 import 'package:sheetopia/ui/setlists/select_setlist_dialog.dart';
 
 class BulkEditMenu extends StatefulWidget {
   final List<String> selectedScoreIds;
+  final void Function()? onDeleted;
 
-  const BulkEditMenu({super.key, required this.selectedScoreIds});
+  const BulkEditMenu({
+    super.key,
+    required this.selectedScoreIds,
+    this.onDeleted,
+  });
 
   @override
   State<BulkEditMenu> createState() => _BulkEditMenuState();
@@ -44,6 +50,22 @@ class _BulkEditMenuState extends State<BulkEditMenu> {
   void didUpdateWidget(covariant BulkEditMenu oldWidget) {
     super.didUpdateWidget(oldWidget);
     _viewModel.updateSelectedScores(widget.selectedScoreIds);
+  }
+
+  Future<void> _delete() async {
+    final count = widget.selectedScoreIds.length;
+    final scores = count == 1 ? "score" : "scores";
+    final confirmed = await ConfirmationDialog.showCancel(
+      context,
+      title: "Delete $count $scores?",
+      message:
+          "They will be deleted on all your devices and removed from "
+          "every setlist and exercise that uses them.",
+    );
+    if (!confirmed) return;
+    final deleted = await _viewModel.delete();
+    widget.onDeleted?.call();
+    Toast.show("Deleted $deleted ${deleted == 1 ? "score" : "scores"}");
   }
 
   @override
@@ -145,6 +167,11 @@ class _BulkEditMenuState extends State<BulkEditMenu> {
               "to \"${setlist.name}\"",
             );
           },
+        ),
+        ContextMenuOption(
+          title: "Delete",
+          icon: Symbols.delete,
+          onSelected: _delete,
         ),
       ],
     );

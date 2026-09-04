@@ -16,6 +16,7 @@ import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
+import 'package:sheetopia/ui/common/rounded_list_tile.dart';
 import 'package:sheetopia/ui/practice/category_name_dialog.dart';
 import 'package:sheetopia/ui/practice/category_selector.dart';
 
@@ -115,6 +116,32 @@ void main() {
     expect(find.text("All categories"), findsNWidgets(2));
     expect(find.text("Warmup"), findsOneWidget);
     expect(find.text("Etudes"), findsOneWidget);
+  });
+
+  bool rowSelected(WidgetTester tester, String title) => tester
+      .widget<RoundedListTile>(find.widgetWithText(RoundedListTile, title))
+      .selected;
+
+  testWidgets("the empty option is highlighted without a category", (
+    tester,
+  ) async {
+    await repo.createCategory("Warmup");
+
+    await pumpSelector(tester);
+    await openDialog(tester);
+
+    expect(rowSelected(tester, "No category"), isTrue);
+    expect(rowSelected(tester, "Warmup"), isFalse);
+  });
+
+  testWidgets("the current category is highlighted", (tester) async {
+    final warmup = await repo.createCategory("Warmup");
+
+    await pumpSelector(tester, category: warmup);
+    await openDialog(tester);
+
+    expect(rowSelected(tester, "Warmup"), isTrue);
+    expect(rowSelected(tester, "No category"), isFalse);
   });
 
   testWidgets("picking a category reports it back", (tester) async {

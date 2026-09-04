@@ -9,42 +9,45 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
-import 'package:sheetopia/data/repositories/setlists/setlist.dart';
+import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
 import 'package:sheetopia/ui/common/rounded_tile_icon.dart';
 import 'package:sheetopia/ui/common/search_input.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
-import 'package:sheetopia/ui/setlists/setlists_viewmodel.dart';
+import 'package:sheetopia/ui/practice/practice_routines_viewmodel.dart';
+import 'package:sheetopia/ui/practice/routine_summary.dart';
 
-class SelectSetlistDialog extends StatefulWidget {
-  static const int _maxVisibleSetlists = 6;
+class SelectRoutineDialog extends StatefulWidget {
+  static const int _maxVisibleRoutines = 6;
 
   final String title;
 
-  const SelectSetlistDialog._({required this.title});
+  const SelectRoutineDialog._({required this.title});
 
-  static Future<Setlist?> show(
+  static Future<PracticeRoutine?> show(
     BuildContext context, {
-    String title = "Select setlist",
+    String title = "Select routine",
   }) {
-    return showSheetopiaDialog<Setlist>(
+    return showSheetopiaDialog<PracticeRoutine>(
       context: context,
-      builder: (context) => SelectSetlistDialog._(title: title),
+      builder: (context) => SelectRoutineDialog._(title: title),
     );
   }
 
   @override
-  State<SelectSetlistDialog> createState() => _SelectSetlistDialogState();
+  State<SelectRoutineDialog> createState() => _SelectRoutineDialogState();
 }
 
-class _SelectSetlistDialogState extends State<SelectSetlistDialog> {
-  late final SetlistsViewModel _viewModel;
+class _SelectRoutineDialogState extends State<SelectRoutineDialog> {
+  late final PracticeRoutinesViewModel _viewModel;
 
   @override
   void initState() {
     super.initState();
-    _viewModel = SetlistsViewModel(repo: context.read());
+    _viewModel = PracticeRoutinesViewModel(repo: context.read());
+    _viewModel.loadNextPage();
   }
 
   @override
@@ -104,11 +107,12 @@ class _SelectSetlistDialogState extends State<SelectSetlistDialog> {
         ),
       );
     }
-    if (_viewModel.setlists.isEmpty) {
+    final routines = _viewModel.routines;
+    if (routines.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(16),
         child: Text(
-          _viewModel.isFiltered ? "No setlists found." : "No setlists yet.",
+          _viewModel.isFiltered ? "No routines found." : "No routines yet.",
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyLarge?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
@@ -116,31 +120,29 @@ class _SelectSetlistDialogState extends State<SelectSetlistDialog> {
         ),
       );
     }
-    final setlists = _viewModel.setlists;
     final extent = RoundedListTile.extentFor(subtitle: true);
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxHeight:
             min(
-              setlists.length,
-              SelectSetlistDialog._maxVisibleSetlists + 0.5,
+              routines.length,
+              SelectRoutineDialog._maxVisibleRoutines + 0.5,
             ) *
             extent,
       ),
       child: ListView.builder(
         itemExtent: extent,
         padding: EdgeInsets.zero,
-        itemCount: setlists.length,
+        itemCount: routines.length,
         itemBuilder: (context, index) {
-          final setlist = setlists[index];
+          final routine = routines[index];
           return RoundedListTile(
-            leading: const RoundedTileIcon(icon: Icons.queue_music),
-            title: setlist.name,
+            leading: const RoundedTileIcon(icon: Symbols.checklist),
+            title: routine.name,
             subtitle: Text(
-              "${setlist.entryCount} "
-              "${setlist.entryCount == 1 ? "score" : "scores"}",
+              routineSummary(routine.exerciseCount, routine.targetDuration),
             ),
-            onTap: () => Navigator.pop(context, setlist),
+            onTap: () => Navigator.pop(context, routine),
           );
         },
       ),

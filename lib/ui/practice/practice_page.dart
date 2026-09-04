@@ -9,7 +9,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_symbols_icons/symbols.dart';
-import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
 import 'package:sheetopia/ui/common/filter_button.dart';
 import 'package:sheetopia/ui/common/menu_button.dart';
@@ -17,6 +16,9 @@ import 'package:sheetopia/ui/common/rounded_list_tile.dart';
 import 'package:sheetopia/ui/common/rounded_tile_icon.dart';
 import 'package:sheetopia/ui/common/search_input.dart';
 import 'package:sheetopia/ui/common/section_header.dart';
+import 'package:sheetopia/ui/common/selection/selectable_tile_icon.dart';
+import 'package:sheetopia/ui/common/selection/selection_gestures.dart';
+import 'package:sheetopia/ui/common/selection/selection_shortcuts.dart';
 import 'package:sheetopia/ui/practice/delete_routine_dialog.dart';
 import 'package:sheetopia/ui/practice/practice_routines_viewmodel.dart';
 import 'package:sheetopia/ui/practice/routines_filter_dialog.dart';
@@ -29,7 +31,25 @@ String _formatDuration(Duration duration) {
 }
 
 class PracticePage extends StatefulWidget {
-  const PracticePage({super.key});
+  final PracticeRoutinesViewModel viewModel;
+
+  final bool selectionMode;
+  final void Function(PracticeRoutine routine)? onRoutineSelected;
+  final void Function(PracticeRoutine routine)? onRoutineDeselected;
+  final void Function(List<String> routineIds)? onRoutinesSelected;
+  final void Function()? onClearSelection;
+  final Set<String> selected;
+
+  const PracticePage({
+    super.key,
+    required this.viewModel,
+    this.selectionMode = false,
+    this.onRoutineSelected,
+    this.onRoutineDeselected,
+    this.onRoutinesSelected,
+    this.onClearSelection,
+    this.selected = const {},
+  });
 
   @override
   State<PracticePage> createState() => _PracticePageState();
@@ -40,14 +60,17 @@ class _PracticePageState extends State<PracticePage> {
   static const double _horizontalPadding = RoundedListTile.horizontalMargin;
   static const double _wideLayoutWidth = 560;
 
-  late final PracticeRoutinesViewModel _viewModel;
+  late final PracticeRoutinesViewModel _viewModel = widget.viewModel;
 
   final ScrollController _scrollController = ScrollController();
+  final FocusScopeNode _focusScope = FocusScopeNode();
+  final RangeSelectionAnchor _rangeAnchor = RangeSelectionAnchor();
+
+  bool _visible = true;
 
   @override
   void initState() {
     super.initState();
-    _viewModel = PracticeRoutinesViewModel(repo: context.read());
     _viewModel.loadNextPage();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -58,11 +81,61 @@ class _PracticePageState extends State<PracticePage> {
   }
 
   @override
+  void didUpdateWidget(PracticePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.selectionMode) _rangeAnchor.clear();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = Visibility.of(context);
+    if (visible == _visible) return;
+    _visible = visible;
+    if (visible) _focusScope.requestFocus();
+  }
+
+  @override
   void dispose() {
     _scrollController.removeListener(_checkEndReached);
     _scrollController.dispose();
-    _viewModel.dispose();
+    _focusScope.dispose();
     super.dispose();
+  }
+
+  Future<void> _selectAll() async {
+    final onRoutinesSelected = widget.onRoutinesSelected;
+    if (onRoutinesSelected == null) return;
+    final routineIds = await _viewModel.getFilteredRoutineIds();
+    if (!mounted) return;
+    onRoutinesSelected(routineIds);
+  }
+
+  void _selectRoutine(PracticeRoutine routine) {
+    _rangeAnchor.anchor = routine.id;
+    widget.onRoutineSelected?.call(routine);
+  }
+
+  void _deselectRoutine(PracticeRoutine routine) {
+    _rangeAnchor.anchor = routine.id;
+    widget.onRoutineDeselected?.call(routine);
+  }
+
+  void _toggleRoutine(PracticeRoutine routine) {
+    if (widget.selected.contains(routine.id)) {
+      _deselectRoutine(routine);
+    } else {
+      _selectRoutine(routine);
+    }
+  }
+
+  void _selectRangeTo(PracticeRoutine routine) {
+    final range = _rangeAnchor.rangeTo(_viewModel.loadedRoutineIds, routine.id);
+    if (range == null) {
+      _selectRoutine(routine);
+      return;
+    }
+    widget.onRoutinesSelected?.call(range);
   }
 
   Future<void> _loadInitialPages() async {
@@ -85,10 +158,15 @@ class _PracticePageState extends State<PracticePage> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) => ListenableBuilder(
-        listenable: _viewModel,
-        builder: (context, _) => _buildContent(context, constraints),
+    return SelectionShortcuts(
+      onSelectAll: widget.onRoutinesSelected != null ? _selectAll : null,
+      onClearSelection: widget.selectionMode ? widget.onClearSelection : null,
+      focusScopeNode: _focusScope,
+      child: LayoutBuilder(
+        builder: (context, constraints) => ListenableBuilder(
+          listenable: _viewModel,
+          builder: (context, _) => _buildContent(context, constraints),
+        ),
       ),
     );
   }
@@ -155,6 +233,17 @@ class _PracticePageState extends State<PracticePage> {
             itemCount: routines.length,
             itemBuilder: (context, index) => _RoutineTile(
               routine: routines[index],
+              selecting: widget.selectionMode,
+              selected: widget.selected.contains(routines[index].id),
+              onToggle: _toggleRoutine,
+              onSelectionStart: widget.onRoutineSelected != null
+                  ? _selectRoutine
+                  : null,
+              onRangeSelect:
+                  widget.onRoutineSelected != null &&
+                      widget.onRoutinesSelected != null
+                  ? _selectRangeTo
+                  : null,
               onDuplicate: () => _viewModel.duplicate(routines[index].id),
               onDelete: () => _delete(routines[index]),
             ),
@@ -357,13 +446,23 @@ class _ExercisesCard extends StatelessWidget {
 
 class _RoutineTile extends StatelessWidget {
   final PracticeRoutine routine;
+  final bool selecting;
+  final bool selected;
+  final void Function(PracticeRoutine routine) onToggle;
+  final void Function(PracticeRoutine routine)? onSelectionStart;
+  final void Function(PracticeRoutine routine)? onRangeSelect;
   final void Function() onDuplicate;
   final void Function() onDelete;
 
   const _RoutineTile({
     required this.routine,
+    required this.selecting,
+    required this.selected,
+    required this.onToggle,
     required this.onDuplicate,
     required this.onDelete,
+    this.onSelectionStart,
+    this.onRangeSelect,
   });
 
   String get _subtitle {
@@ -375,31 +474,47 @@ class _RoutineTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final gestures = SelectionGestures(
+      item: routine,
+      selecting: selecting,
+      onToggle: onToggle,
+      onSelectionStart: onSelectionStart,
+      onRangeSelect: onRangeSelect,
+      onActivate: () => context.go("/practice/routines/${routine.id}/details"),
+    );
     return RoundedListTile(
-      leading: const RoundedTileIcon(icon: Symbols.checklist),
-      title: routine.name,
-      subtitle: Text(_subtitle),
-      onTap: () => context.go("/practice/routines/${routine.id}/details"),
-      trailing: MenuButton(
-        options: [
-          ContextMenuOption(
-            icon: Symbols.edit,
-            title: "Edit",
-            onSelected: () =>
-                context.go("/practice/routines/${routine.id}/edit"),
-          ),
-          ContextMenuOption(
-            icon: Symbols.content_copy,
-            title: "Duplicate",
-            onSelected: onDuplicate,
-          ),
-          ContextMenuOption(
-            icon: Symbols.delete,
-            title: "Delete",
-            onSelected: onDelete,
-          ),
-        ],
+      leading: SelectableTileIcon(
+        icon: Symbols.checklist,
+        selecting: selecting,
+        selected: selected,
       ),
+      title: routine.name,
+      selected: selected,
+      subtitle: Text(_subtitle),
+      onTap: gestures.onTap,
+      onLongPress: gestures.onLongPress,
+      trailing: selecting
+          ? null
+          : MenuButton(
+              options: [
+                ContextMenuOption(
+                  icon: Symbols.edit,
+                  title: "Edit",
+                  onSelected: () =>
+                      context.go("/practice/routines/${routine.id}/edit"),
+                ),
+                ContextMenuOption(
+                  icon: Symbols.content_copy,
+                  title: "Duplicate",
+                  onSelected: onDuplicate,
+                ),
+                ContextMenuOption(
+                  icon: Symbols.delete,
+                  title: "Delete",
+                  onSelected: onDelete,
+                ),
+              ],
+            ),
     );
   }
 }
