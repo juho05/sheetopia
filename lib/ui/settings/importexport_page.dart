@@ -29,6 +29,7 @@ class ImportExportPage extends StatelessWidget {
         syncRepo: context.read(),
         scoresRepo: context.read(),
         setlistsRepo: context.read(),
+        practiceRepo: context.read(),
         importExportRepo: context.read(),
       ),
       builder: (context, _) {
@@ -162,7 +163,7 @@ class ImportExportPage extends StatelessWidget {
                           final confirmed = await ConfirmationDialog.showYesNo(
                             context,
                             message:
-                                "Sync will be disabled and all local scores, tags, etc. will be deleted.\n\nRemote data will not be deleted.",
+                                "Sync will be disabled and all local scores, exercises, tags, etc. will be deleted.\n\nRemote data will not be deleted.",
                           );
                           if (confirmed != true) return;
 

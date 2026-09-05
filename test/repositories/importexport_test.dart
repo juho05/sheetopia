@@ -8,6 +8,7 @@
 
 import 'dart:io';
 
+import 'package:archive/archive_io.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
@@ -97,6 +98,13 @@ void main() {
   const scoreId = "score-1";
   const tagId = "tag-1";
   const setlistId = "setlist-1";
+  const exerciseTagId = "tag-2";
+  const categoryId = "category-1";
+  const exerciseId = "exercise-1";
+  const routineId = "routine-1";
+  const routineEntryId = "routine-entry-1";
+  const sessionId = "session-1";
+  const sessionEntryId = "session-entry-1";
 
   final contentTime = DateTime.utc(2026, 1, 1);
 
@@ -140,6 +148,85 @@ void main() {
     );
   }
 
+  Future<void> createPracticeData() async {
+    await db.managers.tagsTable.create(
+      (o) => o(
+        id: exerciseTagId,
+        name: "Warmup",
+        color: 0xff0000ff,
+        type: const Value(TagType.exercise),
+        updatedAt: Value(contentTime),
+      ),
+    );
+    await db.managers.exerciseCategoriesTable.create(
+      (o) => o(
+        id: categoryId,
+        name: "Technique",
+        position: 0,
+        updatedAt: Value(contentTime),
+      ),
+    );
+    await db.managers.exercisesTable.create(
+      (o) => o(
+        id: exerciseId,
+        name: "Scales",
+        category: const Value(categoryId),
+        description: const Value("All major scales"),
+        source: const Value("Hanon"),
+        sourceLink: const Value("https://example.org"),
+        instrument: const Value("Piano"),
+        targetBpm: const Value(120),
+        updatedAt: Value(contentTime),
+      ),
+    );
+    await db.managers.exerciseTagsTable.create(
+      (o) => o(exercise: exerciseId, tag: exerciseTagId),
+    );
+    await db.managers.exerciseScoresTable.create(
+      (o) => o(exercise: exerciseId, score: scoreId, position: 0),
+    );
+
+    await db.managers.practiceRoutinesTable.create(
+      (o) => o(
+        id: routineId,
+        name: "Morning",
+        description: const Value("Before breakfast"),
+        updatedAt: Value(contentTime),
+      ),
+    );
+    await db.managers.practiceRoutineEntriesTable.create(
+      (o) => o(
+        id: routineEntryId,
+        routine: routineId,
+        exercise: exerciseId,
+        position: 0,
+        extraNotes: const Value("Hands separately"),
+        targetDuration: const Value(Duration(minutes: 5)),
+        defaultScore: const Value(scoreId),
+      ),
+    );
+
+    await db.managers.practiceSessionsTable.create(
+      (o) => o(
+        id: sessionId,
+        startedAt: contentTime,
+        endedAt: Value(contentTime.add(const Duration(minutes: 30))),
+        routine: const Value(routineId),
+        description: const Value("Went well"),
+        updatedAt: Value(contentTime),
+      ),
+    );
+    await db.managers.practiceSessionEntriesTable.create(
+      (o) => o(
+        id: sessionEntryId,
+        session: sessionId,
+        exercise: exerciseId,
+        routineEntry: const Value(routineEntryId),
+        duration: const Value(Duration(minutes: 7)),
+      ),
+    );
+  }
+
   Future<String> exportAll() async {
     final target = path.join(exportDir.path, "export.zip");
     fileSelector.saveLocation = target;
@@ -151,6 +238,30 @@ void main() {
   Future<void> importFrom(String zipPath) async {
     fileSelector.fileToOpen = zipPath;
     expect(await repo.import(), isTrue);
+  }
+
+  Future<String> stripPracticeFiles(String zipPath) async {
+    final dir = await Directory(
+      path.join(tempDir.path, "stripped"),
+    ).create(recursive: true);
+    await extractFileToDisk(zipPath, dir.path);
+    for (final name in [
+      "exercise_categories.json",
+      "exercises.json",
+      "practice_routines.json",
+      "practice_sessions.json",
+    ]) {
+      await File(path.join(dir.path, name)).delete();
+    }
+
+    final target = path.join(exportDir.path, "stripped.zip");
+    final outStream = OutputFileStream(target);
+    ZipEncoder().encodeStream(
+      createArchiveFromDirectory(dir, includeDirName: false),
+      outStream,
+      autoClose: true,
+    );
+    return target;
   }
 
   setUp(() async {
@@ -181,6 +292,7 @@ void main() {
       thumbnailService: ThumbnailService(),
       scoresRepo: scoresRepo,
       setlistsRepo: setlistsRepo,
+      practiceRepo: practiceRepo,
       syncRepo: syncRepo,
       db: db,
     );
@@ -394,5 +506,198 @@ void main() {
         .getSingle();
     expect(setlist.name, "Rezital");
     expect(setlist.writtenAt, isNull);
+  });
+
+  test(
+    "re-importing a deleted exercise restores it under the same id",
+    () async {
+      await createPracticeData();
+      final zip = await exportAll();
+
+      await practiceRepo.deleteExercise(exerciseId);
+      expect(await db.managers.exercisesTable.count(), 0);
+      expect(await db.managers.deletedExercisesTable.count(), 1);
+
+      await importFrom(zip);
+
+      final exercise = await db.managers.exercisesTable
+          .filter((f) => f.id(exerciseId))
+          .getSingle();
+      expect(exercise.name, "Scales");
+      expect(exercise.category, categoryId);
+      expect(exercise.description, "All major scales");
+      expect(exercise.source, "Hanon");
+      expect(exercise.sourceLink, "https://example.org");
+      expect(exercise.instrument, "Piano");
+      expect(exercise.targetBpm, 120);
+      expect(exercise.updatedAt, contentTime);
+      expect(exercise.writtenAt, isNotNull);
+      expect(exercise.writtenAt!.isAfter(contentTime), isTrue);
+      expect(exercise.uploaded, isFalse);
+
+      final tags = await db.managers.exerciseTagsTable
+          .filter((f) => f.exercise.id(exerciseId))
+          .get();
+      expect(tags.map((t) => t.tag), [exerciseTagId]);
+
+      final scores = await db.managers.exerciseScoresTable
+          .filter((f) => f.exercise.id(exerciseId))
+          .get();
+      expect(scores.map((s) => s.score), [scoreId]);
+
+      expect(await db.managers.deletedExercisesTable.count(), 0);
+    },
+  );
+
+  test(
+    "re-importing a deleted category restores it under the same id",
+    () async {
+      await createPracticeData();
+      final zip = await exportAll();
+
+      await practiceRepo.deleteCategory(categoryId);
+      expect(await db.managers.exerciseCategoriesTable.count(), 0);
+      expect(await db.managers.deletedExerciseCategoriesTable.count(), 1);
+
+      await importFrom(zip);
+
+      final category = await db.managers.exerciseCategoriesTable
+          .filter((f) => f.id(categoryId))
+          .getSingle();
+      expect(category.name, "Technique");
+      expect(category.position, 0);
+      expect(category.updatedAt, contentTime);
+      expect(category.writtenAt, isNotNull);
+      expect(category.writtenAt!.isAfter(contentTime), isTrue);
+      expect(category.uploaded, isFalse);
+
+      expect(await db.managers.deletedExerciseCategoriesTable.count(), 0);
+    },
+  );
+
+  test("re-importing a deleted routine restores it with its entries", () async {
+    await createPracticeData();
+    final zip = await exportAll();
+
+    await practiceRepo.deleteRoutine(routineId);
+    expect(await db.managers.practiceRoutinesTable.count(), 0);
+    expect(await db.managers.deletedPracticeRoutinesTable.count(), 1);
+
+    await importFrom(zip);
+
+    final routine = await db.managers.practiceRoutinesTable
+        .filter((f) => f.id(routineId))
+        .getSingle();
+    expect(routine.name, "Morning");
+    expect(routine.description, "Before breakfast");
+    expect(routine.updatedAt, contentTime);
+    expect(routine.writtenAt, isNotNull);
+    expect(routine.writtenAt!.isAfter(contentTime), isTrue);
+    expect(routine.uploaded, isFalse);
+
+    final entry = await db.managers.practiceRoutineEntriesTable
+        .filter((f) => f.routine.id(routineId))
+        .getSingle();
+    expect(entry.id, routineEntryId);
+    expect(entry.exercise, exerciseId);
+    expect(entry.position, 0);
+    expect(entry.extraNotes, "Hands separately");
+    expect(entry.targetDuration, const Duration(minutes: 5));
+    expect(entry.defaultScore, scoreId);
+
+    expect(await db.managers.deletedPracticeRoutinesTable.count(), 0);
+  });
+
+  test("re-importing a deleted session restores it with its entries", () async {
+    await createPracticeData();
+    final zip = await exportAll();
+
+    await db.managers.practiceSessionsTable
+        .filter((f) => f.id(sessionId))
+        .delete();
+    await db.managers.deletedPracticeSessionsTable.create(
+      (o) => o(sessionId: sessionId),
+    );
+    expect(await db.managers.practiceSessionEntriesTable.count(), 0);
+
+    await importFrom(zip);
+
+    final session = await db.managers.practiceSessionsTable
+        .filter((f) => f.id(sessionId))
+        .getSingle();
+    expect(session.startedAt, contentTime);
+    expect(session.endedAt, contentTime.add(const Duration(minutes: 30)));
+    expect(session.routine, routineId);
+    expect(session.description, "Went well");
+    expect(session.updatedAt, contentTime);
+    expect(session.writtenAt, isNotNull);
+    expect(session.writtenAt!.isAfter(contentTime), isTrue);
+    expect(session.uploaded, isFalse);
+
+    final entry = await db.managers.practiceSessionEntriesTable
+        .filter((f) => f.session.id(sessionId))
+        .getSingle();
+    expect(entry.id, sessionEntryId);
+    expect(entry.exercise, exerciseId);
+    expect(entry.routineEntry, routineEntryId);
+    expect(entry.duration, const Duration(minutes: 7));
+
+    expect(await db.managers.deletedPracticeSessionsTable.count(), 0);
+  });
+
+  test(
+    "importing practice data the local database already has is a no-op",
+    () async {
+      await createPracticeData();
+      final zip = await exportAll();
+
+      await practiceRepo.updateExercise(
+        exerciseId,
+        name: "Arpeggios",
+        description: "",
+        instrument: "Piano",
+      );
+      await practiceRepo.renameCategory(categoryId, "Technik");
+      await practiceRepo.updateRoutine(
+        routineId,
+        name: "Abend",
+        description: "Before breakfast",
+      );
+
+      await importFrom(zip);
+
+      final exercise = await db.managers.exercisesTable
+          .filter((f) => f.id(exerciseId))
+          .getSingle();
+      expect(exercise.name, "Arpeggios");
+      expect(exercise.description, isNull);
+      expect(exercise.writtenAt, isNull);
+
+      final category = await db.managers.exerciseCategoriesTable
+          .filter((f) => f.id(categoryId))
+          .getSingle();
+      expect(category.name, "Technik");
+      expect(category.writtenAt, isNull);
+
+      final routine = await db.managers.practiceRoutinesTable
+          .filter((f) => f.id(routineId))
+          .getSingle();
+      expect(routine.name, "Abend");
+      expect(routine.writtenAt, isNull);
+    },
+  );
+
+  test("an export without practice data imports cleanly", () async {
+    await createPracticeData();
+    final zip = await exportAll();
+    final stripped = await stripPracticeFiles(zip);
+
+    await practiceRepo.deleteExercise(exerciseId);
+    expect(await db.managers.exercisesTable.count(), 0);
+
+    await importFrom(stripped);
+
+    expect(await db.managers.exercisesTable.count(), 0);
+    expect(await db.managers.scoresTable.count(), 1);
   });
 }

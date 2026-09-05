@@ -100,6 +100,7 @@ Future<List<SingleChildWidget>> createProviders({
       create: (context) => ImportExportRepository(
         scoresRepo: context.read(),
         setlistsRepo: context.read(),
+        practiceRepo: context.read(),
         syncRepo: context.read(),
         thumbnailService: context.read(),
         db: context.read(),

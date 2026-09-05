@@ -1371,6 +1371,43 @@ class PracticeRepository {
     }
   }
 
+  Future<void> deleteAll() async {
+    final wipedCategories = <String>{};
+    final wipedExercises = <String>{};
+    final wipedRoutines = <String>{};
+    await _db.transaction(() async {
+      wipedCategories.addAll(
+        await _db.managers.exerciseCategoriesTable.map((c) => c.id).get(),
+      );
+      wipedExercises.addAll(
+        await _db.managers.exercisesTable.map((e) => e.id).get(),
+      );
+      wipedRoutines.addAll(
+        await _db.managers.practiceRoutinesTable.map((r) => r.id).get(),
+      );
+
+      // the entries are cascaded, the parents have to go before what they reference
+      await _db.managers.practiceSessionsTable.delete();
+      await _db.managers.practiceRoutinesTable.delete();
+      await _db.managers.exercisesTable.delete();
+      await _db.managers.exerciseCategoriesTable.delete();
+
+      await _db.managers.deletedPracticeSessionsTable.delete();
+      await _db.managers.deletedPracticeRoutinesTable.delete();
+      await _db.managers.deletedExercisesTable.delete();
+      await _db.managers.deletedExerciseCategoriesTable.delete();
+    });
+    if (wipedCategories.isNotEmpty) {
+      _updatedCategoryIds.add((changed: wipedCategories, needsUpload: false));
+    }
+    if (wipedExercises.isNotEmpty) {
+      _updatedExerciseIds.add((changed: wipedExercises, needsUpload: false));
+    }
+    if (wipedRoutines.isNotEmpty) {
+      _updatedRoutineIds.add((changed: wipedRoutines, needsUpload: false));
+    }
+  }
+
   void remoteChangedExercises(Set<String> exerciseIds) {
     if (exerciseIds.isEmpty) return;
     _updatedExerciseIds.add((changed: exerciseIds, needsUpload: false));

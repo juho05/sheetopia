@@ -21,11 +21,17 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
+import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/sync/models/exercise_categories.dart';
+import 'package:sheetopia/data/services/sync/models/exercise_metadata.dart';
+import 'package:sheetopia/data/services/sync/models/exercises.dart';
+import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
+import 'package:sheetopia/data/services/sync/models/practice_sessions.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/setlists.dart';
@@ -49,6 +55,7 @@ class ImportExportRepository extends ChangeNotifier {
   final SyncRepository _syncRepo;
   final ScoresRepository _scoresRepo;
   final SetlistsRepository _setlistsRepo;
+  final PracticeRepository _practiceRepo;
   final ThumbnailService _thumbnailService;
   final Database _db;
 
@@ -70,6 +77,7 @@ class ImportExportRepository extends ChangeNotifier {
   ImportExportRepository({
     required this._scoresRepo,
     required this._setlistsRepo,
+    required this._practiceRepo,
     required this._syncRepo,
     required this._db,
     required this._thumbnailService,
@@ -78,6 +86,9 @@ class ImportExportRepository extends ChangeNotifier {
   Set<String> _changedScores = {};
   Set<String> _changedTags = {};
   Set<String> _changedSetlists = {};
+  Set<String> _changedCategories = {};
+  Set<String> _changedExercises = {};
+  Set<String> _changedRoutines = {};
 
   Future<bool> import({void Function()? onSelected}) async {
     if (_status != ImportExportStatus.idle) {
@@ -109,6 +120,10 @@ class ImportExportRepository extends ChangeNotifier {
         final tags = result["tags"] as List<TagModel>;
         final scores = result["scores"] as List<ScoreModel>;
         final setlists = result["setlists"] as List<SetlistModel>;
+        final categories = result["categories"] as List<ExerciseCategoryModel>;
+        final exercises = result["exercises"] as List<ExerciseModel>;
+        final routines = result["routines"] as List<PracticeRoutineModel>;
+        final sessions = result["sessions"] as List<PracticeSessionModel>;
         final scoresDir = result["scoresDir"] as String;
 
         final importedAt = DateTime.now().toUtc();
@@ -116,6 +131,10 @@ class ImportExportRepository extends ChangeNotifier {
         await _importTags(tags, importedAt);
         await _importScores(scores, scoresDir, importedAt);
         await _importSetlists(setlists, importedAt);
+        await _importExerciseCategories(categories, importedAt);
+        await _importExercises(exercises, importedAt);
+        await _importPracticeRoutines(routines, importedAt);
+        await _importPracticeSessions(sessions, importedAt);
       } finally {
         await dir.delete(recursive: true);
       }
@@ -123,9 +142,15 @@ class ImportExportRepository extends ChangeNotifier {
       _scoresRepo.remoteChangedTags(_changedTags);
       _scoresRepo.remoteChangedScores(_changedScores);
       _setlistsRepo.remoteChangedSetlists(_changedSetlists);
+      _practiceRepo.remoteChangedCategories(_changedCategories);
+      _practiceRepo.remoteChangedExercises(_changedExercises);
+      _practiceRepo.remoteChangedRoutines(_changedRoutines);
       _changedScores = {};
       _changedTags = {};
       _changedSetlists = {};
+      _changedCategories = {};
+      _changedExercises = {};
+      _changedRoutines = {};
       _status = ImportExportStatus.idle;
       notifyListeners();
       _syncRepo.requestSync();
@@ -165,9 +190,10 @@ class ImportExportRepository extends ChangeNotifier {
                 ),
               )
               .toList();
-          await compute(_saveTagsJson, {
+          await compute(_saveJson, {
             "dir": dir.path,
-            "tagModels": tagModels,
+            "fileName": "tags.json",
+            "models": tagModels,
           });
         }
 
@@ -211,9 +237,10 @@ class ImportExportRepository extends ChangeNotifier {
             offset += scores.length;
           }
 
-          await compute(_saveScoresJson, {
-            "scoreModels": scoreModels,
+          await compute(_saveJson, {
             "dir": dir.path,
+            "fileName": "scores.json",
+            "models": scoreModels,
           });
         }
 
@@ -231,9 +258,150 @@ class ImportExportRepository extends ChangeNotifier {
               ),
             );
           }
-          await compute(_saveSetlistsJson, {
+          await compute(_saveJson, {
             "dir": dir.path,
-            "setlistModels": setlistModels,
+            "fileName": "setlists.json",
+            "models": setlistModels,
+          });
+        }
+
+        {
+          final categories = await _db.managers.exerciseCategoriesTable.get();
+          await compute(_saveJson, {
+            "dir": dir.path,
+            "fileName": "exercise_categories.json",
+            "models": [
+              for (final c in categories)
+                ExerciseCategoryModel(
+                  id: c.id,
+                  name: c.name,
+                  position: c.position,
+                  updatedAt: c.updatedAt.toUtc(),
+                ),
+            ],
+          });
+        }
+
+        {
+          final exercises = await _db.managers.exercisesTable.get();
+
+          final tagIds = <String, List<String>>{};
+          for (final t in await _db.managers.exerciseTagsTable.get()) {
+            tagIds.putIfAbsent(t.exercise, () => []).add(t.tag);
+          }
+
+          final scoreIds = <String, List<String>>{};
+          final exerciseScores = await (_db.select(
+            _db.exerciseScoresTable,
+          )..orderBy([(t) => OrderingTerm.asc(t.position)])).get();
+          for (final s in exerciseScores) {
+            scoreIds.putIfAbsent(s.exercise, () => []).add(s.score);
+          }
+
+          await compute(_saveJson, {
+            "dir": dir.path,
+            "fileName": "exercises.json",
+            "models": [
+              for (final e in exercises)
+                ExerciseModel(
+                  id: e.id,
+                  name: e.name,
+                  categoryId: e.category,
+                  tagIds: tagIds[e.id] ?? [],
+                  scoreIds: scoreIds[e.id] ?? [],
+                  metadata: ExerciseMetadataModel(
+                    description: e.description ?? "",
+                    source: e.source ?? "",
+                    sourceLink: e.sourceLink ?? "",
+                    instrument: e.instrument ?? "",
+                    targetBpm: e.targetBpm ?? 0,
+                  ),
+                  updatedAt: e.updatedAt.toUtc(),
+                ),
+            ],
+          });
+        }
+
+        {
+          final routines = await _db.managers.practiceRoutinesTable.get();
+
+          final entries = <String, List<PracticeRoutineEntryModel>>{};
+          final routineEntries = await (_db.select(
+            _db.practiceRoutineEntriesTable,
+          )..orderBy([(t) => OrderingTerm.asc(t.position)])).get();
+          for (final e in routineEntries) {
+            entries
+                .putIfAbsent(e.routine, () => [])
+                .add(
+                  PracticeRoutineEntryModel(
+                    id: e.id,
+                    exerciseId: e.exercise,
+                    metadata: PracticeRoutineEntryMetadataModel(
+                      extraNotes: e.extraNotes ?? "",
+                      defaultScoreId: e.defaultScore ?? "",
+                      targetDuration: e.targetDuration?.inMilliseconds ?? 0,
+                    ),
+                  ),
+                );
+          }
+
+          await compute(_saveJson, {
+            "dir": dir.path,
+            "fileName": "practice_routines.json",
+            "models": [
+              for (final r in routines)
+                PracticeRoutineModel(
+                  id: r.id,
+                  name: r.name,
+                  metadata: PracticeRoutineMetadataModel(
+                    description: r.description ?? "",
+                  ),
+                  entries: entries[r.id] ?? [],
+                  updatedAt: r.updatedAt.toUtc(),
+                ),
+            ],
+          });
+        }
+
+        {
+          final sessions = await _db.managers.practiceSessionsTable.get();
+
+          final entries = <String, List<PracticeSessionEntryModel>>{};
+          final sessionEntries = await (_db.select(
+            _db.practiceSessionEntriesTable,
+          )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
+          for (final e in sessionEntries) {
+            entries
+                .putIfAbsent(e.session, () => [])
+                .add(
+                  PracticeSessionEntryModel(
+                    id: e.id,
+                    exerciseId: e.exercise,
+                    routineEntryId: e.routineEntry,
+                    metadata: PracticeSessionEntryMetadataModel(
+                      duration: e.duration.inMilliseconds,
+                    ),
+                  ),
+                );
+          }
+
+          await compute(_saveJson, {
+            "dir": dir.path,
+            "fileName": "practice_sessions.json",
+            "models": [
+              for (final s in sessions)
+                PracticeSessionModel(
+                  id: s.id,
+                  startedAt: s.startedAt.toUtc(),
+                  endedAt: s.endedAt?.toUtc(),
+                  routineId: s.routine,
+                  metadata: PracticeSessionMetadataModel(
+                    description: s.description ?? "",
+                  ),
+                  entries: entries[s.id] ?? [],
+                  updatedAt: s.updatedAt.toUtc(),
+                ),
+            ],
           });
         }
 
@@ -345,7 +513,7 @@ class ImportExportRepository extends ChangeNotifier {
     }
   }
 
-  Future<List<String>> _knownTagIds(String scoreId, List<String> tagIds) async {
+  Future<List<String>> _knownTagIds(String owner, List<String> tagIds) async {
     final known =
         (await _db.managers.tagsTable
                 .filter((f) => f.id.isIn(tagIds))
@@ -354,7 +522,7 @@ class ImportExportRepository extends ChangeNotifier {
             .toSet();
     final unknown = tagIds.where((t) => !known.contains(t));
     if (unknown.isNotEmpty) {
-      Log.warn("Dropping unknown tags ${unknown.join(", ")} of score $scoreId");
+      Log.warn("Dropping unknown tags ${unknown.join(", ")} of $owner");
     }
     return tagIds.where(known.contains).toList();
   }
@@ -412,6 +580,292 @@ class ImportExportRepository extends ChangeNotifier {
           ),
         );
         _changedSetlists.add(s.id);
+      });
+    }
+  }
+
+  Future<void> _importExerciseCategories(
+    List<ExerciseCategoryModel> categories,
+    DateTime importedAt,
+  ) async {
+    await _dropPendingTombstones(
+      categories.map((c) => c.id).toList(),
+      (chunk) => _db.managers.deletedExerciseCategoriesTable
+          .filter((f) => f.categoryId.isIn(chunk))
+          .delete(),
+    );
+
+    for (final c in categories) {
+      final result = await _db.managers.exerciseCategoriesTable
+          .createReturningOrNull(
+            (o) => o(
+              id: c.id,
+              name: c.name,
+              position: c.position,
+              updatedAt: Value(c.updatedAt.toUtc()),
+              writtenAt: Value(importedAt),
+              uploaded: const Value(false),
+            ),
+            onConflict: DoUpdate.withExcluded(
+              (old, excluded) => ExerciseCategoriesTableCompanion.custom(
+                name: excluded.name,
+                position: excluded.position,
+                uploaded: excluded.uploaded,
+                updatedAt: excluded.updatedAt,
+                writtenAt: excluded.writtenAt,
+              ),
+              where: (old, excluded) =>
+                  old.updatedAt.isSmallerThan(excluded.updatedAt),
+            ),
+          );
+      if (result != null) _changedCategories.add(c.id);
+    }
+  }
+
+  Future<void> _importExercises(
+    List<ExerciseModel> exercises,
+    DateTime importedAt,
+  ) async {
+    await _dropPendingTombstones(
+      exercises.map((e) => e.id).toList(),
+      (chunk) => _db.managers.deletedExercisesTable
+          .filter((f) => f.exerciseId.isIn(chunk))
+          .delete(),
+    );
+
+    for (final e in exercises) {
+      await _db.transaction(() async {
+        final categoryId = await _knownCategoryId(e.id, e.categoryId);
+        final result = await _db.managers.exercisesTable.createReturningOrNull(
+          (o) => o(
+            id: e.id,
+            name: e.name,
+            category: Value(categoryId),
+            description: _optionalStringValue(e.metadata.description),
+            source: _optionalStringValue(e.metadata.source),
+            sourceLink: _optionalStringValue(e.metadata.sourceLink),
+            instrument: _optionalStringValue(e.metadata.instrument),
+            targetBpm: _optionalIntValue(e.metadata.targetBpm),
+            updatedAt: Value(e.updatedAt.toUtc()),
+            writtenAt: Value(importedAt),
+            uploaded: const Value(false),
+          ),
+          onConflict: DoUpdate.withExcluded(
+            (old, excluded) => ExercisesTableCompanion.custom(
+              name: excluded.name,
+              category: excluded.category,
+              description: e.metadata.description != null
+                  ? excluded.description
+                  : null,
+              source: e.metadata.source != null ? excluded.source : null,
+              sourceLink: e.metadata.sourceLink != null
+                  ? excluded.sourceLink
+                  : null,
+              instrument: e.metadata.instrument != null
+                  ? excluded.instrument
+                  : null,
+              targetBpm: e.metadata.targetBpm != null
+                  ? excluded.targetBpm
+                  : null,
+              uploaded: excluded.uploaded,
+              updatedAt: excluded.updatedAt,
+              writtenAt: excluded.writtenAt,
+            ),
+            where: (old, excluded) =>
+                old.updatedAt.isSmallerThan(excluded.updatedAt),
+          ),
+        );
+        if (result == null) return;
+
+        await _db.managers.exerciseTagsTable
+            .filter((f) => f.exercise.id(e.id))
+            .delete();
+        final tagIds = await _knownTagIds("exercise ${e.id}", e.tagIds);
+        if (tagIds.isNotEmpty) {
+          await _db.managers.exerciseTagsTable.bulkCreate(
+            (o) => tagIds.map((t) => o(exercise: e.id, tag: t)),
+          );
+        }
+
+        await _db.managers.exerciseScoresTable
+            .filter((f) => f.exercise.id(e.id))
+            .delete();
+        if (e.scoreIds.isNotEmpty) {
+          await _db.managers.exerciseScoresTable.bulkCreate(
+            (o) => e.scoreIds.indexed.map(
+              (s) => o(exercise: e.id, score: s.$2, position: s.$1),
+            ),
+          );
+        }
+
+        _changedExercises.add(e.id);
+      });
+    }
+  }
+
+  Future<String?> _knownCategoryId(
+    String exerciseId,
+    String? categoryId,
+  ) async {
+    if (categoryId == null) return null;
+    final category = await _db.managers.exerciseCategoriesTable
+        .filter((f) => f.id(categoryId))
+        .getSingleOrNull();
+    if (category != null) return categoryId;
+    Log.warn("Dropping unknown category $categoryId of exercise $exerciseId");
+    return null;
+  }
+
+  Future<void> _importPracticeRoutines(
+    List<PracticeRoutineModel> routines,
+    DateTime importedAt,
+  ) async {
+    await _dropPendingTombstones(
+      routines.map((r) => r.id).toList(),
+      (chunk) => _db.managers.deletedPracticeRoutinesTable
+          .filter((f) => f.routineId.isIn(chunk))
+          .delete(),
+    );
+
+    for (final r in routines) {
+      await _db.transaction(() async {
+        final result = await _db.managers.practiceRoutinesTable
+            .createReturningOrNull(
+              (o) => o(
+                id: r.id,
+                name: r.name,
+                description: _optionalStringValue(r.metadata.description),
+                updatedAt: Value(r.updatedAt.toUtc()),
+                writtenAt: Value(importedAt),
+                uploaded: const Value(false),
+              ),
+              onConflict: DoUpdate.withExcluded(
+                (old, excluded) => PracticeRoutinesTableCompanion.custom(
+                  name: excluded.name,
+                  description: r.metadata.description != null
+                      ? excluded.description
+                      : null,
+                  uploaded: excluded.uploaded,
+                  updatedAt: excluded.updatedAt,
+                  writtenAt: excluded.writtenAt,
+                ),
+                where: (old, excluded) =>
+                    old.updatedAt.isSmallerThan(excluded.updatedAt),
+              ),
+            );
+        if (result == null) return;
+
+        await _db.managers.practiceRoutineEntriesTable
+            .filter((f) => f.routine.id(r.id))
+            .delete();
+        final entries = await _knownExerciseEntries(r.id, r.entries);
+        if (entries.isNotEmpty) {
+          await _db.managers.practiceRoutineEntriesTable.bulkCreate(
+            (o) => entries.indexed.map(
+              (e) => o(
+                id: e.$2.id,
+                routine: r.id,
+                exercise: e.$2.exerciseId,
+                position: e.$1,
+                extraNotes: _optionalStringValue(e.$2.metadata.extraNotes),
+                defaultScore: _optionalStringValue(
+                  e.$2.metadata.defaultScoreId,
+                ),
+                targetDuration: _optionalDurationValue(
+                  e.$2.metadata.targetDuration,
+                ),
+              ),
+            ),
+          );
+        }
+        _changedRoutines.add(r.id);
+      });
+    }
+  }
+
+  Future<List<PracticeRoutineEntryModel>> _knownExerciseEntries(
+    String routineId,
+    List<PracticeRoutineEntryModel> entries,
+  ) async {
+    if (entries.isEmpty) return entries;
+    final known =
+        (await _db.managers.exercisesTable
+                .filter((f) => f.id.isIn(entries.map((e) => e.exerciseId)))
+                .map((e) => e.id)
+                .get())
+            .toSet();
+    final unknown = entries
+        .where((e) => !known.contains(e.exerciseId))
+        .map((e) => e.exerciseId);
+    if (unknown.isNotEmpty) {
+      Log.warn(
+        "Dropping entries of unknown exercises ${unknown.join(", ")} of practice routine $routineId",
+      );
+    }
+    return entries.where((e) => known.contains(e.exerciseId)).toList();
+  }
+
+  Future<void> _importPracticeSessions(
+    List<PracticeSessionModel> sessions,
+    DateTime importedAt,
+  ) async {
+    await _dropPendingTombstones(
+      sessions.map((s) => s.id).toList(),
+      (chunk) => _db.managers.deletedPracticeSessionsTable
+          .filter((f) => f.sessionId.isIn(chunk))
+          .delete(),
+    );
+
+    for (final s in sessions) {
+      await _db.transaction(() async {
+        final result = await _db.managers.practiceSessionsTable
+            .createReturningOrNull(
+              (o) => o(
+                id: s.id,
+                startedAt: s.startedAt.toUtc(),
+                endedAt: Value(s.endedAt?.toUtc()),
+                routine: Value(s.routineId),
+                description: _optionalStringValue(s.metadata.description),
+                updatedAt: Value(s.updatedAt.toUtc()),
+                writtenAt: Value(importedAt),
+                uploaded: const Value(false),
+              ),
+              onConflict: DoUpdate.withExcluded(
+                (old, excluded) => PracticeSessionsTableCompanion.custom(
+                  startedAt: excluded.startedAt,
+                  endedAt: excluded.endedAt,
+                  routine: excluded.routine,
+                  description: s.metadata.description != null
+                      ? excluded.description
+                      : null,
+                  uploaded: excluded.uploaded,
+                  updatedAt: excluded.updatedAt,
+                  writtenAt: excluded.writtenAt,
+                ),
+                where: (old, excluded) =>
+                    old.updatedAt.isSmallerThan(excluded.updatedAt),
+              ),
+            );
+        if (result == null) return;
+
+        await _db.managers.practiceSessionEntriesTable
+            .filter((f) => f.session.id(s.id))
+            .delete();
+        if (s.entries.isNotEmpty) {
+          await _db.managers.practiceSessionEntriesTable.bulkCreate(
+            (o) => s.entries.map(
+              (e) => o(
+                id: e.id,
+                session: s.id,
+                exercise: e.exerciseId,
+                routineEntry: Value(e.routineEntryId),
+                duration: Value(
+                  Duration(milliseconds: e.metadata.duration ?? 0),
+                ),
+              ),
+            ),
+          );
+        }
       });
     }
   }
@@ -565,7 +1019,7 @@ class ImportExportRepository extends ChangeNotifier {
         }
         if (score == null || metadataChanged) {
           if (s.tagIds.isNotEmpty) {
-            final tagIds = await _knownTagIds(s.id, s.tagIds);
+            final tagIds = await _knownTagIds("score ${s.id}", s.tagIds);
             if (tagIds.isNotEmpty) {
               await _db.managers.scoreTagsTable.bulkCreate(
                 (o) => tagIds.map((t) => o(score: s.id, tag: t)),
@@ -596,34 +1050,23 @@ class ImportExportRepository extends ChangeNotifier {
     }
   }
 
-  static Future<void> _saveTagsJson(Map params) async {
-    final tagsJson = jsonEncode(params["tagModels"]);
-    await File(path.join(params["dir"], "tags.json")).writeAsString(
-      tagsJson,
-      encoding: utf8,
-      flush: true,
-      mode: FileMode.write,
-    );
+  static Future<void> _saveJson(Map params) async {
+    final json = jsonEncode(params["models"]);
+    await File(
+      path.join(params["dir"], params["fileName"]),
+    ).writeAsString(json, encoding: utf8, flush: true, mode: FileMode.write);
   }
 
-  static Future<void> _saveSetlistsJson(Map params) async {
-    final setlistsJson = jsonEncode(params["setlistModels"]);
-    await File(path.join(params["dir"], "setlists.json")).writeAsString(
-      setlistsJson,
-      encoding: utf8,
-      flush: true,
-      mode: FileMode.write,
-    );
-  }
-
-  static Future<void> _saveScoresJson(Map params) async {
-    final scoresJson = jsonEncode(params["scoreModels"]);
-    await File(path.join(params["dir"], "scores.json")).writeAsString(
-      scoresJson,
-      encoding: utf8,
-      flush: true,
-      mode: FileMode.write,
-    );
+  static Future<List<T>> _readOptionalJsonList<T>(
+    String dir,
+    String fileName,
+    T Function(Map<String, dynamic> json) fromJson,
+  ) async {
+    final file = File(path.join(dir, fileName));
+    if (!await file.exists()) return const [];
+    final json =
+        jsonDecode(await file.readAsString(encoding: utf8)) as List<dynamic>;
+    return json.map((e) => fromJson(e)).toList();
   }
 
   static Future<void> _createZipFileFromDir(Map params) async {
@@ -681,18 +1124,35 @@ class ImportExportRepository extends ChangeNotifier {
         scores = scoresJson.map((score) => ScoreModel.fromJson(score)).toList();
       }
 
-      List<SetlistModel> setlists = const [];
-      {
-        final setlistsFile = File(path.join(outputPath, "setlists.json"));
-        if (await setlistsFile.exists()) {
-          final setlistsJson =
-              jsonDecode(await setlistsFile.readAsString(encoding: utf8))
-                  as List<dynamic>;
-          setlists = setlistsJson
-              .map((setlist) => SetlistModel.fromJson(setlist))
-              .toList();
-        }
-      }
+      final setlists = await _readOptionalJsonList(
+        outputPath,
+        "setlists.json",
+        SetlistModel.fromJson,
+      );
+
+      final categories = await _readOptionalJsonList(
+        outputPath,
+        "exercise_categories.json",
+        ExerciseCategoryModel.fromJson,
+      );
+
+      final exercises = await _readOptionalJsonList(
+        outputPath,
+        "exercises.json",
+        ExerciseModel.fromJson,
+      );
+
+      final routines = await _readOptionalJsonList(
+        outputPath,
+        "practice_routines.json",
+        PracticeRoutineModel.fromJson,
+      );
+
+      final sessions = await _readOptionalJsonList(
+        outputPath,
+        "practice_sessions.json",
+        PracticeSessionModel.fromJson,
+      );
 
       final scoresDir = Directory(path.join(outputPath, "scores"));
       if (!await scoresDir.exists()) {
@@ -703,6 +1163,10 @@ class ImportExportRepository extends ChangeNotifier {
         "scores": scores,
         "tags": tags,
         "setlists": setlists,
+        "categories": categories,
+        "exercises": exercises,
+        "routines": routines,
+        "sessions": sessions,
         "scoresDir": scoresDir.path,
       };
     } on Exception catch (e) {
@@ -714,6 +1178,18 @@ class ImportExportRepository extends ChangeNotifier {
     if (str == null) return const Value.absent();
     if (str == "") return const Value(null);
     return Value(str);
+  }
+
+  Value<int?> _optionalIntValue(int? value) {
+    if (value == null) return const Value.absent();
+    if (value == 0) return const Value(null);
+    return Value(value);
+  }
+
+  Value<Duration?> _optionalDurationValue(int? milliseconds) {
+    if (milliseconds == null) return const Value.absent();
+    if (milliseconds == 0) return const Value(null);
+    return Value(Duration(milliseconds: milliseconds));
   }
 
   Value<String?> _annotationsColumnValue(Map<String, dynamic>? a) {

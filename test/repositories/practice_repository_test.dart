@@ -1619,4 +1619,68 @@ void main() {
     expect(await repo.getRoutineIds(filter: "morn"), [morning]);
     expect(await repo.getRoutineIds(), hasLength(2));
   });
+
+  test("deleteAll wipes every practice table and its tombstones", () async {
+    final tagId = await insertTag("Warmup");
+    await insertScore("a");
+    final categoryId = await insertCategory("Technique");
+    final exerciseId = await createExercise("Scales", category: categoryId);
+    await repo.addExerciseTags(exerciseId, [tagId]);
+    await repo.setExerciseScores(exerciseId, ["a"]);
+    final routineId = await createRoutine("Morning");
+    await repo.addRoutineEntries(routineId, [exerciseId]);
+    await db.managers.practiceSessionsTable.create(
+      (o) => o(id: "session", startedAt: DateTime.now().toUtc()),
+    );
+    await db.managers.practiceSessionEntriesTable.create(
+      (o) => o(id: "session-entry", session: "session", exercise: exerciseId),
+    );
+
+    await repo.deleteCategory(await insertCategory("Gone", position: 1));
+    expect(await db.managers.deletedExerciseCategoriesTable.count(), 1);
+
+    await repo.deleteAll();
+
+    expect(await db.managers.exerciseCategoriesTable.count(), 0);
+    expect(await db.managers.exercisesTable.count(), 0);
+    expect(await db.managers.exerciseTagsTable.count(), 0);
+    expect(await db.managers.exerciseScoresTable.count(), 0);
+    expect(await db.managers.practiceRoutinesTable.count(), 0);
+    expect(await db.managers.practiceRoutineEntriesTable.count(), 0);
+    expect(await db.managers.practiceSessionsTable.count(), 0);
+    expect(await db.managers.practiceSessionEntriesTable.count(), 0);
+    expect(await db.managers.deletedExerciseCategoriesTable.count(), 0);
+    expect(await db.managers.deletedExercisesTable.count(), 0);
+    expect(await db.managers.deletedPracticeRoutinesTable.count(), 0);
+    expect(await db.managers.deletedPracticeSessionsTable.count(), 0);
+
+    // scores and tags are wiped by the scores repository
+    expect(await db.managers.scoresTable.count(), 1);
+    expect(await db.managers.tagsTable.count(), 1);
+  });
+
+  test("deleteAll announces the wiped ids", () async {
+    final categoryId = await insertCategory("Technique");
+    final exerciseId = await createExercise("Scales", category: categoryId);
+    final routineId = await createRoutine("Morning");
+
+    final categories = <Set<String>>[];
+    final exercises = <Set<String>>[];
+    final routines = <Set<String>>[];
+    final subs = [
+      repo.updatedCategoryIds.listen(categories.add),
+      repo.updatedExerciseIds.listen(exercises.add),
+      repo.updatedRoutineIds.listen(routines.add),
+    ];
+
+    await repo.deleteAll();
+    await pumpEventQueue();
+    for (final sub in subs) {
+      await sub.cancel();
+    }
+
+    expect(categories.last, {categoryId});
+    expect(exercises.last, {exerciseId});
+    expect(routines.last, {routineId});
+  });
 }

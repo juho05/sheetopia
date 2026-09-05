@@ -11,6 +11,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:sheetopia/data/repositories/importexport/importexport_repository.dart';
+import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
@@ -19,24 +20,24 @@ class ImportExportViewModel extends ChangeNotifier {
   final SyncRepository _syncRepo;
   final ScoresRepository _scoresRepo;
   final SetlistsRepository _setlistsRepo;
+  final PracticeRepository _practiceRepo;
   final ImportExportRepository _repo;
 
   ImportExportStatus get status => _repo.status;
 
   ImportExportViewModel({
-    required SyncRepository syncRepo,
-    required ScoresRepository scoresRepo,
-    required SetlistsRepository setlistsRepo,
+    required this._syncRepo,
+    required this._scoresRepo,
+    required this._setlistsRepo,
+    required this._practiceRepo,
     required ImportExportRepository importExportRepo,
-  }) : _syncRepo = syncRepo,
-       _scoresRepo = scoresRepo,
-       _setlistsRepo = setlistsRepo,
-       _repo = importExportRepo {
+  }) : _repo = importExportRepo {
     _repo.addListener(notifyListeners);
   }
 
   Future<void> deleteLocalData() async {
     await _syncRepo.logout();
+    await _practiceRepo.deleteAll();
     await _scoresRepo.deleteAll();
     await _setlistsRepo.deleteAllSetlists();
   }
