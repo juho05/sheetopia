@@ -115,6 +115,18 @@ void main() {
     expect(suggestion("Beethoven"), findsNothing);
   });
 
+  testWidgets("a match that only differs in casing stays suggested", (
+    tester,
+  ) async {
+    await tester.pumpWidget(wrap());
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), "beethoven");
+    await tester.pumpAndSettle();
+
+    expect(suggestion("Beethoven"), findsOneWidget);
+  });
+
   testWidgets("tapping a suggestion fills the field and unfocuses it", (
     tester,
   ) async {

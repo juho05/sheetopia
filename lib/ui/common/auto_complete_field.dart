@@ -120,9 +120,7 @@ class _AutoCompleteFieldState extends State<AutoCompleteField> {
     final options = await widget.getOptions(filter);
     if (!mounted || request != _request) return;
     setState(() {
-      _options = options
-          .where((o) => o.toLowerCase() != filter.toLowerCase())
-          .toList();
+      _options = options.where((o) => o != filter).toList();
     });
   }
 
