@@ -15,6 +15,7 @@ import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/utils/tag_sync.dart';
 
 class LibraryViewModel extends ChangeNotifier {
   static const int _pageSize = 100;
@@ -146,15 +147,17 @@ class LibraryViewModel extends ChangeNotifier {
   }
 
   StreamSubscription? _updatedScoresSub;
-  StreamSubscription? _updatedTagsSub;
   StreamSubscription? _lastOpenedSub;
+  late final TagSync _tagSync;
 
   LibraryViewModel({required this._repo}) {
     _updatedScoresSub = _repo.updatedScoreIds.listen((_) => _refresh());
     _lastOpenedSub = _repo.lastOpenedChanged.listen((_) => _refresh());
-    _updatedTagsSub = _repo.updatedTagIds
-        .where((ids) => ids.intersection(_filterTags).isNotEmpty)
-        .listen((_) => _refreshFilterTags());
+    _tagSync = TagSync(
+      repo: _repo,
+      currentTags: () => _filterTags,
+      onChanged: setFilterTags,
+    );
     _refreshCounts();
   }
 
@@ -238,17 +241,10 @@ class LibraryViewModel extends ChangeNotifier {
     );
   }
 
-  Future<void> _refreshFilterTags() async {
-    final newTags = await _repo.getTagsById(_filterTags.map((t) => t.id));
-    _filterTags.clear();
-    _filterTags.addAll(newTags);
-    notifyListeners();
-    _reset();
-  }
-
   Timer? _resetDebounce;
 
   void _reset() {
+    if (_disposed) return;
     _resetDebounce?.cancel();
     _resetDebounce = Timer(const Duration(milliseconds: 50), () async {
       _generation++;
@@ -269,6 +265,14 @@ class LibraryViewModel extends ChangeNotifier {
 
   void removeFilterTag(Tag tag) {
     _filterTags.remove(tag);
+    notifyListeners();
+    _reset();
+  }
+
+  void setFilterTags(Iterable<Tag> tags) {
+    _filterTags
+      ..clear()
+      ..addAll(tags);
     notifyListeners();
     _reset();
   }
@@ -340,7 +344,7 @@ class LibraryViewModel extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _resetDebounce?.cancel();
-    _updatedTagsSub?.cancel();
+    _tagSync.dispose();
     _updatedScoresSub?.cancel();
     _lastOpenedSub?.cancel();
     super.dispose();

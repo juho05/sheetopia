@@ -19,10 +19,9 @@ import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/optional_tooltip.dart';
-import 'package:sheetopia/ui/common/tag_badge.dart';
+import 'package:sheetopia/ui/common/select_tags_list.dart';
+import 'package:sheetopia/ui/common/tag_selector.dart';
 import 'package:sheetopia/ui/common/toast.dart';
-import 'package:sheetopia/ui/edit_score/add_tags_dialog.dart';
-import 'package:sheetopia/ui/edit_score/select_tags_list.dart';
 import 'package:sheetopia/ui/edit_score/source_input_dialog.dart';
 import 'package:sheetopia/ui/practice/category_selector.dart';
 import 'package:sheetopia/ui/practice/edit_exercise_viewmodel.dart';
@@ -132,26 +131,12 @@ class _EditExerciseFormState extends State<EditExerciseForm> {
                       padding: EdgeInsets.only(top: 12, bottom: 4),
                       child: Heading(text: "Tags"),
                     ),
-                    SelectTagsList(
-                      tags: viewModel.tags.map(
-                        (t) => TagBadge(
-                          tag: t,
-                          onRemove: () {
-                            viewModel.removeTag(t);
-                          },
-                        ),
-                      ),
-                      onAdd: () async {
-                        final tags = await AddTagsDialog.show(
-                          context,
-                          alreadySelected: viewModel.tags.toSet(),
-                          enableTagEdits: true,
-                          type: TagType.exercise,
-                          reloadTags: viewModel.reloadExercise,
-                        );
-                        if (tags == null || tags.isEmpty) return;
-                        viewModel.addTags(tags);
-                      },
+                    TagSelector(
+                      tags: viewModel.tags,
+                      type: TagType.exercise,
+                      onAdd: viewModel.addTags,
+                      onRemove: viewModel.removeTag,
+                      onSynced: viewModel.setTags,
                     ),
                   ],
                 ),

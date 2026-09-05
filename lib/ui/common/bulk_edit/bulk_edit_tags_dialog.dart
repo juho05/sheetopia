@@ -6,19 +6,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
-import 'package:sheetopia/ui/common/tag_badge.dart';
-import 'package:sheetopia/ui/edit_score/add_tags_dialog.dart';
-import 'package:sheetopia/ui/edit_score/select_tags_list.dart';
+import 'package:sheetopia/ui/common/tag_selector.dart';
 
 class BulkEditTagsResult {
   final Iterable<String> addIds;
@@ -56,41 +51,12 @@ class _BulkEditTagsDialogState extends State<BulkEditTagsDialog> {
 
   bool get _valid => _addTags.isNotEmpty || _removeTags.isNotEmpty;
 
-  StreamSubscription? _tagsChangedSub;
-
-  @override
-  void initState() {
-    super.initState();
-
-    final repo = context.read<ScoresRepository>();
-    _tagsChangedSub = repo.updatedTagIds.listen((tagIds) async {
-      Set<Tag> newAddTags = _addTags;
-      Set<Tag> newRemoveTags = _removeTags;
-
-      final addTagIds = _addTags.map((t) => t.id).toSet();
-      if (tagIds.intersection(addTagIds).isNotEmpty) {
-        newAddTags = (await repo.getTagsById(addTagIds)).toSet();
-      }
-
-      final removeTagIds = _removeTags.map((t) => t.id).toSet();
-      if (tagIds.intersection(removeTagIds).isNotEmpty) {
-        newRemoveTags = (await repo.getTagsById(removeTagIds)).toSet();
-      }
-
-      if (newAddTags == _addTags && newRemoveTags == _removeTags) return;
-      setState(() {
-        _addTags.clear();
-        _addTags.addAll(newAddTags);
-        _removeTags.clear();
-        _removeTags.addAll(newRemoveTags);
-      });
+  void _setTags(SplayTreeSet<Tag> target, Iterable<Tag> tags) {
+    setState(() {
+      target
+        ..clear()
+        ..addAll(tags);
     });
-  }
-
-  @override
-  void dispose() {
-    _tagsChangedSub?.cancel();
-    super.dispose();
   }
 
   @override
@@ -114,59 +80,41 @@ class _BulkEditTagsDialogState extends State<BulkEditTagsDialog> {
             ],
           ),
           const Heading(text: "Add tags"),
-          SelectTagsList(
-            tags: _addTags.map(
-              (t) => TagBadge(
-                tag: t,
-                onRemove: () {
-                  setState(() {
-                    _addTags.remove(t);
-                  });
-                },
-              ),
-            ),
-            onAdd: () async {
-              final tags = await AddTagsDialog.show(
-                context,
-                alreadySelected: _addTags,
-                enableTagEdits: true,
-                type: widget.type,
-                title: "Add tags",
-              );
-              if (tags == null || tags.isEmpty) return;
+          TagSelector(
+            tags: _addTags,
+            type: widget.type,
+            dialogTitle: "Add tags",
+            onAdd: (tags) {
               setState(() {
                 _removeTags.removeAll(tags);
                 _addTags.addAll(tags);
               });
             },
+            onRemove: (t) {
+              setState(() {
+                _addTags.remove(t);
+              });
+            },
+            onSynced: (tags) => _setTags(_addTags, tags),
           ),
           const SizedBox(height: 4),
           const Heading(text: "Remove tags"),
-          SelectTagsList(
-            tags: _removeTags.map(
-              (t) => TagBadge(
-                tag: t,
-                onRemove: () {
-                  setState(() {
-                    _removeTags.remove(t);
-                  });
-                },
-              ),
-            ),
-            onAdd: () async {
-              final tags = await AddTagsDialog.show(
-                context,
-                alreadySelected: _removeTags,
-                enableTagEdits: true,
-                type: widget.type,
-                title: "Remove tags",
-              );
-              if (tags == null || tags.isEmpty) return;
+          TagSelector(
+            tags: _removeTags,
+            type: widget.type,
+            dialogTitle: "Remove tags",
+            onAdd: (tags) {
               setState(() {
                 _addTags.removeAll(tags);
                 _removeTags.addAll(tags);
               });
             },
+            onRemove: (t) {
+              setState(() {
+                _removeTags.remove(t);
+              });
+            },
+            onSynced: (tags) => _setTags(_removeTags, tags),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,

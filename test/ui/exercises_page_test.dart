@@ -26,6 +26,7 @@ void main() {
 
   late Database db;
   late PracticeRepository repo;
+  late ScoresRepository scoresRepo;
 
   Future<void> createExercise(String name, {String? category}) async {
     await repo.createExercise(
@@ -42,13 +43,8 @@ void main() {
   setUp(() async {
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
-    repo = PracticeRepository(
-      db: db,
-      scoresRepo: ScoresRepository(
-        db: db,
-        thumbnailService: ThumbnailService(),
-      ),
-    );
+    scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
+    repo = PracticeRepository(db: db, scoresRepo: scoresRepo);
   });
 
   tearDown(() async {
@@ -67,8 +63,11 @@ void main() {
     );
     addTearDown(router.dispose);
     await tester.pumpWidget(
-      Provider<PracticeRepository>.value(
-        value: repo,
+      MultiProvider(
+        providers: [
+          Provider<PracticeRepository>.value(value: repo),
+          Provider<ScoresRepository>.value(value: scoresRepo),
+        ],
         child: MaterialApp.router(routerConfig: router),
       ),
     );

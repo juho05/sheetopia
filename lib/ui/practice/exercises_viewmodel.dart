@@ -14,7 +14,9 @@ import 'package:sheetopia/data/repositories/practice/exercise.dart';
 import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
+import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
+import 'package:sheetopia/utils/tag_sync.dart';
 
 typedef ExerciseGroup = ({ExerciseCategory? category, List<Exercise> exercise});
 
@@ -54,9 +56,19 @@ class ExercisesViewModel extends ChangeNotifier {
 
   StreamSubscription? _updatedCategoriesSub;
 
-  ExercisesViewModel({required this._repo}) {
+  late final TagSync _tagSync;
+
+  ExercisesViewModel({
+    required this._repo,
+    required ScoresRepository scoresRepo,
+  }) {
     _updatedExercisesSub = _repo.updatedExerciseIds.listen((_) => _refresh());
     _updatedCategoriesSub = _repo.updatedCategoryIds.listen((_) => _refresh());
+    _tagSync = TagSync(
+      repo: scoresRepo,
+      currentTags: () => _filterTags,
+      onChanged: setFilterTags,
+    );
     _refreshCounts();
   }
 
@@ -151,6 +163,14 @@ class ExercisesViewModel extends ChangeNotifier {
 
   void removeFilterTag(Tag tag) {
     _filterTags.remove(tag);
+    notifyListeners();
+    _reset();
+  }
+
+  void setFilterTags(Iterable<Tag> tags) {
+    _filterTags
+      ..clear()
+      ..addAll(tags);
     notifyListeners();
     _reset();
   }
@@ -271,6 +291,7 @@ class ExercisesViewModel extends ChangeNotifier {
   Timer? _resetDebounce;
 
   void _reset() {
+    if (_disposed) return;
     _resetDebounce?.cancel();
     _resetDebounce = Timer(const Duration(milliseconds: 50), () async {
       _generation++;
@@ -292,6 +313,7 @@ class ExercisesViewModel extends ChangeNotifier {
     _resetDebounce?.cancel();
     _updatedExercisesSub?.cancel();
     _updatedCategoriesSub?.cancel();
+    _tagSync.dispose();
     super.dispose();
   }
 

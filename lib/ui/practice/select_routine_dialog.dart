@@ -46,7 +46,10 @@ class _SelectRoutineDialogState extends State<SelectRoutineDialog> {
   @override
   void initState() {
     super.initState();
-    _viewModel = PracticeRoutinesViewModel(repo: context.read());
+    _viewModel = PracticeRoutinesViewModel(
+      repo: context.read(),
+      scoresRepo: context.read(),
+    );
     _viewModel.loadNextPage();
   }
 

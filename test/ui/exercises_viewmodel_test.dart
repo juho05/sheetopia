@@ -21,6 +21,7 @@ void main() {
 
   late Database db;
   late PracticeRepository repo;
+  late ScoresRepository scoresRepo;
   late ExercisesViewModel viewModel;
 
   Future<String> insertCategory(String name, int position) async {
@@ -60,14 +61,9 @@ void main() {
   setUp(() async {
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
-    repo = PracticeRepository(
-      db: db,
-      scoresRepo: ScoresRepository(
-        db: db,
-        thumbnailService: ThumbnailService(),
-      ),
-    );
-    viewModel = ExercisesViewModel(repo: repo);
+    scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
+    repo = PracticeRepository(db: db, scoresRepo: scoresRepo);
+    viewModel = ExercisesViewModel(repo: repo, scoresRepo: scoresRepo);
   });
 
   tearDown(() async {

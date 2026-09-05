@@ -13,7 +13,9 @@ import 'package:flutter/foundation.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
+import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
+import 'package:sheetopia/utils/tag_sync.dart';
 
 class PracticeRoutinesViewModel extends ChangeNotifier {
   static const int _pageSize = 100;
@@ -59,9 +61,19 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
 
   StreamSubscription? _updatedExercisesSub;
 
-  PracticeRoutinesViewModel({required this._repo}) {
+  late final TagSync _tagSync;
+
+  PracticeRoutinesViewModel({
+    required this._repo,
+    required ScoresRepository scoresRepo,
+  }) {
     _updatedRoutinesSub = _repo.updatedRoutineIds.listen((_) => _refresh());
     _updatedExercisesSub = _repo.updatedExerciseIds.listen((_) => _refresh());
+    _tagSync = TagSync(
+      repo: scoresRepo,
+      currentTags: () => _filterTags,
+      onChanged: setFilterTags,
+    );
     _refreshCounts();
   }
 
@@ -143,6 +155,14 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
 
   void removeFilterTag(Tag tag) {
     _filterTags.remove(tag);
+    notifyListeners();
+    _reset();
+  }
+
+  void setFilterTags(Iterable<Tag> tags) {
+    _filterTags
+      ..clear()
+      ..addAll(tags);
     notifyListeners();
     _reset();
   }
@@ -234,6 +254,7 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
   Timer? _resetDebounce;
 
   void _reset() {
+    if (_disposed) return;
     _resetDebounce?.cancel();
     _resetDebounce = Timer(const Duration(milliseconds: 50), () async {
       _generation++;
@@ -254,6 +275,7 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
     _resetDebounce?.cancel();
     _updatedRoutinesSub?.cancel();
     _updatedExercisesSub?.cancel();
+    _tagSync.dispose();
     super.dispose();
   }
 

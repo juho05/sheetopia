@@ -48,9 +48,10 @@ class EditExerciseViewModel extends ChangeNotifier {
 
   bool get loading => _loading;
 
-  SplayTreeSet<Tag> _tags = SplayTreeSet(
-    (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-  );
+  static int _byName(Tag a, Tag b) =>
+      a.name.toLowerCase().compareTo(b.name.toLowerCase());
+
+  SplayTreeSet<Tag> _tags = SplayTreeSet(_byName);
 
   Iterable<Tag> get tags => _tags;
 
@@ -308,6 +309,11 @@ class EditExerciseViewModel extends ChangeNotifier {
     await _repo.removeExerciseTag(_exerciseId, tag.id);
   }
 
+  void setTags(Iterable<Tag> tags) {
+    _tags = SplayTreeSet.of(tags, _byName);
+    notifyListeners();
+  }
+
   List<String>? _instruments;
 
   Future<Iterable<String>> getInstruments({String filter = ""}) async {
@@ -356,13 +362,6 @@ class EditExerciseViewModel extends ChangeNotifier {
     await _repo.deleteExercise(_exerciseId);
   }
 
-  Future<void> reloadExercise() async {
-    if (_exerciseId == null) return;
-    await _saveValues();
-    await _saveScoreTitles();
-    await _load();
-  }
-
   Future<void> _load() async {
     if (_exerciseId == null) return;
     _instruments = null;
@@ -373,10 +372,7 @@ class EditExerciseViewModel extends ChangeNotifier {
       _category = exercise.category;
       _source = exercise.source;
       _sourceLink = exercise.sourceLink;
-      _tags = SplayTreeSet.of(
-        exercise.tags,
-        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-      );
+      _tags = SplayTreeSet.of(exercise.tags, _byName);
       form.updateValue({
         formName: exercise.name,
         formDescription: exercise.description,

@@ -17,13 +17,12 @@ import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/optional_tooltip.dart';
-import 'package:sheetopia/ui/common/tag_badge.dart';
-import 'package:sheetopia/ui/edit_score/add_tags_dialog.dart';
+import 'package:sheetopia/ui/common/select_tags_list.dart';
+import 'package:sheetopia/ui/common/tag_selector.dart';
 import 'package:sheetopia/ui/edit_score/auto_complete_input_dialog.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_form_viewmodel.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_viewmodel.dart';
 import 'package:sheetopia/ui/edit_score/nextdonedelete_button.dart';
-import 'package:sheetopia/ui/edit_score/select_tags_list.dart';
 import 'package:sheetopia/ui/edit_score/source_input_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -166,26 +165,12 @@ class _EditScoreFormState extends State<EditScoreForm> {
                           padding: EdgeInsets.only(top: 12, bottom: 4),
                           child: Heading(text: "Tags"),
                         ),
-                        SelectTagsList(
-                          tags: viewModel.tags.map(
-                            (t) => TagBadge(
-                              tag: t,
-                              onRemove: () {
-                                viewModel.removeTag(t);
-                              },
-                            ),
-                          ),
-                          onAdd: () async {
-                            final tags = await AddTagsDialog.show(
-                              context,
-                              alreadySelected: viewModel.tags.toSet(),
-                              enableTagEdits: true,
-                              type: TagType.score,
-                              reloadTags: viewModel.reloadScore,
-                            );
-                            if (tags == null || tags.isEmpty) return;
-                            viewModel.addTags(tags);
-                          },
+                        TagSelector(
+                          tags: viewModel.tags,
+                          type: TagType.score,
+                          onAdd: viewModel.addTags,
+                          onRemove: viewModel.removeTag,
+                          onSynced: viewModel.setTags,
                         ),
                         Padding(
                           padding: const EdgeInsets.only(top: 18, bottom: 4),

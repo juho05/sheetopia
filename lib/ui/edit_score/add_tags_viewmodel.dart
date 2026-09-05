@@ -21,8 +21,6 @@ class AddTagsViewModel extends ChangeNotifier {
 
   final Set<Tag> _scoreTags;
 
-  Set<Tag> get scoreTags => UnmodifiableSetView(_scoreTags);
-
   List<Tag> _results = [];
 
   List<Tag> get results => UnmodifiableListView(_results);
@@ -72,8 +70,17 @@ class AddTagsViewModel extends ChangeNotifier {
   }
 
   Future<void> editedTag() async {
+    await _refreshSelected();
     await _loadTags(_currentFilter);
     notifyListeners();
+  }
+
+  Future<void> _refreshSelected() async {
+    if (_selected.isEmpty) return;
+    final tags = await _repo.getTagsById(_selected.map((t) => t.id));
+    _selected
+      ..clear()
+      ..addAll(tags);
   }
 
   Future<void> _loadTags(String filter) async {
@@ -96,7 +103,6 @@ class AddTagsViewModel extends ChangeNotifier {
   }
 
   Future<void> deleteTag(Tag t) async {
-    _selected.remove(t);
     await _repo.deleteTag(t.id);
     await editedTag();
   }

@@ -24,9 +24,10 @@ class EditScoreFormViewModel extends ChangeNotifier {
 
   Score get score => _score;
 
-  SplayTreeSet<Tag> _tags = SplayTreeSet(
-    (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-  );
+  static int _byName(Tag a, Tag b) =>
+      a.name.toLowerCase().compareTo(b.name.toLowerCase());
+
+  SplayTreeSet<Tag> _tags = SplayTreeSet(_byName);
 
   Iterable<Tag> get tags => _tags;
 
@@ -126,6 +127,11 @@ class EditScoreFormViewModel extends ChangeNotifier {
     await _repo.removeScoreTag(score.id, tag.id);
   }
 
+  void setTags(Iterable<Tag> tags) {
+    _tags = SplayTreeSet.of(tags, _byName);
+    notifyListeners();
+  }
+
   Future<Iterable<String>> getInstruments({String filter = ""}) async {
     return await _repo.getInstruments(
       filter: filter,
@@ -169,10 +175,7 @@ class EditScoreFormViewModel extends ChangeNotifier {
       _score = _editScoreViewModel.score!;
       // tags need to be updated because they might have been edited outside of
       // this view model, e.g. in the edit tags dialog
-      _tags = SplayTreeSet.of(
-        score.tags,
-        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-      );
+      _tags = SplayTreeSet.of(score.tags, _byName);
       _source = _score.source;
       _sourceLink = _score.sourceLink;
       notifyListeners();
@@ -195,10 +198,7 @@ class EditScoreFormViewModel extends ChangeNotifier {
     });
     _instruments = SplayTreeSet.of(score.instruments);
     _genres = SplayTreeSet.of(score.genres);
-    _tags = SplayTreeSet.of(
-      score.tags,
-      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-    );
+    _tags = SplayTreeSet.of(score.tags, _byName);
 
     notifyListeners();
   }

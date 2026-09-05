@@ -49,7 +49,7 @@ class _SelectExercisesDialogState extends State<SelectExercisesDialog> {
     super.initState();
     _repo = context.read();
     _scoresRepo = context.read();
-    _viewModel = ExercisesViewModel(repo: _repo);
+    _viewModel = ExercisesViewModel(repo: _repo, scoresRepo: _scoresRepo);
   }
 
   Future<void> _createFromScores() async {

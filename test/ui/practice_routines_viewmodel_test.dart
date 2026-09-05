@@ -26,6 +26,7 @@ void main() {
 
   late Database db;
   late PracticeRepository repo;
+  late ScoresRepository scoresRepo;
   late PracticeRoutinesViewModel viewModel;
 
   Future<Tag> insertTag(String name) async {
@@ -89,14 +90,9 @@ void main() {
   setUp(() async {
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
-    repo = PracticeRepository(
-      db: db,
-      scoresRepo: ScoresRepository(
-        db: db,
-        thumbnailService: ThumbnailService(),
-      ),
-    );
-    viewModel = PracticeRoutinesViewModel(repo: repo);
+    scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
+    repo = PracticeRepository(db: db, scoresRepo: scoresRepo);
+    viewModel = PracticeRoutinesViewModel(repo: repo, scoresRepo: scoresRepo);
   });
 
   tearDown(() async {
@@ -150,7 +146,7 @@ void main() {
     // the counts are refreshed on repository updates, so a viewmodel created
     // before the routines exist would still report the old totals
     viewModel.dispose();
-    viewModel = PracticeRoutinesViewModel(repo: repo);
+    viewModel = PracticeRoutinesViewModel(repo: repo, scoresRepo: scoresRepo);
     await viewModel.loadNextPage();
     await Future.delayed(const Duration(milliseconds: 50));
 

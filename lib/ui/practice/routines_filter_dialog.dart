@@ -12,9 +12,7 @@ import 'package:sheetopia/ui/common/auto_complete_field.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/match_type_selector.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
-import 'package:sheetopia/ui/common/tag_badge.dart';
-import 'package:sheetopia/ui/edit_score/add_tags_dialog.dart';
-import 'package:sheetopia/ui/edit_score/select_tags_list.dart';
+import 'package:sheetopia/ui/common/tag_selector.dart';
 import 'package:sheetopia/ui/practice/practice_routines_viewmodel.dart';
 
 class RoutinesFilterDialog extends StatefulWidget {
@@ -70,19 +68,6 @@ class _RoutinesFilterDialogState extends State<RoutinesFilterDialog> {
     if (_viewModel.filterSource.isEmpty && _sourceController.text.isNotEmpty) {
       _sourceController.clear();
     }
-  }
-
-  Future<void> _addTags() async {
-    final tags = await AddTagsDialog.show(
-      context,
-      alreadySelected: _viewModel.filterTags.toSet(),
-      enableTagEdits: false,
-      type: TagType.exercise,
-      title: "Select tags",
-      addBtnText: "Select",
-    );
-    if (tags == null || tags.isEmpty) return;
-    _viewModel.addFilterTags(tags);
   }
 
   @override
@@ -174,14 +159,15 @@ class _RoutinesFilterDialogState extends State<RoutinesFilterDialog> {
                     ],
                   ),
                 ),
-                SelectTagsList(
-                  tags: _viewModel.filterTags.map(
-                    (t) => TagBadge(
-                      tag: t,
-                      onRemove: () => _viewModel.removeFilterTag(t),
-                    ),
-                  ),
-                  onAdd: _addTags,
+                TagSelector(
+                  tags: _viewModel.filterTags,
+                  type: TagType.exercise,
+                  enableCreateTagFromSearch: false,
+                  dialogTitle: "Select tags",
+                  addBtnText: "Select",
+                  onAdd: _viewModel.addFilterTags,
+                  onRemove: _viewModel.removeFilterTag,
+                  onSynced: _viewModel.setFilterTags,
                 ),
                 const SizedBox(height: 4),
                 Row(

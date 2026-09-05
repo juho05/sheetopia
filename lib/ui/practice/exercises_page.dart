@@ -36,7 +36,10 @@ class _ExercisesPageState extends State<ExercisesPage> {
   @override
   void initState() {
     super.initState();
-    _viewModel = ExercisesViewModel(repo: context.read());
+    _viewModel = ExercisesViewModel(
+      repo: context.read(),
+      scoresRepo: context.read(),
+    );
   }
 
   @override

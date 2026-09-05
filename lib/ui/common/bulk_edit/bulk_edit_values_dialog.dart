@@ -13,7 +13,7 @@ import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/edit_score/auto_complete_input_dialog.dart';
-import 'package:sheetopia/ui/edit_score/select_tags_list.dart';
+import 'package:sheetopia/ui/common/select_tags_list.dart';
 
 typedef GetValueOptions =
     Future<Iterable<String>> Function(String filter, Iterable<String> exclude);

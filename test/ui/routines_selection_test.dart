@@ -30,6 +30,7 @@ void main() {
 
   late Database db;
   late PracticeRepository repo;
+  late ScoresRepository scoresRepo;
   late PracticeRoutinesViewModel viewModel;
   late SelectionModel selection;
 
@@ -53,13 +54,8 @@ void main() {
   setUp(() async {
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
-    repo = PracticeRepository(
-      db: db,
-      scoresRepo: ScoresRepository(
-        db: db,
-        thumbnailService: ThumbnailService(),
-      ),
-    );
+    scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
+    repo = PracticeRepository(db: db, scoresRepo: scoresRepo);
     selection = SelectionModel();
   });
 
@@ -77,7 +73,7 @@ void main() {
   Future<void> pumpRoutines(WidgetTester tester) async {
     // the view model must be built inside the test zone so its queries
     // are not stuck behind the drift lock
-    viewModel = PracticeRoutinesViewModel(repo: repo);
+    viewModel = PracticeRoutinesViewModel(repo: repo, scoresRepo: scoresRepo);
     addTearDown(viewModel.dispose);
     tester.view.physicalSize = const Size(800, 1400);
     tester.view.devicePixelRatio = 1;
@@ -126,8 +122,11 @@ void main() {
     );
     addTearDown(router.dispose);
     await tester.pumpWidget(
-      Provider<PracticeRepository>.value(
-        value: repo,
+      MultiProvider(
+        providers: [
+          Provider<PracticeRepository>.value(value: repo),
+          Provider<ScoresRepository>.value(value: scoresRepo),
+        ],
         child: MaterialApp.router(routerConfig: router),
       ),
     );

@@ -21,27 +21,27 @@ import 'package:sheetopia/ui/edit_score/edit_tag_dialog.dart';
 
 class AddTagsDialog extends StatelessWidget {
   final AddTagsViewModel viewModel;
-  final void Function()? reloadTagsCallback;
   final String title;
   final String addBtnText;
-  final bool enableTagEdits;
+  final bool enableTagManagement;
+  final bool enableCreateTagFromSearch;
   final TagType type;
 
   const AddTagsDialog._({
     required this.viewModel,
-    required this.enableTagEdits,
+    required this.enableCreateTagFromSearch,
     required this.type,
+    this.enableTagManagement = true,
     this.title = "Add tags",
     this.addBtnText = "Add",
-    this.reloadTagsCallback,
   });
 
   static Future<List<Tag>?> show(
     BuildContext context, {
-    required bool enableTagEdits,
     required TagType type,
+    required bool enableCreateTagFromSearch,
+    bool enableTagManagement = true,
     Set<Tag> alreadySelected = const {},
-    void Function()? reloadTags,
     String title = "Add tags",
     String addBtnText = "Add",
   }) async {
@@ -54,8 +54,8 @@ class AddTagsDialog extends StatelessWidget {
       context: context,
       builder: (context) => AddTagsDialog._(
         viewModel: viewModel,
-        reloadTagsCallback: reloadTags,
-        enableTagEdits: enableTagEdits,
+        enableTagManagement: enableTagManagement,
+        enableCreateTagFromSearch: enableCreateTagFromSearch,
         type: type,
         title: title,
         addBtnText: addBtnText,
@@ -71,9 +71,10 @@ class AddTagsDialog extends StatelessWidget {
         listenable: viewModel,
         builder: (context, child) {
           final showCreate =
-              enableTagEdits && viewModel.currentFilter.isNotEmpty;
+              (viewModel.manageTagsMode || enableCreateTagFromSearch) &&
+              viewModel.currentFilter.isNotEmpty;
           return PopScope(
-            canPop: !viewModel.manageTagsMode || !enableTagEdits,
+            canPop: !viewModel.manageTagsMode,
             onPopInvokedWithResult: (didPop, result) {
               if (!didPop && viewModel.manageTagsMode) {
                 viewModel.exitManageTagsMode();
@@ -102,7 +103,7 @@ class AddTagsDialog extends StatelessWidget {
                           icon: const Icon(Icons.arrow_back),
                         ),
                       ),
-                    if (!viewModel.manageTagsMode && enableTagEdits)
+                    if (!viewModel.manageTagsMode && enableTagManagement)
                       Align(
                         alignment: AlignmentGeometry.topRight,
                         child: IconButton(
@@ -113,7 +114,9 @@ class AddTagsDialog extends StatelessWidget {
                   ],
                 ),
                 SearchInput(
-                  label: enableTagEdits ? "Search or create" : "Search",
+                  label: viewModel.manageTagsMode || enableCreateTagFromSearch
+                      ? "Search or create"
+                      : "Search",
                   debounce: const Duration(milliseconds: 50),
                   onSearch: (query) {
                     viewModel.filter(query);
@@ -203,9 +206,6 @@ class AddTagsDialog extends StatelessWidget {
                                           );
                                       if (!edited) return;
                                       await viewModel.editedTag();
-                                      if (viewModel.scoreTags.contains(t)) {
-                                        reloadTagsCallback?.call();
-                                      }
                                     },
                                     onDelete: () async {
                                       final confirmation =
@@ -229,7 +229,7 @@ class AddTagsDialog extends StatelessWidget {
                           )
                         : Center(
                             child: Text(
-                              enableTagEdits
+                              viewModel.manageTagsMode || enableCreateTagFromSearch
                                   ? "Use the search bar to create a new tag."
                                   : "No tags found.",
                               textAlign: TextAlign.center,

@@ -58,7 +58,10 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _libraryViewModel = LibraryViewModel(repo: context.read());
     _setlistsViewModel = SetlistsViewModel(repo: context.read());
-    _routinesViewModel = PracticeRoutinesViewModel(repo: context.read());
+    _routinesViewModel = PracticeRoutinesViewModel(
+      repo: context.read(),
+      scoresRepo: context.read(),
+    );
   }
 
   @override
