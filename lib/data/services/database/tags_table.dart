@@ -7,15 +7,43 @@
  */
 
 import 'package:drift/drift.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:sheetopia/data/services/database/exercises_table.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 
-enum TagType {
-  @JsonValue("score")
-  score,
-  @JsonValue("exercise")
-  exercise,
+class TagType {
+  static const score = TagType._("score");
+  static const exercise = TagType._("exercise");
+
+  static const known = [score, exercise];
+
+  final String name;
+
+  const TagType._(this.name);
+
+  factory TagType.byName(String name) =>
+      known.firstWhere((t) => t.name == name, orElse: () => TagType._(name));
+
+  bool get isKnown => known.contains(this);
+
+  @override
+  bool operator ==(Object other) => other is TagType && other.name == name;
+
+  @override
+  int get hashCode => name.hashCode;
+
+  @override
+  String toString() => name;
+}
+
+class TagTypeConverter extends TypeConverter<TagType, String>
+    with JsonTypeConverter<TagType, String> {
+  const TagTypeConverter();
+
+  @override
+  TagType fromSql(String fromDb) => TagType.byName(fromDb);
+
+  @override
+  String toSql(TagType value) => value.name;
 }
 
 class TagsTable extends Table {
@@ -25,9 +53,9 @@ class TagsTable extends Table {
   late final updatedAt = dateTime().clientDefault(
     () => DateTime.now().toUtc(),
   )();
-  late final type = textEnum<TagType>().withDefault(
-    Constant(TagType.score.name),
-  )();
+  late final type = text()
+      .map(const TagTypeConverter())
+      .withDefault(Constant(TagType.score.name))();
 
   // non-null means the row was restored by an import and the server has not accepted the restore
   late final writtenAt = dateTime().nullable()();

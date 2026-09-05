@@ -466,7 +466,7 @@ class $ScoresTableTable extends ScoresTable
   static JsonTypeConverter2<FileType, String, String> $converterfileType =
       const EnumNameConverter<FileType>(FileType.values);
   static JsonTypeConverter2<ScoreType, String, String> $convertertype =
-      const EnumNameConverter<ScoreType>(ScoreType.values);
+      const ScoreTypeConverter();
 }
 
 class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
@@ -1615,7 +1615,7 @@ class $TagsTableTable extends TagsTable
   }
 
   static JsonTypeConverter2<TagType, String, String> $convertertype =
-      const EnumNameConverter<TagType>(TagType.values);
+      const TagTypeConverter();
 }
 
 class TagsTableData extends DataClass implements Insertable<TagsTableData> {

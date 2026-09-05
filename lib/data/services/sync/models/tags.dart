@@ -11,13 +11,18 @@ import 'package:sheetopia/data/services/database/tags_table.dart';
 
 part 'tags.g.dart';
 
+TagType? _typeFromJson(String? name) =>
+    name == null ? null : TagType.byName(name);
+
+String? _typeToJson(TagType? type) => type?.name;
+
 @JsonSerializable()
 class TagModel {
   final String id;
   final String name;
   final int color;
 
-  @JsonKey(includeIfNull: false, unknownEnumValue: TagType.score)
+  @JsonKey(includeIfNull: false, fromJson: _typeFromJson, toJson: _typeToJson)
   final TagType? type;
 
   final DateTime updatedAt;

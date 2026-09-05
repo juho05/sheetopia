@@ -43,14 +43,37 @@ void main() {
     expect(ScoreModel.fromJson(scoreJson(const {})).type, isNull);
   });
 
-  test("a type from a newer client falls back to the known one", () {
+  test("a type from a newer client is retained", () {
+    final tagType = TagModel.fromJson(
+      tagJson(const {"type": "from-the-future"}),
+    ).type;
+    final scoreType = ScoreModel.fromJson(
+      scoreJson(const {"type": "from-the-future"}),
+    ).type;
+
+    expect(tagType, TagType.byName("from-the-future"));
+    expect(tagType, isNot(TagType.score));
+    expect(tagType, isNot(TagType.exercise));
+    expect(tagType!.isKnown, isFalse);
+
+    expect(scoreType, ScoreType.byName("from-the-future"));
+    expect(scoreType, isNot(ScoreType.score));
+    expect(scoreType, isNot(ScoreType.exercise));
+    expect(scoreType!.isKnown, isFalse);
+  });
+
+  test("an unknown type is sent back unchanged", () {
     expect(
-      TagModel.fromJson(tagJson(const {"type": "from-the-future"})).type,
-      TagType.score,
+      TagModel.fromJson(
+        tagJson(const {"type": "from-the-future"}),
+      ).toJson()["type"],
+      "from-the-future",
     );
     expect(
-      ScoreModel.fromJson(scoreJson(const {"type": "from-the-future"})).type,
-      ScoreType.score,
+      ScoreModel.fromJson(
+        scoreJson(const {"type": "from-the-future"}),
+      ).toJson()["type"],
+      "from-the-future",
     );
   });
 

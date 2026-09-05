@@ -48,9 +48,9 @@ class ScoresTable extends Table {
 
   late final annotations = text().nullable()();
 
-  late final type = textEnum<ScoreType>().withDefault(
-    Constant(ScoreType.score.name),
-  )();
+  late final type = text()
+      .map(const ScoreTypeConverter())
+      .withDefault(Constant(ScoreType.score.name))();
 
   @override
   Set<Column<Object>>? get primaryKey => {id};
@@ -64,11 +64,40 @@ enum FileType {
   pdf,
 }
 
-enum ScoreType {
-  @JsonValue("score")
-  score,
-  @JsonValue("exercise")
-  exercise,
+class ScoreType {
+  static const score = ScoreType._("score");
+  static const exercise = ScoreType._("exercise");
+
+  static const known = [score, exercise];
+
+  final String name;
+
+  const ScoreType._(this.name);
+
+  factory ScoreType.byName(String name) =>
+      known.firstWhere((t) => t.name == name, orElse: () => ScoreType._(name));
+
+  bool get isKnown => known.contains(this);
+
+  @override
+  bool operator ==(Object other) => other is ScoreType && other.name == name;
+
+  @override
+  int get hashCode => name.hashCode;
+
+  @override
+  String toString() => name;
+}
+
+class ScoreTypeConverter extends TypeConverter<ScoreType, String>
+    with JsonTypeConverter<ScoreType, String> {
+  const ScoreTypeConverter();
+
+  @override
+  ScoreType fromSql(String fromDb) => ScoreType.byName(fromDb);
+
+  @override
+  String toSql(ScoreType value) => value.name;
 }
 
 FileType? fileTypeFromExtension(String ext) {

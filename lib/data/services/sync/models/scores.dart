@@ -12,6 +12,11 @@ import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 
 part 'scores.g.dart';
 
+ScoreType? _typeFromJson(String? name) =>
+    name == null ? null : ScoreType.byName(name);
+
+String? _typeToJson(ScoreType? type) => type?.name;
+
 @JsonSerializable()
 class ScoreModel {
   final String id;
@@ -22,7 +27,7 @@ class ScoreModel {
   final List<String> tagIds;
   final ScoreMetadataModel metadata;
 
-  @JsonKey(includeIfNull: false, unknownEnumValue: ScoreType.score)
+  @JsonKey(includeIfNull: false, fromJson: _typeFromJson, toJson: _typeToJson)
   final ScoreType? type;
 
   ScoreModel({

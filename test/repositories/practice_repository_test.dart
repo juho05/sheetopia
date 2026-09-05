@@ -768,6 +768,20 @@ void main() {
     ]);
   });
 
+  test("unlinking a score of an unknown type keeps it", () async {
+    await insertScore("future", type: ScoreType.byName("from-the-future"));
+    final id = await createExercise("Chromatic");
+    await repo.setExerciseScores(id, ["future"]);
+
+    await repo.setExerciseScores(id, []);
+
+    expect(
+      await db.managers.scoresTable.filter((f) => f.id("future")).exists(),
+      isTrue,
+    );
+    expect(await db.managers.deletedScoresTable.get(), isEmpty);
+  });
+
   test("an owned score kept in the list survives a reorder", () async {
     await insertScore("a");
     await insertScore("owned", type: ScoreType.exercise);

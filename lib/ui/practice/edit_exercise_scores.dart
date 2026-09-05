@@ -359,9 +359,9 @@ class _ScoreListItemState extends State<_ScoreListItem> {
                                         },
                                         child:
                                             widget.entry.score.type ==
-                                                ScoreType.score
-                                            ? const Text("Unlink")
-                                            : const Text("Delete"),
+                                                ScoreType.exercise
+                                            ? const Text("Delete")
+                                            : const Text("Unlink"),
                                       ),
                                     ],
                                   ),

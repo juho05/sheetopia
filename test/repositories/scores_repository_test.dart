@@ -248,6 +248,22 @@ void main() {
     expect((await repo.getTags()).length, 2);
   });
 
+  test("tags of an unknown type are stored and listed separately", () async {
+    final future = await repo.createTag(
+      name: "Future",
+      color: Colors.red,
+      type: TagType.byName("from-the-future"),
+    );
+
+    expect((await repo.getTagsById([future.id])).single.type.isKnown, isFalse);
+    expect(await repo.getTags(type: TagType.score), isEmpty);
+    expect(await repo.getTags(type: TagType.exercise), isEmpty);
+    expect(
+      (await repo.getTags(type: TagType.byName("from-the-future"))).single.id,
+      future.id,
+    );
+  });
+
   test("the type narrows a filtered tag search", () async {
     await repo.createTag(
       name: "Warmup",
@@ -336,12 +352,7 @@ void main() {
 
   test("renaming a score keeps its composer in the search text", () async {
     await insertScore("a", type: ScoreType.exercise);
-    await repo.updateScore(
-      "a",
-      title: "Title a",
-      composer: "Bach",
-      notes: "",
-    );
+    await repo.updateScore("a", title: "Title a", composer: "Bach", notes: "");
 
     await repo.updateScoreTitle("a", "Etude");
 
@@ -353,6 +364,35 @@ void main() {
     expect(row.searchText, " etude bach ");
     expect(row.metadataUploaded, isFalse);
     expect(await repo.getScoreIds(filter: "etude"), ["a"]);
+  });
+
+  test("an unknown score type is stored and read back unchanged", () async {
+    await insertScore("future", type: ScoreType.byName("from-the-future"));
+
+    final score = (await repo.getScore("future"))!;
+
+    expect(score.type, ScoreType.byName("from-the-future"));
+    expect(score.type.isKnown, isFalse);
+  });
+
+  test("scores of an unknown type are hidden from the library", () async {
+    await insertScore("plain");
+    await insertScore("future", type: ScoreType.byName("from-the-future"));
+
+    final scores = await repo.getScores(size: 10, type: ScoreType.score);
+
+    expect(scores.map((s) => s.id), ["plain"]);
+    expect(await repo.getScoreIds(type: ScoreType.score), ["plain"]);
+    expect(await repo.countScores(type: ScoreType.score), 1);
+  });
+
+  test("abandoned scores of an unknown type are kept", () async {
+    await insertScore("future", type: ScoreType.byName("from-the-future"));
+
+    await repo.deleteAbandonedScores();
+
+    expect(await repo.getScore("future"), isNotNull);
+    expect(await db.managers.deletedScoresTable.get(), isEmpty);
   });
 
   test("nothing is deleted when every exercise score is linked", () async {
