@@ -58,6 +58,12 @@ class PracticeSessionEntriesTable extends Table {
   late final exercise = text()();
   late final routineEntry = text().nullable()();
 
+  // the entry only holds time practiced on the local day of startedAt, a
+  // stopwatch running over midnight is split into a second entry
+  late final startedAt = dateTime().clientDefault(
+    () => DateTime.now().toUtc(),
+  )();
+
   // only the time folded in by the last checkpoint, see runningSince
   late final duration = integer()
       .map(const DurationConverter())

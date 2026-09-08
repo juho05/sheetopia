@@ -27,6 +27,7 @@ import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/practice/exercise_card.dart';
 import 'package:sheetopia/ui/practice/exercise_play_page.dart';
+import 'package:sheetopia/ui/practice/practice_stopwatch.dart';
 
 class _FakePathProvider extends PathProviderPlatform
     with MockPlatformInterfaceMixin {
@@ -162,6 +163,61 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    testWidgets("time in the session offers resuming or practicing again", (
+      tester,
+    ) async {
+      final exerciseId = await repo.createExercise(
+        name: "Long tones",
+        description: "",
+        instrument: "",
+        source: "",
+        sourceLink: "",
+        tagIds: const [],
+      );
+      final session = await repo.startSession();
+      final entry = await repo.startSessionEntry(
+        sessionId: session.id,
+        exerciseId: exerciseId,
+      );
+      await repo.checkpointSessionEntry(
+        entry,
+        now: entry.runningSince!.add(const Duration(minutes: 6)),
+        stop: true,
+      );
+
+      await pumpPage(tester, exerciseId);
+
+      expect(find.text("6:00 practiced"), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, "Resume"), findsOneWidget);
+      expect(
+        find.widgetWithText(OutlinedButton, "Practice again"),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.widgetWithText(OutlinedButton, "Practice again"));
+      await tester.pumpAndSettle();
+
+      final sessions = await db.managers.practiceSessionsTable.get();
+      expect(sessions, hasLength(2), reason: "a new session was opened");
+      expect(find.byType(PracticeStopwatch), findsOneWidget);
+    });
+
+    testWidgets("a fresh exercise only offers starting", (tester) async {
+      final exerciseId = await repo.createExercise(
+        name: "Long tones",
+        description: "",
+        instrument: "",
+        source: "",
+        sourceLink: "",
+        tagIds: const [],
+      );
+
+      await pumpPage(tester, exerciseId);
+
+      expect(find.widgetWithText(FilledButton, "Start"), findsOneWidget);
+      expect(find.text("Practice again"), findsNothing);
+    });
+
     testWidgets("an exercise without scores is played as a card", (
       tester,
     ) async {
@@ -175,6 +231,8 @@ void main() {
       );
 
       await pumpPage(tester, exerciseId);
+      await tester.tap(find.widgetWithText(FilledButton, "Start"));
+      await tester.pumpAndSettle();
 
       expect(find.byType(ExerciseCard), findsOneWidget);
       expect(find.text("Long tones"), findsOneWidget);

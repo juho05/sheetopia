@@ -13,6 +13,7 @@ import 'package:rxdart/rxdart.dart';
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
 import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
+import 'package:sheetopia/data/repositories/practice/practice_session.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
@@ -53,6 +54,16 @@ class PracticeRepository {
       _updatedRoutineIds.stream.map((event) => event.changed);
 
   Stream<Set<String>> get locallyUpdatedRoutineIds => _updatedRoutineIds.stream
+      .where((event) => event.needsUpload)
+      .map((event) => event.changed);
+
+  final BehaviorSubject<({Set<String> changed, bool needsUpload})>
+  _updatedSessionIds = BehaviorSubject();
+
+  Stream<Set<String>> get updatedSessionIds =>
+      _updatedSessionIds.stream.map((event) => event.changed);
+
+  Stream<Set<String>> get locallyUpdatedSessionIds => _updatedSessionIds.stream
       .where((event) => event.needsUpload)
       .map((event) => event.changed);
 
@@ -1371,10 +1382,385 @@ class PracticeRepository {
     }
   }
 
+  /// A session for an exercise practiced outside a routine is resumed as long
+  /// as the last one is not older than this.
+  static const Duration adHocSessionWindow = Duration(minutes: 30);
+
+  /// A routine session is resumed when it started today or its last activity is
+  /// within max(target duration * 2, minRoutineSessionWindow).
+  static const Duration minRoutineSessionWindow = Duration(hours: 3);
+
+  DateTime _startOfDay(DateTime time) =>
+      DateTime(time.year, time.month, time.day);
+
+  bool _sameDay(DateTime a, DateTime b) => _startOfDay(a) == _startOfDay(b);
+
+  PracticeSessionEntry _toSessionEntry(PracticeSessionEntriesTableData row) =>
+      PracticeSessionEntry(
+        id: row.id,
+        sessionId: row.session,
+        exerciseId: row.exercise,
+        routineEntryId: row.routineEntry,
+        startedAt: row.startedAt.toLocal(),
+        duration: row.duration,
+        runningSince: row.runningSince?.toLocal(),
+      );
+
+  Future<PracticeSession> _toSession(PracticeSessionsTableData row) async {
+    final entries =
+        await (_db.select(_db.practiceSessionEntriesTable)
+              ..where((t) => t.session.equals(row.id))
+              ..orderBy([(t) => OrderingTerm.asc(t.startedAt)]))
+            .get();
+    return PracticeSession(
+      id: row.id,
+      startedAt: row.startedAt.toLocal(),
+      endedAt: row.endedAt?.toLocal(),
+      routineId: row.routine,
+      entries: entries.map(_toSessionEntry).toList(),
+    );
+  }
+
+  Future<PracticeSession?> getSession(String sessionId) async {
+    final row = await _db.managers.practiceSessionsTable
+        .filter((f) => f.id(sessionId))
+        .getSingleOrNull();
+    if (row == null) return null;
+    return _toSession(row);
+  }
+
+  Future<PracticeSession?> getLatestSession({String? routineId}) async {
+    final query = _db.select(_db.practiceSessionsTable)
+      ..where(
+        (t) => routineId == null
+            ? t.routine.isNull()
+            : t.routine.equals(routineId),
+      )
+      ..orderBy([(t) => OrderingTerm.desc(t.startedAt)])
+      ..limit(1);
+    final row = await query.getSingleOrNull();
+    if (row == null) return null;
+    return _toSession(row);
+  }
+
+  bool _resumable(
+    PracticeSession session, {
+    required Duration routineTarget,
+    DateTime? now,
+  }) {
+    now ??= DateTime.now();
+    if (session.runningEntry != null) return true;
+    if (session.routineId == null) {
+      return now.difference(session.lastActivity) <= adHocSessionWindow;
+    }
+    if (_sameDay(session.startedAt, now)) return true;
+    final doubleTarget = routineTarget * 2;
+    final window = doubleTarget > minRoutineSessionWindow
+        ? doubleTarget
+        : minRoutineSessionWindow;
+    return now.difference(session.lastActivity) < window;
+  }
+
+  Future<PracticeSession?> getCurrentSession({
+    String? routineId,
+    Duration routineTarget = Duration.zero,
+    DateTime? now,
+  }) async {
+    final latest = await getLatestSession(routineId: routineId);
+    if (latest == null) return null;
+    return _resumable(latest, routineTarget: routineTarget, now: now)
+        ? latest
+        : null;
+  }
+
+  Future<PracticeSession> resumeOrStartSession({
+    String? routineId,
+    Duration routineTarget = Duration.zero,
+    DateTime? now,
+  }) async {
+    return await getCurrentSession(
+          routineId: routineId,
+          routineTarget: routineTarget,
+          now: now,
+        ) ??
+        await startSession(routineId: routineId);
+  }
+
+  Future<PracticeSession> startSession({String? routineId}) async {
+    final sessionId = _db.newId();
+    final startedAt = DateTime.now();
+    await _db.managers.practiceSessionsTable.create(
+      (o) => o(
+        id: sessionId,
+        startedAt: startedAt.toUtc(),
+        routine: Value(routineId),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+    _updatedSessionIds.add((changed: {sessionId}, needsUpload: true));
+    return PracticeSession(
+      id: sessionId,
+      startedAt: startedAt,
+      endedAt: null,
+      routineId: routineId,
+    );
+  }
+
+  Future<PracticeSession> startNewSession({
+    String? routineId,
+    Duration routineTarget = Duration.zero,
+  }) async {
+    final current = await getCurrentSession(
+      routineId: routineId,
+      routineTarget: routineTarget,
+    );
+    if (current == null) return startSession(routineId: routineId);
+    if (current.entries.isEmpty) return current;
+    for (final entry in current.entries.where((e) => e.running)) {
+      await checkpointSessionEntry(entry, now: entry.runningSince, stop: true);
+    }
+    await endSession(current.id);
+    return startSession(routineId: routineId);
+  }
+
+  Future<PracticeSessionEntry?> _getSessionEntry(String entryId) async {
+    final row = await _db.managers.practiceSessionEntriesTable
+        .filter((f) => f.id(entryId))
+        .getSingleOrNull();
+    return row == null ? null : _toSessionEntry(row);
+  }
+
+  Future<PracticeSessionEntry> startSessionEntry({
+    required String sessionId,
+    required String exerciseId,
+    String? routineEntryId,
+  }) async {
+    final now = DateTime.now();
+    final session = await getSession(sessionId);
+    final existing = session?.entries
+        .where(
+          (e) =>
+              e.matches(
+                exerciseId: exerciseId,
+                routineEntryId: routineEntryId,
+              ) &&
+              _sameDay(e.startedAt, now),
+        )
+        .lastOrNull;
+
+    if (existing != null) {
+      await _db.managers.practiceSessionEntriesTable
+          .filter((f) => f.id(existing.id))
+          .update((o) => o(runningSince: Value(now.toUtc())));
+      await _markSessionUpdated(sessionId, endedAt: const Value(null));
+      return (await _getSessionEntry(existing.id))!;
+    }
+
+    final entry = await _createSessionEntry(
+      sessionId: sessionId,
+      exerciseId: exerciseId,
+      routineEntryId: routineEntryId,
+      startedAt: now,
+      duration: Duration.zero,
+      runningSince: now,
+    );
+    await _markSessionUpdated(sessionId, endedAt: const Value(null));
+    return entry;
+  }
+
+  Future<PracticeSessionEntry> _createSessionEntry({
+    required String sessionId,
+    required String exerciseId,
+    required String? routineEntryId,
+    required DateTime startedAt,
+    required Duration duration,
+    required DateTime? runningSince,
+  }) async {
+    final entryId = _db.newId();
+    await _db.managers.practiceSessionEntriesTable.create(
+      (o) => o(
+        id: entryId,
+        session: sessionId,
+        exercise: exerciseId,
+        routineEntry: Value(routineEntryId),
+        startedAt: Value(startedAt.toUtc()),
+        duration: Value(duration),
+        runningSince: Value(runningSince?.toUtc()),
+      ),
+    );
+    return PracticeSessionEntry(
+      id: entryId,
+      sessionId: sessionId,
+      exerciseId: exerciseId,
+      routineEntryId: routineEntryId,
+      startedAt: startedAt,
+      duration: duration,
+      runningSince: runningSince,
+    );
+  }
+
+  Future<PracticeSessionEntry> checkpointSessionEntry(
+    PracticeSessionEntry entry, {
+    DateTime? now,
+    bool stop = false,
+  }) async {
+    var current = entry;
+    var runningSince = current.runningSince;
+    if (runningSince == null) {
+      if (stop) await _endSessionAt(current.sessionId, DateTime.now());
+      return current;
+    }
+    final at = now ?? DateTime.now();
+    if (at.isBefore(runningSince)) return current;
+
+    while (!_sameDay(runningSince!, at)) {
+      final dayEnd = _startOfDay(
+        _startOfDay(runningSince).add(const Duration(days: 1, hours: 12)),
+      );
+      await _writeSessionEntry(
+        current.id,
+        duration: current.duration + dayEnd.difference(runningSince),
+        runningSince: null,
+      );
+      current = await _createSessionEntry(
+        sessionId: current.sessionId,
+        exerciseId: current.exerciseId,
+        routineEntryId: current.routineEntryId,
+        startedAt: dayEnd,
+        duration: Duration.zero,
+        runningSince: dayEnd,
+      );
+      runningSince = dayEnd;
+    }
+
+    final duration = current.duration + at.difference(runningSince);
+    await _writeSessionEntry(
+      current.id,
+      duration: duration,
+      runningSince: stop ? null : at,
+    );
+    if (stop) await _endSessionAt(current.sessionId, at);
+    return PracticeSessionEntry(
+      id: current.id,
+      sessionId: current.sessionId,
+      exerciseId: current.exerciseId,
+      routineEntryId: current.routineEntryId,
+      startedAt: current.startedAt,
+      duration: duration,
+      runningSince: stop ? null : at,
+    );
+  }
+
+  Future<void> _writeSessionEntry(
+    String entryId, {
+    required Duration duration,
+    required DateTime? runningSince,
+  }) async {
+    await _db.managers.practiceSessionEntriesTable
+        .filter((f) => f.id(entryId))
+        .update(
+          (o) => o(
+            duration: Value(duration),
+            runningSince: Value(runningSince?.toUtc()),
+          ),
+        );
+  }
+
+  Future<void> discardSessionEntries(PracticeSessionEntry entry) async {
+    final session = await getSession(entry.sessionId);
+    final ids =
+        session?.entries
+            .where(
+              (e) => e.matches(
+                exerciseId: entry.exerciseId,
+                routineEntryId: entry.routineEntryId,
+              ),
+            )
+            .map((e) => e.id)
+            .toSet() ??
+        {entry.id};
+    await _db.managers.practiceSessionEntriesTable
+        .filter((f) => f.id.isIn(ids))
+        .delete();
+    await _endSessionAt(entry.sessionId, DateTime.now());
+  }
+
+  Future<void> endSession(String sessionId) =>
+      _endSessionAt(sessionId, DateTime.now());
+
+  Future<void> _endSessionAt(String sessionId, DateTime endedAt) async {
+    await _markSessionUpdated(sessionId, endedAt: Value(endedAt.toUtc()));
+  }
+
+  Future<void> _markSessionUpdated(
+    String sessionId, {
+    required Value<DateTime?> endedAt,
+  }) async {
+    await _db.managers.practiceSessionsTable
+        .filter((f) => f.id(sessionId))
+        .update(
+          (o) => o(
+            endedAt: endedAt,
+            updatedAt: Value(DateTime.now().toUtc()),
+            uploaded: const Value(false),
+          ),
+        );
+    _updatedSessionIds.add((changed: {sessionId}, needsUpload: true));
+  }
+
+  Future<({String routineId, int index})?> getRoutineEntryLocation(
+    String routineEntryId,
+  ) async {
+    final entry = await _db.managers.practiceRoutineEntriesTable
+        .filter((f) => f.id(routineEntryId))
+        .getSingleOrNull();
+    if (entry == null) return null;
+    final query = _db.select(_db.practiceRoutineEntriesTable)
+      ..where((t) => t.routine.equals(entry.routine))
+      ..orderBy([(t) => OrderingTerm.asc(t.position)]);
+    final entries = await query.get();
+    final index = entries.indexWhere((e) => e.id == routineEntryId);
+    if (index < 0) return null;
+    return (routineId: entry.routine, index: index);
+  }
+
+  Future<PracticeSessionEntry?> getRunningSessionEntry() async {
+    final query = _db.select(_db.practiceSessionEntriesTable)
+      ..where((t) => t.runningSince.isNotNull())
+      ..orderBy([(t) => OrderingTerm.desc(t.runningSince)])
+      ..limit(1);
+    final row = await query.getSingleOrNull();
+    return row == null ? null : _toSessionEntry(row);
+  }
+
+  Future<Duration> getPracticedOn(DateTime day) async {
+    final from = _startOfDay(day);
+    final to = _startOfDay(from.add(const Duration(days: 1, hours: 12)));
+    final rows =
+        await (_db.select(_db.practiceSessionEntriesTable)..where(
+              (t) =>
+                  t.startedAt.isBiggerOrEqualValue(from.toUtc()) &
+                  t.startedAt.isSmallerThanValue(to.toUtc()),
+            ))
+            .get();
+    final now = DateTime.now();
+    var total = Duration.zero;
+    for (final row in rows) {
+      total += _toSessionEntry(row).elapsedAt(now);
+    }
+    return total;
+  }
+
+  void remoteChangedSessions(Set<String> sessionIds) {
+    if (sessionIds.isEmpty) return;
+    _updatedSessionIds.add((changed: sessionIds, needsUpload: false));
+  }
+
   Future<void> deleteAll() async {
     final wipedCategories = <String>{};
     final wipedExercises = <String>{};
     final wipedRoutines = <String>{};
+    final wipedSessions = <String>{};
     await _db.transaction(() async {
       wipedCategories.addAll(
         await _db.managers.exerciseCategoriesTable.map((c) => c.id).get(),
@@ -1384,6 +1770,9 @@ class PracticeRepository {
       );
       wipedRoutines.addAll(
         await _db.managers.practiceRoutinesTable.map((r) => r.id).get(),
+      );
+      wipedSessions.addAll(
+        await _db.managers.practiceSessionsTable.map((s) => s.id).get(),
       );
 
       // the entries are cascaded, the parents have to go before what they reference
@@ -1405,6 +1794,9 @@ class PracticeRepository {
     }
     if (wipedRoutines.isNotEmpty) {
       _updatedRoutineIds.add((changed: wipedRoutines, needsUpload: false));
+    }
+    if (wipedSessions.isNotEmpty) {
+      _updatedSessionIds.add((changed: wipedSessions, needsUpload: false));
     }
   }
 

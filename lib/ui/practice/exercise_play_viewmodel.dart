@@ -15,6 +15,7 @@ import 'package:sheetopia/data/repositories/practice/exercise.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/ui/practice/practice_timer.dart';
 import 'package:sheetopia/ui/score/score_sequence.dart';
 
 class ExercisePlayViewModel extends ChangeNotifier implements ScoreSequence {
@@ -38,11 +39,14 @@ class ExercisePlayViewModel extends ChangeNotifier implements ScoreSequence {
   StreamSubscription? _exerciseSub;
   StreamSubscription? _scoresSub;
 
+  late final PracticeTimer timer;
+
   ExercisePlayViewModel({
     required this._repo,
     required this._scoresRepo,
     required this._exerciseId,
   }) {
+    timer = PracticeTimer(repo: _repo)..addListener(notifyListeners);
     _exerciseSub = _repo.updatedExerciseIds
         .where((ids) => ids.contains(_exerciseId))
         .listen((_) => _load());
@@ -96,6 +100,13 @@ class ExercisePlayViewModel extends ChangeNotifier implements ScoreSequence {
     await _load(keepSelection: false);
   }
 
+  Future<void> _openTimer() async {
+    final exerciseId = _exerciseId;
+    if (timer.session == null) await timer.openSession();
+    if (exerciseId != _exerciseId) return;
+    await timer.show(exerciseId: exerciseId);
+  }
+
   void selectScore(int index) {
     if (index < 0 || index >= _scores.length) return;
     if (index == _index || !_playable(_scores[index])) return;
@@ -120,11 +131,13 @@ class ExercisePlayViewModel extends ChangeNotifier implements ScoreSequence {
     if (generation != _loadGeneration) return;
 
     final previousScoreId = keepSelection ? currentScoreId : null;
+    final changed = _exercise?.id != exercise.id;
     _exercise = exercise;
     _scores = scores;
     _index = _resolveIndex(previousScoreId);
     _loading = false;
     notifyListeners();
+    if (changed) unawaited(_openTimer());
   }
 
   int _resolveIndex(String? previousScoreId) {
@@ -147,6 +160,9 @@ class ExercisePlayViewModel extends ChangeNotifier implements ScoreSequence {
   void dispose() {
     _exerciseSub?.cancel();
     _scoresSub?.cancel();
+    unawaited(timer.close());
+    timer.removeListener(notifyListeners);
+    timer.dispose();
     super.dispose();
   }
 }

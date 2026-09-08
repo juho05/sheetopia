@@ -31,7 +31,13 @@ class PracticeSessionEntryMetadataModel {
   // milliseconds
   final int? duration;
 
-  PracticeSessionEntryMetadataModel({required this.duration});
+  @DateTimeConverter()
+  final DateTime? startedAt;
+
+  PracticeSessionEntryMetadataModel({
+    required this.duration,
+    required this.startedAt,
+  });
 
   factory PracticeSessionEntryMetadataModel.fromJson(
     Map<String, dynamic> json,

@@ -74,7 +74,10 @@ void main() {
   });
 
   Future<void> pumpPractice(WidgetTester tester) async {
-    final viewModel = PracticeRoutinesViewModel(repo: repo, scoresRepo: scoresRepo);
+    final viewModel = PracticeRoutinesViewModel(
+      repo: repo,
+      scoresRepo: scoresRepo,
+    );
     addTearDown(viewModel.dispose);
     final router = GoRouter(
       routes: [
@@ -258,5 +261,44 @@ void main() {
 
     expect(await repo.getRoutine(routineId), isNull);
     expect(find.text("No routines yet."), findsOneWidget);
+  });
+
+  testWidgets("the practiced time of today is summed up", (tester) async {
+    final exercise = await createExercise("Chromatic");
+    final session = await repo.startSession();
+    final entry = await repo.startSessionEntry(
+      sessionId: session.id,
+      exerciseId: exercise,
+    );
+    await repo.checkpointSessionEntry(
+      entry,
+      now: entry.runningSince!.add(const Duration(minutes: 95)),
+      stop: true,
+    );
+
+    await pumpPractice(tester);
+
+    expect(find.text("Practiced today"), findsOneWidget);
+    expect(find.text("1h 35min"), findsOneWidget);
+  });
+
+  testWidgets("less than an hour practiced is shown to the second", (
+    tester,
+  ) async {
+    final exercise = await createExercise("Chromatic");
+    final session = await repo.startSession();
+    final entry = await repo.startSessionEntry(
+      sessionId: session.id,
+      exerciseId: exercise,
+    );
+    await repo.checkpointSessionEntry(
+      entry,
+      now: entry.runningSince!.add(const Duration(minutes: 3, seconds: 20)),
+      stop: true,
+    );
+
+    await pumpPractice(tester);
+
+    expect(find.text("3min 20s"), findsOneWidget);
   });
 }

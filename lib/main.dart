@@ -20,10 +20,12 @@ import 'package:predictive_transition/predictive_transition.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/logger/log_repository.dart';
+import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/themeManager/theme_manager.dart';
 import 'package:sheetopia/data/services/sharing/share_inbox.dart';
 import 'package:sheetopia/providers.dart';
+import 'package:sheetopia/routing/practice_resume.dart';
 import 'package:sheetopia/routing/router.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/score/chrome/play_session.dart';
@@ -90,6 +92,27 @@ class _AppState extends State<App> {
     super.initState();
     if (Platform.isAndroid || Platform.isIOS) {
       unawaited(_receiveSharedFiles());
+    }
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => unawaited(_resumeRunningExercise()),
+    );
+  }
+
+  Future<void> _resumeRunningExercise() async {
+    if (!mounted) return;
+    final repo = context.read<PracticeRepository>();
+    try {
+      final location = await runningPracticeLocation(repo);
+      if (location == null || !mounted) return;
+      final current = goRouter.routerDelegate.currentConfiguration.uri.path;
+      if (current != "/") {
+        Log.debug("Not resuming the running exercise, already at $current");
+        return;
+      }
+      Log.info("Reopening the exercise left running at $location");
+      goRouter.go(location);
+    } catch (e, st) {
+      Log.warn("Failed to reopen the exercise left running", e: e, st: st);
     }
   }
 

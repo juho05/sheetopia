@@ -26,13 +26,20 @@ PracticeSessionEntryMetadataModel _$PracticeSessionEntryMetadataModelFromJson(
 ) {
   final val = PracticeSessionEntryMetadataModel(
     duration: $checkedConvert('duration', (v) => (v as num?)?.toInt()),
+    startedAt: $checkedConvert(
+      'startedAt',
+      (v) => const DateTimeConverter().fromJson(v as String?),
+    ),
   );
   return val;
 });
 
 Map<String, dynamic> _$PracticeSessionEntryMetadataModelToJson(
   PracticeSessionEntryMetadataModel instance,
-) => <String, dynamic>{'duration': instance.duration};
+) => <String, dynamic>{
+  'duration': instance.duration,
+  'startedAt': const DateTimeConverter().toJson(instance.startedAt),
+};
 
 PracticeSessionEntryModel _$PracticeSessionEntryModelFromJson(
   Map<String, dynamic> json,

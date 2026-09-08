@@ -30,6 +30,14 @@ String _formatDuration(Duration duration) {
   return "${hours}h ${minutes}min";
 }
 
+String _formatPracticed(Duration duration) {
+  if (duration.inHours > 0) return _formatDuration(duration);
+  final minutes = duration.inMinutes;
+  final seconds = duration.inSeconds.remainder(60);
+  if (minutes == 0) return "${seconds}s";
+  return "${minutes}min ${seconds}s";
+}
+
 class PracticePage extends StatefulWidget {
   final PracticeRoutinesViewModel viewModel;
 
@@ -259,18 +267,18 @@ class _PracticePageState extends State<PracticePage> {
   }
 
   Widget _buildSummary(bool wide) {
-    const today = _TodayCard(practiced: Duration.zero);
+    final today = _TodayCard(practiced: _viewModel.practicedToday);
     const exercises = _ExercisesCard();
     if (wide) {
-      return const Row(
+      return Row(
         spacing: 12,
         children: [
           Expanded(child: today),
-          Expanded(child: exercises),
+          const Expanded(child: exercises),
         ],
       );
     }
-    return const Column(spacing: 12, children: [today, exercises]);
+    return Column(spacing: 12, children: [today, exercises]);
   }
 
   Widget _buildCountLabel(BuildContext context) {
@@ -382,7 +390,7 @@ class _TodayCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  _formatDuration(practiced),
+                  _formatPracticed(practiced),
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleLarge?.copyWith(
                     color: theme.colorScheme.onPrimaryContainer,

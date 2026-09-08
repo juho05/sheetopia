@@ -61,7 +61,13 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
 
   StreamSubscription? _updatedExercisesSub;
 
+  StreamSubscription? _updatedSessionsSub;
+
   late final TagSync _tagSync;
+
+  Duration _practicedToday = Duration.zero;
+
+  Duration get practicedToday => _practicedToday;
 
   PracticeRoutinesViewModel({
     required this._repo,
@@ -69,12 +75,23 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
   }) {
     _updatedRoutinesSub = _repo.updatedRoutineIds.listen((_) => _refresh());
     _updatedExercisesSub = _repo.updatedExerciseIds.listen((_) => _refresh());
+    _updatedSessionsSub = _repo.updatedSessionIds.listen(
+      (_) => refreshPracticedToday(),
+    );
     _tagSync = TagSync(
       repo: scoresRepo,
       currentTags: () => _filterTags,
       onChanged: setFilterTags,
     );
     _refreshCounts();
+    refreshPracticedToday();
+  }
+
+  Future<void> refreshPracticedToday() async {
+    final practiced = await _repo.getPracticedOn(DateTime.now());
+    if (practiced == _practicedToday) return;
+    _practicedToday = practiced;
+    notifyListeners();
   }
 
   Future<void> _refreshCounts() async {
@@ -275,6 +292,7 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
     _resetDebounce?.cancel();
     _updatedRoutinesSub?.cancel();
     _updatedExercisesSub?.cancel();
+    _updatedSessionsSub?.cancel();
     _tagSync.dispose();
     super.dispose();
   }

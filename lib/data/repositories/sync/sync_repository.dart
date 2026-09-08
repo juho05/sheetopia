@@ -69,6 +69,7 @@ class SyncRepository {
   Set<String> _changedCategories = {};
   Set<String> _changedExercises = {};
   Set<String> _changedRoutines = {};
+  Set<String> _changedSessions = {};
 
   bool _itemsFailed = false;
 
@@ -109,6 +110,7 @@ class SyncRepository {
       _practiceRepo.locallyUpdatedCategoryIds.listen((event) => requestSync());
       _practiceRepo.locallyUpdatedExerciseIds.listen((event) => requestSync());
       _practiceRepo.locallyUpdatedRoutineIds.listen((event) => requestSync());
+      _practiceRepo.locallyUpdatedSessionIds.listen((event) => requestSync());
       _listener = AppLifecycleListener(
         onDetach: _disableSyncing,
         onPause: _disableSyncing,
@@ -360,12 +362,14 @@ class SyncRepository {
       _practiceRepo.remoteChangedCategories(_changedCategories);
       _practiceRepo.remoteChangedExercises(_changedExercises);
       _practiceRepo.remoteChangedRoutines(_changedRoutines);
+      _practiceRepo.remoteChangedSessions(_changedSessions);
       _changedTags = {};
       _changedScores = {};
       _changedSetlists = {};
       _changedCategories = {};
       _changedExercises = {};
       _changedRoutines = {};
+      _changedSessions = {};
       _scheduleSync();
     }
   }
@@ -1183,6 +1187,7 @@ class SyncRepository {
       await _db.managers.practiceSessionsTable
           .filter((f) => f.id(d.id))
           .delete();
+      _changedSessions.add(d.id);
     }
   }
 
@@ -1216,6 +1221,7 @@ class SyncRepository {
                 routineEntryId: e.routineEntry,
                 metadata: PracticeSessionEntryMetadataModel(
                   duration: e.duration.inMilliseconds,
+                  startedAt: e.startedAt.toUtc(),
                 ),
               ),
           ],
@@ -1305,10 +1311,14 @@ class SyncRepository {
                 duration: Value(
                   Duration(milliseconds: e.metadata.duration ?? 0),
                 ),
+                startedAt: Value(
+                  e.metadata.startedAt?.toUtc() ?? s.startedAt.toUtc(),
+                ),
               ),
             ),
           );
         }
+        _changedSessions.add(s.id);
       });
     }
   }

@@ -380,6 +380,7 @@ class ImportExportRepository extends ChangeNotifier {
                     routineEntryId: e.routineEntry,
                     metadata: PracticeSessionEntryMetadataModel(
                       duration: e.duration.inMilliseconds,
+                      startedAt: e.startedAt.toUtc(),
                     ),
                   ),
                 );
@@ -861,6 +862,9 @@ class ImportExportRepository extends ChangeNotifier {
                 routineEntry: Value(e.routineEntryId),
                 duration: Value(
                   Duration(milliseconds: e.metadata.duration ?? 0),
+                ),
+                startedAt: Value(
+                  e.metadata.startedAt?.toUtc() ?? s.startedAt.toUtc(),
                 ),
               ),
             ),

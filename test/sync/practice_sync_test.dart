@@ -568,6 +568,7 @@ void main() {
             routineEntryId: entryId,
             metadata: PracticeSessionEntryMetadataModel(
               duration: const Duration(minutes: 3).inMilliseconds,
+              startedAt: contentTime,
             ),
           ),
         ],

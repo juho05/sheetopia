@@ -6,12 +6,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/ui/practice/exercise_card.dart';
 import 'package:sheetopia/ui/practice/exercise_play_viewmodel.dart';
 import 'package:sheetopia/ui/practice/exercise_score_selector.dart';
+import 'package:sheetopia/ui/practice/practice_overlay.dart';
+import 'package:sheetopia/ui/practice/practice_stopwatch.dart';
 import 'package:sheetopia/ui/score/chrome/full_screen_button.dart';
 import 'package:sheetopia/ui/score/chrome/play_session.dart';
 import 'package:sheetopia/ui/score/chrome/play_toolbar.dart';
@@ -55,6 +59,54 @@ class _ExercisePlayPageState extends State<ExercisePlayPage> {
     setState(() {});
   }
 
+  void _leave(BuildContext context) {
+    if (!Platform.isMacOS) PlaySession.of(context)?.exitFullScreen();
+    context.pop();
+  }
+
+  Widget _buildToolbar({required bool showScores}) {
+    final timer = _viewModel.timer;
+    return PlayToolbar(
+      center: showScores
+          ? ExerciseScoreSelector(
+              scores: _viewModel.scores,
+              selectedIndex: _viewModel.position,
+              onSelected: _viewModel.selectScore,
+            )
+          : null,
+      trailing: [
+        if (timer.started)
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: PracticeTimerStopwatch(timer: timer),
+          ),
+      ],
+    );
+  }
+
+  Widget? _buildOverlay(BuildContext context) {
+    final exercise = _viewModel.exercise;
+    if (exercise == null || _viewModel.loading) return null;
+    final timer = _viewModel.timer;
+    final recovery = timer.recovery;
+    if (recovery != null) {
+      return PracticeRecoveryOverlay(
+        exerciseName: exercise.name,
+        recovery: recovery,
+        onChoice: timer.resolveRecovery,
+      );
+    }
+    if (timer.started) return null;
+    // the overlay stays up while the timer settles, its buttons wait
+    return ExerciseStartOverlay(
+      exercise: exercise,
+      practiced: timer.elapsed,
+      onStart: timer.ready ? timer.start : null,
+      onNewSession: timer.startNewSession,
+      onLeave: () => _leave(context),
+    );
+  }
+
   Widget _buildCard(BuildContext context) {
     final exercise = _viewModel.exercise;
     final session = PlaySession.of(context);
@@ -79,12 +131,20 @@ class _ExercisePlayPageState extends State<ExercisePlayPage> {
           ],
         ),
       ),
+      bottomNavigationBar: _viewModel.timer.started
+          ? _buildToolbar(showScores: false)
+          : null,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return PlaySession(child: Builder(builder: _buildContent));
+    return PlaySession(
+      child: Builder(
+        builder: (context) =>
+            Stack(children: [_buildContent(context), ?_buildOverlay(context)]),
+      ),
+    );
   }
 
   Widget _buildContent(BuildContext context) {
@@ -98,13 +158,7 @@ class _ExercisePlayPageState extends State<ExercisePlayPage> {
     return ScoreViewer(
       initialScoreId: scoreId,
       sequence: _viewModel,
-      bottomBar: PlayToolbar(
-        center: ExerciseScoreSelector(
-          scores: _viewModel.scores,
-          selectedIndex: _viewModel.position,
-          onSelected: _viewModel.selectScore,
-        ),
-      ),
+      bottomBar: _buildToolbar(showScores: true),
     );
   }
 }

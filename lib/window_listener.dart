@@ -8,11 +8,13 @@
 
 import 'dart:io';
 
+import 'package:sheetopia/utils/app_shutdown.dart';
 import 'package:window_manager/window_manager.dart';
 
 class WindowCloseListener extends WindowListener {
   @override
   Future<void> onWindowClose() async {
+    appIsClosing = true;
     final bool isPreventClose = await windowManager.isPreventClose();
     if (!isPreventClose) return;
     await windowManager.setPreventClose(false);

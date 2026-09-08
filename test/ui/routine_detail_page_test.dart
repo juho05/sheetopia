@@ -440,4 +440,113 @@ void main() {
     );
     expect(find.textContaining("Title"), findsNothing);
   });
+
+  testWidgets("the practiced time is shown next to the target", (tester) async {
+    final exerciseId = await createExercise("Chromatic");
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [
+        await entry(exerciseId, targetDuration: const Duration(minutes: 20)),
+      ],
+    );
+    final routine = (await repo.getRoutine(routineId))!;
+    final session = await repo.startSession(routineId: routineId);
+    final sessionEntry = await repo.startSessionEntry(
+      sessionId: session.id,
+      exerciseId: exerciseId,
+      routineEntryId: routine.entries.single.id,
+    );
+    await repo.checkpointSessionEntry(
+      sessionEntry,
+      now: sessionEntry.runningSince!.add(const Duration(minutes: 8)),
+      stop: true,
+    );
+
+    await pumpPage(tester, routineId);
+
+    expect(find.text("8:00"), findsOneWidget);
+    expect(find.text(" / 20:00"), findsOneWidget);
+    expect(find.text("20min"), findsNothing);
+  });
+
+  testWidgets("a new session resets the practiced times", (tester) async {
+    final exerciseId = await createExercise("Chromatic");
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [
+        await entry(exerciseId, targetDuration: const Duration(minutes: 20)),
+      ],
+    );
+    final routine = (await repo.getRoutine(routineId))!;
+    final session = await repo.startSession(routineId: routineId);
+    final sessionEntry = await repo.startSessionEntry(
+      sessionId: session.id,
+      exerciseId: exerciseId,
+      routineEntryId: routine.entries.single.id,
+    );
+    await repo.checkpointSessionEntry(
+      sessionEntry,
+      now: sessionEntry.runningSince!.add(const Duration(minutes: 8)),
+      stop: true,
+    );
+
+    await pumpPage(tester, routineId);
+    await tester.tap(find.text("New session"));
+    await settle(tester);
+
+    expect(find.text("8:00"), findsNothing);
+    expect(find.text("20min"), findsOneWidget);
+    expect(find.text("New session"), findsNothing);
+  });
+
+  testWidgets("the app bar stays generic, the name is in the body", (
+    tester,
+  ) async {
+    final exerciseId = await createExercise("Chromatic");
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [await entry(exerciseId)],
+    );
+
+    await pumpPage(tester, routineId);
+
+    expect(find.text("Practice routine"), findsOneWidget);
+    expect(
+      find.descendant(of: find.byType(AppBar), matching: find.text("Morning")),
+      findsNothing,
+    );
+    expect(find.text("Morning"), findsOneWidget);
+  });
+
+  testWidgets("the session summary fits a narrow screen", (tester) async {
+    setWidth(tester, 360);
+    final exerciseId = await createExercise("Chromatic");
+    final routineId = await repo.createRoutine(
+      name: "Morning warm up routine",
+      description: "",
+      entries: [
+        await entry(exerciseId, targetDuration: const Duration(minutes: 20)),
+      ],
+    );
+    final routine = (await repo.getRoutine(routineId))!;
+    final session = await repo.startSession(routineId: routineId);
+    final sessionEntry = await repo.startSessionEntry(
+      sessionId: session.id,
+      exerciseId: exerciseId,
+      routineEntryId: routine.entries.single.id,
+    );
+    await repo.checkpointSessionEntry(
+      sessionEntry,
+      now: sessionEntry.runningSince!.add(const Duration(minutes: 8)),
+      stop: true,
+    );
+
+    await pumpPage(tester, routineId);
+
+    expect(find.text("New session"), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

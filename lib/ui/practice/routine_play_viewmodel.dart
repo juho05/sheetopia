@@ -16,6 +16,7 @@ import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/ui/practice/practice_timer.dart';
 import 'package:sheetopia/ui/score/score_sequence.dart';
 
 class RoutinePlayEntry {
@@ -64,12 +65,17 @@ class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
   StreamSubscription? _exerciseSub;
   StreamSubscription? _scoresSub;
 
+  late final PracticeTimer timer;
+
+  String? _timedEntryId;
+
   RoutinePlayViewModel({
     required this._repo,
     required this._scoresRepo,
     required this.routineId,
     this.startIndex,
   }) {
+    timer = PracticeTimer(repo: _repo)..addListener(notifyListeners);
     _routineSub = _repo.updatedRoutineIds
         .where((ids) => ids.contains(routineId))
         .listen((_) => _load());
@@ -135,6 +141,7 @@ class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
     if (!hasNext) return false;
     _index++;
     notifyListeners();
+    unawaited(_syncTimer());
     return true;
   }
 
@@ -143,6 +150,7 @@ class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
     if (!hasPrevious) return false;
     _index--;
     notifyListeners();
+    unawaited(_syncTimer());
     return true;
   }
 
@@ -150,6 +158,27 @@ class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
     if (index < 0 || index >= _entries.length || index == _index) return;
     _index = index;
     notifyListeners();
+    unawaited(_syncTimer());
+  }
+
+  Future<void> _syncTimer() async {
+    final entry = currentEntry;
+    final routine = _routine;
+    if (entry == null || routine == null) return;
+    if (entry.id == _timedEntryId) return;
+    _timedEntryId = entry.id;
+    if (timer.session == null) {
+      await timer.openSession(
+        routineId: routineId,
+        routineTarget: routine.targetDuration,
+      );
+    }
+    if (entry.id != _timedEntryId) return;
+    await timer.show(
+      exerciseId: entry.exercise.id,
+      routineEntryId: entry.id,
+      target: entry.entry.targetDuration,
+    );
   }
 
   void selectScore(int index) {
@@ -196,6 +225,7 @@ class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
     _index = _resolveIndex(first, previousEntryId, previousIndex);
     _loading = false;
     notifyListeners();
+    unawaited(_syncTimer());
   }
 
   RoutinePlayEntry _buildEntry(
@@ -256,6 +286,9 @@ class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
     _routineSub?.cancel();
     _exerciseSub?.cancel();
     _scoresSub?.cancel();
+    unawaited(timer.close());
+    timer.removeListener(notifyListeners);
+    timer.dispose();
     super.dispose();
   }
 }

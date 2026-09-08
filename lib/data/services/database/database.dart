@@ -69,7 +69,7 @@ class Database extends _$Database {
   Database([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -162,6 +162,21 @@ class Database extends _$Database {
             from11To12: (m, schema) async {
               await m.dropColumn(schema.exerciseScores, "name");
               await m.dropColumn(schema.exerciseScores, "owned");
+            },
+            from12To13: (m, schema) async {
+              await m.alterTable(
+                TableMigration(
+                  schema.practiceSessionEntries,
+                  newColumns: [schema.practiceSessionEntries.startedAt],
+                  columnTransformer: {
+                    schema.practiceSessionEntries.startedAt:
+                        const CustomExpression(
+                          "(SELECT started_at FROM practice_sessions "
+                          "WHERE practice_sessions.id = session)",
+                        ),
+                  },
+                ),
+              );
             },
           ),
         ),

@@ -14,6 +14,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/ui/practice/exercise_card.dart';
 import 'package:sheetopia/ui/practice/exercise_score_selector.dart';
+import 'package:sheetopia/ui/practice/practice_overlay.dart';
+import 'package:sheetopia/ui/practice/practice_stopwatch.dart';
 import 'package:sheetopia/ui/practice/routine_play_viewmodel.dart';
 import 'package:sheetopia/ui/score/chrome/full_screen_button.dart';
 import 'package:sheetopia/ui/score/chrome/play_session.dart';
@@ -79,8 +81,13 @@ class _RoutinePlayPageState extends State<RoutinePlayPage> {
     );
   }
 
+  void _leave(BuildContext context) {
+    if (!Platform.isMacOS) PlaySession.of(context)?.exitFullScreen();
+    context.pop();
+  }
+
   Widget _buildToolbar(BuildContext context, {required bool showScores}) {
-    final session = PlaySession.of(context);
+    final timer = _viewModel.timer;
     return PlayToolbar(
       leading: [
         OutlinedButton(
@@ -96,15 +103,15 @@ class _RoutinePlayPageState extends State<RoutinePlayPage> {
             )
           : null,
       trailing: [
+        if (timer.started)
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: PracticeTimerStopwatch(timer: timer),
+          ),
         FilledButton(
           onPressed: _viewModel.hasNext
               ? _viewModel.next
-              : () {
-                  if (!Platform.isMacOS) {
-                    session?.exitFullScreen();
-                  }
-                  context.pop();
-                },
+              : () => _leave(context),
           child: _viewModel.hasNext ? const Text("Next") : const Text("Done"),
         ),
       ],
@@ -221,8 +228,42 @@ class _RoutinePlayPageState extends State<RoutinePlayPage> {
     );
   }
 
+  Widget? _buildOverlay(BuildContext context) {
+    final entry = _viewModel.currentEntry;
+    if (entry == null || _viewModel.loading) return null;
+    final timer = _viewModel.timer;
+    final recovery = timer.recovery;
+    if (recovery != null) {
+      return PracticeRecoveryOverlay(
+        exerciseName: entry.exercise.name,
+        recovery: recovery,
+        onChoice: timer.resolveRecovery,
+      );
+    }
+    if (timer.started) return null;
+    return ExerciseStartOverlay(
+      exercise: entry.exercise,
+      routineName: _viewModel.name,
+      position: _viewModel.position,
+      length: _viewModel.length,
+      target: entry.entry.targetDuration,
+      practiced: timer.elapsed,
+      hasPrevious: _viewModel.hasPrevious,
+      hasNext: _viewModel.hasNext,
+      onStart: timer.ready ? timer.start : null,
+      onLeave: () => _leave(context),
+      onPrevious: _viewModel.previous,
+      onNext: _viewModel.next,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return PlaySession(child: Builder(builder: _buildContent));
+    return PlaySession(
+      child: Builder(
+        builder: (context) =>
+            Stack(children: [_buildContent(context), ?_buildOverlay(context)]),
+      ),
+    );
   }
 }

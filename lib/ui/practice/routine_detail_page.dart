@@ -16,6 +16,7 @@ import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/optional_tooltip.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
 import 'package:sheetopia/ui/practice/exercise_tile.dart';
+import 'package:sheetopia/ui/practice/practice_stopwatch.dart';
 import 'package:sheetopia/ui/practice/routine_detail_viewmodel.dart';
 import 'package:sheetopia/ui/practice/routine_summary.dart';
 
@@ -65,7 +66,7 @@ class _RoutineDetailPageState extends State<RoutineDetailPage> {
         return Scaffold(
           appBar: AppBar(
             centerTitle: false,
-            title: Text(routine?.name ?? "Routine"),
+            title: const Text("Practice routine"),
             actions: [
               if (routine != null) ...[
                 OutlinedButton.icon(
@@ -143,8 +144,20 @@ class _RoutineDetailPageState extends State<RoutineDetailPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               spacing: 8,
               children: [
+                Text(
+                  routine.name,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 if (description != null)
                   Text(description, style: theme.textTheme.bodyMedium),
+                if (_viewModel.hasSessionTimes)
+                  _SessionSummary(
+                    practiced: _viewModel.practicedThisSession,
+                    targetDuration: routine.targetDuration,
+                    onReset: _viewModel.startNewSession,
+                  ),
                 RoutineExercisesHeader(
                   count: routine.entries.length,
                   targetDuration: routine.targetDuration,
@@ -160,6 +173,7 @@ class _RoutineDetailPageState extends State<RoutineDetailPage> {
             return _RoutineEntryTile(
               entry: entry,
               scores: _viewModel.scoresFor(entry.exercise.id),
+              practiced: _viewModel.practicedFor(entry.id),
               narrow: narrow,
               onTap: () => context.go(
                 "/practice/routines/${widget.routineId}/details/play?startIndex=$index",
@@ -187,15 +201,72 @@ class _RoutineDetailPageState extends State<RoutineDetailPage> {
   }
 }
 
+class _SessionSummary extends StatelessWidget {
+  final Duration practiced;
+  final Duration targetDuration;
+  final void Function() onReset;
+
+  const _SessionSummary({
+    required this.practiced,
+    required this.targetDuration,
+    required this.onReset,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasTarget = targetDuration > Duration.zero;
+    return Wrap(
+      spacing: 12,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text.rich(
+          TextSpan(
+            children: [
+              const TextSpan(text: "This session: "),
+              TextSpan(
+                text: formatStopwatch(practiced),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: hasTarget && practiced > targetDuration
+                      ? overTargetColor(context)
+                      : theme.colorScheme.onSurface,
+                ),
+              ),
+              if (hasTarget)
+                TextSpan(text: " / ${formatStopwatch(targetDuration)}"),
+            ],
+          ),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        TextButton.icon(
+          onPressed: onReset,
+          icon: const Icon(Symbols.restart_alt, size: 18),
+          label: const Text("New session"),
+          style: TextButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _RoutineEntryTile extends StatelessWidget {
   final PracticeRoutineEntry entry;
   final List<Score> scores;
+  final Duration practiced;
   final bool narrow;
   final void Function() onTap;
 
   const _RoutineEntryTile({
     required this.entry,
     required this.scores,
+    required this.practiced,
     required this.narrow,
     required this.onTap,
   });
@@ -214,9 +285,40 @@ class _RoutineEntryTile extends StatelessWidget {
     ),
   );
 
+  Widget _buildDuration(BuildContext context, Duration? targetDuration) {
+    final theme = Theme.of(context);
+    final style = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    if (practiced == Duration.zero) {
+      return Text(
+        targetDuration == null
+            ? "No target"
+            : formatRoutineDuration(targetDuration),
+        style: style,
+      );
+    }
+    final overTarget = targetDuration != null && practiced > targetDuration;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          formatStopwatch(practiced),
+          style: style?.copyWith(
+            color: overTarget
+                ? overTargetColor(context)
+                : theme.colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        if (targetDuration != null)
+          Text(" / ${formatStopwatch(targetDuration)}", style: style),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final targetDuration = entry.targetDuration;
     final defaultScore = _defaultScore;
 
@@ -235,14 +337,7 @@ class _RoutineEntryTile extends StatelessWidget {
             _buildBadge(defaultScore, compact: false),
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: Text(
-              targetDuration == null
-                  ? "No target"
-                  : formatRoutineDuration(targetDuration),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
+            child: _buildDuration(context, targetDuration),
           ),
         ],
       ),

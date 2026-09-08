@@ -7208,6 +7208,18 @@ class $PracticeSessionEntriesTableTable extends PracticeSessionEntriesTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _startedAtMeta = const VerificationMeta(
+    'startedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startedAt = GeneratedColumn<DateTime>(
+    'started_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    clientDefault: () => DateTime.now().toUtc(),
+  );
   @override
   late final GeneratedColumnWithTypeConverter<Duration, int> duration =
       GeneratedColumn<int>(
@@ -7237,6 +7249,7 @@ class $PracticeSessionEntriesTableTable extends PracticeSessionEntriesTable
     session,
     exercise,
     routineEntry,
+    startedAt,
     duration,
     runningSince,
   ];
@@ -7282,6 +7295,12 @@ class $PracticeSessionEntriesTableTable extends PracticeSessionEntriesTable
         ),
       );
     }
+    if (data.containsKey('started_at')) {
+      context.handle(
+        _startedAtMeta,
+        startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta),
+      );
+    }
     if (data.containsKey('running_since')) {
       context.handle(
         _runningSinceMeta,
@@ -7319,6 +7338,10 @@ class $PracticeSessionEntriesTableTable extends PracticeSessionEntriesTable
         DriftSqlType.string,
         data['${effectivePrefix}routine_entry'],
       ),
+      startedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}started_at'],
+      )!,
       duration: $PracticeSessionEntriesTableTable.$converterduration.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.int,
@@ -7347,6 +7370,7 @@ class PracticeSessionEntriesTableData extends DataClass
   final String session;
   final String exercise;
   final String? routineEntry;
+  final DateTime startedAt;
   final Duration duration;
   final DateTime? runningSince;
   const PracticeSessionEntriesTableData({
@@ -7354,6 +7378,7 @@ class PracticeSessionEntriesTableData extends DataClass
     required this.session,
     required this.exercise,
     this.routineEntry,
+    required this.startedAt,
     required this.duration,
     this.runningSince,
   });
@@ -7366,6 +7391,7 @@ class PracticeSessionEntriesTableData extends DataClass
     if (!nullToAbsent || routineEntry != null) {
       map['routine_entry'] = Variable<String>(routineEntry);
     }
+    map['started_at'] = Variable<DateTime>(startedAt);
     {
       map['duration'] = Variable<int>(
         $PracticeSessionEntriesTableTable.$converterduration.toSql(duration),
@@ -7385,6 +7411,7 @@ class PracticeSessionEntriesTableData extends DataClass
       routineEntry: routineEntry == null && nullToAbsent
           ? const Value.absent()
           : Value(routineEntry),
+      startedAt: Value(startedAt),
       duration: Value(duration),
       runningSince: runningSince == null && nullToAbsent
           ? const Value.absent()
@@ -7402,6 +7429,7 @@ class PracticeSessionEntriesTableData extends DataClass
       session: serializer.fromJson<String>(json['session']),
       exercise: serializer.fromJson<String>(json['exercise']),
       routineEntry: serializer.fromJson<String?>(json['routineEntry']),
+      startedAt: serializer.fromJson<DateTime>(json['startedAt']),
       duration: serializer.fromJson<Duration>(json['duration']),
       runningSince: serializer.fromJson<DateTime?>(json['runningSince']),
     );
@@ -7414,6 +7442,7 @@ class PracticeSessionEntriesTableData extends DataClass
       'session': serializer.toJson<String>(session),
       'exercise': serializer.toJson<String>(exercise),
       'routineEntry': serializer.toJson<String?>(routineEntry),
+      'startedAt': serializer.toJson<DateTime>(startedAt),
       'duration': serializer.toJson<Duration>(duration),
       'runningSince': serializer.toJson<DateTime?>(runningSince),
     };
@@ -7424,6 +7453,7 @@ class PracticeSessionEntriesTableData extends DataClass
     String? session,
     String? exercise,
     Value<String?> routineEntry = const Value.absent(),
+    DateTime? startedAt,
     Duration? duration,
     Value<DateTime?> runningSince = const Value.absent(),
   }) => PracticeSessionEntriesTableData(
@@ -7431,6 +7461,7 @@ class PracticeSessionEntriesTableData extends DataClass
     session: session ?? this.session,
     exercise: exercise ?? this.exercise,
     routineEntry: routineEntry.present ? routineEntry.value : this.routineEntry,
+    startedAt: startedAt ?? this.startedAt,
     duration: duration ?? this.duration,
     runningSince: runningSince.present ? runningSince.value : this.runningSince,
   );
@@ -7444,6 +7475,7 @@ class PracticeSessionEntriesTableData extends DataClass
       routineEntry: data.routineEntry.present
           ? data.routineEntry.value
           : this.routineEntry,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
       duration: data.duration.present ? data.duration.value : this.duration,
       runningSince: data.runningSince.present
           ? data.runningSince.value
@@ -7458,6 +7490,7 @@ class PracticeSessionEntriesTableData extends DataClass
           ..write('session: $session, ')
           ..write('exercise: $exercise, ')
           ..write('routineEntry: $routineEntry, ')
+          ..write('startedAt: $startedAt, ')
           ..write('duration: $duration, ')
           ..write('runningSince: $runningSince')
           ..write(')'))
@@ -7465,8 +7498,15 @@ class PracticeSessionEntriesTableData extends DataClass
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, session, exercise, routineEntry, duration, runningSince);
+  int get hashCode => Object.hash(
+    id,
+    session,
+    exercise,
+    routineEntry,
+    startedAt,
+    duration,
+    runningSince,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -7475,6 +7515,7 @@ class PracticeSessionEntriesTableData extends DataClass
           other.session == this.session &&
           other.exercise == this.exercise &&
           other.routineEntry == this.routineEntry &&
+          other.startedAt == this.startedAt &&
           other.duration == this.duration &&
           other.runningSince == this.runningSince);
 }
@@ -7485,6 +7526,7 @@ class PracticeSessionEntriesTableCompanion
   final Value<String> session;
   final Value<String> exercise;
   final Value<String?> routineEntry;
+  final Value<DateTime> startedAt;
   final Value<Duration> duration;
   final Value<DateTime?> runningSince;
   final Value<int> rowid;
@@ -7493,6 +7535,7 @@ class PracticeSessionEntriesTableCompanion
     this.session = const Value.absent(),
     this.exercise = const Value.absent(),
     this.routineEntry = const Value.absent(),
+    this.startedAt = const Value.absent(),
     this.duration = const Value.absent(),
     this.runningSince = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -7502,6 +7545,7 @@ class PracticeSessionEntriesTableCompanion
     required String session,
     required String exercise,
     this.routineEntry = const Value.absent(),
+    this.startedAt = const Value.absent(),
     this.duration = const Value.absent(),
     this.runningSince = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -7513,6 +7557,7 @@ class PracticeSessionEntriesTableCompanion
     Expression<String>? session,
     Expression<String>? exercise,
     Expression<String>? routineEntry,
+    Expression<DateTime>? startedAt,
     Expression<int>? duration,
     Expression<DateTime>? runningSince,
     Expression<int>? rowid,
@@ -7522,6 +7567,7 @@ class PracticeSessionEntriesTableCompanion
       if (session != null) 'session': session,
       if (exercise != null) 'exercise': exercise,
       if (routineEntry != null) 'routine_entry': routineEntry,
+      if (startedAt != null) 'started_at': startedAt,
       if (duration != null) 'duration': duration,
       if (runningSince != null) 'running_since': runningSince,
       if (rowid != null) 'rowid': rowid,
@@ -7533,6 +7579,7 @@ class PracticeSessionEntriesTableCompanion
     Value<String>? session,
     Value<String>? exercise,
     Value<String?>? routineEntry,
+    Value<DateTime>? startedAt,
     Value<Duration>? duration,
     Value<DateTime?>? runningSince,
     Value<int>? rowid,
@@ -7542,6 +7589,7 @@ class PracticeSessionEntriesTableCompanion
       session: session ?? this.session,
       exercise: exercise ?? this.exercise,
       routineEntry: routineEntry ?? this.routineEntry,
+      startedAt: startedAt ?? this.startedAt,
       duration: duration ?? this.duration,
       runningSince: runningSince ?? this.runningSince,
       rowid: rowid ?? this.rowid,
@@ -7562,6 +7610,9 @@ class PracticeSessionEntriesTableCompanion
     }
     if (routineEntry.present) {
       map['routine_entry'] = Variable<String>(routineEntry.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<DateTime>(startedAt.value);
     }
     if (duration.present) {
       map['duration'] = Variable<int>(
@@ -7586,6 +7637,7 @@ class PracticeSessionEntriesTableCompanion
           ..write('session: $session, ')
           ..write('exercise: $exercise, ')
           ..write('routineEntry: $routineEntry, ')
+          ..write('startedAt: $startedAt, ')
           ..write('duration: $duration, ')
           ..write('runningSince: $runningSince, ')
           ..write('rowid: $rowid')
@@ -15414,6 +15466,7 @@ typedef $$PracticeSessionEntriesTableTableCreateCompanionBuilder =
       required String session,
       required String exercise,
       Value<String?> routineEntry,
+      Value<DateTime> startedAt,
       Value<Duration> duration,
       Value<DateTime?> runningSince,
       Value<int> rowid,
@@ -15424,6 +15477,7 @@ typedef $$PracticeSessionEntriesTableTableUpdateCompanionBuilder =
       Value<String> session,
       Value<String> exercise,
       Value<String?> routineEntry,
+      Value<DateTime> startedAt,
       Value<Duration> duration,
       Value<DateTime?> runningSince,
       Value<int> rowid,
@@ -15482,6 +15536,11 @@ class $$PracticeSessionEntriesTableTableFilterComposer
 
   ColumnFilters<String> get routineEntry => $composableBuilder(
     column: $table.routineEntry,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startedAt => $composableBuilder(
+    column: $table.startedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -15545,6 +15604,11 @@ class $$PracticeSessionEntriesTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get duration => $composableBuilder(
     column: $table.duration,
     builder: (column) => ColumnOrderings(column),
@@ -15599,6 +15663,9 @@ class $$PracticeSessionEntriesTableTableAnnotationComposer
     column: $table.routineEntry,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => column);
 
   GeneratedColumnWithTypeConverter<Duration, int> get duration =>
       $composableBuilder(column: $table.duration, builder: (column) => column);
@@ -15679,6 +15746,7 @@ class $$PracticeSessionEntriesTableTableTableManager
                 Value<String> session = const Value.absent(),
                 Value<String> exercise = const Value.absent(),
                 Value<String?> routineEntry = const Value.absent(),
+                Value<DateTime> startedAt = const Value.absent(),
                 Value<Duration> duration = const Value.absent(),
                 Value<DateTime?> runningSince = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -15687,6 +15755,7 @@ class $$PracticeSessionEntriesTableTableTableManager
                 session: session,
                 exercise: exercise,
                 routineEntry: routineEntry,
+                startedAt: startedAt,
                 duration: duration,
                 runningSince: runningSince,
                 rowid: rowid,
@@ -15697,6 +15766,7 @@ class $$PracticeSessionEntriesTableTableTableManager
                 required String session,
                 required String exercise,
                 Value<String?> routineEntry = const Value.absent(),
+                Value<DateTime> startedAt = const Value.absent(),
                 Value<Duration> duration = const Value.absent(),
                 Value<DateTime?> runningSince = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -15705,6 +15775,7 @@ class $$PracticeSessionEntriesTableTableTableManager
                 session: session,
                 exercise: exercise,
                 routineEntry: routineEntry,
+                startedAt: startedAt,
                 duration: duration,
                 runningSince: runningSince,
                 rowid: rowid,
