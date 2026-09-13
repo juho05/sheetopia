@@ -23,6 +23,13 @@ bool get _isDesktop =>
 
 bool get supportsFullScreen => _fullScreenReady && _isDesktop;
 
+void setImmersive(bool immersive) {
+  if (!Platform.isAndroid && !Platform.isIOS) return;
+  SystemChrome.setEnabledSystemUIMode(
+    immersive ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
+  );
+}
+
 class PlaySession extends StatefulWidget {
   final Widget child;
 
@@ -54,6 +61,7 @@ class PlaySessionState extends State<PlaySession> with FullScreenListener {
   void initState() {
     super.initState();
     WakelockPlus.enable();
+    setImmersive(true);
     if (supportsFullScreen) FullScreen.addListener(this);
     showOverlay();
   }
@@ -68,6 +76,7 @@ class PlaySessionState extends State<PlaySession> with FullScreenListener {
       }
     }
     WakelockPlus.disable();
+    setImmersive(false);
     super.dispose();
   }
 

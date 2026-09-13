@@ -70,7 +70,10 @@ class _ScoreViewerState extends State<ScoreViewer>
     super.initState();
 
     _ownsSession = !PlaySession.isActive(context);
-    if (_ownsSession) WakelockPlus.enable();
+    if (_ownsSession) {
+      WakelockPlus.enable();
+      setImmersive(true);
+    }
 
     _viewModel = ScoreViewModel(
       repo: context.read(),
@@ -108,6 +111,7 @@ class _ScoreViewerState extends State<ScoreViewer>
   void dispose() {
     if (_ownsSession) {
       WakelockPlus.disable();
+      setImmersive(false);
       if (FullScreen.isFullScreen && !Platform.isMacOS) {
         FullScreen.setFullScreen(false);
       }
