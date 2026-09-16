@@ -78,7 +78,7 @@ class _HomePageState extends State<HomePage> {
       if (!context.mounted || firstScoreId == null) {
         return;
       }
-      context.go("/scores/$firstScoreId/edit");
+      context.go("/scores/import");
     } on InvalidFileTypeException catch (e, st) {
       Toast.exception(e, st: st, errorMsg: "Unsupported file type!");
     } catch (e, st) {
@@ -92,7 +92,7 @@ class _HomePageState extends State<HomePage> {
       if (!context.mounted || firstScoreId == null) {
         return;
       }
-      context.go("/scores/$firstScoreId/edit");
+      context.go("/scores/import");
     } catch (e, st) {
       Toast.exception(e, st: st, errorMsg: "Failed to scan score!");
     }
@@ -176,10 +176,10 @@ class _HomePageState extends State<HomePage> {
 
                     try {
                       final firstScoreId = await viewModel.receiveDrop(files);
-                      if (!context.mounted) {
+                      if (!context.mounted || firstScoreId == null) {
                         return;
                       }
-                      context.go("/scores/$firstScoreId/edit");
+                      context.go("/scores/import");
                     } on InvalidFileTypeException catch (e, st) {
                       Toast.exception(
                         e,

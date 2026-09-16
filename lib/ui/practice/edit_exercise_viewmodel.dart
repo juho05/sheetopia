@@ -190,7 +190,11 @@ class EditExerciseViewModel extends ChangeNotifier {
   }
 
   Future<void> _importFiles(Iterable<XFile> files) async {
-    final scores = await _scoresRepo.importAll(files, type: ScoreType.exercise);
+    final scores = await _scoresRepo.importAll(
+      files,
+      type: ScoreType.exercise,
+      status: ScoreStatus.uncreatedParent,
+    );
     _scoreEntries.addAll(_toEntries(scores));
     notifyListeners();
     await _persistExerciseScores();

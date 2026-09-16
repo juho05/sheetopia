@@ -13,6 +13,7 @@ import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/file_picker.dart';
 import 'package:sheetopia/ui/common/selection/selection_model.dart';
 
@@ -71,7 +72,10 @@ class HomeViewModel extends ChangeNotifier {
       final files = await selectScoreFiles();
       if (files.isEmpty) return null;
 
-      final scores = await _scoresRepo.importAll(files);
+      final scores = await _scoresRepo.importAll(
+        files,
+        status: ScoreStatus.needsFirstEdit,
+      );
       return scores.first.id;
     } finally {
       _importing = false;
@@ -93,6 +97,7 @@ class HomeViewModel extends ChangeNotifier {
       try {
         final scores = await _scoresRepo.importAll(
           pdfPath.map((p) => XFile(p, mimeType: "application/pdf")),
+          status: ScoreStatus.needsFirstEdit,
         );
         return scores.first.id;
       } finally {
@@ -108,7 +113,10 @@ class HomeViewModel extends ChangeNotifier {
     _importing = true;
     notifyListeners();
     try {
-      final scores = await _scoresRepo.importAll(files);
+      final scores = await _scoresRepo.importAll(
+        files,
+        status: ScoreStatus.needsFirstEdit,
+      );
       if (scores.isEmpty) return null;
       return scores.first.id;
     } finally {

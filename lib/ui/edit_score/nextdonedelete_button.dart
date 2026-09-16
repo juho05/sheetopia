@@ -26,7 +26,10 @@ class NextDoneDeleteButton extends StatelessWidget {
         ? NextButton(onPressed: () => viewModel.next())
         : viewModel.isImport
         ? FilledButton(
-            onPressed: () => context.pop(),
+            onPressed: () async {
+              if (!context.mounted) return;
+              context.pop();
+            },
             child: const Text("Done"),
           )
         : FilledButton.icon(

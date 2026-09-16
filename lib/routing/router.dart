@@ -76,7 +76,7 @@ GoRouter get goRouter {
 
       switch (shareImport.value._status) {
         case _ShareStatus.ready:
-          return "/scores/${shareImport.value.scoreId}/edit";
+          return "/scores/import";
         case _ShareStatus.empty:
           return "/";
         case _ShareStatus.idle:
@@ -92,14 +92,21 @@ GoRouter get goRouter {
         builder: (context, state) => const HomePage(),
         routes: [
           GoRoute(
+            path: 'scores/import',
+            builder: (context, state) =>
+                const EditScorePage(scoreId: null, importMode: true),
+          ),
+          GoRoute(
             path: 'scores/:scoreId',
             builder: (context, state) =>
                 ScorePage(scoreId: state.pathParameters["scoreId"]!),
           ),
           GoRoute(
             path: 'scores/:scoreId/edit',
-            builder: (context, state) =>
-                EditScorePage(scoreId: state.pathParameters["scoreId"]!),
+            builder: (context, state) => EditScorePage(
+              scoreId: state.pathParameters["scoreId"]!,
+              importMode: false,
+            ),
             routes: [
               GoRoute(
                 path: 'annotate',

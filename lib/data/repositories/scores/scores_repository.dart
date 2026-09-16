@@ -89,11 +89,6 @@ class ScoresRepository {
 
   ScoresRepository({required this._db, required this._thumbnailService});
 
-  List<String> _freshImports = [];
-
-  UnmodifiableListView<String> get freshImports =>
-      UnmodifiableListView(_freshImports);
-
   Future<Score?> getScore(String id) async {
     final result = await _db.managers.scoresTable
         .filter((f) => f.id(id))
@@ -123,6 +118,22 @@ class ScoresRepository {
             ..sort(),
       tags: (await _getScoreTags(score.id)).toList(),
     );
+  }
+
+  Future<String?> getNextScoreIdThatNeedsEdit({String? skipId}) async {
+    final q = _db.selectOnly(_db.scoresTable);
+    q.addColumns([_db.scoresTable.id]);
+    q.where(_db.scoresTable.status.equals(ScoreStatus.needsFirstEdit.name));
+    if (skipId != null) {
+      q.where(_db.scoresTable.id.equals(skipId).not());
+    }
+    q.orderBy([
+      OrderingTerm.asc(_db.scoresTable.metadataUpdatedAt),
+      OrderingTerm.asc(_db.scoresTable.id),
+    ]);
+    q.limit(1);
+    final result = await q.getSingleOrNull();
+    return result?.read(_db.scoresTable.id);
   }
 
   // in the order of the given ids, ids without a score are skipped
@@ -535,19 +546,34 @@ class ScoresRepository {
     required String composer,
     required String notes,
   }) async {
-    await _db.managers.scoresTable
-        .filter((f) => f.id(scoreId))
-        .update(
-          (o) => o(
-            title: Value(title),
-            composer: composer.isNotEmpty ? Value(composer) : const Value(null),
-            notes: notes.isNotEmpty ? Value(notes) : const Value(null),
-            searchText: Value(generateSearchText([title, composer])),
-            metadataUpdatedAt: Value(DateTime.now().toUtc()),
-            metadataUploaded: const Value(false),
-          ),
-        );
+    await _db.transaction(() async {
+      await _db.managers.scoresTable
+          .filter((f) => f.id(scoreId))
+          .update(
+            (o) => o(
+              title: Value(title),
+              composer: composer.isNotEmpty
+                  ? Value(composer)
+                  : const Value(null),
+              notes: notes.isNotEmpty ? Value(notes) : const Value(null),
+              searchText: Value(generateSearchText([title, composer])),
+              metadataUpdatedAt: Value(DateTime.now().toUtc()),
+              metadataUploaded: const Value(false),
+            ),
+          );
+      await updateScoreStatus([scoreId]);
+    });
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
+  }
+
+  Future<void> updateScoreStatus(Iterable<String> scoreIds) async {
+    if (scoreIds.isEmpty) return;
+    await _db.managers.scoresTable
+        .filter(
+          (f) =>
+              f.id.isIn(scoreIds) & f.status.equals(ScoreStatus.needsFirstEdit),
+        )
+        .update((o) => o(status: const Value(ScoreStatus.created)));
   }
 
   Future<void> updateScoreTitle(String scoreId, String title) async {
@@ -569,6 +595,7 @@ class ScoresRepository {
               metadataUploaded: const Value(false),
             ),
           );
+      await updateScoreStatus([scoreId]);
     });
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
@@ -578,18 +605,21 @@ class ScoresRepository {
     required String source,
     required String sourceLink,
   }) async {
-    await _db.managers.scoresTable
-        .filter((f) => f.id(scoreId))
-        .update(
-          (o) => o(
-            source: source.isNotEmpty ? Value(source) : const Value(null),
-            sourceLink: source.isNotEmpty && sourceLink.isNotEmpty
-                ? Value(sourceLink)
-                : const Value(null),
-            metadataUpdatedAt: Value(DateTime.now().toUtc()),
-            metadataUploaded: const Value(false),
-          ),
-        );
+    await _db.transaction(() async {
+      await _db.managers.scoresTable
+          .filter((f) => f.id(scoreId))
+          .update(
+            (o) => o(
+              source: source.isNotEmpty ? Value(source) : const Value(null),
+              sourceLink: source.isNotEmpty && sourceLink.isNotEmpty
+                  ? Value(sourceLink)
+                  : const Value(null),
+              metadataUpdatedAt: Value(DateTime.now().toUtc()),
+              metadataUploaded: const Value(false),
+            ),
+          );
+      await updateScoreStatus([scoreId]);
+    });
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
@@ -599,18 +629,21 @@ class ScoresRepository {
     String sourceLink,
   ) async {
     if (scoreIds.isEmpty) return;
-    await _db.managers.scoresTable
-        .filter((f) => f.id.isIn(scoreIds))
-        .update(
-          (o) => o(
-            source: source.isNotEmpty ? Value(source) : const Value(null),
-            sourceLink: source.isNotEmpty && sourceLink.isNotEmpty
-                ? Value(sourceLink)
-                : const Value(null),
-            metadataUpdatedAt: Value(DateTime.now().toUtc()),
-            metadataUploaded: const Value(false),
-          ),
-        );
+    await _db.transaction(() async {
+      await _db.managers.scoresTable
+          .filter((f) => f.id.isIn(scoreIds))
+          .update(
+            (o) => o(
+              source: source.isNotEmpty ? Value(source) : const Value(null),
+              sourceLink: source.isNotEmpty && sourceLink.isNotEmpty
+                  ? Value(sourceLink)
+                  : const Value(null),
+              metadataUpdatedAt: Value(DateTime.now().toUtc()),
+              metadataUploaded: const Value(false),
+            ),
+          );
+      await updateScoreStatus(scoreIds);
+    });
     _updatedScoreIds.add((changed: scoreIds.toSet(), remoteTriggered: false));
   }
 
@@ -647,6 +680,7 @@ class ScoresRepository {
               ),
             );
       }
+      await updateScoreStatus(scoreIds);
     });
     _updatedScoreIds.add((changed: scoreIds.toSet(), remoteTriggered: false));
   }
@@ -828,6 +862,7 @@ class ScoresRepository {
               metadataUploaded: const Value(false),
             ),
           );
+      await updateScoreStatus([scoreId]);
     });
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
@@ -845,6 +880,7 @@ class ScoresRepository {
               metadataUploaded: const Value(false),
             ),
           );
+      await updateScoreStatus([scoreId]);
     });
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
@@ -863,6 +899,7 @@ class ScoresRepository {
               metadataUploaded: const Value(false),
             ),
           );
+      await updateScoreStatus([scoreId]);
     });
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
@@ -880,6 +917,7 @@ class ScoresRepository {
               metadataUploaded: const Value(false),
             ),
           );
+      await updateScoreStatus([scoreId]);
     });
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
@@ -913,6 +951,7 @@ class ScoresRepository {
               metadataUploaded: const Value(false),
             ),
           );
+      await updateScoreStatus(scoreIds);
     });
     _updatedScoreIds.add((changed: scoreIds.toSet(), remoteTriggered: false));
   }
@@ -949,6 +988,7 @@ class ScoresRepository {
               metadataUploaded: const Value(false),
             ),
           );
+      await updateScoreStatus(scoreIds);
     });
     _updatedScoreIds.add((changed: scoreIds.toSet(), remoteTriggered: false));
   }
@@ -983,6 +1023,7 @@ class ScoresRepository {
               metadataUploaded: const Value(false),
             ),
           );
+      await updateScoreStatus(scoreIds);
     });
     _updatedScoreIds.add((changed: scoreIds.toSet(), remoteTriggered: false));
   }
@@ -1001,6 +1042,7 @@ class ScoresRepository {
               metadataUploaded: const Value(false),
             ),
           );
+      await updateScoreStatus([scoreId]);
     });
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
@@ -1018,12 +1060,14 @@ class ScoresRepository {
               metadataUploaded: const Value(false),
             ),
           );
+      await updateScoreStatus([scoreId]);
     });
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
   Future<List<Score>> importAll(
     Iterable<XFile> files, {
+    required ScoreStatus status,
     ScoreType type = ScoreType.score,
   }) async {
     List<Score> scores = [];
@@ -1075,6 +1119,7 @@ class ScoresRepository {
             fileDownloaded: true,
             fileType: s.fileType,
             type: Value(s.type),
+            status: Value(status),
           ),
         ),
       );
@@ -1087,9 +1132,6 @@ class ScoresRepository {
       rethrow;
     }
 
-    if (type == ScoreType.score) {
-      _freshImports = List.of(scores.map((s) => s.id));
-    }
     _updatedScoreIds.add((
       changed: scores.map((s) => s.id).toSet(),
       remoteTriggered: false,
@@ -1118,15 +1160,18 @@ class ScoresRepository {
 
     await _thumbnailService.invalidateThumbnails([scoreId]);
 
-    await _db.managers.scoresTable
-        .filter((f) => f.id(scoreId))
-        .update(
-          (o) => o(
-            fileUpdatedAt: Value(DateTime.now().toUtc()),
-            fileType: Value(fileType),
-            fileUploaded: const Value(false),
-          ),
-        );
+    await _db.transaction(() async {
+      await _db.managers.scoresTable
+          .filter((f) => f.id(scoreId))
+          .update(
+            (o) => o(
+              fileUpdatedAt: Value(DateTime.now().toUtc()),
+              fileType: Value(fileType),
+              fileUploaded: const Value(false),
+            ),
+          );
+      await updateScoreStatus([scoreId]);
+    });
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
@@ -1218,10 +1263,6 @@ class ScoresRepository {
     return await query.map((r) => r.read(_db.scoresTable.source)!).get();
   }
 
-  void clearFreshImports() {
-    _freshImports = [];
-  }
-
   Future<void> deleteScore(String scoreId) async {
     await deleteScores({scoreId});
   }
@@ -1294,7 +1335,6 @@ class ScoresRepository {
       await _db.managers.instrumentsTable.delete();
       await _db.managers.genresTable.delete();
     });
-    clearFreshImports();
     _updatedScoreIds.add((changed: {}, remoteTriggered: false));
     _updatedTagIds.add((changed: {}, remoteTriggered: false));
     (await scoresDir).delete(recursive: true);

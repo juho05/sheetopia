@@ -9,8 +9,24 @@
 import 'package:drift/drift.dart';
 import 'package:json_annotation/json_annotation.dart';
 
+enum ScoreStatus {
+  /// The score was created as part of another entity (e.g. exercise) which is has
+  /// not been created yet. Shouldn't sync yet.
+  uncreatedParent,
+
+  /// The score was imported (e.g. by selecting a file or receiving a share)
+  /// and the user hasn't edited the file yet as part of the create score page.
+  /// Sync is fine.
+  needsFirstEdit,
+
+  /// Usual state of a score.
+  /// Should sync.
+  created,
+}
+
 @TableIndex(name: "search_text_index", columns: {#searchText})
 @TableIndex(name: "recent_time_index", columns: {#recentTime})
+@TableIndex(name: "status_index", columns: {#status})
 class ScoresTable extends Table {
   late final id = text()();
   late final title = text()();
@@ -19,6 +35,9 @@ class ScoresTable extends Table {
   late final sourceLink = text().nullable()();
   late final notes = text().nullable()();
   late final searchText = text()();
+  late final status = textEnum<ScoreStatus>().withDefault(
+    Constant(ScoreStatus.created.name),
+  )();
 
   late final recentTime = dateTime().generatedAs(
     CustomExpression(

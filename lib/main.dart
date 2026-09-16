@@ -23,6 +23,7 @@ import 'package:sheetopia/data/repositories/logger/log_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/themeManager/theme_manager.dart';
+import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/sharing/share_inbox.dart';
 import 'package:sheetopia/providers.dart';
 import 'package:sheetopia/routing/practice_resume.dart';
@@ -136,6 +137,7 @@ class _AppState extends State<App> {
     try {
       final scores = await repo.importAll(
         files.map((f) => XFile(f.value!, mimeType: f.mimeType)),
+        status: ScoreStatus.needsFirstEdit,
       );
       final first = scores.firstOrNull;
       if (first == null) {
@@ -143,7 +145,7 @@ class _AppState extends State<App> {
         return;
       }
       shareImport.value = ShareImport.ready(first.id);
-      goRouter.go("/scores/${first.id}/edit");
+      goRouter.go("/scores/import");
     } on InvalidFileTypeException catch (e, st) {
       shareImport.value = const ShareImport.empty();
       Toast.exception(e, st: st, errorMsg: "Unsupported file type!");

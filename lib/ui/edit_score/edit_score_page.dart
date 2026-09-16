@@ -14,15 +14,23 @@ import 'package:sheetopia/ui/edit_score/edit_score_preview.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_viewmodel.dart';
 
 class EditScorePage extends StatelessWidget {
-  final String scoreId;
+  final String? scoreId;
+  final bool importMode;
 
-  const EditScorePage({super.key, required this.scoreId});
+  const EditScorePage({
+    super.key,
+    required this.scoreId,
+    required this.importMode,
+  }) : assert(scoreId != null || importMode);
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<EditScoreViewModel>(
-      create: (context) =>
-          EditScoreViewModel(repo: context.read(), scoreId: scoreId),
+      create: (context) => EditScoreViewModel(
+        repo: context.read(),
+        scoreId: scoreId,
+        isImport: importMode,
+      ),
       builder: (context, _) {
         return Consumer<EditScoreViewModel>(
           builder: (context, viewModel, _) {

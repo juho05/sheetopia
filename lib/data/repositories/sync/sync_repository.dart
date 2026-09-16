@@ -23,6 +23,7 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/repositories/version/version.dart';
 import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/sync/exceptions.dart';
 import 'package:sheetopia/data/services/sync/models/exercise_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
@@ -1518,7 +1519,11 @@ class SyncRepository {
             instrumentsTableRefs: true,
           ),
         )
-        .filter((f) => f.metadataUploaded.isFalse())
+        .filter(
+          (f) =>
+              f.status.equals(ScoreStatus.uncreatedParent).not() &
+              f.metadataUploaded.isFalse(),
+        )
         .get(distinct: true);
 
     for (final (s, refs) in changedScores) {
@@ -1594,7 +1599,12 @@ class SyncRepository {
 
   Future<void> _uploadFileChanges() async {
     final scores = await _db.managers.scoresTable
-        .filter((f) => f.fileDownloaded.isTrue() & f.fileUploaded.isFalse())
+        .filter(
+          (f) =>
+              f.status.equals(ScoreStatus.uncreatedParent).not() &
+              f.fileDownloaded.isTrue() &
+              f.fileUploaded.isFalse(),
+        )
         .get();
     for (final s in scores) {
       final file = await _scoresRepo.scoreFile(s.id, s.fileType);

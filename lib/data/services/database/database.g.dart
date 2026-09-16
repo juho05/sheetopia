@@ -78,6 +78,16 @@ class $ScoresTableTable extends ScoresTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  @override
+  late final GeneratedColumnWithTypeConverter<ScoreStatus, String> status =
+      GeneratedColumn<String>(
+        'status',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: Constant(ScoreStatus.created.name),
+      ).withConverter<ScoreStatus>($ScoresTableTable.$converterstatus);
   static const VerificationMeta _recentTimeMeta = const VerificationMeta(
     'recentTime',
   );
@@ -227,6 +237,7 @@ class $ScoresTableTable extends ScoresTable
     sourceLink,
     notes,
     searchText,
+    status,
     recentTime,
     lastOpened,
     metadataUpdatedAt,
@@ -407,6 +418,12 @@ class $ScoresTableTable extends ScoresTable
         DriftSqlType.string,
         data['${effectivePrefix}search_text'],
       )!,
+      status: $ScoresTableTable.$converterstatus.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}status'],
+        )!,
+      ),
       recentTime: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}recent_time'],
@@ -463,6 +480,8 @@ class $ScoresTableTable extends ScoresTable
     return $ScoresTableTable(attachedDatabase, alias);
   }
 
+  static JsonTypeConverter2<ScoreStatus, String, String> $converterstatus =
+      const EnumNameConverter<ScoreStatus>(ScoreStatus.values);
   static JsonTypeConverter2<FileType, String, String> $converterfileType =
       const EnumNameConverter<FileType>(FileType.values);
   static JsonTypeConverter2<ScoreType, String, String> $convertertype =
@@ -477,6 +496,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
   final String? sourceLink;
   final String? notes;
   final String searchText;
+  final ScoreStatus status;
   final DateTime recentTime;
   final DateTime lastOpened;
   final DateTime metadataUpdatedAt;
@@ -496,6 +516,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     this.sourceLink,
     this.notes,
     required this.searchText,
+    required this.status,
     required this.recentTime,
     required this.lastOpened,
     required this.metadataUpdatedAt,
@@ -526,6 +547,11 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       map['notes'] = Variable<String>(notes);
     }
     map['search_text'] = Variable<String>(searchText);
+    {
+      map['status'] = Variable<String>(
+        $ScoresTableTable.$converterstatus.toSql(status),
+      );
+    }
     map['last_opened'] = Variable<DateTime>(lastOpened);
     map['metadata_updated_at'] = Variable<DateTime>(metadataUpdatedAt);
     map['file_updated_at'] = Variable<DateTime>(fileUpdatedAt);
@@ -568,6 +594,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           ? const Value.absent()
           : Value(notes),
       searchText: Value(searchText),
+      status: Value(status),
       lastOpened: Value(lastOpened),
       metadataUpdatedAt: Value(metadataUpdatedAt),
       fileUpdatedAt: Value(fileUpdatedAt),
@@ -598,6 +625,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       sourceLink: serializer.fromJson<String?>(json['sourceLink']),
       notes: serializer.fromJson<String?>(json['notes']),
       searchText: serializer.fromJson<String>(json['searchText']),
+      status: $ScoresTableTable.$converterstatus.fromJson(
+        serializer.fromJson<String>(json['status']),
+      ),
       recentTime: serializer.fromJson<DateTime>(json['recentTime']),
       lastOpened: serializer.fromJson<DateTime>(json['lastOpened']),
       metadataUpdatedAt: serializer.fromJson<DateTime>(
@@ -628,6 +658,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       'sourceLink': serializer.toJson<String?>(sourceLink),
       'notes': serializer.toJson<String?>(notes),
       'searchText': serializer.toJson<String>(searchText),
+      'status': serializer.toJson<String>(
+        $ScoresTableTable.$converterstatus.toJson(status),
+      ),
       'recentTime': serializer.toJson<DateTime>(recentTime),
       'lastOpened': serializer.toJson<DateTime>(lastOpened),
       'metadataUpdatedAt': serializer.toJson<DateTime>(metadataUpdatedAt),
@@ -654,6 +687,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     Value<String?> sourceLink = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     String? searchText,
+    ScoreStatus? status,
     DateTime? recentTime,
     DateTime? lastOpened,
     DateTime? metadataUpdatedAt,
@@ -673,6 +707,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     sourceLink: sourceLink.present ? sourceLink.value : this.sourceLink,
     notes: notes.present ? notes.value : this.notes,
     searchText: searchText ?? this.searchText,
+    status: status ?? this.status,
     recentTime: recentTime ?? this.recentTime,
     lastOpened: lastOpened ?? this.lastOpened,
     metadataUpdatedAt: metadataUpdatedAt ?? this.metadataUpdatedAt,
@@ -695,6 +730,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           ..write('sourceLink: $sourceLink, ')
           ..write('notes: $notes, ')
           ..write('searchText: $searchText, ')
+          ..write('status: $status, ')
           ..write('recentTime: $recentTime, ')
           ..write('lastOpened: $lastOpened, ')
           ..write('metadataUpdatedAt: $metadataUpdatedAt, ')
@@ -719,6 +755,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     sourceLink,
     notes,
     searchText,
+    status,
     recentTime,
     lastOpened,
     metadataUpdatedAt,
@@ -742,6 +779,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           other.sourceLink == this.sourceLink &&
           other.notes == this.notes &&
           other.searchText == this.searchText &&
+          other.status == this.status &&
           other.recentTime == this.recentTime &&
           other.lastOpened == this.lastOpened &&
           other.metadataUpdatedAt == this.metadataUpdatedAt &&
@@ -763,6 +801,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
   final Value<String?> sourceLink;
   final Value<String?> notes;
   final Value<String> searchText;
+  final Value<ScoreStatus> status;
   final Value<DateTime> lastOpened;
   final Value<DateTime> metadataUpdatedAt;
   final Value<DateTime> fileUpdatedAt;
@@ -782,6 +821,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.sourceLink = const Value.absent(),
     this.notes = const Value.absent(),
     this.searchText = const Value.absent(),
+    this.status = const Value.absent(),
     this.lastOpened = const Value.absent(),
     this.metadataUpdatedAt = const Value.absent(),
     this.fileUpdatedAt = const Value.absent(),
@@ -802,6 +842,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.sourceLink = const Value.absent(),
     this.notes = const Value.absent(),
     required String searchText,
+    this.status = const Value.absent(),
     this.lastOpened = const Value.absent(),
     this.metadataUpdatedAt = const Value.absent(),
     this.fileUpdatedAt = const Value.absent(),
@@ -826,6 +867,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Expression<String>? sourceLink,
     Expression<String>? notes,
     Expression<String>? searchText,
+    Expression<String>? status,
     Expression<DateTime>? lastOpened,
     Expression<DateTime>? metadataUpdatedAt,
     Expression<DateTime>? fileUpdatedAt,
@@ -846,6 +888,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       if (sourceLink != null) 'source_link': sourceLink,
       if (notes != null) 'notes': notes,
       if (searchText != null) 'search_text': searchText,
+      if (status != null) 'status': status,
       if (lastOpened != null) 'last_opened': lastOpened,
       if (metadataUpdatedAt != null) 'metadata_updated_at': metadataUpdatedAt,
       if (fileUpdatedAt != null) 'file_updated_at': fileUpdatedAt,
@@ -868,6 +911,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Value<String?>? sourceLink,
     Value<String?>? notes,
     Value<String>? searchText,
+    Value<ScoreStatus>? status,
     Value<DateTime>? lastOpened,
     Value<DateTime>? metadataUpdatedAt,
     Value<DateTime>? fileUpdatedAt,
@@ -888,6 +932,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       sourceLink: sourceLink ?? this.sourceLink,
       notes: notes ?? this.notes,
       searchText: searchText ?? this.searchText,
+      status: status ?? this.status,
       lastOpened: lastOpened ?? this.lastOpened,
       metadataUpdatedAt: metadataUpdatedAt ?? this.metadataUpdatedAt,
       fileUpdatedAt: fileUpdatedAt ?? this.fileUpdatedAt,
@@ -925,6 +970,11 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     }
     if (searchText.present) {
       map['search_text'] = Variable<String>(searchText.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(
+        $ScoresTableTable.$converterstatus.toSql(status.value),
+      );
     }
     if (lastOpened.present) {
       map['last_opened'] = Variable<DateTime>(lastOpened.value);
@@ -976,6 +1026,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
           ..write('sourceLink: $sourceLink, ')
           ..write('notes: $notes, ')
           ..write('searchText: $searchText, ')
+          ..write('status: $status, ')
           ..write('lastOpened: $lastOpened, ')
           ..write('metadataUpdatedAt: $metadataUpdatedAt, ')
           ..write('fileUpdatedAt: $fileUpdatedAt, ')
@@ -8630,6 +8681,10 @@ abstract class _$Database extends GeneratedDatabase {
     'recent_time_index',
     'CREATE INDEX recent_time_index ON scores (recent_time)',
   );
+  late final Index statusIndex = Index(
+    'status_index',
+    'CREATE INDEX status_index ON scores (status)',
+  );
   late final Index exercisesCategoryIndex = Index(
     'exercises_category_index',
     'CREATE INDEX exercises_category_index ON exercises (category)',
@@ -8693,6 +8748,7 @@ abstract class _$Database extends GeneratedDatabase {
     deletedPracticeSessionsTable,
     searchTextIndex,
     recentTimeIndex,
+    statusIndex,
     exercisesCategoryIndex,
     exerciseScoresScoreIndex,
     practiceRoutineEntriesRoutineIndex,
@@ -8883,6 +8939,7 @@ typedef $$ScoresTableTableCreateCompanionBuilder =
       Value<String?> sourceLink,
       Value<String?> notes,
       required String searchText,
+      Value<ScoreStatus> status,
       Value<DateTime> lastOpened,
       Value<DateTime> metadataUpdatedAt,
       Value<DateTime> fileUpdatedAt,
@@ -8904,6 +8961,7 @@ typedef $$ScoresTableTableUpdateCompanionBuilder =
       Value<String?> sourceLink,
       Value<String?> notes,
       Value<String> searchText,
+      Value<ScoreStatus> status,
       Value<DateTime> lastOpened,
       Value<DateTime> metadataUpdatedAt,
       Value<DateTime> fileUpdatedAt,
@@ -9021,6 +9079,12 @@ class $$ScoresTableTableFilterComposer
     column: $table.searchText,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnWithTypeConverterFilters<ScoreStatus, ScoreStatus, String> get status =>
+      $composableBuilder(
+        column: $table.status,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
 
   ColumnFilters<DateTime> get recentTime => $composableBuilder(
     column: $table.recentTime,
@@ -9199,6 +9263,11 @@ class $$ScoresTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get recentTime => $composableBuilder(
     column: $table.recentTime,
     builder: (column) => ColumnOrderings(column),
@@ -9288,6 +9357,9 @@ class $$ScoresTableTableAnnotationComposer
     column: $table.searchText,
     builder: (column) => column,
   );
+
+  GeneratedColumnWithTypeConverter<ScoreStatus, String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
 
   GeneratedColumn<DateTime> get recentTime => $composableBuilder(
     column: $table.recentTime,
@@ -9453,6 +9525,7 @@ class $$ScoresTableTableTableManager
                 Value<String?> sourceLink = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String> searchText = const Value.absent(),
+                Value<ScoreStatus> status = const Value.absent(),
                 Value<DateTime> lastOpened = const Value.absent(),
                 Value<DateTime> metadataUpdatedAt = const Value.absent(),
                 Value<DateTime> fileUpdatedAt = const Value.absent(),
@@ -9472,6 +9545,7 @@ class $$ScoresTableTableTableManager
                 sourceLink: sourceLink,
                 notes: notes,
                 searchText: searchText,
+                status: status,
                 lastOpened: lastOpened,
                 metadataUpdatedAt: metadataUpdatedAt,
                 fileUpdatedAt: fileUpdatedAt,
@@ -9493,6 +9567,7 @@ class $$ScoresTableTableTableManager
                 Value<String?> sourceLink = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 required String searchText,
+                Value<ScoreStatus> status = const Value.absent(),
                 Value<DateTime> lastOpened = const Value.absent(),
                 Value<DateTime> metadataUpdatedAt = const Value.absent(),
                 Value<DateTime> fileUpdatedAt = const Value.absent(),
@@ -9512,6 +9587,7 @@ class $$ScoresTableTableTableManager
                 sourceLink: sourceLink,
                 notes: notes,
                 searchText: searchText,
+                status: status,
                 lastOpened: lastOpened,
                 metadataUpdatedAt: metadataUpdatedAt,
                 fileUpdatedAt: fileUpdatedAt,
@@ -9527,7 +9603,7 @@ class $$ScoresTableTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$ScoresTableTable, ScoresTableData>(table),
                   $$ScoresTableTableReferences(db, table, e),
                 ),
               )
@@ -9833,7 +9909,7 @@ class $$GenresTableTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$GenresTableTable, GenresTableData>(table),
                   $$GenresTableTableReferences(db, table, e),
                 ),
               )
@@ -10106,7 +10182,9 @@ class $$InstrumentsTableTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$InstrumentsTableTable, InstrumentsTableData>(
+                    table,
+                  ),
                   $$InstrumentsTableTableReferences(db, table, e),
                 ),
               )
@@ -10536,7 +10614,7 @@ class $$TagsTableTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$TagsTableTable, TagsTableData>(table),
                   $$TagsTableTableReferences(db, table, e),
                 ),
               )
@@ -10890,7 +10968,7 @@ class $$ScoreTagsTableTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$ScoreTagsTableTable, ScoreTagsTableData>(table),
                   $$ScoreTagsTableTableReferences(db, table, e),
                 ),
               )
@@ -11085,7 +11163,16 @@ class $$KeyValueTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$KeyValueTableTable, KeyValueTableData>(table),
+                  BaseReferences<
+                    _$Database,
+                    $KeyValueTableTable,
+                    KeyValueTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -11234,7 +11321,18 @@ class $$DeletedTagsTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$DeletedTagsTableTable, DeletedTagsTableData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$Database,
+                    $DeletedTagsTableTable,
+                    DeletedTagsTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -11390,7 +11488,18 @@ class $$DeletedScoresTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$DeletedScoresTableTable, DeletedScoresTableData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$Database,
+                    $DeletedScoresTableTable,
+                    DeletedScoresTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -11654,7 +11763,18 @@ class $$LogMessageTableTableTableManager
                 exception: exception,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$LogMessageTableTable, LogMessageTableData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$Database,
+                    $LogMessageTableTable,
+                    LogMessageTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -11936,7 +12056,7 @@ class $$SetlistsTableTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$SetlistsTableTable, SetlistsTableData>(table),
                   $$SetlistsTableTableReferences(db, table, e),
                 ),
               )
@@ -12223,7 +12343,10 @@ class $$SetlistEntriesTableTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $SetlistEntriesTableTable,
+                    SetlistEntriesTableData
+                  >(table),
                   $$SetlistEntriesTableTableReferences(db, table, e),
                 ),
               )
@@ -12420,7 +12543,19 @@ class $$DeletedSetlistsTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<
+                    $DeletedSetlistsTableTable,
+                    DeletedSetlistsTableData
+                  >(table),
+                  BaseReferences<
+                    _$Database,
+                    $DeletedSetlistsTableTable,
+                    DeletedSetlistsTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -12738,7 +12873,10 @@ class $$ExerciseCategoriesTableTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $ExerciseCategoriesTableTable,
+                    ExerciseCategoriesTableData
+                  >(table),
                   $$ExerciseCategoriesTableTableReferences(db, table, e),
                 ),
               )
@@ -13411,7 +13549,7 @@ class $$ExercisesTableTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$ExercisesTableTable, ExercisesTableData>(table),
                   $$ExercisesTableTableReferences(db, table, e),
                 ),
               )
@@ -13789,7 +13927,10 @@ class $$ExerciseScoresTableTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $ExerciseScoresTableTable,
+                    ExerciseScoresTableData
+                  >(table),
                   $$ExerciseScoresTableTableReferences(db, table, e),
                 ),
               )
@@ -14138,7 +14279,9 @@ class $$ExerciseTagsTableTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$ExerciseTagsTableTable, ExerciseTagsTableData>(
+                    table,
+                  ),
                   $$ExerciseTagsTableTableReferences(db, table, e),
                 ),
               )
@@ -14523,7 +14666,10 @@ class $$PracticeRoutinesTableTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $PracticeRoutinesTableTable,
+                    PracticeRoutinesTableData
+                  >(table),
                   $$PracticeRoutinesTableTableReferences(db, table, e),
                 ),
               )
@@ -14978,7 +15124,10 @@ class $$PracticeRoutineEntriesTableTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $PracticeRoutineEntriesTableTable,
+                    PracticeRoutineEntriesTableData
+                  >(table),
                   $$PracticeRoutineEntriesTableTableReferences(db, table, e),
                 ),
               )
@@ -15404,7 +15553,10 @@ class $$PracticeSessionsTableTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $PracticeSessionsTableTable,
+                    PracticeSessionsTableData
+                  >(table),
                   $$PracticeSessionsTableTableReferences(db, table, e),
                 ),
               )
@@ -15783,7 +15935,10 @@ class $$PracticeSessionEntriesTableTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $PracticeSessionEntriesTableTable,
+                    PracticeSessionEntriesTableData
+                  >(table),
                   $$PracticeSessionEntriesTableTableReferences(db, table, e),
                 ),
               )
@@ -15988,7 +16143,19 @@ class $$DeletedExerciseCategoriesTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<
+                    $DeletedExerciseCategoriesTableTable,
+                    DeletedExerciseCategoriesTableData
+                  >(table),
+                  BaseReferences<
+                    _$Database,
+                    $DeletedExerciseCategoriesTableTable,
+                    DeletedExerciseCategoriesTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -16152,7 +16319,19 @@ class $$DeletedExercisesTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<
+                    $DeletedExercisesTableTable,
+                    DeletedExercisesTableData
+                  >(table),
+                  BaseReferences<
+                    _$Database,
+                    $DeletedExercisesTableTable,
+                    DeletedExercisesTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -16314,7 +16493,19 @@ class $$DeletedPracticeRoutinesTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<
+                    $DeletedPracticeRoutinesTableTable,
+                    DeletedPracticeRoutinesTableData
+                  >(table),
+                  BaseReferences<
+                    _$Database,
+                    $DeletedPracticeRoutinesTableTable,
+                    DeletedPracticeRoutinesTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -16476,7 +16667,19 @@ class $$DeletedPracticeSessionsTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<
+                    $DeletedPracticeSessionsTableTable,
+                    DeletedPracticeSessionsTableData
+                  >(table),
+                  BaseReferences<
+                    _$Database,
+                    $DeletedPracticeSessionsTableTable,
+                    DeletedPracticeSessionsTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),

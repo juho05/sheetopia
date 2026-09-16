@@ -514,6 +514,14 @@ class PracticeRepository {
             (e) => o(exercise: exerciseId, score: e.$2, position: e.$1),
           ),
         );
+        await _db.managers.scoresTable
+            .filter(
+              (s) =>
+                  s.type.equals(ScoreType.exercise) &
+                  s.status.equals(ScoreStatus.uncreatedParent) &
+                  s.id.isIn(scoreIds),
+            )
+            .update((o) => o(status: const Value(ScoreStatus.created)));
       }
     });
     _updatedExerciseIds.add((changed: {exerciseId}, needsUpload: true));

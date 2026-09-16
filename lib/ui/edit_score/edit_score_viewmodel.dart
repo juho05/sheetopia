@@ -7,7 +7,6 @@
  */
 
 import 'dart:async';
-import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
@@ -24,17 +23,17 @@ class EditScoreViewModel extends ChangeNotifier {
 
   StreamSubscription? _updatedScoresSub;
 
-  late final Queue<String> _freshImports;
+  String? _nextImportId;
 
-  bool get hasNext => _freshImports.isNotEmpty;
+  bool get hasNext => _nextImportId != null;
 
-  late final bool isImport;
+  final bool isImport;
 
-  EditScoreViewModel({required this._repo, required scoreId}) {
-    isImport = _repo.freshImports.isNotEmpty;
-    _freshImports = Queue.of(_repo.freshImports.where((id) => id != scoreId));
-    _repo.clearFreshImports();
-
+  EditScoreViewModel({
+    required this._repo,
+    required String? scoreId,
+    required this.isImport,
+  }) {
     _load(scoreId).then((_) {
       _updatedScoresSub = _repo.updatedScoreIds
           .where((s) => s.contains(_score?.id))
@@ -42,10 +41,17 @@ class EditScoreViewModel extends ChangeNotifier {
     });
   }
 
-  Future<void> _load(String scoreId) async {
+  Future<void> _load(String? scoreId) async {
+    scoreId ??= await _repo.getNextScoreIdThatNeedsEdit();
+    if (scoreId == null) return;
+
     final score = await _repo.getScore(scoreId);
     _score = score;
-    // TODO properly handle score == null
+
+    if (isImport) {
+      _nextImportId = await _repo.getNextScoreIdThatNeedsEdit(skipId: scoreId);
+    }
+
     notifyListeners();
   }
 
@@ -63,8 +69,10 @@ class EditScoreViewModel extends ChangeNotifier {
     if (!hasNext) return;
     _updatedScoresSub?.cancel();
     _updatedScoresSub = null;
+    await _repo.updateScoreStatus([score!.id]);
 
-    final scoreId = _freshImports.removeFirst();
+    final scoreId = _nextImportId!;
+    _nextImportId = null;
 
     await _load(scoreId);
     _updatedScoresSub = _repo.updatedScoreIds
@@ -85,6 +93,9 @@ class EditScoreViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _updatedScoresSub?.cancel();
+    if (score != null) {
+      _repo.updateScoreStatus([score!.id]);
+    }
     super.dispose();
   }
 }
