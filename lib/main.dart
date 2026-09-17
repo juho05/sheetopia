@@ -28,8 +28,11 @@ import 'package:sheetopia/data/services/sharing/share_inbox.dart';
 import 'package:sheetopia/providers.dart';
 import 'package:sheetopia/routing/practice_resume.dart';
 import 'package:sheetopia/routing/router.dart';
+import 'package:sheetopia/ui/common/choice_dialog.dart';
 import 'package:sheetopia/ui/common/toast.dart';
+import 'package:sheetopia/ui/practice/import_exercise_scores_choice_dialog.dart';
 import 'package:sheetopia/ui/score/chrome/play_session.dart';
+import 'package:sheetopia/utils/receive_drop.dart';
 import 'package:sheetopia/window_listener.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -126,31 +129,85 @@ class _AppState extends State<App> {
     await _onFilesReceived(initial);
   }
 
+  Future<BuildContext?> _waitForNavigatorContext() async {
+    final key = goRouter.routerDelegate.navigatorKey;
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (key.currentContext == null && mounted) {
+      if (DateTime.now().isAfter(deadline)) return null;
+      await WidgetsBinding.instance.endOfFrame.timeout(
+        const Duration(milliseconds: 100),
+        onTimeout: () {},
+      );
+    }
+    return key.currentContext;
+  }
+
   Future<void> _onFilesReceived(Iterable<SharedFile> files) async {
     files = files.where((f) => f.value != null);
     if (files.isEmpty) {
-      shareImport.value = const ShareImport.empty();
       return;
     }
-    shareImport.value = const ShareImport.importing();
     final repo = context.read<ScoresRepository>();
+    final xfiles = files.map((f) => XFile(f.value!, mimeType: f.mimeType));
+
     try {
-      final scores = await repo.importAll(
-        files.map((f) => XFile(f.value!, mimeType: f.mimeType)),
-        status: ScoreStatus.needsFirstEdit,
-      );
-      final first = scores.firstOrNull;
-      if (first == null) {
-        shareImport.value = const ShareImport.empty();
+      final navContext = await _waitForNavigatorContext();
+      if (navContext == null || !navContext.mounted) {
+        Log.warn("No navigator available to import shared files");
         return;
       }
-      shareImport.value = ShareImport.ready(first.id);
-      goRouter.go("/scores/import");
+
+      final type = await ChoiceDialog.show<ScoreType>(
+        navContext,
+        title: "Import as",
+        options: [
+          const ChoiceOption(
+            value: ScoreType.score,
+            title: "Score",
+            subtitle: "A regular score that shows up in your library.",
+          ),
+          const ChoiceOption(
+            value: ScoreType.exercise,
+            title: "Exercise",
+            subtitle: "Exercise(s) with the file(s) as scores.",
+          ),
+        ],
+      );
+      if (!navContext.mounted) {
+        return;
+      }
+
+      if (type == ScoreType.score) {
+        final scores = await repo.importAll(
+          xfiles,
+          status: ScoreStatus.needsFirstEdit,
+        );
+        final first = scores.firstOrNull;
+        if (first == null) {
+          return;
+        }
+        goRouter.go("/scores/import");
+      } else if (type == ScoreType.exercise) {
+        bool separate = false;
+        if (files.length > 1) {
+          final choice = await ImportExerciseScoresChoiceDialog.show(
+            navContext,
+          );
+          if (choice == null || !navContext.mounted) {
+            return;
+          }
+          separate = choice == ImportExerciseScoresChoice.separate;
+        }
+        final ok = await receiveExercise(repo, xfiles);
+        if (!navContext.mounted || !ok) {
+          return;
+        }
+
+        goRouter.go("/practice/exercises/create?separate=$separate");
+      }
     } on InvalidFileTypeException catch (e, st) {
-      shareImport.value = const ShareImport.empty();
       Toast.exception(e, st: st, errorMsg: "Unsupported file type!");
     } catch (e, st) {
-      shareImport.value = const ShareImport.empty();
       Toast.exception(e, st: st, errorMsg: "Failed to import scores!");
     } finally {
       await cleanUpSharedFiles(files.map((f) => f.value!));

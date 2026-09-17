@@ -16,8 +16,8 @@ class ImportExerciseScoresChoiceDialog {
   static Future<ImportExerciseScoresChoice?> show(
     BuildContext context, {
     String title = "Import as",
-  }) {
-    return ChoiceDialog.show<ImportExerciseScoresChoice>(
+  }) async {
+    return await ChoiceDialog.show<ImportExerciseScoresChoice>(
       context,
       title: "Import as",
       options: [

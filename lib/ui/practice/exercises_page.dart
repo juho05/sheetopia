@@ -107,7 +107,7 @@ class _ExercisesPageState extends State<ExercisesPage> {
                 separate = choice == ImportExerciseScoresChoice.separate;
               }
               if (!context.mounted) return;
-              final ok = await receiveDropExercise(context.read(), files);
+              final ok = await receiveExercise(context.read(), files);
               if (!context.mounted || !ok) {
                 return;
               }

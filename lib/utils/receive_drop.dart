@@ -11,10 +11,7 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 
-Future<bool> receiveDropScore(
-  ScoresRepository repo,
-  Iterable<XFile> files,
-) async {
+Future<bool> receiveScore(ScoresRepository repo, Iterable<XFile> files) async {
   try {
     final scores = await repo.importAll(
       files,
@@ -26,7 +23,7 @@ Future<bool> receiveDropScore(
   }
 }
 
-Future<bool> receiveDropExercise(
+Future<bool> receiveExercise(
   ScoresRepository repo,
   Iterable<XFile> files,
 ) async {

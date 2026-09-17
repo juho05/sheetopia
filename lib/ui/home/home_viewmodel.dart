@@ -113,7 +113,7 @@ class HomeViewModel extends ChangeNotifier {
     _importing = true;
     notifyListeners();
     try {
-      return await receiveDropScore(_scoresRepo, files);
+      return await receiveScore(_scoresRepo, files);
     } finally {
       _importing = false;
       notifyListeners();
@@ -124,7 +124,7 @@ class HomeViewModel extends ChangeNotifier {
     _importing = true;
     notifyListeners();
     try {
-      return await receiveDropExercise(_scoresRepo, files);
+      return await receiveExercise(_scoresRepo, files);
     } finally {
       _importing = false;
       notifyListeners();
