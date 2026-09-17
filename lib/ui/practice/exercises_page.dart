@@ -6,10 +6,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'package:cross_file/cross_file.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/ui/common/drop_area.dart';
 import 'package:sheetopia/ui/common/fab_menu.dart';
 import 'package:sheetopia/ui/common/selection/clear_selection_button.dart';
 import 'package:sheetopia/ui/common/selection/select_all_button.dart';
@@ -17,7 +19,9 @@ import 'package:sheetopia/ui/common/selection/selection_model.dart';
 import 'package:sheetopia/ui/practice/bulk_edit/exercises_bulk_edit_menu.dart';
 import 'package:sheetopia/ui/practice/exercises_view.dart';
 import 'package:sheetopia/ui/practice/exercises_viewmodel.dart';
+import 'package:sheetopia/ui/practice/import_exercise_scores_choice_dialog.dart';
 import 'package:sheetopia/ui/practice/manage_categories_dialog.dart';
+import 'package:sheetopia/utils/receive_drop.dart';
 
 class ExercisesPage extends StatefulWidget {
   const ExercisesPage({super.key});
@@ -92,43 +96,62 @@ class _ExercisesPageState extends State<ExercisesPage> {
             if (didPop) return;
             _selection.clear();
           },
-          child: Scaffold(
-            appBar: _buildAppBar(selecting),
-            body: SafeArea(
-              child: ExercisesView(
-                viewModel: _viewModel,
-                selectionMode: selecting,
-                selected: _selection.idSet,
-                onExerciseSelected: (exercise) =>
-                    _selection.select(exercise.id),
-                onExerciseDeselected: (exercise) =>
-                    _selection.deselect(exercise.id),
-                onExercisesSelected: _selection.selectAll,
-                onClearSelection: _selection.clear,
-                bottomPadding: _fabPadding,
-                emptyAction: FilledButton.icon(
-                  onPressed: () => context.go("/practice/exercises/create"),
-                  icon: const Icon(Symbols.add),
-                  label: const Text("Create exercise"),
+          child: DropArea(
+            onDrop: (List<XFile> files) async {
+              bool separate = false;
+              if (files.length > 1) {
+                final choice = await ImportExerciseScoresChoiceDialog.show(
+                  context,
+                );
+                if (choice == null) return;
+                separate = choice == ImportExerciseScoresChoice.separate;
+              }
+              if (!context.mounted) return;
+              final ok = await receiveDropExercise(context.read(), files);
+              if (!context.mounted || !ok) {
+                return;
+              }
+
+              context.go("/practice/exercises/create?separate=$separate");
+            },
+            child: Scaffold(
+              appBar: _buildAppBar(selecting),
+              floatingActionButton: FabMenu(
+                icon: const Icon(Symbols.edit),
+                items: [
+                  FabMenuItem(
+                    label: "Create exercise",
+                    onPressed: () {
+                      context.go("/practice/exercises/create");
+                    },
+                    icon: Symbols.add,
+                  ),
+                  FabMenuItem(
+                    label: "Manage categories",
+                    onPressed: () => ManageCategoriesDialog.show(context),
+                    icon: Symbols.category,
+                  ),
+                ],
+              ),
+              body: SafeArea(
+                child: ExercisesView(
+                  viewModel: _viewModel,
+                  selectionMode: selecting,
+                  selected: _selection.idSet,
+                  onExerciseSelected: (exercise) =>
+                      _selection.select(exercise.id),
+                  onExerciseDeselected: (exercise) =>
+                      _selection.deselect(exercise.id),
+                  onExercisesSelected: _selection.selectAll,
+                  onClearSelection: _selection.clear,
+                  bottomPadding: _fabPadding,
+                  emptyAction: FilledButton.icon(
+                    onPressed: () => context.go("/practice/exercises/create"),
+                    icon: const Icon(Symbols.add),
+                    label: const Text("Create exercise"),
+                  ),
                 ),
               ),
-            ),
-            floatingActionButton: FabMenu(
-              icon: const Icon(Symbols.edit),
-              items: [
-                FabMenuItem(
-                  label: "Create exercise",
-                  onPressed: () {
-                    context.go("/practice/exercises/create");
-                  },
-                  icon: Symbols.add,
-                ),
-                FabMenuItem(
-                  label: "Manage categories",
-                  onPressed: () => ManageCategoriesDialog.show(context),
-                  icon: Symbols.category,
-                ),
-              ],
             ),
           ),
         );

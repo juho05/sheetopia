@@ -37,7 +37,7 @@ class EditExerciseScores extends StatelessWidget {
   ) async {
     final scoreIds = await AddScoresDialog.show(context);
     if (scoreIds == null || scoreIds.isEmpty) return;
-    await viewModel.linkScores(scoreIds);
+    await viewModel.linkScoreIds(scoreIds);
   }
 
   Future<void> _addScores(

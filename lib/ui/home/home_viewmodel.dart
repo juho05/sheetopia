@@ -10,12 +10,12 @@ import 'dart:io';
 
 import 'package:cross_file/cross_file.dart';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
-import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/file_picker.dart';
 import 'package:sheetopia/ui/common/selection/selection_model.dart';
+import 'package:sheetopia/utils/receive_drop.dart';
 
 class HomeViewModel extends ChangeNotifier {
   final ScoresRepository _scoresRepo;
@@ -109,18 +109,23 @@ class HomeViewModel extends ChangeNotifier {
     }
   }
 
-  Future<String?> receiveDrop(Iterable<XFile> files) async {
+  Future<bool> receiveScoreDrop(Iterable<XFile> files) async {
     _importing = true;
     notifyListeners();
     try {
-      final scores = await _scoresRepo.importAll(
-        files,
-        status: ScoreStatus.needsFirstEdit,
-      );
-      if (scores.isEmpty) return null;
-      return scores.first.id;
+      return await receiveDropScore(_scoresRepo, files);
     } finally {
-      await DesktopDrop.instance.clearReceivingCache();
+      _importing = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> receiveExerciseDrop(Iterable<XFile> files) async {
+    _importing = true;
+    notifyListeners();
+    try {
+      return await receiveDropExercise(_scoresRepo, files);
+    } finally {
       _importing = false;
       notifyListeners();
     }

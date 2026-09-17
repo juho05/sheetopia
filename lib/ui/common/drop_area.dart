@@ -9,6 +9,7 @@
 import 'package:cross_file/cross_file.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:sheetopia/ui/common/fading_overlay.dart';
 
 class DropArea extends StatefulWidget {
@@ -45,9 +46,25 @@ class _DropAreaState extends State<DropArea> {
     if (!widget.enabled) _setDragging(false);
   }
 
+  bool _isUnobstructed(Offset globalPosition) {
+    final result = HitTestResult();
+    WidgetsBinding.instance.hitTestInView(
+      result,
+      globalPosition,
+      View.of(context).viewId,
+    );
+    return result.path.any(
+      (entry) =>
+          entry.target is RenderMetaData &&
+          (entry.target as RenderMetaData).metaData == this,
+    );
+  }
+
   void _onDragDone(DropDoneDetails details) {
     _setDragging(false);
-    if (details.files.isEmpty) return;
+    if (details.files.isEmpty || !_isUnobstructed(details.globalPosition)) {
+      return;
+    }
     widget.onDrop(details.files);
   }
 
@@ -59,44 +76,55 @@ class _DropAreaState extends State<DropArea> {
         : theme.colorScheme.onPrimary;
     return DropTarget(
       enable: widget.enabled,
-      onDragEntered: (_) => _setDragging(true),
+      onDragEntered: (details) =>
+          _setDragging(_isUnobstructed(details.globalPosition)),
+      onDragUpdated: (details) =>
+          _setDragging(_isUnobstructed(details.globalPosition)),
       onDragExited: (_) => _setDragging(false),
       onDragDone: _onDragDone,
-      child: Stack(
-        children: [
-          widget.child,
-          Positioned.fill(
-            child: FadingOverlay(
-              visible: _dragging,
-              duration: const Duration(milliseconds: 150),
-              child: Container(
-                color: theme.colorScheme.scrim.withValues(alpha: 0.8),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final iconSize = (constraints.biggest.shortestSide * 0.25)
-                        .clamp(32.0, 96.0);
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(widget.icon, size: iconSize, color: labelColor),
-                          const SizedBox(height: 16),
-                          Text(
-                            widget.label,
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.headlineSmall?.copyWith(
+      child: MetaData(
+        metaData: this,
+        behavior: HitTestBehavior.translucent,
+        child: Stack(
+          children: [
+            widget.child,
+            Positioned.fill(
+              child: FadingOverlay(
+                visible: _dragging,
+                duration: const Duration(milliseconds: 150),
+                child: Container(
+                  color: theme.colorScheme.scrim.withValues(alpha: 0.8),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final iconSize = (constraints.biggest.shortestSide * 0.25)
+                          .clamp(32.0, 96.0);
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              widget.icon,
+                              size: iconSize,
                               color: labelColor,
                             ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                            const SizedBox(height: 16),
+                            Text(
+                              widget.label,
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                color: labelColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -11,7 +11,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
+import 'package:sheetopia/ui/common/choice_dialog.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
+import 'package:sheetopia/ui/common/surface.dart';
 import 'package:sheetopia/ui/common/tag_badge.dart';
 import 'package:sheetopia/ui/practice/practice_stopwatch.dart';
 import 'package:sheetopia/ui/practice/practice_timer.dart';
@@ -44,27 +46,30 @@ class _OverlayCard extends StatelessWidget {
                     color: theme.colorScheme.surfaceContainerHigh,
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        spacing: 12,
-                        children: [
-                          Flexible(
-                            child: SingleChildScrollView(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                spacing: 12,
-                                children: content,
+                      child: Surface(
+                        level: SurfaceLevel.dialog,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          spacing: 12,
+                          children: [
+                            Flexible(
+                              child: SingleChildScrollView(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  spacing: 12,
+                                  children: content,
+                                ),
                               ),
                             ),
-                          ),
-                          Wrap(
-                            alignment: WrapAlignment.end,
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: actions,
-                          ),
-                        ],
+                            Wrap(
+                              alignment: WrapAlignment.end,
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: actions,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -347,62 +352,37 @@ class _PracticeRecoveryOverlayState extends State<PracticeRecoveryOverlay> {
           "$leftAt. Which time counts?",
           style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
         ),
-        _Choice(
-          icon: Symbols.history,
-          title: "Count $counted",
-          subtitle:
-              "Only the time until the app was last open. "
-              "The stopwatch waits to be resumed.",
-          onTap: () => onChoice(PracticeRecoveryChoice.untilLeft),
-        ),
-        _Choice(
-          icon: Symbols.timer,
-          title: "Count ${formatStopwatch(_untilNow)}",
-          subtitle:
-              "The time until now, as if practicing never stopped. "
-              "The stopwatch keeps running.",
-          onTap: () => onChoice(PracticeRecoveryChoice.untilNow),
-        ),
-        _Choice(
-          icon: Symbols.delete,
-          title: "Count nothing",
-          subtitle: recovery.counted > Duration.zero
-              ? "Drops all $counted of $exerciseName from this session."
-              : "Nothing is recorded for $exerciseName in this session.",
-          onTap: () => onChoice(PracticeRecoveryChoice.discard),
+        ...buildChoiceTiles(
+          [
+            ChoiceOption(
+              value: PracticeRecoveryChoice.untilLeft,
+              title: "Count $counted",
+              subtitle:
+                  "Only the time until the app was last open. "
+                  "The stopwatch waits to be resumed.",
+              leading: const Icon(Symbols.history),
+            ),
+            ChoiceOption(
+              value: PracticeRecoveryChoice.untilNow,
+              title: "Count ${formatStopwatch(_untilNow)}",
+              subtitle:
+                  "The time until now, as if practicing never stopped. "
+                  "The stopwatch keeps running.",
+              leading: const Icon(Symbols.timer),
+            ),
+            ChoiceOption(
+              value: PracticeRecoveryChoice.discard,
+              title: "Count nothing",
+              subtitle: recovery.counted > Duration.zero
+                  ? "Drops all $counted of $exerciseName from this session."
+                  : "Nothing is recorded for $exerciseName in this session.",
+              leading: const Icon(Symbols.delete),
+            ),
+          ],
+          onChoice,
         ),
       ],
       actions: const [],
-    );
-  }
-}
-
-class _Choice extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final void Function() onTap;
-
-  const _Choice({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
-      borderRadius: const BorderRadius.all(Radius.circular(12)),
-      clipBehavior: Clip.antiAlias,
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(title),
-        subtitle: Text(subtitle),
-        onTap: onTap,
-      ),
     );
   }
 }

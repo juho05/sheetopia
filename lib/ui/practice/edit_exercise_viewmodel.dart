@@ -90,10 +90,17 @@ class EditExerciseViewModel extends ChangeNotifier {
 
   bool _created = false;
 
+  final bool _separate;
+
+  bool _hasNext = false;
+
+  bool get hasNext => _hasNext;
+
   EditExerciseViewModel({
     required this._repo,
     required this._scoresRepo,
     required this._exerciseId,
+    required this._separate,
   }) : isCreate = _exerciseId == null,
        _loading = _exerciseId != null,
        form = FormGroup({
@@ -101,7 +108,13 @@ class EditExerciseViewModel extends ChangeNotifier {
          formDescription: FormControl<String>(),
          formInstrument: FormControl<String>(),
        }) {
-    _load().then((_) {
+    Future<void> load;
+    if (_exerciseId == null) {
+      load = _loadCreateScores();
+    } else {
+      load = _load();
+    }
+    load.then((_) {
       _valueSub = form.valueChanges.listen((_) {
         if (form.invalid) return;
         _onValuesChanged();
@@ -128,13 +141,17 @@ class EditExerciseViewModel extends ChangeNotifier {
     );
   }
 
-  Future<void> linkScores(Iterable<String> scoreIds) async {
+  Future<void> linkScoreIds(Iterable<String> scoreIds) async {
     if (scoreIds.isEmpty) return;
     _scoresLoading = true;
     notifyListeners();
-    final linked = await _loadScores(scoreIds);
-    _scoreEntries.addAll(linked);
+    final linked = await _scoresRepo.getScoresById(scoreIds);
+    await _linkScores(linked);
     _scoresLoading = false;
+  }
+
+  Future<void> _linkScores(Iterable<Score> scores) async {
+    _scoreEntries.addAll(_toEntries(scores));
     notifyListeners();
     await _persistExerciseScores();
   }
@@ -193,7 +210,9 @@ class EditExerciseViewModel extends ChangeNotifier {
     final scores = await _scoresRepo.importAll(
       files,
       type: ScoreType.exercise,
-      status: ScoreStatus.uncreatedParent,
+      status: _exerciseId == null
+          ? ScoreStatus.uncreatedParent
+          : ScoreStatus.created,
     );
     _scoreEntries.addAll(_toEntries(scores));
     notifyListeners();
@@ -289,12 +308,6 @@ class EditExerciseViewModel extends ChangeNotifier {
     );
   }
 
-  Future<List<ExerciseScoreEntry>> _loadScores(
-    Iterable<String> scoreIds,
-  ) async {
-    return _toEntries(await _scoresRepo.getScoresById(scoreIds));
-  }
-
   List<ExerciseScoreEntry> _toEntries(Iterable<Score> scores) => scores
       .map((s) => ExerciseScoreEntry(id: _nextEntryId++, score: s))
       .toList();
@@ -342,7 +355,7 @@ class EditExerciseViewModel extends ChangeNotifier {
     if (form.invalid) {
       throw StateError("Only call create when the form is valid!");
     }
-    _created = true;
+    _created = !hasNext;
     await _repo.createExercise(
       name: name,
       description: _formValue(formDescription),
@@ -353,6 +366,22 @@ class EditExerciseViewModel extends ChangeNotifier {
       scoreIds: _scoreEntries.map((e) => e.score.id),
       categoryId: _category?.id,
     );
+    if (!hasNext) return;
+
+    _reset();
+
+    await _loadCreateScores();
+  }
+
+  void _reset() {
+    _nextEntryId = 0;
+    _tags.clear();
+    _category = null;
+    _source = null;
+    _sourceLink = null;
+    _scoreEntries.clear();
+    form.reset();
+    notifyListeners();
   }
 
   Future<void> delete() async {
@@ -364,6 +393,24 @@ class EditExerciseViewModel extends ChangeNotifier {
     }
     _scoreTitleDebounce.clear();
     await _repo.deleteExercise(_exerciseId);
+  }
+
+  Future<void> _loadCreateScores() async {
+    if (_exerciseId != null) return;
+    var scores = await _scoresRepo.getScoresWithUncreatedParent(
+      type: ScoreType.exercise,
+    );
+    if (scores.isEmpty) {
+      _hasNext = false;
+      return;
+    }
+    if (_separate) {
+      _hasNext = scores.length > 1;
+      scores = [scores.first];
+    } else {
+      _hasNext = false;
+    }
+    await _linkScores(scores);
   }
 
   Future<void> _load() async {
@@ -418,12 +465,8 @@ class EditExerciseViewModel extends ChangeNotifier {
       timer.cancel();
     }
     _scoreTitleDebounce.clear();
-    final owned = _scoreEntries
-        .where((e) => e.score.type == ScoreType.exercise)
-        .map((e) => e.score.id)
-        .toSet();
     _scoreEntries.clear();
-    await _scoresRepo.deleteScores(owned);
+    await _scoresRepo.deleteScoresWithUncreatedParent();
   }
 
   @override

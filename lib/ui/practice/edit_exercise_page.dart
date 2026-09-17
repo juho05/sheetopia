@@ -17,7 +17,9 @@ import 'package:sheetopia/ui/practice/edit_exercise_viewmodel.dart';
 class EditExercisePage extends StatelessWidget {
   final String? exerciseId;
 
-  const EditExercisePage({super.key, required this.exerciseId});
+  final bool separate;
+
+  const EditExercisePage({super.key, required this.exerciseId, this.separate = false});
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +28,7 @@ class EditExercisePage extends StatelessWidget {
         repo: context.read(),
         scoresRepo: context.read(),
         exerciseId: exerciseId,
+        separate: separate,
       ),
       builder: (context, _) {
         return Consumer<EditExerciseViewModel>(

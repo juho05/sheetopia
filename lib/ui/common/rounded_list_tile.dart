@@ -29,6 +29,7 @@ class RoundedListTile extends StatelessWidget {
   final bool selected;
   final Color? color;
   final bool tooltip;
+  final int subtitleMaxLines;
 
   final double? height;
 
@@ -44,6 +45,7 @@ class RoundedListTile extends StatelessWidget {
     this.selected = false,
     this.color,
     this.tooltip = true,
+    this.subtitleMaxLines = 1,
     this.height,
   });
 
@@ -118,7 +120,7 @@ class RoundedListTile extends StatelessWidget {
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
                             overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
+                            maxLines: subtitleMaxLines,
                             child: subtitle,
                           ),
                       ],

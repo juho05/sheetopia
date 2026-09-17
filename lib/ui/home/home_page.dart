@@ -27,6 +27,7 @@ import 'package:sheetopia/ui/home/library_view.dart';
 import 'package:sheetopia/ui/home/library_viewmodel.dart';
 import 'package:sheetopia/ui/home/sync_icon.dart';
 import 'package:sheetopia/ui/practice/bulk_edit/routines_bulk_edit_menu.dart';
+import 'package:sheetopia/ui/practice/import_exercise_scores_choice_dialog.dart';
 import 'package:sheetopia/ui/practice/practice_page.dart';
 import 'package:sheetopia/ui/practice/practice_routines_viewmodel.dart';
 import 'package:sheetopia/ui/setlists/bulk_edit/setlists_bulk_edit_menu.dart';
@@ -170,16 +171,34 @@ class _HomePageState extends State<HomePage> {
             return Consumer<HomeViewModel>(
               builder: (context, viewModel, _) {
                 return DropArea(
-                  enabled: viewModel.tabIndex == 0,
+                  enabled: viewModel.tabIndex == 0 || viewModel.tabIndex == 2,
                   onDrop: (files) async {
-                    viewModel.tabIndex = 0;
-
                     try {
-                      final firstScoreId = await viewModel.receiveDrop(files);
-                      if (!context.mounted || firstScoreId == null) {
-                        return;
+                      if (viewModel.tabIndex == 0) {
+                        final ok = await viewModel.receiveScoreDrop(files);
+                        if (!context.mounted || !ok) {
+                          return;
+                        }
+                        context.go("/scores/import");
+                      } else if (viewModel.tabIndex == 2) {
+                        bool separate = false;
+                        if (files.length > 1) {
+                          final choice =
+                              await ImportExerciseScoresChoiceDialog.show(
+                                context,
+                              );
+                          if (choice == null) return;
+                          separate = choice == ImportExerciseScoresChoice.separate;
+                        }
+                        final ok = await viewModel.receiveExerciseDrop(files);
+                        if (!context.mounted || !ok) {
+                          return;
+                        }
+
+                        context.go(
+                          "/practice/exercises/create?separate=$separate",
+                        );
                       }
-                      context.go("/scores/import");
                     } on InvalidFileTypeException catch (e, st) {
                       Toast.exception(
                         e,

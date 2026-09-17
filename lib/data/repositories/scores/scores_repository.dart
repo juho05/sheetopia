@@ -136,6 +136,19 @@ class ScoresRepository {
     return result?.read(_db.scoresTable.id);
   }
 
+  Future<List<Score>> getScoresWithUncreatedParent({
+    required ScoreType type,
+  }) async {
+    final rows =
+        await (_db.select(_db.scoresTable)..where(
+              (t) =>
+                  t.type.equals(type.name) &
+                  t.status.equals(ScoreStatus.uncreatedParent.name),
+            ))
+            .get();
+    return hydrateScores(rows);
+  }
+
   // in the order of the given ids, ids without a score are skipped
   Future<List<Score>> getScoresById(Iterable<String> scoreIds) async {
     if (scoreIds.isEmpty) return [];
@@ -1286,6 +1299,18 @@ class ScoresRepository {
     }
     _updatedScoreIds.add((changed: scoreIds, remoteTriggered: false));
     _deletedScoreIds.add(scoreIds);
+  }
+
+  /// Do not call this while the user could be on a page where they create
+  /// one such parent.
+  Future<void> deleteScoresWithUncreatedParent() async {
+    final q = _db.selectOnly(_db.scoresTable);
+    q.addColumns([_db.scoresTable.id]);
+    q.where(_db.scoresTable.status.equals(ScoreStatus.uncreatedParent.name));
+    final scoreIds = (await q.get())
+        .map((r) => r.read(_db.scoresTable.id))
+        .nonNulls;
+    await deleteScores(scoreIds.toSet());
   }
 
   /// Deletes all scores not of type score that have no owner.

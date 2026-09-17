@@ -169,12 +169,13 @@ class _CreateButton extends StatelessWidget {
       builder: (context, form, _) => FilledButton(
         onPressed: form.valid
             ? () async {
+                bool hasNext = viewModel.hasNext;
                 await viewModel.create();
-                if (!context.mounted) return;
+                if (hasNext || !context.mounted) return;
                 context.pop();
               }
             : null,
-        child: const Text("Create"),
+        child: viewModel.hasNext ? const Text("Next") : const Text("Create"),
       ),
     );
   }

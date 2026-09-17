@@ -170,8 +170,10 @@ GoRouter get goRouter {
             routes: [
               GoRoute(
                 path: "create",
-                builder: (context, state) =>
-                    const EditExercisePage(exerciseId: null),
+                builder: (context, state) => EditExercisePage(
+                  exerciseId: null,
+                  separate: state.uri.queryParameters["separate"] == "true",
+                ),
                 routes: [
                   GoRoute(
                     path: 'scores/:scoreId',

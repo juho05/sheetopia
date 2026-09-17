@@ -36,8 +36,8 @@ class EditScoreViewModel extends ChangeNotifier {
   }) {
     _load(scoreId).then((_) {
       _updatedScoresSub = _repo.updatedScoreIds
-          .where((s) => s.contains(_score?.id))
-          .listen((_) => _load(scoreId));
+          .where((s) => _score != null && s.contains(_score!.id))
+          .listen((_) => _load(_score!.id));
     });
   }
 
