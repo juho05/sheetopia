@@ -11,13 +11,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_fullscreen/flutter_fullscreen.dart';
 import 'package:sheetopia/data/repositories/midi/midi_repository.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/ui/score/score_file_view.dart';
 import 'package:sheetopia/ui/score/score_sequence.dart';
+import 'package:sheetopia/utils/full_screen.dart';
 
 class ScoreViewModel extends ChangeNotifier with FullScreenListener {
   final ScoresRepository _repo;
@@ -55,7 +55,7 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
   bool get supportsFullScreen =>
       Platform.isWindows || Platform.isMacOS || Platform.isLinux;
 
-  bool get isFullScreen => FullScreen.isFullScreen;
+  bool get isFullScreen => AppFullScreen.isFullScreen;
 
   final StreamController<bool> _pageChangedStreamController =
       StreamController.broadcast();
@@ -79,7 +79,7 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
             _load();
           });
     });
-    FullScreen.addListener(this);
+    AppFullScreen.addListener(this);
     _midiRepository.addActionListener(_midiActionListener);
     _repo.updateLastOpened(scoreId);
     showOverlay();
@@ -182,7 +182,7 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
     _hideOverlayTimer?.cancel();
     _transientChromeTimer?.cancel();
     _midiRepository.removeActionListener(_midiActionListener);
-    FullScreen.removeListener(this);
+    AppFullScreen.removeListener(this);
     _updatedScoresSub?.cancel();
     sequence?.removeListener(_onSequenceChanged);
     super.dispose();
@@ -199,7 +199,7 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
   void _setFullScreen(bool fullScreen) {
     if (!supportsFullScreen || fullScreen == isFullScreen) return;
     showOverlay();
-    FullScreen.setFullScreen(fullScreen);
+    AppFullScreen.setFullScreen(fullScreen);
   }
 
   @override

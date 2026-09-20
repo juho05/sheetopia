@@ -11,7 +11,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_fullscreen/flutter_fullscreen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/settings/appearance.dart';
@@ -23,6 +22,7 @@ import 'package:sheetopia/ui/score/chrome/play_session.dart';
 import 'package:sheetopia/ui/score/pdf_view.dart';
 import 'package:sheetopia/ui/score/score_sequence.dart';
 import 'package:sheetopia/ui/score/score_viewmodel.dart';
+import 'package:sheetopia/utils/full_screen.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 class ScoreViewer extends StatefulWidget {
@@ -72,7 +72,7 @@ class _ScoreViewerState extends State<ScoreViewer>
     _ownsSession = !PlaySession.isActive(context);
     if (_ownsSession) {
       WakelockPlus.enable();
-      setImmersive(true);
+      AppFullScreen.setImmersive(true);
     }
 
     _viewModel = ScoreViewModel(
@@ -111,9 +111,9 @@ class _ScoreViewerState extends State<ScoreViewer>
   void dispose() {
     if (_ownsSession) {
       WakelockPlus.disable();
-      setImmersive(false);
-      if (FullScreen.isFullScreen && !Platform.isMacOS) {
-        FullScreen.setFullScreen(false);
+      AppFullScreen.setImmersive(false);
+      if (AppFullScreen.isFullScreen && !Platform.isMacOS) {
+        AppFullScreen.setFullScreen(false);
       }
     }
     _pageChangeSub?.cancel();
@@ -237,6 +237,7 @@ class _ScoreViewerState extends State<ScoreViewer>
                                     iconSize: 20,
                                     padding: const EdgeInsets.all(0),
                                     onPressed: () {
+                                      AppFullScreen.setImmersive(false);
                                       context.pop();
                                     },
                                   ),
@@ -266,22 +267,29 @@ class _ScoreViewerState extends State<ScoreViewer>
         },
       ),
     );
-    return StreamBuilder<bool>(
-      stream: _viewModel.pageChangedStream,
-      builder: (context, _) {
-        return AnimatedBuilder(
-          animation: _pageTurnHighlightAnimation!,
-          child: child,
-          builder: (context, child) {
-            return Scaffold(
-              backgroundColor: _pageTurnHighlightAnimation!.isAnimating
-                  ? _pageTurnHighlightAnimation!.value
-                  : null,
-              body: child,
-            );
-          },
-        );
+    return PopScope(
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          AppFullScreen.setImmersive(false);
+        }
       },
+      child: StreamBuilder<bool>(
+        stream: _viewModel.pageChangedStream,
+        builder: (context, _) {
+          return AnimatedBuilder(
+            animation: _pageTurnHighlightAnimation!,
+            child: child,
+            builder: (context, child) {
+              return Scaffold(
+                backgroundColor: _pageTurnHighlightAnimation!.isAnimating
+                    ? _pageTurnHighlightAnimation!.value
+                    : null,
+                body: child,
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

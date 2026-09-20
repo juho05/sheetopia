@@ -11,7 +11,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_fullscreen/flutter_fullscreen.dart';
+import 'package:sheetopia/utils/full_screen.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 bool _fullScreenReady = false;
@@ -22,13 +22,6 @@ bool get _isDesktop =>
     Platform.isWindows || Platform.isMacOS || Platform.isLinux;
 
 bool get supportsFullScreen => _fullScreenReady && _isDesktop;
-
-void setImmersive(bool immersive) {
-  if (!Platform.isAndroid && !Platform.isIOS) return;
-  SystemChrome.setEnabledSystemUIMode(
-    immersive ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
-  );
-}
 
 class PlaySession extends StatefulWidget {
   final Widget child;
@@ -50,7 +43,7 @@ class PlaySessionState extends State<PlaySession> with FullScreenListener {
 
   Timer? _hideOverlayTimer;
 
-  bool get isFullScreen => supportsFullScreen && FullScreen.isFullScreen;
+  bool get isFullScreen => supportsFullScreen && AppFullScreen.isFullScreen;
 
   bool get overlayVisible => _overlayVisible;
 
@@ -61,8 +54,8 @@ class PlaySessionState extends State<PlaySession> with FullScreenListener {
   void initState() {
     super.initState();
     WakelockPlus.enable();
-    setImmersive(true);
-    if (supportsFullScreen) FullScreen.addListener(this);
+    AppFullScreen.setImmersive(true);
+    if (supportsFullScreen) AppFullScreen.addListener(this);
     showOverlay();
   }
 
@@ -70,13 +63,13 @@ class PlaySessionState extends State<PlaySession> with FullScreenListener {
   void dispose() {
     _hideOverlayTimer?.cancel();
     if (supportsFullScreen) {
-      FullScreen.removeListener(this);
-      if (FullScreen.isFullScreen && !Platform.isMacOS) {
-        FullScreen.setFullScreen(false);
+      AppFullScreen.removeListener(this);
+      if (AppFullScreen.isFullScreen && !Platform.isMacOS) {
+        AppFullScreen.setFullScreen(false);
       }
     }
     WakelockPlus.disable();
-    setImmersive(false);
+    AppFullScreen.setImmersive(false);
     super.dispose();
   }
 
@@ -101,7 +94,7 @@ class PlaySessionState extends State<PlaySession> with FullScreenListener {
 
   void setFullScreen(bool fullScreen) {
     if (!supportsFullScreen || fullScreen == isFullScreen) return;
-    FullScreen.setFullScreen(fullScreen);
+    AppFullScreen.setFullScreen(fullScreen);
   }
 
   @override
