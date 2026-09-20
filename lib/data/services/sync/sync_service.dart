@@ -612,9 +612,8 @@ class SyncService {
         uri,
         data: stream,
         options: Options(
-          contentType: switch (fileType) {
-            FileType.pdf => "application/pdf",
-          },
+          contentType:
+              fileTypeToMimeType(fileType) ?? "application/octet-stream",
           headers: {
             "User-Agent": "sheetopia",
             Headers.contentLengthHeader: await file.length(),

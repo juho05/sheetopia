@@ -10,13 +10,18 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/ui/practice/exercise_score_selector.dart';
 import 'package:sheetopia/ui/score/chrome/play_toolbar.dart';
 
 void main() {
-  Score score(String title, {bool downloaded = true}) => Score(
+  Score score(
+    String title, {
+    bool downloaded = true,
+    FileType fileType = FileType.pdf,
+  }) => Score(
     id: title,
     title: title,
     composer: null,
@@ -30,7 +35,7 @@ void main() {
     type: ScoreType.exercise,
     metadataUpdatedAt: DateTime.utc(2026),
     fileUpdatedAt: DateTime.utc(2026),
-    fileType: FileType.pdf,
+    fileType: fileType,
     file: downloaded ? File("$title.pdf") : null,
   );
 
@@ -93,6 +98,26 @@ void main() {
 
     await tester.tap(find.text("First"));
     await tester.pumpAndSettle();
+    await tester.tap(find.text("Second"));
+    await tester.pumpAndSettle();
+
+    expect(find.text("Select score"), findsOneWidget);
+  });
+
+  testWidgets("scores of an unknown file type cannot be picked", (
+    tester,
+  ) async {
+    await pumpToolbar(tester, [
+      score("First"),
+      score("Second", fileType: FileType.byName("from-the-future")),
+    ]);
+
+    await tester.tap(find.text("First"));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.help_outline), findsOneWidget);
+    expect(find.byIcon(Symbols.cloud_off), findsNothing);
+
     await tester.tap(find.text("Second"));
     await tester.pumpAndSettle();
 

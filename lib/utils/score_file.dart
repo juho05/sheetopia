@@ -20,9 +20,7 @@ String suggestedScoreFileName(Score score) {
   var suggestedName = removeDiacritics(score.title);
   suggestedName = suggestedName.replaceAll(RegExp(r'\s'), "_");
   suggestedName = suggestedName.replaceAll(RegExp(r'[^\w-]'), "");
-  suggestedName += switch (score.fileType) {
-    FileType.pdf => ".pdf",
-  };
+  suggestedName += fileTypeExtension(score.fileType);
   return suggestedName;
 }
 
@@ -38,9 +36,8 @@ Future<void> shareScoreFile(Score score, {Rect? sharePositionOrigin}) async {
       files: [
         XFile(
           score.file!.path,
-          mimeType: switch (score.fileType) {
-            FileType.pdf => "application/pdf",
-          },
+          mimeType:
+              fileTypeToMimeType(score.fileType) ?? "application/octet-stream",
           name: fileName,
         ),
       ],
@@ -64,6 +61,12 @@ Future<bool> exportScoreFile(Score score) async {
           uniformTypeIdentifiers: ["com.adobe.pdf"],
         ),
       ],
+      final other => [
+        XTypeGroup(
+          label: other.name,
+          extensions: <String>[_saveExtension(other)],
+        ),
+      ],
     },
   );
   if (result == null) return false;
@@ -71,11 +74,14 @@ Future<bool> exportScoreFile(Score score) async {
   return true;
 }
 
+String _saveExtension(FileType fileType) =>
+    fileTypeExtension(fileType).substring(1);
+
 Future<bool> _exportScoreFileMobile(Score score) async {
   if (score.file == null) return false;
   final bytes = await score.file!.readAsBytes();
   final result = await fp.FilePicker.saveFile(
-    allowedExtensions: ["pdf"],
+    allowedExtensions: [_saveExtension(score.fileType)],
     type: fp.FileType.custom,
     dialogTitle: "Save score file",
     fileName: suggestedScoreFileName(score),

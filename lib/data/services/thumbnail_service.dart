@@ -51,6 +51,7 @@ class ThumbnailService {
     required int height,
   }) async {
     if (score.file == null) return null;
+    if (!score.fileType.isKnown) return null;
     final key = _cacheKey(score.id, width: width, height: height);
     final cached = _pathCache[key];
     if (cached != null) return cached;
@@ -66,6 +67,7 @@ class ThumbnailService {
         width: width,
         height: height,
       ),
+      _ => null,
     };
     if (generated != null) _cachePath(key, generated);
     return generated;

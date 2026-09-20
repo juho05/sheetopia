@@ -17,12 +17,17 @@ ScoreType? _typeFromJson(String? name) =>
 
 String? _typeToJson(ScoreType? type) => type?.name;
 
+FileType _fileTypeFromJson(String name) => FileType.byName(name);
+
+String _fileTypeToJson(FileType type) => type.name;
+
 @JsonSerializable()
 class ScoreModel {
   final String id;
   final String title;
   final DateTime metadataUpdatedAt;
   final DateTime fileUpdatedAt;
+  @JsonKey(fromJson: _fileTypeFromJson, toJson: _fileTypeToJson)
   final FileType fileType;
   final List<String> tagIds;
   final ScoreMetadataModel metadata;

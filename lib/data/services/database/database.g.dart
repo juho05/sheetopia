@@ -483,7 +483,7 @@ class $ScoresTableTable extends ScoresTable
   static JsonTypeConverter2<ScoreStatus, String, String> $converterstatus =
       const EnumNameConverter<ScoreStatus>(ScoreStatus.values);
   static JsonTypeConverter2<FileType, String, String> $converterfileType =
-      const EnumNameConverter<FileType>(FileType.values);
+      const FileTypeConverter();
   static JsonTypeConverter2<ScoreType, String, String> $convertertype =
       const ScoreTypeConverter();
 }

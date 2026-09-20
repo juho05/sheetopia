@@ -1165,7 +1165,7 @@ class ScoresRepository {
 
     await file.saveTo(targetFile.path);
 
-    if (fileType != score.fileType) {
+    if (fileTypeExtension(fileType) != fileTypeExtension(score.fileType)) {
       try {
         (await scoreFile(score.id, score.fileType)).delete();
       } catch (_) {}
@@ -1410,7 +1410,7 @@ class ScoresRepository {
     return File(
       path.join(
         (await scoreDir(id)).path,
-        "score${fileTypeToExtension(fileType)}",
+        "score${fileTypeExtension(fileType)}",
       ),
     );
   }

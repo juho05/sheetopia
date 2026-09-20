@@ -50,6 +50,8 @@ class Score {
     required this.file,
   });
 
+  bool get playable => file != null && fileType.isKnown;
+
   Score copyWith({String? title}) => Score(
     id: id,
     title: title ?? this.title,

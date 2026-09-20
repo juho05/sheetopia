@@ -7,7 +7,6 @@
  */
 
 import 'package:drift/drift.dart';
-import 'package:json_annotation/json_annotation.dart';
 
 enum ScoreStatus {
   /// The score was created as part of another entity (e.g. exercise) which is has
@@ -63,7 +62,7 @@ class ScoresTable extends Table {
   late final fileUploaded = boolean().withDefault(const Constant(false))();
   late final fileDownloaded = boolean()();
 
-  late final fileType = textEnum<FileType>()();
+  late final fileType = text().map(const FileTypeConverter())();
 
   late final annotations = text().nullable()();
 
@@ -78,9 +77,39 @@ class ScoresTable extends Table {
   String? get tableName => "scores";
 }
 
-enum FileType {
-  @JsonValue("pdf")
-  pdf,
+class FileType {
+  static const pdf = FileType._("pdf");
+
+  static const known = [pdf];
+
+  final String name;
+
+  const FileType._(this.name);
+
+  factory FileType.byName(String name) =>
+      known.firstWhere((t) => t.name == name, orElse: () => FileType._(name));
+
+  bool get isKnown => known.contains(this);
+
+  @override
+  bool operator ==(Object other) => other is FileType && other.name == name;
+
+  @override
+  int get hashCode => name.hashCode;
+
+  @override
+  String toString() => name;
+}
+
+class FileTypeConverter extends TypeConverter<FileType, String>
+    with JsonTypeConverter<FileType, String> {
+  const FileTypeConverter();
+
+  @override
+  FileType fromSql(String fromDb) => FileType.byName(fromDb);
+
+  @override
+  String toSql(FileType value) => value.name;
 }
 
 class ScoreType {
@@ -154,8 +183,13 @@ bool _startsWith(List<int> bytes, List<int> magic) {
   return true;
 }
 
-String fileTypeToExtension(FileType fileType) {
-  return switch (fileType) {
-    FileType.pdf => ".pdf",
-  };
+String fileTypeExtension(FileType fileType) =>
+    ".${_storageName(fileType.name)}";
+
+String _storageName(String name) {
+  final safe = name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_-]'), "");
+  return safe.isEmpty ? "bin" : safe;
 }
+
+String? fileTypeToMimeType(FileType fileType) =>
+    fileType == FileType.pdf ? "application/pdf" : null;

@@ -43,14 +43,18 @@ void main() {
   late SetlistsRepository repo;
   late String setlistId;
 
-  Future<void> insertScore(String id, {bool downloaded = true}) async {
+  Future<void> insertScore(
+    String id, {
+    bool downloaded = true,
+    FileType fileType = FileType.pdf,
+  }) async {
     await db.managers.scoresTable.create(
       (o) => o(
         id: id,
         title: "Title $id",
         searchText: "title $id",
         fileDownloaded: downloaded,
-        fileType: FileType.pdf,
+        fileType: fileType,
       ),
     );
   }
@@ -123,6 +127,53 @@ void main() {
     expect(nav.previous(), isTrue);
     expect(nav.position, 0);
     expect(nav.previous(), isFalse);
+    nav.dispose();
+  });
+
+  test("next and previous step over an unknown file type", () async {
+    await insertScore("a");
+    await insertScore("b", fileType: FileType.byName("from-the-future"));
+    await insertScore("c");
+    await repo.addScores(setlistId, ["a", "b", "c"]);
+
+    final nav = await navigationFor();
+    expect(nav.position, 0);
+    expect(nav.entries[1].playable, isFalse);
+    expect(nav.entries[1].score!.file, isNotNull, reason: "it is downloaded");
+
+    expect(nav.next(), isTrue);
+    expect(nav.position, 2);
+    expect(nav.previous(), isTrue);
+    expect(nav.position, 0);
+
+    expect(nav.nextFile?.path, nav.entries[2].score!.file!.path);
+    nav.jumpTo(1);
+    expect(nav.position, 0);
+    nav.dispose();
+  });
+
+  test("previousFile skips an unknown file type", () async {
+    await insertScore("a");
+    await insertScore("b", fileType: FileType.byName("from-the-future"));
+    await insertScore("c");
+    await repo.addScores(setlistId, ["a", "b", "c"]);
+
+    final nav = await navigationFor();
+    nav.jumpTo(2);
+
+    expect(nav.position, 2);
+    expect(nav.previousFile?.path, nav.entries[0].score!.file!.path);
+    nav.dispose();
+  });
+
+  test("play starts after a leading unknown file type", () async {
+    await insertScore("a", fileType: FileType.byName("from-the-future"));
+    await insertScore("b");
+    await repo.addScores(setlistId, ["a", "b"]);
+
+    final nav = await navigationFor();
+    expect(nav.position, 1);
+    expect(nav.currentScoreId, "b");
     nav.dispose();
   });
 

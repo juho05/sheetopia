@@ -901,11 +901,7 @@ class ImportExportRepository extends ChangeNotifier {
 
         if (score == null || fileChanged) {
           final scoreFile = File(
-            path.join(
-              scoresDir,
-              s.id,
-              "score${fileTypeToExtension(s.fileType)}",
-            ),
+            path.join(scoresDir, s.id, "score${fileTypeExtension(s.fileType)}"),
           );
           if (!await scoreFile.exists()) {
             throw InvalidFileException("missing score file for ${s.id}");
@@ -916,7 +912,9 @@ class ImportExportRepository extends ChangeNotifier {
           await scoreFile.copy(targetScoreFile.path);
           await _thumbnailService.invalidateThumbnails({s.id});
 
-          if (score != null && score.fileType != s.fileType) {
+          if (score != null &&
+              fileTypeExtension(score.fileType) !=
+                  fileTypeExtension(s.fileType)) {
             deleteFile = await _scoresRepo.scoreFile(score.id, score.fileType);
           }
         }

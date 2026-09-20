@@ -87,4 +87,45 @@ void main() {
       ScoreType.exercise,
     );
   });
+
+  test("a file type from a newer client is retained", () {
+    final fileType = ScoreModel.fromJson(
+      scoreJson(const {"fileType": "from-the-future"}),
+    ).fileType;
+
+    expect(fileType, FileType.byName("from-the-future"));
+    expect(fileType, isNot(FileType.pdf));
+    expect(fileType.isKnown, isFalse);
+  });
+
+  test("an unknown file type is sent back unchanged", () {
+    expect(
+      ScoreModel.fromJson(
+        scoreJson(const {"fileType": "from-the-future"}),
+      ).toJson()["fileType"],
+      "from-the-future",
+    );
+  });
+
+  test("a known file type is applied", () {
+    expect(
+      ScoreModel.fromJson(scoreJson(const {"fileType": "pdf"})).fileType,
+      FileType.pdf,
+    );
+  });
+
+  test("a payload with an unknown file type does not throw", () {
+    final payload = {
+      "scores": [
+        scoreJson(const {"fileType": "pdf"}),
+        scoreJson(const {"id": "s2", "fileType": "from-the-future"}),
+      ],
+    };
+
+    final scores = ScoresModel.fromJson(payload).scores;
+
+    expect(scores, hasLength(2));
+    expect(scores[0].fileType, FileType.pdf);
+    expect(scores[1].fileType.isKnown, isFalse);
+  });
 }

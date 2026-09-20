@@ -687,6 +687,83 @@ void main() {
     },
   );
 
+  test("a score of an unknown file type survives a round trip", () async {
+    const futureScoreId = "score-future";
+    final fileType = FileType.byName("from-the-future");
+    final bytes = List<int>.generate(256, (i) => i);
+    await db.managers.scoresTable.create(
+      (o) => o(
+        id: futureScoreId,
+        title: "Chorale",
+        searchText: " chorale ",
+        fileDownloaded: true,
+        fileType: fileType,
+        lastOpened: Value(contentTime),
+        metadataUpdatedAt: Value(contentTime),
+        fileUpdatedAt: Value(contentTime),
+      ),
+    );
+    await scoresRepo.createScoreDir(futureScoreId);
+    final file = await scoresRepo.scoreFile(futureScoreId, fileType);
+    expect(path.basename(file.path), "score.from-the-future");
+    await file.writeAsBytes(bytes);
+
+    final zip = await exportAll();
+
+    await scoresRepo.deleteScore(futureScoreId);
+    expect(await file.exists(), isFalse);
+
+    await importFrom(zip);
+
+    final score = await db.managers.scoresTable
+        .filter((f) => f.id(futureScoreId))
+        .getSingle();
+    expect(score.fileType, fileType);
+    expect(score.fileType.isKnown, isFalse);
+    expect(await file.exists(), isTrue);
+    expect(await file.readAsBytes(), bytes);
+  });
+
+  test("importing a newer file keeps a colliding storage name", () async {
+    const collideId = "score-collide";
+    await db.managers.scoresTable.create(
+      (o) => o(
+        id: collideId,
+        title: "Fugue",
+        searchText: " fugue ",
+        fileDownloaded: true,
+        fileType: FileType.pdf,
+        lastOpened: Value(contentTime),
+        metadataUpdatedAt: Value(contentTime),
+        fileUpdatedAt: Value(contentTime),
+      ),
+    );
+    await scoresRepo.createScoreDir(collideId);
+    final file = await scoresRepo.scoreFile(collideId, FileType.pdf);
+    await file.writeAsString("%PDF-1.4 new");
+
+    final zip = await exportAll();
+
+    await db.managers.scoresTable
+        .filter((f) => f.id(collideId))
+        .update(
+          (o) => o(
+            fileType: Value(FileType.byName("PDF")),
+            fileUpdatedAt: Value(contentTime.subtract(const Duration(days: 1))),
+          ),
+        );
+    await file.writeAsString("%PDF-1.4 old");
+
+    await importFrom(zip);
+
+    final score = await db.managers.scoresTable
+        .filter((f) => f.id(collideId))
+        .getSingle();
+    expect(score.fileType, FileType.pdf);
+    expect(await file.exists(), isTrue);
+    expect(await file.readAsString(), "%PDF-1.4 new");
+  });
+
   test("an export without practice data imports cleanly", () async {
     await createPracticeData();
     final zip = await exportAll();

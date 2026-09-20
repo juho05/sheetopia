@@ -42,14 +42,18 @@ void main() {
   late ScoresRepository scoresRepo;
   late PracticeRepository repo;
 
-  Future<void> insertScore(String id, {bool downloaded = true}) async {
+  Future<void> insertScore(
+    String id, {
+    bool downloaded = true,
+    FileType fileType = FileType.pdf,
+  }) async {
     await db.managers.scoresTable.create(
       (o) => o(
         id: id,
         title: "Title $id",
         searchText: "title $id",
         fileDownloaded: downloaded,
-        fileType: FileType.pdf,
+        fileType: fileType,
         type: const Value(ScoreType.exercise),
       ),
     );
@@ -137,6 +141,43 @@ void main() {
     viewModel.selectScore(1);
 
     expect(viewModel.currentScoreId, "a");
+    viewModel.dispose();
+  });
+
+  test("scores of an unknown file type cannot be selected", () async {
+    await insertScore("a");
+    await insertScore("b", fileType: FileType.byName("from-the-future"));
+    final exerciseId = await createExercise("Scales", ["a", "b"]);
+
+    final viewModel = await viewModelFor(exerciseId);
+    viewModel.selectScore(1);
+
+    expect(viewModel.currentScoreId, "a");
+    viewModel.dispose();
+  });
+
+  test("a leading unknown file type is skipped at start", () async {
+    await insertScore("a", fileType: FileType.byName("from-the-future"));
+    await insertScore("b");
+    final exerciseId = await createExercise("Scales", ["a", "b"]);
+
+    final viewModel = await viewModelFor(exerciseId);
+
+    expect(viewModel.position, 1);
+    expect(viewModel.currentScoreId, "b");
+    viewModel.dispose();
+  });
+
+  test("an exercise of only unknown file types has no score", () async {
+    await insertScore("a", fileType: FileType.byName("from-the-future"));
+    await insertScore("b", fileType: FileType.byName("from-the-future"));
+    final exerciseId = await createExercise("Scales", ["a", "b"]);
+
+    final viewModel = await viewModelFor(exerciseId);
+
+    expect(viewModel.position, -1);
+    expect(viewModel.currentScoreId, isNull);
+    expect(viewModel.nextFile, isNull);
     viewModel.dispose();
   });
 

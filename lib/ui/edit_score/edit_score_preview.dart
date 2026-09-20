@@ -21,6 +21,7 @@ import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/ui/annotate/annotation_painter.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_viewmodel.dart';
+import 'package:sheetopia/ui/score/unsupported_file_view.dart';
 
 class EditScorePreview extends StatefulWidget {
   final Score score;
@@ -125,6 +126,7 @@ class _EditScorePreviewState extends State<EditScorePreview> {
               pagePaintCallbacks: [_paintPage],
             ),
           ),
+          _ => UnsupportedFileView(fileType: widget.score.fileType),
         },
         Consumer<EditScoreViewModel>(
           builder: (context, viewModel, _) {

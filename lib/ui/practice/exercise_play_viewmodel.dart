@@ -114,7 +114,7 @@ class ExercisePlayViewModel extends ChangeNotifier implements ScoreSequence {
     notifyListeners();
   }
 
-  bool _playable(Score score) => score.file != null;
+  bool _playable(Score score) => score.playable;
 
   Future<void> _load({bool keepSelection = true}) async {
     final generation = ++_loadGeneration;

@@ -22,6 +22,7 @@ import 'package:sheetopia/ui/score/chrome/play_session.dart';
 import 'package:sheetopia/ui/score/pdf_view.dart';
 import 'package:sheetopia/ui/score/score_sequence.dart';
 import 'package:sheetopia/ui/score/score_viewmodel.dart';
+import 'package:sheetopia/ui/score/unsupported_file_view.dart';
 import 'package:sheetopia/utils/full_screen.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -218,6 +219,9 @@ class _ScoreViewerState extends State<ScoreViewer>
                                       : null,
                                   onPageTurned: _viewModel.onPageTurned,
                                   onSwipeUp: widget.onSwipeUp,
+                                ),
+                                _ => UnsupportedFileView(
+                                  fileType: _viewModel.fileType!,
                                 ),
                               },
                             FadingOverlay(

@@ -127,6 +127,8 @@ class _SetlistDetailPageState extends State<SetlistDetailPage> {
             ? "This score is not on this device"
             : score.file == null
             ? "Not downloaded yet"
+            : !score.fileType.isKnown
+            ? "Needs a newer version of Sheetopia"
             : score.composer ?? "No composer",
         overflow: TextOverflow.ellipsis,
         style: theme.textTheme.bodySmall?.copyWith(

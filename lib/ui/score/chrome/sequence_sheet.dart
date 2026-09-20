@@ -20,7 +20,7 @@ class SequenceSheetItem {
   final bool playable;
 
   SequenceSheetItem({required this.score, required this.title, bool? playable})
-    : playable = playable ?? score?.file != null;
+    : playable = playable ?? score?.playable ?? false;
 }
 
 class SequenceSheet extends StatefulWidget {

@@ -14,7 +14,7 @@ class SetlistEntry {
 
   const SetlistEntry({required this.scoreId, required this.score});
 
-  bool get playable => score?.file != null;
+  bool get playable => score?.playable ?? false;
 }
 
 class Setlist {

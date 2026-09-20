@@ -153,7 +153,7 @@ class _SelectScoreDialog extends StatelessWidget {
                 itemCount: scores.length,
                 itemBuilder: (context, index) {
                   final score = scores[index];
-                  final playable = score.file != null;
+                  final playable = score.playable;
                   return RoundedListTile(
                     title: score.title,
                     selected: index == selectedIndex,
@@ -165,7 +165,9 @@ class _SelectScoreDialog extends StatelessWidget {
                         : Padding(
                             padding: const EdgeInsets.only(right: 12),
                             child: Icon(
-                              Symbols.cloud_off,
+                              score.file == null
+                                  ? Symbols.cloud_off
+                                  : Icons.help_outline,
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
                           ),

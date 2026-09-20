@@ -90,6 +90,10 @@ class _ThumbnailState extends State<Thumbnail> {
             height: widget.height.toDouble(),
             child: image != null
                 ? Image.file(image, fit: BoxFit.cover)
+                : widget.score.file != null && !widget.score.fileType.isKnown
+                ? const Center(
+                    child: Icon(Icons.help_outline, color: Colors.black54),
+                  )
                 : null,
           );
         },

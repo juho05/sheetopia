@@ -43,14 +43,18 @@ void main() {
   late ScoresRepository scoresRepo;
   late PracticeRepository repo;
 
-  Future<void> insertScore(String id, {bool downloaded = true}) async {
+  Future<void> insertScore(
+    String id, {
+    bool downloaded = true,
+    FileType fileType = FileType.pdf,
+  }) async {
     await db.managers.scoresTable.create(
       (o) => o(
         id: id,
         title: "Title $id",
         searchText: "title $id",
         fileDownloaded: downloaded,
-        fileType: FileType.pdf,
+        fileType: fileType,
         type: const Value(ScoreType.exercise),
       ),
     );
@@ -389,6 +393,61 @@ void main() {
     final viewModel = await viewModelFor(routineId);
 
     expect(viewModel.currentScoreId, "a");
+    viewModel.dispose();
+  });
+
+  test("a default score of an unknown file type is skipped", () async {
+    await insertScore("a");
+    await insertScore("b", fileType: FileType.byName("from-the-future"));
+    final scales = await createExercise("Scales", ["a", "b"]);
+    final routineId = await createRoutine(
+      "Warmup",
+      [scales],
+      defaultScoreIds: ["b"],
+    );
+
+    final viewModel = await viewModelFor(routineId);
+
+    expect(viewModel.currentScoreId, "a");
+    viewModel.selectScore(1);
+    expect(viewModel.currentScoreId, "a");
+    viewModel.dispose();
+  });
+
+  test("an unknown file type never reaches the neighbour preload", () async {
+    await insertScore("a");
+    await insertScore("b", fileType: FileType.byName("from-the-future"));
+    await insertScore("c");
+    final scales = await createExercise("Scales", ["a"]);
+    final arpeggios = await createExercise("Arpeggios", ["b"]);
+    final etude = await createExercise("Etude", ["c"]);
+    final routineId = await createRoutine("Warmup", [scales, arpeggios, etude]);
+
+    final viewModel = await viewModelFor(routineId);
+    viewModel.next();
+
+    expect(viewModel.currentScoreId, isNull);
+    expect(
+      viewModel.previousFile?.path,
+      (await scoresRepo.getScore("a"))!.file!.path,
+    );
+    expect(
+      viewModel.nextFile?.path,
+      (await scoresRepo.getScore("c"))!.file!.path,
+    );
+    viewModel.dispose();
+  });
+
+  test("an exercise of only unknown file types has no score", () async {
+    await insertScore("a", fileType: FileType.byName("from-the-future"));
+    final scales = await createExercise("Scales", ["a"]);
+    final routineId = await createRoutine("Warmup", [scales]);
+
+    final viewModel = await viewModelFor(routineId);
+
+    expect(viewModel.scoreIndex, -1);
+    expect(viewModel.currentScoreId, isNull);
+    expect(viewModel.nextFile, isNull);
     viewModel.dispose();
   });
 

@@ -10,6 +10,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
@@ -48,6 +49,8 @@ void main() {
     List<String> instruments = const [],
     List<String> genres = const [],
     ScoreType type = ScoreType.score,
+    FileType fileType = FileType.pdf,
+    bool fileDownloaded = false,
     DateTime? metadataUpdatedAt,
     DateTime? fileUpdatedAt,
   }) async {
@@ -56,8 +59,8 @@ void main() {
         id: id,
         title: "Title $id",
         searchText: " title $id ",
-        fileDownloaded: false,
-        fileType: FileType.pdf,
+        fileDownloaded: fileDownloaded,
+        fileType: fileType,
         lastOpened: Value(timestamp),
         metadataUpdatedAt: Value(metadataUpdatedAt ?? timestamp),
         fileUpdatedAt: Value(fileUpdatedAt ?? timestamp),
@@ -393,6 +396,51 @@ void main() {
 
     expect(await repo.getScore("future"), isNotNull);
     expect(await db.managers.deletedScoresTable.get(), isEmpty);
+  });
+
+  test("a score of an unknown file type round trips through the db", () async {
+    await insertScore("future", fileType: FileType.byName("from-the-future"));
+
+    final score = (await repo.getScore("future"))!;
+
+    expect(score.fileType, FileType.byName("from-the-future"));
+    expect(score.fileType.isKnown, isFalse);
+    expect(
+      (await repo.scoreFile("future", score.fileType)).path,
+      endsWith("score.from-the-future"),
+    );
+  });
+
+  test("a storage name cannot escape the score directory", () async {
+    final dir = (await repo.scoreDir("escape")).path;
+
+    for (final name in ["../../etc/passwd", r"..\..\passwd", "a/b"]) {
+      final file = await repo.scoreFile("escape", FileType.byName(name));
+      expect(file.parent.path, dir);
+    }
+
+    expect(fileTypeExtension(FileType.byName("../..")), ".bin");
+    expect(fileTypeExtension(FileType.byName("")), ".bin");
+  });
+
+  test("changing the file keeps a colliding storage name", () async {
+    await insertScore(
+      "collide",
+      fileType: FileType.byName("PDF"),
+      fileDownloaded: true,
+    );
+    await repo.createScoreDir("collide");
+    final existing = await repo.scoreFile("collide", FileType.byName("PDF"));
+    await existing.writeAsString("%PDF-1.4 old");
+
+    final replacement = File("${tempDir.path}/replacement.pdf");
+    await replacement.writeAsString("%PDF-1.4 new");
+    await repo.updateScoreFile("collide", XFile(replacement.path));
+
+    final score = (await repo.getScore("collide"))!;
+    expect(score.fileType, FileType.pdf);
+    expect(await existing.exists(), isTrue);
+    expect(await existing.readAsString(), "%PDF-1.4 new");
   });
 
   test("nothing is deleted when every exercise score is linked", () async {
