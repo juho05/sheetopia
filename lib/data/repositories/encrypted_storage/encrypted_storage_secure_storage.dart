@@ -6,26 +6,106 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
 
 class EncryptedStorageSecureStorage implements EncryptedStorage {
   final FlutterSecureStorage _storage;
 
-  EncryptedStorageSecureStorage() : _storage = const FlutterSecureStorage();
+  EncryptedStorageSecureStorage()
+    : _storage = const FlutterSecureStorage(
+        mOptions: MacOsOptions(
+          accountName: "de.julianh.sheetopia",
+          usesDataProtectionKeychain: false,
+        ),
+      );
 
   @override
-  Future<String?> read(String key) {
-    return _storage.read(key: key);
+  Future<String?> read(String key) async {
+    final value = await _storage.read(key: key);
+    if (value != null || !Platform.isMacOS) return value;
+    return _migrateLegacyMacOS(key);
   }
 
   @override
-  Future<void> delete(String key) {
-    return _storage.delete(key: key);
+  Future<void> delete(String key) async {
+    await _storage.delete(key: key);
+    if (!Platform.isMacOS) return;
+    try {
+      await _LegacyMacOSKeychain.delete(key);
+    } catch (e) {
+      Log.warn("Failed to delete legacy keychain item", e: e);
+    }
   }
 
   @override
   Future<void> write(String key, String value) {
     return _storage.write(key: key, value: value);
   }
+
+  Future<String?> _migrateLegacyMacOS(String key) async {
+    final String? value;
+    try {
+      value = await _LegacyMacOSKeychain.read(key);
+    } catch (e) {
+      Log.warn("Failed to read legacy keychain item", e: e);
+      return null;
+    }
+    if (value == null) return null;
+
+    try {
+      await _storage.write(key: key, value: value);
+    } catch (e) {
+      Log.warn("Failed to migrate legacy keychain item", e: e);
+      return value;
+    }
+    try {
+      await _LegacyMacOSKeychain.delete(key);
+    } catch (e) {
+      Log.warn("Failed to delete migrated legacy keychain item", e: e);
+    }
+    Log.info("Migrated legacy keychain item to flutter_secure_storage");
+    return value;
+  }
+}
+
+class _LegacyMacOSKeychain {
+  static const _service = "de.julianh.sheetopia";
+  static const _execPath = "/usr/bin/security";
+
+  static Future<String?> read(String key) async {
+    final result = await _run([
+      "find-generic-password",
+      "-s",
+      _service,
+      "-wa",
+      _encode(key),
+    ]);
+    if (result == null) return null;
+    return utf8.decode(base64.decode(result.trim()));
+  }
+
+  static Future<void> delete(String key) async {
+    await _run(["delete-generic-password", "-s", _service, "-a", _encode(key)]);
+  }
+
+  static Future<String?> _run(List<String> args) async {
+    final result = await Process.run(
+      _execPath,
+      args,
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+    );
+    if (result.exitCode == 0) return result.stdout as String;
+    if ((result.stderr as String).contains("could not be found")) return null;
+    throw Exception(
+      "$_execPath exited with status code ${result.exitCode}:\n${result.stderr}",
+    );
+  }
+
+  static String _encode(String str) => base64.encode(utf8.encode(str));
 }
