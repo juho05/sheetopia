@@ -145,7 +145,7 @@ class ExerciseStartOverlay extends StatelessWidget {
               color: target != null && practiced > target
                   ? overTargetColor(context)
                   : theme.colorScheme.primary,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w500,
             ),
           ),
       ],
@@ -174,7 +174,7 @@ class ExerciseStartOverlay extends StatelessWidget {
         Text(
           exercise.name,
           style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
           ),
         ),
         _buildMeta(context),
@@ -344,7 +344,7 @@ class _PracticeRecoveryOverlayState extends State<PracticeRecoveryOverlay> {
         Text(
           "Stopwatch left running",
           style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
           ),
         ),
         Text(

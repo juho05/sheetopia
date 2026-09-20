@@ -82,7 +82,7 @@ class PracticeStopwatch extends StatelessWidget {
           formatStopwatch(elapsed),
           style: theme.textTheme.bodyMedium?.copyWith(
             color: color,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),

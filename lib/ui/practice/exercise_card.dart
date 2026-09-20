@@ -54,7 +54,7 @@ class ExerciseCard extends StatelessWidget {
                 exercise.name,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               if (hasBadges)

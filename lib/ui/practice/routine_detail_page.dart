@@ -147,7 +147,7 @@ class _RoutineDetailPageState extends State<RoutineDetailPage> {
                 Text(
                   routine.name,
                   style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 if (description != null)
@@ -228,7 +228,7 @@ class _SessionSummary extends StatelessWidget {
               TextSpan(
                 text: formatStopwatch(practiced),
                 style: TextStyle(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                   color: hasTarget && practiced > targetDuration
                       ? overTargetColor(context)
                       : theme.colorScheme.onSurface,
@@ -308,7 +308,7 @@ class _RoutineEntryTile extends StatelessWidget {
             color: overTarget
                 ? overTargetColor(context)
                 : theme.colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
           ),
         ),
         if (targetDuration != null)

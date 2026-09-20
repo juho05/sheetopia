@@ -84,12 +84,23 @@ class _AppState extends State<App> {
     },
   );
 
-  static ThemeData _theme(Brightness brightness) => ThemeData.from(
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: Colors.deepPurple,
-      brightness: brightness,
-    ),
-  ).copyWith(pageTransitionsTheme: _pageTransitions);
+  // bundled so that text, especially italics, renders identically on all
+  // platforms instead of falling back to the very slanted Apple system italic
+  static const _fontFamily = "Roboto";
+
+  static ThemeData _theme(Brightness brightness) {
+    final base = ThemeData.from(
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: Colors.deepPurple,
+        brightness: brightness,
+      ),
+    );
+    return base.copyWith(
+      pageTransitionsTheme: _pageTransitions,
+      textTheme: base.textTheme.apply(fontFamily: _fontFamily),
+      primaryTextTheme: base.primaryTextTheme.apply(fontFamily: _fontFamily),
+    );
+  }
 
   @override
   void initState() {
