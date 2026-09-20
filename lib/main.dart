@@ -33,6 +33,7 @@ import 'package:sheetopia/ui/practice/import_exercise_scores_choice_dialog.dart'
 import 'package:sheetopia/ui/score/chrome/play_session.dart';
 import 'package:sheetopia/utils/full_screen.dart';
 import 'package:sheetopia/utils/receive_drop.dart';
+import 'package:sheetopia/utils/score_file.dart';
 import 'package:sheetopia/window_listener.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -48,6 +49,8 @@ Future<void> main() async {
         ? "profile"
         : "debug"}",
   );
+
+  unawaited(clearShareCache());
 
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
     await windowManager.ensureInitialized();
