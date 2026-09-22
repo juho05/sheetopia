@@ -9,9 +9,9 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:sheetopia/data/repositories/practice/practice_progress.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
-import 'package:sheetopia/data/repositories/practice/practice_session.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 
 class RoutineDetailViewModel extends ChangeNotifier {
@@ -39,10 +39,11 @@ class RoutineDetailViewModel extends ChangeNotifier {
   Duration practicedFor(String routineEntryId) =>
       _practiced[routineEntryId] ?? Duration.zero;
 
-  bool get hasSessionTimes => _practiced.isNotEmpty;
+  bool get hasProgress => _practiced.isNotEmpty;
 
-  Duration get practicedThisSession =>
-      _practiced.values.fold(Duration.zero, (total, d) => total + d);
+  Duration _practicedTotal = Duration.zero;
+
+  Duration get practicedTotal => _practicedTotal;
 
   /// True once the routine was loaded and has been deleted since.
   bool get deleted => _deleted;
@@ -53,31 +54,25 @@ class RoutineDetailViewModel extends ChangeNotifier {
 
   StreamSubscription? _updatedExercisesSub;
 
-  StreamSubscription? _updatedSessionsSub;
+  StreamSubscription? _updatedRecordsSub;
 
   RoutineDetailViewModel({required this._repo, required this.routineId}) {
     _updatedRoutinesSub = _repo.updatedRoutineIds.listen((ids) {
       if (ids.contains(routineId)) load();
     });
     _updatedExercisesSub = _repo.updatedExerciseIds.listen((_) => load());
-    _updatedSessionsSub = _repo.updatedSessionIds.listen((_) => load());
+    _updatedRecordsSub = _repo.updatedRecordIds.listen((_) => load());
     load();
   }
 
-  Future<void> startNewSession() async {
-    await _repo.startNewSession(
-      routineId: routineId,
-      routineTarget: _routine?.targetDuration ?? Duration.zero,
+  Future<void> resetProgress() async {
+    final progress = await _repo.getRoutineProgress(
+      routineId,
+      target: _routine?.targetDuration,
     );
+    if (progress.running != null) return;
+    await _repo.resetRoutineProgress(routineId);
     await load();
-  }
-
-  Future<PracticeSession?> _currentSession(PracticeRoutine? routine) async {
-    if (routine == null) return null;
-    return _repo.getCurrentSession(
-      routineId: routineId,
-      routineTarget: routine.targetDuration,
-    );
   }
 
   int _loadGeneration = 0;
@@ -96,15 +91,21 @@ class RoutineDetailViewModel extends ChangeNotifier {
       if (generation != _loadGeneration) return;
     }
 
-    final session = await _currentSession(routine);
+    final progress = routine == null
+        ? PracticeProgress.empty
+        : await _repo.getRoutineProgress(
+            routineId,
+            target: routine.targetDuration,
+          );
     if (generation != _loadGeneration) return;
 
+    final now = DateTime.now();
     _routine = routine;
     _scoresByExercise
       ..clear()
       ..addAll(scores);
-    _practiced =
-        session?.durationsByRoutineEntry(now: DateTime.now()) ?? const {};
+    _practiced = progress.byRoutineEntry(now: now);
+    _practicedTotal = progress.total(now: now);
     _loading = false;
     notifyListeners();
   }
@@ -116,7 +117,7 @@ class RoutineDetailViewModel extends ChangeNotifier {
     _disposed = true;
     _updatedRoutinesSub?.cancel();
     _updatedExercisesSub?.cancel();
-    _updatedSessionsSub?.cancel();
+    _updatedRecordsSub?.cancel();
     super.dispose();
   }
 

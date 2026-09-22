@@ -27,11 +27,13 @@ import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/sync/models/datetime_converter.dart';
 import 'package:sheetopia/data/services/sync/models/exercise_categories.dart';
 import 'package:sheetopia/data/services/sync/models/exercise_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/exercises.dart';
+import 'package:sheetopia/data/services/sync/models/optional_values.dart';
 import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
-import 'package:sheetopia/data/services/sync/models/practice_sessions.dart';
+import 'package:sheetopia/data/services/sync/models/practice_records.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/setlists.dart';
@@ -90,6 +92,8 @@ class ImportExportRepository extends ChangeNotifier {
   Set<String> _changedExercises = {};
   Set<String> _changedRoutines = {};
 
+  Set<String> _changedRecords = {};
+
   Future<bool> import({void Function()? onSelected}) async {
     if (_status != ImportExportStatus.idle) {
       throw Exception("Cannot start export when alreading importing/exporting");
@@ -123,7 +127,7 @@ class ImportExportRepository extends ChangeNotifier {
         final categories = result["categories"] as List<ExerciseCategoryModel>;
         final exercises = result["exercises"] as List<ExerciseModel>;
         final routines = result["routines"] as List<PracticeRoutineModel>;
-        final sessions = result["sessions"] as List<PracticeSessionModel>;
+        final records = result["records"] as List<PracticeRecordModel>;
         final scoresDir = result["scoresDir"] as String;
 
         final importedAt = DateTime.now().toUtc();
@@ -134,7 +138,7 @@ class ImportExportRepository extends ChangeNotifier {
         await _importExerciseCategories(categories, importedAt);
         await _importExercises(exercises, importedAt);
         await _importPracticeRoutines(routines, importedAt);
-        await _importPracticeSessions(sessions, importedAt);
+        await _importPracticeRecords(records, importedAt);
       } finally {
         await dir.delete(recursive: true);
       }
@@ -145,12 +149,14 @@ class ImportExportRepository extends ChangeNotifier {
       _practiceRepo.remoteChangedCategories(_changedCategories);
       _practiceRepo.remoteChangedExercises(_changedExercises);
       _practiceRepo.remoteChangedRoutines(_changedRoutines);
+      _practiceRepo.remoteChangedRecords(_changedRecords);
       _changedScores = {};
       _changedTags = {};
       _changedSetlists = {};
       _changedCategories = {};
       _changedExercises = {};
       _changedRoutines = {};
+      _changedRecords = {};
       _status = ImportExportStatus.idle;
       notifyListeners();
       _syncRepo.requestSync();
@@ -315,6 +321,7 @@ class ImportExportRepository extends ChangeNotifier {
                     sourceLink: e.sourceLink ?? "",
                     instrument: e.instrument ?? "",
                     targetBpm: e.targetBpm ?? 0,
+                    progressResetAt: e.progressResetAt?.toRFC3339() ?? "",
                   ),
                   updatedAt: e.updatedAt.toUtc(),
                 ),
@@ -355,6 +362,7 @@ class ImportExportRepository extends ChangeNotifier {
                   name: r.name,
                   metadata: PracticeRoutineMetadataModel(
                     description: r.description ?? "",
+                    progressResetAt: r.progressResetAt?.toRFC3339() ?? "",
                   ),
                   entries: entries[r.id] ?? [],
                   updatedAt: r.updatedAt.toUtc(),
@@ -364,43 +372,22 @@ class ImportExportRepository extends ChangeNotifier {
         }
 
         {
-          final sessions = await _db.managers.practiceSessionsTable.get();
-
-          final entries = <String, List<PracticeSessionEntryModel>>{};
-          final sessionEntries = await (_db.select(
-            _db.practiceSessionEntriesTable,
-          )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
-          for (final e in sessionEntries) {
-            entries
-                .putIfAbsent(e.session, () => [])
-                .add(
-                  PracticeSessionEntryModel(
-                    id: e.id,
-                    exerciseId: e.exercise,
-                    routineEntryId: e.routineEntry,
-                    metadata: PracticeSessionEntryMetadataModel(
-                      duration: e.duration.inMilliseconds,
-                      startedAt: e.startedAt.toUtc(),
-                    ),
-                  ),
-                );
-          }
-
+          final records = await _db.managers.practiceRecordsTable.get();
           await compute(_saveJson, {
             "dir": dir.path,
-            "fileName": "practice_sessions.json",
+            "fileName": "practice_records.json",
             "models": [
-              for (final s in sessions)
-                PracticeSessionModel(
-                  id: s.id,
-                  startedAt: s.startedAt.toUtc(),
-                  endedAt: s.endedAt?.toUtc(),
-                  routineId: s.routine,
-                  metadata: PracticeSessionMetadataModel(
-                    description: s.description ?? "",
+              for (final r in records)
+                PracticeRecordModel(
+                  id: r.id,
+                  exerciseId: r.exercise,
+                  routineId: r.routine,
+                  routineEntryId: r.routineEntry,
+                  metadata: PracticeRecordMetadataModel(
+                    duration: r.duration.inMilliseconds,
+                    startedAt: r.startedAt.toUtc(),
                   ),
-                  entries: entries[s.id] ?? [],
-                  updatedAt: s.updatedAt.toUtc(),
+                  updatedAt: r.updatedAt.toUtc(),
                 ),
             ],
           });
@@ -642,11 +629,12 @@ class ImportExportRepository extends ChangeNotifier {
             id: e.id,
             name: e.name,
             category: Value(categoryId),
-            description: _optionalStringValue(e.metadata.description),
-            source: _optionalStringValue(e.metadata.source),
-            sourceLink: _optionalStringValue(e.metadata.sourceLink),
-            instrument: _optionalStringValue(e.metadata.instrument),
-            targetBpm: _optionalIntValue(e.metadata.targetBpm),
+            description: optionalStringValue(e.metadata.description),
+            source: optionalStringValue(e.metadata.source),
+            sourceLink: optionalStringValue(e.metadata.sourceLink),
+            instrument: optionalStringValue(e.metadata.instrument),
+            targetBpm: optionalIntValue(e.metadata.targetBpm),
+            progressResetAt: optionalDateTimeValue(e.metadata.progressResetAt),
             updatedAt: Value(e.updatedAt.toUtc()),
             writtenAt: Value(importedAt),
             uploaded: const Value(false),
@@ -667,6 +655,9 @@ class ImportExportRepository extends ChangeNotifier {
                   : null,
               targetBpm: e.metadata.targetBpm != null
                   ? excluded.targetBpm
+                  : null,
+              progressResetAt: e.metadata.progressResetAt != null
+                  ? excluded.progressResetAt
                   : null,
               uploaded: excluded.uploaded,
               updatedAt: excluded.updatedAt,
@@ -735,7 +726,10 @@ class ImportExportRepository extends ChangeNotifier {
               (o) => o(
                 id: r.id,
                 name: r.name,
-                description: _optionalStringValue(r.metadata.description),
+                description: optionalStringValue(r.metadata.description),
+                progressResetAt: optionalDateTimeValue(
+                  r.metadata.progressResetAt,
+                ),
                 updatedAt: Value(r.updatedAt.toUtc()),
                 writtenAt: Value(importedAt),
                 uploaded: const Value(false),
@@ -745,6 +739,9 @@ class ImportExportRepository extends ChangeNotifier {
                   name: excluded.name,
                   description: r.metadata.description != null
                       ? excluded.description
+                      : null,
+                  progressResetAt: r.metadata.progressResetAt != null
+                      ? excluded.progressResetAt
                       : null,
                   uploaded: excluded.uploaded,
                   updatedAt: excluded.updatedAt,
@@ -768,11 +765,9 @@ class ImportExportRepository extends ChangeNotifier {
                 routine: r.id,
                 exercise: e.$2.exerciseId,
                 position: e.$1,
-                extraNotes: _optionalStringValue(e.$2.metadata.extraNotes),
-                defaultScore: _optionalStringValue(
-                  e.$2.metadata.defaultScoreId,
-                ),
-                targetDuration: _optionalDurationValue(
+                extraNotes: optionalStringValue(e.$2.metadata.extraNotes),
+                defaultScore: optionalStringValue(e.$2.metadata.defaultScoreId),
+                targetDuration: optionalDurationValue(
                   e.$2.metadata.targetDuration,
                 ),
               ),
@@ -806,71 +801,49 @@ class ImportExportRepository extends ChangeNotifier {
     return entries.where((e) => known.contains(e.exerciseId)).toList();
   }
 
-  Future<void> _importPracticeSessions(
-    List<PracticeSessionModel> sessions,
+  Future<void> _importPracticeRecords(
+    List<PracticeRecordModel> records,
     DateTime importedAt,
   ) async {
     await _dropPendingTombstones(
-      sessions.map((s) => s.id).toList(),
-      (chunk) => _db.managers.deletedPracticeSessionsTable
-          .filter((f) => f.sessionId.isIn(chunk))
+      records.map((r) => r.id).toList(),
+      (chunk) => _db.managers.deletedPracticeRecordsTable
+          .filter((f) => f.recordId.isIn(chunk))
           .delete(),
     );
 
-    for (final s in sessions) {
-      await _db.transaction(() async {
-        final result = await _db.managers.practiceSessionsTable
-            .createReturningOrNull(
-              (o) => o(
-                id: s.id,
-                startedAt: s.startedAt.toUtc(),
-                endedAt: Value(s.endedAt?.toUtc()),
-                routine: Value(s.routineId),
-                description: _optionalStringValue(s.metadata.description),
-                updatedAt: Value(s.updatedAt.toUtc()),
-                writtenAt: Value(importedAt),
-                uploaded: const Value(false),
+    for (final r in records) {
+      final duration = r.metadata.duration;
+      final startedAt = r.metadata.startedAt;
+      final result = await _db.managers.practiceRecordsTable
+          .createReturningOrNull(
+            (o) => o(
+              id: r.id,
+              exercise: r.exerciseId,
+              routine: Value(r.routineId),
+              routineEntry: Value(r.routineEntryId),
+              startedAt: (startedAt ?? r.updatedAt).toUtc(),
+              duration: Value(Duration(milliseconds: duration ?? 0)),
+              updatedAt: Value(r.updatedAt.toUtc()),
+              writtenAt: Value(importedAt),
+              uploaded: const Value(false),
+            ),
+            onConflict: DoUpdate.withExcluded(
+              (old, excluded) => PracticeRecordsTableCompanion.custom(
+                exercise: excluded.exercise,
+                routine: excluded.routine,
+                routineEntry: excluded.routineEntry,
+                startedAt: startedAt != null ? excluded.startedAt : null,
+                duration: duration != null ? excluded.duration : null,
+                uploaded: excluded.uploaded,
+                updatedAt: excluded.updatedAt,
+                writtenAt: excluded.writtenAt,
               ),
-              onConflict: DoUpdate.withExcluded(
-                (old, excluded) => PracticeSessionsTableCompanion.custom(
-                  startedAt: excluded.startedAt,
-                  endedAt: excluded.endedAt,
-                  routine: excluded.routine,
-                  description: s.metadata.description != null
-                      ? excluded.description
-                      : null,
-                  uploaded: excluded.uploaded,
-                  updatedAt: excluded.updatedAt,
-                  writtenAt: excluded.writtenAt,
-                ),
-                where: (old, excluded) =>
-                    old.updatedAt.isSmallerThan(excluded.updatedAt),
-              ),
-            );
-        if (result == null) return;
-
-        await _db.managers.practiceSessionEntriesTable
-            .filter((f) => f.session.id(s.id))
-            .delete();
-        if (s.entries.isNotEmpty) {
-          await _db.managers.practiceSessionEntriesTable.bulkCreate(
-            (o) => s.entries.map(
-              (e) => o(
-                id: e.id,
-                session: s.id,
-                exercise: e.exerciseId,
-                routineEntry: Value(e.routineEntryId),
-                duration: Value(
-                  Duration(milliseconds: e.metadata.duration ?? 0),
-                ),
-                startedAt: Value(
-                  e.metadata.startedAt?.toUtc() ?? s.startedAt.toUtc(),
-                ),
-              ),
+              where: (old, excluded) =>
+                  old.updatedAt.isSmallerThan(excluded.updatedAt),
             ),
           );
-        }
-      });
+      if (result != null) _changedRecords.add(r.id);
     }
   }
 
@@ -928,10 +901,10 @@ class ImportExportRepository extends ChangeNotifier {
                 s.metadata.composer,
               ]),
               title: s.title,
-              composer: _optionalStringValue(s.metadata.composer),
-              source: _optionalStringValue(s.metadata.source),
-              sourceLink: _optionalStringValue(s.metadata.sourceLink),
-              notes: _optionalStringValue(s.metadata.notes),
+              composer: optionalStringValue(s.metadata.composer),
+              source: optionalStringValue(s.metadata.source),
+              sourceLink: optionalStringValue(s.metadata.sourceLink),
+              notes: optionalStringValue(s.metadata.notes),
               annotations: _annotationsColumnValue(s.metadata.annotations),
               metadataUploaded: const Value(false),
               metadataUpdatedAt: Value(s.metadataUpdatedAt.toUtc()),
@@ -964,16 +937,16 @@ class ImportExportRepository extends ChangeNotifier {
                       : const Value.absent(),
                   writtenAt: Value(importedAt),
                   composer: metadataChanged
-                      ? _optionalStringValue(s.metadata.composer)
+                      ? optionalStringValue(s.metadata.composer)
                       : const Value.absent(),
                   source: metadataChanged
-                      ? _optionalStringValue(s.metadata.source)
+                      ? optionalStringValue(s.metadata.source)
                       : const Value.absent(),
                   sourceLink: metadataChanged
-                      ? _optionalStringValue(s.metadata.sourceLink)
+                      ? optionalStringValue(s.metadata.sourceLink)
                       : const Value.absent(),
                   notes: metadataChanged
-                      ? _optionalStringValue(s.metadata.notes)
+                      ? optionalStringValue(s.metadata.notes)
                       : const Value.absent(),
                   annotations: metadataChanged
                       ? _annotationsColumnValue(s.metadata.annotations)
@@ -1150,10 +1123,10 @@ class ImportExportRepository extends ChangeNotifier {
         PracticeRoutineModel.fromJson,
       );
 
-      final sessions = await _readOptionalJsonList(
+      final records = await _readOptionalJsonList(
         outputPath,
-        "practice_sessions.json",
-        PracticeSessionModel.fromJson,
+        "practice_records.json",
+        PracticeRecordModel.fromJson,
       );
 
       final scoresDir = Directory(path.join(outputPath, "scores"));
@@ -1168,30 +1141,12 @@ class ImportExportRepository extends ChangeNotifier {
         "categories": categories,
         "exercises": exercises,
         "routines": routines,
-        "sessions": sessions,
+        "records": records,
         "scoresDir": scoresDir.path,
       };
     } on Exception catch (e) {
       throw InvalidFileException(e.toString());
     }
-  }
-
-  Value<String?> _optionalStringValue(String? str) {
-    if (str == null) return const Value.absent();
-    if (str == "") return const Value(null);
-    return Value(str);
-  }
-
-  Value<int?> _optionalIntValue(int? value) {
-    if (value == null) return const Value.absent();
-    if (value == 0) return const Value(null);
-    return Value(value);
-  }
-
-  Value<Duration?> _optionalDurationValue(int? milliseconds) {
-    if (milliseconds == null) return const Value.absent();
-    if (milliseconds == 0) return const Value(null);
-    return Value(Duration(milliseconds: milliseconds));
   }
 
   Value<String?> _annotationsColumnValue(Map<String, dynamic>? a) {

@@ -102,8 +102,6 @@ class ExercisePlayViewModel extends ChangeNotifier implements ScoreSequence {
 
   Future<void> _openTimer() async {
     final exerciseId = _exerciseId;
-    if (timer.session == null) await timer.openSession();
-    if (exerciseId != _exerciseId) return;
     await timer.show(exerciseId: exerciseId);
   }
 

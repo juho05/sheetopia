@@ -15,6 +15,8 @@ class PracticeRoutinesTable extends Table {
   late final name = text()();
   late final description = text().nullable()();
 
+  late final progressResetAt = dateTime().nullable()();
+
   late final updatedAt = dateTime().clientDefault(
     () => DateTime.now().toUtc(),
   )();

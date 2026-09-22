@@ -265,12 +265,8 @@ void main() {
 
   testWidgets("the practiced time of today is summed up", (tester) async {
     final exercise = await createExercise("Chromatic");
-    final session = await repo.startSession();
-    final entry = await repo.startSessionEntry(
-      sessionId: session.id,
-      exerciseId: exercise,
-    );
-    await repo.checkpointSessionEntry(
+    final entry = await repo.startRecord(exerciseId: exercise);
+    await repo.checkpointRecord(
       entry,
       now: entry.runningSince!.add(const Duration(minutes: 95)),
       stop: true,
@@ -286,12 +282,8 @@ void main() {
     tester,
   ) async {
     final exercise = await createExercise("Chromatic");
-    final session = await repo.startSession();
-    final entry = await repo.startSessionEntry(
-      sessionId: session.id,
-      exerciseId: exercise,
-    );
-    await repo.checkpointSessionEntry(
+    final entry = await repo.startRecord(exerciseId: exercise);
+    await repo.checkpointRecord(
       entry,
       now: entry.runningSince!.add(const Duration(minutes: 3, seconds: 20)),
       stop: true,

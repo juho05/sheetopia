@@ -28,7 +28,7 @@ import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/data/services/sync/models/exercise_categories.dart';
 import 'package:sheetopia/data/services/sync/models/exercises.dart';
 import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
-import 'package:sheetopia/data/services/sync/models/practice_sessions.dart';
+import 'package:sheetopia/data/services/sync/models/practice_records.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/server_info.dart';
@@ -160,7 +160,7 @@ class _FakeSyncService extends SyncService {
   }) async => [];
 
   @override
-  Future<List<PracticeSessionModel>> getPracticeSessions(
+  Future<List<PracticeRecordModel>> getPracticeRecords(
     SyncConnection con, {
     DateTime? changedAfter,
   }) async => [];
@@ -184,7 +184,7 @@ class _FakeSyncService extends SyncService {
   }) async => [];
 
   @override
-  Future<List<RemotelyDeleted>> getDeletedPracticeSessions(
+  Future<List<RemotelyDeleted>> getDeletedPracticeRecords(
     SyncConnection con, {
     DateTime? since,
   }) async => [];

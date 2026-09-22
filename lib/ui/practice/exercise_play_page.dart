@@ -105,7 +105,7 @@ class _ExercisePlayPageState extends State<ExercisePlayPage> {
       selectedScoreIndex: _viewModel.position,
       onScoreSelected: _viewModel.selectScore,
       onStart: timer.ready ? timer.start : null,
-      onNewSession: timer.startNewSession,
+      onReset: timer.resetProgress,
       onLeave: () => _leave(context),
     );
   }

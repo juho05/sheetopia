@@ -15,6 +15,7 @@ ExerciseMetadataModel _$ExerciseMetadataModelFromJson(
     sourceLink: $checkedConvert('sourceLink', (v) => v as String?),
     instrument: $checkedConvert('instrument', (v) => v as String?),
     targetBpm: $checkedConvert('targetBpm', (v) => (v as num?)?.toInt()),
+    progressResetAt: $checkedConvert('progressResetAt', (v) => v as String?),
   );
   return val;
 });
@@ -27,4 +28,5 @@ Map<String, dynamic> _$ExerciseMetadataModelToJson(
   'sourceLink': instance.sourceLink,
   'instrument': instance.instrument,
   'targetBpm': instance.targetBpm,
+  'progressResetAt': instance.progressResetAt,
 };

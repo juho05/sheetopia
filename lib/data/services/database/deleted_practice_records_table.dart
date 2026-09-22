@@ -8,15 +8,15 @@
 
 import 'package:drift/drift.dart';
 
-class DeletedPracticeSessionsTable extends Table {
-  late final sessionId = text()();
+class DeletedPracticeRecordsTable extends Table {
+  late final recordId = text()();
   late final deletedAt = dateTime().clientDefault(
     () => DateTime.now().toUtc(),
   )();
 
   @override
-  String? get tableName => "deleted_practice_sessions";
+  String? get tableName => "deleted_practice_records";
 
   @override
-  Set<Column<Object>>? get primaryKey => {sessionId};
+  Set<Column<Object>>? get primaryKey => {recordId};
 }

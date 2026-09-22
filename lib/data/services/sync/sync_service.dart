@@ -24,7 +24,7 @@ import 'package:sheetopia/data/services/sync/models/exercise_categories.dart';
 import 'package:sheetopia/data/services/sync/models/exercise_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/exercises.dart';
 import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
-import 'package:sheetopia/data/services/sync/models/practice_sessions.dart';
+import 'package:sheetopia/data/services/sync/models/practice_records.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/server_info.dart';
@@ -357,68 +357,63 @@ class SyncService {
     return _getDeleted(con, "practice/routine/deleted", since: since);
   }
 
-  Future<List<PracticeSessionModel>> getPracticeSessions(
+  Future<List<PracticeRecordModel>> getPracticeRecords(
     SyncConnection con, {
     DateTime? changedAfter,
   }) async {
     final result = await _requestObject(
       con.baseUri,
       "GET",
-      "practice/session",
-      PracticeSessionsModel.fromJson,
+      "practice/record",
+      PracticeRecordsModel.fromJson,
       authKey: con.authKey,
       queryParams: {
         if (changedAfter != null) "changedAfter": [changedAfter.toRFC3339()],
       },
     );
-    return result.sessions;
+    return result.records;
   }
 
-  Future<void> updatePracticeSession(
+  Future<void> updatePracticeRecord(
     SyncConnection con,
-    String sessionId, {
-    required DateTime startedAt,
-    required DateTime? endedAt,
+    String recordId, {
+    required String exerciseId,
     required String? routineId,
-    required PracticeSessionMetadataModel metadata,
-    required List<PracticeSessionEntryModel> entries,
+    required String? routineEntryId,
+    required PracticeRecordMetadataModel metadata,
     required DateTime updatedAt,
     DateTime? writtenAt,
   }) async {
     await _request(
       con.baseUri,
       "POST",
-      "practice/session/$sessionId",
+      "practice/record/$recordId",
       authKey: con.authKey,
       data: {
-        "startedAt": startedAt.toRFC3339(),
-        "endedAt": endedAt?.toRFC3339(),
+        "exerciseId": exerciseId,
         "routineId": routineId,
+        "routineEntryId": routineEntryId,
         "metadata": metadata,
-        "entries": entries,
         "updatedAt": updatedAt.toRFC3339(),
         if (writtenAt != null) "writtenAt": writtenAt.toRFC3339(),
       },
     );
   }
 
-  Future<void> deletePracticeSession(
-    SyncConnection con,
-    String sessionId,
-  ) async {
+  Future<void> deletePracticeRecord(SyncConnection con, String recordId) async {
     await _request(
       con.baseUri,
       "DELETE",
-      "practice/session/$sessionId",
+      "practice/record/$recordId",
       authKey: con.authKey,
     );
   }
 
-  Future<List<RemotelyDeleted>> getDeletedPracticeSessions(
+  Future<List<RemotelyDeleted>> getDeletedPracticeRecords(
     SyncConnection con, {
     DateTime? since,
   }) async {
-    return _getDeleted(con, "practice/session/deleted", since: since);
+    return _getDeleted(con, "practice/record/deleted", since: since);
   }
 
   Future<List<RemotelyDeleted>> _getDeleted(

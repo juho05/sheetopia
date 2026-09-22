@@ -216,7 +216,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.widget<PracticeStopwatch>(stopwatch).running, isFalse);
     expect(
-      (await db.managers.practiceSessionEntriesTable.get()).single.runningSince,
+      (await db.managers.practiceRecordsTable.get()).single.runningSince,
       isNull,
       reason: "a pause is written through, a kill loses nothing",
     );
@@ -236,7 +236,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, "Next"));
     await tester.pumpAndSettle();
 
-    final entries = await db.managers.practiceSessionEntriesTable.get();
+    final entries = await db.managers.practiceRecordsTable.get();
     expect(entries, hasLength(1));
     expect(entries.single.exercise, first);
     expect(entries.single.runningSince, isNull);

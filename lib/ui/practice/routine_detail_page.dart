@@ -152,11 +152,11 @@ class _RoutineDetailPageState extends State<RoutineDetailPage> {
                 ),
                 if (description != null)
                   Text(description, style: theme.textTheme.bodyMedium),
-                if (_viewModel.hasSessionTimes)
-                  _SessionSummary(
-                    practiced: _viewModel.practicedThisSession,
+                if (_viewModel.hasProgress)
+                  _ProgressSummary(
+                    practiced: _viewModel.practicedTotal,
                     targetDuration: routine.targetDuration,
-                    onReset: _viewModel.startNewSession,
+                    onReset: _viewModel.resetProgress,
                   ),
                 RoutineExercisesHeader(
                   count: routine.entries.length,
@@ -201,12 +201,12 @@ class _RoutineDetailPageState extends State<RoutineDetailPage> {
   }
 }
 
-class _SessionSummary extends StatelessWidget {
+class _ProgressSummary extends StatelessWidget {
   final Duration practiced;
   final Duration targetDuration;
   final void Function() onReset;
 
-  const _SessionSummary({
+  const _ProgressSummary({
     required this.practiced,
     required this.targetDuration,
     required this.onReset,
@@ -224,7 +224,7 @@ class _SessionSummary extends StatelessWidget {
         Text.rich(
           TextSpan(
             children: [
-              const TextSpan(text: "This session: "),
+              const TextSpan(text: "Practiced: "),
               TextSpan(
                 text: formatStopwatch(practiced),
                 style: TextStyle(
@@ -245,7 +245,7 @@ class _SessionSummary extends StatelessWidget {
         TextButton.icon(
           onPressed: onReset,
           icon: const Icon(Symbols.restart_alt, size: 18),
-          label: const Text("New session"),
+          label: const Text("Start over"),
           style: TextButton.styleFrom(
             visualDensity: VisualDensity.compact,
             padding: const EdgeInsets.symmetric(horizontal: 8),

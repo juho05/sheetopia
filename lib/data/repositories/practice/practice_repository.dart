@@ -12,8 +12,9 @@ import 'package:drift/drift.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
 import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
+import 'package:sheetopia/data/repositories/practice/practice_progress.dart';
+import 'package:sheetopia/data/repositories/practice/practice_record.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
-import 'package:sheetopia/data/repositories/practice/practice_session.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
@@ -58,12 +59,12 @@ class PracticeRepository {
       .map((event) => event.changed);
 
   final BehaviorSubject<({Set<String> changed, bool needsUpload})>
-  _updatedSessionIds = BehaviorSubject();
+  _updatedRecordIds = BehaviorSubject();
 
-  Stream<Set<String>> get updatedSessionIds =>
-      _updatedSessionIds.stream.map((event) => event.changed);
+  Stream<Set<String>> get updatedRecordIds =>
+      _updatedRecordIds.stream.map((event) => event.changed);
 
-  Stream<Set<String>> get locallyUpdatedSessionIds => _updatedSessionIds.stream
+  Stream<Set<String>> get locallyUpdatedRecordIds => _updatedRecordIds.stream
       .where((event) => event.needsUpload)
       .map((event) => event.changed);
 
@@ -1390,268 +1391,124 @@ class PracticeRepository {
     }
   }
 
-  /// A session for an exercise practiced outside a routine is resumed as long
-  /// as the last one is not older than this.
-  static const Duration adHocSessionWindow = Duration(minutes: 30);
+  static const Duration progressLookback = Duration(days: 3);
 
-  /// A routine session is resumed when it started today or its last activity is
-  /// within max(target duration * 2, minRoutineSessionWindow).
-  static const Duration minRoutineSessionWindow = Duration(hours: 3);
+  PracticeRecord _toRecord(PracticeRecordsTableData row) => PracticeRecord(
+    id: row.id,
+    exerciseId: row.exercise,
+    routineId: row.routine,
+    routineEntryId: row.routineEntry,
+    startedAt: row.startedAt.toLocal(),
+    duration: row.duration,
+    runningSince: row.runningSince?.toLocal(),
+  );
 
-  DateTime _startOfDay(DateTime time) =>
-      DateTime(time.year, time.month, time.day);
-
-  bool _sameDay(DateTime a, DateTime b) => _startOfDay(a) == _startOfDay(b);
-
-  PracticeSessionEntry _toSessionEntry(PracticeSessionEntriesTableData row) =>
-      PracticeSessionEntry(
-        id: row.id,
-        sessionId: row.session,
-        exerciseId: row.exercise,
-        routineEntryId: row.routineEntry,
-        startedAt: row.startedAt.toLocal(),
-        duration: row.duration,
-        runningSince: row.runningSince?.toLocal(),
-      );
-
-  Future<PracticeSession> _toSession(PracticeSessionsTableData row) async {
-    final entries =
-        await (_db.select(_db.practiceSessionEntriesTable)
-              ..where((t) => t.session.equals(row.id))
-              ..orderBy([(t) => OrderingTerm.asc(t.startedAt)]))
-            .get();
-    return PracticeSession(
-      id: row.id,
-      startedAt: row.startedAt.toLocal(),
-      endedAt: row.endedAt?.toLocal(),
-      routineId: row.routine,
-      entries: entries.map(_toSessionEntry).toList(),
-    );
-  }
-
-  Future<PracticeSession?> getSession(String sessionId) async {
-    final row = await _db.managers.practiceSessionsTable
-        .filter((f) => f.id(sessionId))
-        .getSingleOrNull();
-    if (row == null) return null;
-    return _toSession(row);
-  }
-
-  Future<PracticeSession?> getLatestSession({String? routineId}) async {
-    final query = _db.select(_db.practiceSessionsTable)
-      ..where(
-        (t) => routineId == null
-            ? t.routine.isNull()
-            : t.routine.equals(routineId),
-      )
-      ..orderBy([(t) => OrderingTerm.desc(t.startedAt)])
-      ..limit(1);
-    final row = await query.getSingleOrNull();
-    if (row == null) return null;
-    return _toSession(row);
-  }
-
-  bool _resumable(
-    PracticeSession session, {
-    required Duration routineTarget,
-    DateTime? now,
-  }) {
-    now ??= DateTime.now();
-    if (session.runningEntry != null) return true;
-    if (session.routineId == null) {
-      return now.difference(session.lastActivity) <= adHocSessionWindow;
-    }
-    if (_sameDay(session.startedAt, now)) return true;
-    final doubleTarget = routineTarget * 2;
-    final window = doubleTarget > minRoutineSessionWindow
-        ? doubleTarget
-        : minRoutineSessionWindow;
-    return now.difference(session.lastActivity) < window;
-  }
-
-  Future<PracticeSession?> getCurrentSession({
-    String? routineId,
-    Duration routineTarget = Duration.zero,
-    DateTime? now,
-  }) async {
-    final latest = await getLatestSession(routineId: routineId);
-    if (latest == null) return null;
-    return _resumable(latest, routineTarget: routineTarget, now: now)
-        ? latest
-        : null;
-  }
-
-  Future<PracticeSession> resumeOrStartSession({
-    String? routineId,
-    Duration routineTarget = Duration.zero,
-    DateTime? now,
-  }) async {
-    return await getCurrentSession(
-          routineId: routineId,
-          routineTarget: routineTarget,
-          now: now,
-        ) ??
-        await startSession(routineId: routineId);
-  }
-
-  Future<PracticeSession> startSession({String? routineId}) async {
-    final sessionId = _db.newId();
-    final startedAt = DateTime.now();
-    await _db.managers.practiceSessionsTable.create(
-      (o) => o(
-        id: sessionId,
-        startedAt: startedAt.toUtc(),
-        routine: Value(routineId),
-        updatedAt: Value(DateTime.now().toUtc()),
-      ),
-    );
-    _updatedSessionIds.add((changed: {sessionId}, needsUpload: true));
-    return PracticeSession(
-      id: sessionId,
-      startedAt: startedAt,
-      endedAt: null,
-      routineId: routineId,
-    );
-  }
-
-  Future<PracticeSession> startNewSession({
-    String? routineId,
-    Duration routineTarget = Duration.zero,
-  }) async {
-    final current = await getCurrentSession(
-      routineId: routineId,
-      routineTarget: routineTarget,
-    );
-    if (current == null) return startSession(routineId: routineId);
-    if (current.entries.isEmpty) return current;
-    for (final entry in current.entries.where((e) => e.running)) {
-      await checkpointSessionEntry(entry, now: entry.runningSince, stop: true);
-    }
-    await endSession(current.id);
-    return startSession(routineId: routineId);
-  }
-
-  Future<PracticeSessionEntry?> _getSessionEntry(String entryId) async {
-    final row = await _db.managers.practiceSessionEntriesTable
-        .filter((f) => f.id(entryId))
-        .getSingleOrNull();
-    return row == null ? null : _toSessionEntry(row);
-  }
-
-  Future<PracticeSessionEntry> startSessionEntry({
-    required String sessionId,
+  Future<PracticeRecord> startRecord({
     required String exerciseId,
+    String? routineId,
     String? routineEntryId,
   }) async {
     final now = DateTime.now();
-    final session = await getSession(sessionId);
-    final existing = session?.entries
-        .where(
-          (e) =>
-              e.matches(
-                exerciseId: exerciseId,
-                routineEntryId: routineEntryId,
-              ) &&
-              _sameDay(e.startedAt, now),
-        )
-        .lastOrNull;
-
-    if (existing != null) {
-      await _db.managers.practiceSessionEntriesTable
-          .filter((f) => f.id(existing.id))
-          .update((o) => o(runningSince: Value(now.toUtc())));
-      await _markSessionUpdated(sessionId, endedAt: const Value(null));
-      return (await _getSessionEntry(existing.id))!;
-    }
-
-    final entry = await _createSessionEntry(
-      sessionId: sessionId,
+    final record = await _createRecord(
       exerciseId: exerciseId,
+      routineId: routineId,
       routineEntryId: routineEntryId,
       startedAt: now,
-      duration: Duration.zero,
       runningSince: now,
     );
-    await _markSessionUpdated(sessionId, endedAt: const Value(null));
-    return entry;
+    _updatedRecordIds.add((changed: {record.id}, needsUpload: true));
+    return record;
   }
 
-  Future<PracticeSessionEntry> _createSessionEntry({
-    required String sessionId,
+  Future<PracticeRecord> _createRecord({
     required String exerciseId,
+    required String? routineId,
     required String? routineEntryId,
     required DateTime startedAt,
-    required Duration duration,
-    required DateTime? runningSince,
+    required DateTime runningSince,
   }) async {
-    final entryId = _db.newId();
-    await _db.managers.practiceSessionEntriesTable.create(
+    final recordId = _db.newId();
+    await _db.managers.practiceRecordsTable.create(
       (o) => o(
-        id: entryId,
-        session: sessionId,
+        id: recordId,
         exercise: exerciseId,
+        routine: Value(routineId),
         routineEntry: Value(routineEntryId),
-        startedAt: Value(startedAt.toUtc()),
-        duration: Value(duration),
-        runningSince: Value(runningSince?.toUtc()),
+        startedAt: startedAt.toUtc(),
+        duration: const Value(Duration.zero),
+        runningSince: Value(runningSince.toUtc()),
+        updatedAt: Value(DateTime.now().toUtc()),
+        uploaded: const Value(false),
       ),
     );
-    return PracticeSessionEntry(
-      id: entryId,
-      sessionId: sessionId,
+    return PracticeRecord(
+      id: recordId,
       exerciseId: exerciseId,
+      routineId: routineId,
       routineEntryId: routineEntryId,
       startedAt: startedAt,
-      duration: duration,
+      duration: Duration.zero,
       runningSince: runningSince,
     );
   }
 
-  Future<PracticeSessionEntry> checkpointSessionEntry(
-    PracticeSessionEntry entry, {
+  /// Updates the stored duration in the database. The record is only
+  /// marked for upload if stop or publish is true.
+  Future<PracticeRecord> checkpointRecord(
+    PracticeRecord record, {
     DateTime? now,
     bool stop = false,
+    bool publish = false,
   }) async {
-    var current = entry;
+    var current = record;
     var runningSince = current.runningSince;
-    if (runningSince == null) {
-      if (stop) await _endSessionAt(current.sessionId, DateTime.now());
-      return current;
+    if (runningSince == null) return current;
+    var at = now ?? DateTime.now();
+    if (at.isBefore(runningSince)) {
+      if (!stop) return current;
+      at = runningSince;
     }
-    final at = now ?? DateTime.now();
-    if (at.isBefore(runningSince)) return current;
 
-    while (!_sameDay(runningSince!, at)) {
-      final dayEnd = _startOfDay(
-        _startOfDay(runningSince).add(const Duration(days: 1, hours: 12)),
+    final changed = <String>{};
+    while (!PracticeProgress.sameDay(runningSince!, at)) {
+      final dayEnd = PracticeProgress.startOfDay(
+        PracticeProgress.startOfDay(
+          runningSince,
+        ).add(const Duration(days: 1, hours: 12)),
       );
-      await _writeSessionEntry(
+      await _writeRecord(
         current.id,
         duration: current.duration + dayEnd.difference(runningSince),
         runningSince: null,
+        publish: true,
       );
-      current = await _createSessionEntry(
-        sessionId: current.sessionId,
+      changed.add(current.id);
+      current = await _createRecord(
         exerciseId: current.exerciseId,
+        routineId: current.routineId,
         routineEntryId: current.routineEntryId,
         startedAt: dayEnd,
-        duration: Duration.zero,
         runningSince: dayEnd,
       );
+      changed.add(current.id);
       runningSince = dayEnd;
     }
 
     final duration = current.duration + at.difference(runningSince);
-    await _writeSessionEntry(
+    await _writeRecord(
       current.id,
       duration: duration,
       runningSince: stop ? null : at,
+      publish: stop || publish,
     );
-    if (stop) await _endSessionAt(current.sessionId, at);
-    return PracticeSessionEntry(
+    if (stop || publish) changed.add(current.id);
+    if (changed.isNotEmpty) {
+      _updatedRecordIds.add((changed: changed, needsUpload: true));
+    }
+    return PracticeRecord(
       id: current.id,
-      sessionId: current.sessionId,
       exerciseId: current.exerciseId,
+      routineId: current.routineId,
       routineEntryId: current.routineEntryId,
       startedAt: current.startedAt,
       duration: duration,
@@ -1659,61 +1516,201 @@ class PracticeRepository {
     );
   }
 
-  Future<void> _writeSessionEntry(
-    String entryId, {
+  Future<void> _writeRecord(
+    String recordId, {
     required Duration duration,
     required DateTime? runningSince,
+    required bool publish,
   }) async {
-    await _db.managers.practiceSessionEntriesTable
-        .filter((f) => f.id(entryId))
+    await _db.managers.practiceRecordsTable
+        .filter((f) => f.id(recordId))
         .update(
           (o) => o(
             duration: Value(duration),
             runningSince: Value(runningSince?.toUtc()),
+            updatedAt: publish
+                ? Value(DateTime.now().toUtc())
+                : const Value.absent(),
+            uploaded: publish ? const Value(false) : const Value.absent(),
           ),
         );
   }
 
-  Future<void> discardSessionEntries(PracticeSessionEntry entry) async {
-    final session = await getSession(entry.sessionId);
-    final ids =
-        session?.entries
-            .where(
-              (e) => e.matches(
-                exerciseId: entry.exerciseId,
-                routineEntryId: entry.routineEntryId,
-              ),
-            )
-            .map((e) => e.id)
-            .toSet() ??
-        {entry.id};
-    await _db.managers.practiceSessionEntriesTable
-        .filter((f) => f.id.isIn(ids))
-        .delete();
-    await _endSessionAt(entry.sessionId, DateTime.now());
+  Future<void> discardRecord(PracticeRecord record) =>
+      _deleteRecords({record.id});
+
+  Future<void> _deleteRecords(Set<String> recordIds) async {
+    await _db.transaction(() async {
+      await _db.managers.practiceRecordsTable
+          .filter((f) => f.id.isIn(recordIds))
+          .delete();
+      await _db.managers.deletedPracticeRecordsTable.bulkCreate(
+        (o) => recordIds.map(
+          (id) => o(recordId: id, deletedAt: Value(DateTime.now().toUtc())),
+        ),
+        mode: InsertMode.insertOrReplace,
+      );
+    });
+    _updatedRecordIds.add((changed: recordIds, needsUpload: true));
   }
 
-  Future<void> endSession(String sessionId) =>
-      _endSessionAt(sessionId, DateTime.now());
-
-  Future<void> _endSessionAt(String sessionId, DateTime endedAt) async {
-    await _markSessionUpdated(sessionId, endedAt: Value(endedAt.toUtc()));
+  Future<PracticeRecord?> getRecord(String recordId) async {
+    final row = await _db.managers.practiceRecordsTable
+        .filter((f) => f.id(recordId))
+        .getSingleOrNull();
+    return row == null ? null : _toRecord(row);
   }
 
-  Future<void> _markSessionUpdated(
-    String sessionId, {
-    required Value<DateTime?> endedAt,
+  Future<PracticeRecord?> getRunningRecord() async {
+    final query = _db.select(_db.practiceRecordsTable)
+      ..where((t) => t.runningSince.isNotNull())
+      ..orderBy([(t) => OrderingTerm.desc(t.runningSince)])
+      ..limit(1);
+    final row = await query.getSingleOrNull();
+    return row == null ? null : _toRecord(row);
+  }
+
+  Future<List<PracticeRecord>> _progressRecords(
+    Expression<bool> Function($PracticeRecordsTableTable t) filter,
+    DateTime? resetAt,
+    DateTime now,
+  ) async {
+    var from = now.subtract(progressLookback);
+    if (resetAt != null && resetAt.isAfter(from)) from = resetAt;
+    final query = _db.select(_db.practiceRecordsTable)
+      ..where((t) => filter(t) & t.startedAt.isBiggerOrEqualValue(from.toUtc()))
+      ..orderBy([(t) => OrderingTerm.asc(t.startedAt)]);
+    return (await query.get()).map(_toRecord).toList();
+  }
+
+  Future<PracticeProgress> getRoutineProgress(
+    String routineId, {
+    // summed target duration of the routine, setting it avoids an extra query
+    Duration? target,
+    DateTime? now,
   }) async {
-    await _db.managers.practiceSessionsTable
-        .filter((f) => f.id(sessionId))
+    now ??= DateTime.now();
+    final routine = await _db.managers.practiceRoutinesTable
+        .filter((f) => f.id(routineId))
+        .getSingleOrNull();
+    if (target == null) {
+      final entries = _db.practiceRoutineEntriesTable;
+      final targetExpr = entries.targetDuration.sum();
+      final targetQuery = _db.selectOnly(entries)
+        ..addColumns([targetExpr])
+        ..where(entries.routine.equals(routineId));
+      target = Duration(
+        milliseconds: (await targetQuery.getSingle()).read(targetExpr) ?? 0,
+      );
+    }
+    final records = await _progressRecords(
+      (t) => t.routine.equals(routineId),
+      routine?.progressResetAt,
+      now,
+    );
+    return PracticeProgress.current(
+      records,
+      window: PracticeProgress.routineWindow(target),
+      sameDayLinks: true,
+      now: now,
+    );
+  }
+
+  Future<PracticeProgress> getExerciseProgress(
+    String exerciseId, {
+    DateTime? now,
+  }) async {
+    now ??= DateTime.now();
+    final exercise = await _db.managers.exercisesTable
+        .filter((f) => f.id(exerciseId))
+        .getSingleOrNull();
+    final records = await _progressRecords(
+      (t) => t.routine.isNull() & t.exercise.equals(exerciseId),
+      exercise?.progressResetAt,
+      now,
+    );
+    return PracticeProgress.current(
+      records,
+      window: PracticeProgress.adHocWindow,
+      sameDayLinks: false,
+      now: now,
+    );
+  }
+
+  Future<void> _stopRunningRecords(
+    Expression<bool> Function($PracticeRecordsTableTable t) filter,
+  ) async {
+    final query = _db.select(_db.practiceRecordsTable)
+      ..where((t) => filter(t) & t.runningSince.isNotNull());
+    for (final record in (await query.get()).map(_toRecord)) {
+      await checkpointRecord(record, now: record.runningSince, stop: true);
+    }
+  }
+
+  Future<void> resetRoutineProgress(String routineId) async {
+    await _stopRunningRecords((t) => t.routine.equals(routineId));
+    final now = DateTime.now().toUtc();
+    await _db.managers.practiceRoutinesTable
+        .filter((f) => f.id(routineId))
         .update(
           (o) => o(
-            endedAt: endedAt,
+            progressResetAt: Value(now),
+            updatedAt: Value(now),
+            uploaded: const Value(false),
+          ),
+        );
+    _updatedRoutineIds.add((changed: {routineId}, needsUpload: true));
+  }
+
+  Future<void> resetExerciseProgress(String exerciseId) async {
+    await _stopRunningRecords(
+      (t) => t.routine.isNull() & t.exercise.equals(exerciseId),
+    );
+    final now = DateTime.now().toUtc();
+    await _db.managers.exercisesTable
+        .filter((f) => f.id(exerciseId))
+        .update(
+          (o) => o(
+            progressResetAt: Value(now),
+            updatedAt: Value(now),
+            uploaded: const Value(false),
+          ),
+        );
+    _updatedExerciseIds.add((changed: {exerciseId}, needsUpload: true));
+  }
+
+  Future<void> updateRecord(
+    String recordId, {
+    DateTime? startedAt,
+    Duration? duration,
+  }) async {
+    final record = await getRecord(recordId);
+    if (record == null) return;
+    if (record.running) {
+      throw StateError("Practice record $recordId is still running");
+    }
+    await _db.managers.practiceRecordsTable
+        .filter((f) => f.id(recordId))
+        .update(
+          (o) => o(
+            startedAt: startedAt == null
+                ? const Value.absent()
+                : Value(startedAt.toUtc()),
+            duration: duration == null ? const Value.absent() : Value(duration),
             updatedAt: Value(DateTime.now().toUtc()),
             uploaded: const Value(false),
           ),
         );
-    _updatedSessionIds.add((changed: {sessionId}, needsUpload: true));
+    _updatedRecordIds.add((changed: {recordId}, needsUpload: true));
+  }
+
+  Future<void> deleteRecord(String recordId) async {
+    final record = await getRecord(recordId);
+    if (record == null) return;
+    if (record.running) {
+      throw StateError("Practice record $recordId is still running");
+    }
+    await _deleteRecords({recordId});
   }
 
   Future<({String routineId, int index})?> getRoutineEntryLocation(
@@ -1732,20 +1729,13 @@ class PracticeRepository {
     return (routineId: entry.routine, index: index);
   }
 
-  Future<PracticeSessionEntry?> getRunningSessionEntry() async {
-    final query = _db.select(_db.practiceSessionEntriesTable)
-      ..where((t) => t.runningSince.isNotNull())
-      ..orderBy([(t) => OrderingTerm.desc(t.runningSince)])
-      ..limit(1);
-    final row = await query.getSingleOrNull();
-    return row == null ? null : _toSessionEntry(row);
-  }
-
   Future<Duration> getPracticedOn(DateTime day) async {
-    final from = _startOfDay(day);
-    final to = _startOfDay(from.add(const Duration(days: 1, hours: 12)));
+    final from = PracticeProgress.startOfDay(day);
+    final to = PracticeProgress.startOfDay(
+      from.add(const Duration(days: 1, hours: 12)),
+    );
     final rows =
-        await (_db.select(_db.practiceSessionEntriesTable)..where(
+        await (_db.select(_db.practiceRecordsTable)..where(
               (t) =>
                   t.startedAt.isBiggerOrEqualValue(from.toUtc()) &
                   t.startedAt.isSmallerThanValue(to.toUtc()),
@@ -1754,21 +1744,21 @@ class PracticeRepository {
     final now = DateTime.now();
     var total = Duration.zero;
     for (final row in rows) {
-      total += _toSessionEntry(row).elapsedAt(now);
+      total += _toRecord(row).elapsedAt(now);
     }
     return total;
   }
 
-  void remoteChangedSessions(Set<String> sessionIds) {
-    if (sessionIds.isEmpty) return;
-    _updatedSessionIds.add((changed: sessionIds, needsUpload: false));
+  void remoteChangedRecords(Set<String> recordIds) {
+    if (recordIds.isEmpty) return;
+    _updatedRecordIds.add((changed: recordIds, needsUpload: false));
   }
 
   Future<void> deleteAll() async {
     final wipedCategories = <String>{};
     final wipedExercises = <String>{};
     final wipedRoutines = <String>{};
-    final wipedSessions = <String>{};
+    final wipedRecords = <String>{};
     await _db.transaction(() async {
       wipedCategories.addAll(
         await _db.managers.exerciseCategoriesTable.map((c) => c.id).get(),
@@ -1779,17 +1769,16 @@ class PracticeRepository {
       wipedRoutines.addAll(
         await _db.managers.practiceRoutinesTable.map((r) => r.id).get(),
       );
-      wipedSessions.addAll(
-        await _db.managers.practiceSessionsTable.map((s) => s.id).get(),
+      wipedRecords.addAll(
+        await _db.managers.practiceRecordsTable.map((r) => r.id).get(),
       );
 
-      // the entries are cascaded, the parents have to go before what they reference
-      await _db.managers.practiceSessionsTable.delete();
+      await _db.managers.practiceRecordsTable.delete();
       await _db.managers.practiceRoutinesTable.delete();
       await _db.managers.exercisesTable.delete();
       await _db.managers.exerciseCategoriesTable.delete();
 
-      await _db.managers.deletedPracticeSessionsTable.delete();
+      await _db.managers.deletedPracticeRecordsTable.delete();
       await _db.managers.deletedPracticeRoutinesTable.delete();
       await _db.managers.deletedExercisesTable.delete();
       await _db.managers.deletedExerciseCategoriesTable.delete();
@@ -1803,8 +1792,8 @@ class PracticeRepository {
     if (wipedRoutines.isNotEmpty) {
       _updatedRoutineIds.add((changed: wipedRoutines, needsUpload: false));
     }
-    if (wipedSessions.isNotEmpty) {
-      _updatedSessionIds.add((changed: wipedSessions, needsUpload: false));
+    if (wipedRecords.isNotEmpty) {
+      _updatedRecordIds.add((changed: wipedRecords, needsUpload: false));
     }
   }
 

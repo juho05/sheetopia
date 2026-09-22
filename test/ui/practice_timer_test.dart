@@ -72,26 +72,25 @@ void main() {
     return (await repo.getRoutine(routineId))!;
   }
 
+  Future<List<PracticeRecordsTableData>> allRecords() =>
+      db.managers.practiceRecordsTable.get();
+
   /// Leaves a stopwatch behind as an app that went away would.
   Future<String> leaveRunning(
     String exerciseId, {
     required Duration counted,
     required Duration ago,
   }) async {
-    final session = await repo.startSession();
-    final entry = await repo.startSessionEntry(
-      sessionId: session.id,
-      exerciseId: exerciseId,
-    );
-    await db.managers.practiceSessionEntriesTable
-        .filter((f) => f.id(entry.id))
+    final record = await repo.startRecord(exerciseId: exerciseId);
+    await db.managers.practiceRecordsTable
+        .filter((f) => f.id(record.id))
         .update(
           (o) => o(
             duration: Value(counted),
             runningSince: Value(DateTime.now().subtract(ago).toUtc()),
           ),
         );
-    return session.id;
+    return record.id;
   }
 
   setUp(() async {
@@ -108,69 +107,96 @@ void main() {
     await tempDir.delete(recursive: true);
   });
 
-  test("no session is written before an exercise is started", () async {
+  test("nothing is written before an exercise is started", () async {
     final exercise = await createExercise("Scales");
     final timer = PracticeTimer(repo: repo);
-    await timer.openSession();
     await timer.show(exerciseId: exercise);
 
-    expect(timer.session, isNull);
-    expect(await db.managers.practiceSessionsTable.count(), 0);
+    expect(await db.managers.practiceRecordsTable.count(), 0);
 
     await timer.start();
-    expect(timer.session, isNotNull);
-    expect(await db.managers.practiceSessionsTable.count(), 1);
+    expect(await db.managers.practiceRecordsTable.count(), 1);
     timer.dispose();
   });
 
-  test("closing ends the session and stops the stopwatch", () async {
+  test("closing stops the stopwatch", () async {
     final exercise = await createExercise("Scales");
     final timer = PracticeTimer(repo: repo);
-    await timer.openSession();
     await timer.show(exerciseId: exercise);
     await timer.start();
     await timer.close();
     timer.dispose();
 
-    final session = (await db.managers.practiceSessionsTable.get()).single;
-    expect(session.endedAt, isNotNull);
-    final entry = (await db.managers.practiceSessionEntriesTable.get()).single;
-    expect(entry.runningSince, isNull, reason: "the stopwatch is not running");
+    final record = (await allRecords()).single;
+    expect(record.runningSince, isNull, reason: "the stopwatch is not running");
+    expect(record.uploaded, isFalse);
   });
 
   test("time already practiced is picked up again", () async {
     final exercise = await createExercise("Scales");
-    final session = await repo.startSession();
-    final entry = await repo.startSessionEntry(
-      sessionId: session.id,
-      exerciseId: exercise,
-    );
-    await repo.checkpointSessionEntry(
-      entry,
-      now: entry.runningSince!.add(const Duration(minutes: 4)),
+    final record = await repo.startRecord(exerciseId: exercise);
+    await repo.checkpointRecord(
+      record,
+      now: record.runningSince!.add(const Duration(minutes: 4)),
       stop: true,
     );
 
     final timer = PracticeTimer(repo: repo);
-    await timer.openSession();
     await timer.show(exerciseId: exercise);
 
     expect(timer.elapsed, const Duration(minutes: 4));
     await timer.start();
     expect(timer.elapsed, greaterThanOrEqualTo(const Duration(minutes: 4)));
+    expect(await allRecords(), hasLength(2), reason: "every run is a record");
+    timer.dispose();
+  });
+
+  test("pause and resume keep counting on", () async {
+    final exercise = await createExercise("Scales");
+    final timer = PracticeTimer(repo: repo);
+    await timer.show(exerciseId: exercise);
+    await timer.start();
+    await timer.pause();
+    await db.managers.practiceRecordsTable.update(
+      (o) => o(duration: const Value(Duration(minutes: 3))),
+    );
+    await timer.resume();
+
+    expect(timer.elapsed, greaterThanOrEqualTo(const Duration(minutes: 3)));
+    expect(await allRecords(), hasLength(2));
+    timer.dispose();
+  });
+
+  test("a routine keeps its own time apart from the exercise", () async {
+    final exercise = await createExercise("Scales");
+    final routine = await createRoutine("Morning", [exercise]);
+    final record = await repo.startRecord(exerciseId: exercise);
+    await repo.checkpointRecord(
+      record,
+      now: record.runningSince!.add(const Duration(minutes: 4)),
+      stop: true,
+    );
+
+    final timer = PracticeTimer(repo: repo);
+    await timer.show(
+      exerciseId: exercise,
+      routineId: routine.id,
+      routineEntryId: routine.entries.single.id,
+    );
+
+    expect(timer.elapsed, Duration.zero);
     timer.dispose();
   });
 
   test("a short gap is counted and the stopwatch keeps running", () async {
     final exercise = await createExercise("Scales");
-    final sessionId = await leaveRunning(
+    final recordId = await leaveRunning(
       exercise,
       counted: const Duration(minutes: 2),
       ago: const Duration(minutes: 3),
     );
 
     final timer = PracticeTimer(repo: repo);
-    await timer.openSession();
     await timer.show(exerciseId: exercise, target: const Duration(minutes: 5));
 
     expect(timer.recovery, isNull);
@@ -180,27 +206,9 @@ void main() {
       isTrue,
       reason: "no dialog and no start button, it just carries on",
     );
-    expect(timer.session?.id, sessionId, reason: "the session continues");
-    final entry = (await db.managers.practiceSessionEntriesTable.get()).single;
-    expect(entry.runningSince, isNotNull);
-    timer.dispose();
-  });
-
-  test("the session of the running stopwatch wins over a newer one", () async {
-    final exercise = await createExercise("Scales");
-    final sessionId = await leaveRunning(
-      exercise,
-      counted: const Duration(minutes: 2),
-      ago: const Duration(minutes: 3),
-    );
-    final newer = await repo.startSession();
-
-    final timer = PracticeTimer(repo: repo);
-    await timer.openSession();
-    await timer.show(exerciseId: exercise);
-
-    expect(timer.session?.id, sessionId, reason: "not ${newer.id}");
-    expect(timer.running, isTrue);
+    final record = (await allRecords()).single;
+    expect(record.id, recordId, reason: "the record continues");
+    expect(record.runningSince, isNotNull);
     timer.dispose();
   });
 
@@ -213,7 +221,6 @@ void main() {
     );
 
     final timer = PracticeTimer(repo: repo);
-    await timer.openSession();
     await timer.show(exerciseId: exercise, target: const Duration(minutes: 5));
 
     final recovery = timer.recovery;
@@ -233,29 +240,39 @@ void main() {
     );
 
     final timer = PracticeTimer(repo: repo);
-    await timer.openSession();
     await timer.show(exerciseId: exercise);
 
     expect(timer.recovery, isNull, reason: "seven minutes stay under ten");
     timer.dispose();
   });
 
-  test("discarding drops the time of the exercise", () async {
+  test("discarding drops the run and keeps earlier practice", () async {
     final exercise = await createExercise("Scales");
-    await leaveRunning(
+    final earlier = await repo.startRecord(exerciseId: exercise);
+    await repo.checkpointRecord(
+      earlier,
+      now: earlier.runningSince!.add(const Duration(minutes: 3)),
+      stop: true,
+    );
+    final left = await leaveRunning(
       exercise,
       counted: const Duration(minutes: 2),
-      ago: const Duration(minutes: 30),
+      ago: const Duration(minutes: 20),
     );
 
     final timer = PracticeTimer(repo: repo);
-    await timer.openSession();
     await timer.show(exerciseId: exercise, target: const Duration(minutes: 5));
+    expect(timer.recovery!.counted, const Duration(minutes: 5));
     await timer.resolveRecovery(PracticeRecoveryChoice.discard);
 
     expect(timer.recovery, isNull);
-    expect(timer.elapsed, Duration.zero);
-    expect(await db.managers.practiceSessionEntriesTable.count(), 0);
+    expect(timer.elapsed, const Duration(minutes: 3));
+    final rows = await allRecords();
+    expect(rows.single.id, earlier.id);
+    expect(
+      (await db.managers.deletedPracticeRecordsTable.get()).single.recordId,
+      left,
+    );
     timer.dispose();
   });
 
@@ -268,15 +285,14 @@ void main() {
     );
 
     final timer = PracticeTimer(repo: repo);
-    await timer.openSession();
     await timer.show(exerciseId: exercise, target: const Duration(minutes: 5));
     await timer.resolveRecovery(PracticeRecoveryChoice.untilLeft);
 
     expect(timer.elapsed, const Duration(minutes: 2));
     expect(timer.started, isFalse, reason: "the stopwatch waits to be resumed");
-    final entry = (await db.managers.practiceSessionEntriesTable.get()).single;
-    expect(entry.duration, const Duration(minutes: 2));
-    expect(entry.runningSince, isNull);
+    final record = (await allRecords()).single;
+    expect(record.duration, const Duration(minutes: 2));
+    expect(record.runningSince, isNull);
     timer.dispose();
   });
 
@@ -289,14 +305,13 @@ void main() {
     );
 
     final timer = PracticeTimer(repo: repo);
-    await timer.openSession();
     await timer.show(exerciseId: exercise, target: const Duration(minutes: 5));
     await timer.resolveRecovery(PracticeRecoveryChoice.untilNow);
 
     expect(timer.elapsed, greaterThanOrEqualTo(const Duration(minutes: 32)));
     expect(timer.running, isTrue, reason: "whoever counts until now goes on");
-    final entry = (await db.managers.practiceSessionEntriesTable.get()).single;
-    expect(entry.runningSince, isNotNull);
+    final record = (await allRecords()).single;
+    expect(record.runningSince, isNotNull);
     timer.dispose();
   });
 
@@ -308,10 +323,9 @@ void main() {
       counted: const Duration(minutes: 2),
       ago: const Duration(minutes: 30),
     );
-    final before = (await db.managers.practiceSessionEntriesTable.get()).single;
+    final before = (await allRecords()).single;
 
     final timer = PracticeTimer(repo: repo);
-    await timer.openSession();
     await timer.show(exerciseId: exercise, target: const Duration(minutes: 5));
     expect(timer.recovery, isNotNull);
 
@@ -320,16 +334,16 @@ void main() {
     await timer.close();
     timer.dispose();
 
-    final after = (await db.managers.practiceSessionEntriesTable.get()).single;
+    final after = (await allRecords()).single;
     expect(after.duration, before.duration, reason: "the gap is not counted");
     expect(after.runningSince, before.runningSince);
   });
 
-  test("a stopwatch left running in another session is settled when "
-      "something else is shown", () async {
+  test("a stopwatch left running elsewhere is settled when something else "
+      "is shown", () async {
     final exercise = await createExercise("Scales");
     final other = await createExercise("Arpeggios");
-    final sessionId = await leaveRunning(
+    final recordId = await leaveRunning(
       exercise,
       counted: const Duration(minutes: 2),
       ago: const Duration(minutes: 40),
@@ -337,16 +351,34 @@ void main() {
     final routine = await createRoutine("Morning", [other]);
 
     final timer = PracticeTimer(repo: repo);
-    await timer.openSession(routineId: routine.id);
     await timer.show(
       exerciseId: other,
+      routineId: routine.id,
       routineEntryId: routine.entries.single.id,
     );
 
     expect(timer.recovery, isNull);
-    expect(await repo.getRunningSessionEntry(), isNull);
-    final left = (await repo.getSession(sessionId))!.entries.single;
+    expect(await repo.getRunningRecord(), isNull);
+    final left = (await repo.getRecord(recordId))!;
     expect(left.duration, const Duration(minutes: 2));
+    timer.dispose();
+  });
+
+  test("the same exercise in a routine does not adopt an ad hoc "
+      "stopwatch", () async {
+    final exercise = await createExercise("Scales");
+    final recordId = await leaveRunning(
+      exercise,
+      counted: const Duration(minutes: 2),
+      ago: const Duration(minutes: 1),
+    );
+    final routine = await createRoutine("Morning", [exercise]);
+
+    final timer = PracticeTimer(repo: repo);
+    await timer.show(exerciseId: exercise, routineId: routine.id);
+
+    expect(timer.running, isFalse);
+    expect((await repo.getRecord(recordId))!.running, isFalse);
     timer.dispose();
   });
 
@@ -360,59 +392,60 @@ void main() {
     );
 
     final timer = PracticeTimer(repo: repo);
-    await timer.openSession();
     await timer.show(exerciseId: exercise, target: const Duration(minutes: 5));
     await timer.close();
     timer.dispose();
 
-    final entry = (await db.managers.practiceSessionEntriesTable.get()).single;
-    expect(entry.duration, const Duration(minutes: 2));
-    expect(entry.runningSince, isNull);
+    final record = (await allRecords()).single;
+    expect(record.duration, const Duration(minutes: 2));
+    expect(record.runningSince, isNull);
   });
 
   test("a stopwatch of another exercise counts up to its last "
       "checkpoint", () async {
     final exercise = await createExercise("Scales");
     final other = await createExercise("Arpeggios");
-    final sessionId = await leaveRunning(
+    final recordId = await leaveRunning(
       exercise,
       counted: const Duration(minutes: 2),
       ago: const Duration(minutes: 30),
     );
 
     final timer = PracticeTimer(repo: repo);
-    await timer.openSession();
     await timer.show(exerciseId: other);
 
     expect(timer.recovery, isNull);
-    final session = (await repo.getSession(sessionId))!;
-    final left = session.entries.firstWhere((e) => e.exerciseId == exercise);
+    final left = (await repo.getRecord(recordId))!;
     expect(left.duration, const Duration(minutes: 2));
     expect(left.runningSince, isNull);
     timer.dispose();
   });
 
-  test("closing the app keeps the stopwatch running", () async {
-    final exercise = await createExercise("Scales");
-    final timer = PracticeTimer(repo: repo);
-    await timer.openSession();
-    await timer.show(exerciseId: exercise);
-    await timer.start();
+  test(
+    "closing the app keeps the stopwatch running and publishes it",
+    () async {
+      final exercise = await createExercise("Scales");
+      final timer = PracticeTimer(repo: repo);
+      await timer.show(exerciseId: exercise);
+      await timer.start();
+      await db.managers.practiceRecordsTable.update(
+        (o) => o(uploaded: const Value(true)),
+      );
 
-    appIsClosing = true;
-    addTearDown(() => appIsClosing = false);
-    await timer.close();
-    timer.dispose();
+      appIsClosing = true;
+      addTearDown(() => appIsClosing = false);
+      await timer.close();
+      timer.dispose();
 
-    final entry = (await db.managers.practiceSessionEntriesTable.get()).single;
-    expect(
-      entry.runningSince,
-      isNotNull,
-      reason: "the next start picks the exercise up again",
-    );
-    final session = (await db.managers.practiceSessionsTable.get()).single;
-    expect(session.endedAt, isNull, reason: "the session is not over");
-  });
+      final record = (await allRecords()).single;
+      expect(
+        record.runningSince,
+        isNotNull,
+        reason: "the next start picks the exercise up again",
+      );
+      expect(record.uploaded, isFalse);
+    },
+  );
 
   group("ticking", () {
     test("the tick waits for the second to turn over", () {
@@ -436,34 +469,57 @@ void main() {
     });
   });
 
-  test("a new session counts from zero and keeps the time so far", () async {
+  test("a reset counts from zero and keeps the time so far", () async {
     final exercise = await createExercise("Scales");
-    final session = await repo.startSession();
-    final entry = await repo.startSessionEntry(
-      sessionId: session.id,
-      exerciseId: exercise,
-    );
-    await repo.checkpointSessionEntry(
-      entry,
-      now: entry.runningSince!.add(const Duration(minutes: 6)),
+    final record = await repo.startRecord(exerciseId: exercise);
+    await repo.checkpointRecord(
+      record,
+      now: record.runningSince!.add(const Duration(minutes: 6)),
       stop: true,
     );
 
     final timer = PracticeTimer(repo: repo);
-    await timer.openSession();
     await timer.show(exerciseId: exercise);
     expect(timer.elapsed, const Duration(minutes: 6));
 
-    await timer.startNewSession();
+    await timer.resetProgress();
 
-    expect(timer.session?.id, isNot(session.id));
     expect(timer.running, isTrue);
     expect(timer.elapsed, lessThan(const Duration(seconds: 5)));
     expect(
       await repo.getPracticedOn(DateTime.now()),
       greaterThanOrEqualTo(const Duration(minutes: 6)),
-      reason: "the earlier session still counts as practiced",
+      reason: "the earlier record still counts as practiced",
     );
+    timer.dispose();
+  });
+
+  test("a routine reset starts over for every entry", () async {
+    final exercise = await createExercise("Scales");
+    final other = await createExercise("Arpeggios");
+    final routine = await createRoutine("Morning", [exercise, other]);
+    final record = await repo.startRecord(
+      exerciseId: other,
+      routineId: routine.id,
+      routineEntryId: routine.entries.last.id,
+    );
+    await repo.checkpointRecord(
+      record,
+      now: record.runningSince!.add(const Duration(minutes: 6)),
+      stop: true,
+    );
+
+    final timer = PracticeTimer(repo: repo);
+    await timer.show(
+      exerciseId: exercise,
+      routineId: routine.id,
+      routineEntryId: routine.entries.first.id,
+    );
+    await timer.resetProgress();
+    await timer.pause();
+
+    final progress = await repo.getRoutineProgress(routine.id);
+    expect(progress.byRoutineEntry().keys, [routine.entries.first.id]);
     timer.dispose();
   });
 }

@@ -17,7 +17,13 @@ part 'practice_routines.g.dart';
 class PracticeRoutineMetadataModel {
   final String? description;
 
-  PracticeRoutineMetadataModel({required this.description});
+  // RFC 3339
+  final String? progressResetAt;
+
+  PracticeRoutineMetadataModel({
+    required this.description,
+    required this.progressResetAt,
+  });
 
   factory PracticeRoutineMetadataModel.fromJson(Map<String, dynamic> json) =>
       _$PracticeRoutineMetadataModelFromJson(json);

@@ -103,7 +103,7 @@ class ExerciseStartOverlay extends StatelessWidget {
   final void Function(int index)? onScoreSelected;
 
   final void Function()? onStart;
-  final void Function()? onNewSession;
+  final void Function()? onReset;
   final void Function() onLeave;
   final void Function()? onPrevious;
   final void Function()? onNext;
@@ -122,7 +122,7 @@ class ExerciseStartOverlay extends StatelessWidget {
     this.selectedScoreIndex = -1,
     this.onScoreSelected,
     required this.onStart,
-    this.onNewSession,
+    this.onReset,
     required this.onLeave,
     this.onPrevious,
     this.onNext,
@@ -251,11 +251,11 @@ class ExerciseStartOverlay extends StatelessWidget {
             onPressed: hasNext ? onNext : null,
             child: const Text("Next"),
           ),
-        if (resumed && onNewSession != null)
+        if (resumed && onReset != null)
           Tooltip(
             message: "Count from zero, the time so far stays recorded",
             child: OutlinedButton(
-              onPressed: onStart == null ? null : onNewSession,
+              onPressed: onStart == null ? null : onReset,
               child: const Text("Practice again"),
             ),
           ),
@@ -389,35 +389,32 @@ class _PracticeRecoveryOverlayState extends State<PracticeRecoveryOverlay> {
           "$leftAt. Which time counts?",
           style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
         ),
-        ...buildChoiceTiles(
-          [
-            ChoiceOption(
-              value: PracticeRecoveryChoice.untilLeft,
-              title: "Count $counted",
-              subtitle:
-                  "Only the time until the app was last open. "
-                  "The stopwatch waits to be resumed.",
-              leading: const Icon(Symbols.history),
-            ),
-            ChoiceOption(
-              value: PracticeRecoveryChoice.untilNow,
-              title: "Count ${formatStopwatch(_untilNow)}",
-              subtitle:
-                  "The time until now, as if practicing never stopped. "
-                  "The stopwatch keeps running.",
-              leading: const Icon(Symbols.timer),
-            ),
-            ChoiceOption(
-              value: PracticeRecoveryChoice.discard,
-              title: "Count nothing",
-              subtitle: recovery.counted > Duration.zero
-                  ? "Drops all $counted of $exerciseName from this session."
-                  : "Nothing is recorded for $exerciseName in this session.",
-              leading: const Icon(Symbols.delete),
-            ),
-          ],
-          onChoice,
-        ),
+        ...buildChoiceTiles([
+          ChoiceOption(
+            value: PracticeRecoveryChoice.untilLeft,
+            title: "Count $counted",
+            subtitle:
+                "Only the time until the app was last open. "
+                "The stopwatch waits to be resumed.",
+            leading: const Icon(Symbols.history),
+          ),
+          ChoiceOption(
+            value: PracticeRecoveryChoice.untilNow,
+            title: "Count ${formatStopwatch(_untilNow)}",
+            subtitle:
+                "The time until now, as if practicing never stopped. "
+                "The stopwatch keeps running.",
+            leading: const Icon(Symbols.timer),
+          ),
+          ChoiceOption(
+            value: PracticeRecoveryChoice.discard,
+            title: "Drop this run",
+            subtitle:
+                "Everything since the stopwatch was last started is dropped. "
+                "Earlier practice of $exerciseName stays.",
+            leading: const Icon(Symbols.delete),
+          ),
+        ], onChoice),
       ],
       actions: const [],
     );

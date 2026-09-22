@@ -451,13 +451,12 @@ void main() {
       ],
     );
     final routine = (await repo.getRoutine(routineId))!;
-    final session = await repo.startSession(routineId: routineId);
-    final sessionEntry = await repo.startSessionEntry(
-      sessionId: session.id,
+    final sessionEntry = await repo.startRecord(
+      routineId: routineId,
       exerciseId: exerciseId,
       routineEntryId: routine.entries.single.id,
     );
-    await repo.checkpointSessionEntry(
+    await repo.checkpointRecord(
       sessionEntry,
       now: sessionEntry.runningSince!.add(const Duration(minutes: 8)),
       stop: true,
@@ -470,7 +469,7 @@ void main() {
     expect(find.text("20min"), findsNothing);
   });
 
-  testWidgets("a new session resets the practiced times", (tester) async {
+  testWidgets("starting over resets the practiced times", (tester) async {
     final exerciseId = await createExercise("Chromatic");
     final routineId = await repo.createRoutine(
       name: "Morning",
@@ -480,25 +479,51 @@ void main() {
       ],
     );
     final routine = (await repo.getRoutine(routineId))!;
-    final session = await repo.startSession(routineId: routineId);
-    final sessionEntry = await repo.startSessionEntry(
-      sessionId: session.id,
+    final sessionEntry = await repo.startRecord(
+      routineId: routineId,
       exerciseId: exerciseId,
       routineEntryId: routine.entries.single.id,
     );
-    await repo.checkpointSessionEntry(
+    await repo.checkpointRecord(
       sessionEntry,
       now: sessionEntry.runningSince!.add(const Duration(minutes: 8)),
       stop: true,
     );
 
     await pumpPage(tester, routineId);
-    await tester.tap(find.text("New session"));
+    await tester.tap(find.text("Start over"));
     await settle(tester);
 
     expect(find.text("8:00"), findsNothing);
     expect(find.text("20min"), findsOneWidget);
-    expect(find.text("New session"), findsNothing);
+    expect(find.text("Start over"), findsNothing);
+  });
+
+  testWidgets("starting over is refused while a stopwatch runs", (
+    tester,
+  ) async {
+    final exerciseId = await createExercise("Chromatic");
+    final routineId = await repo.createRoutine(
+      name: "Morning",
+      description: "",
+      entries: [
+        await entry(exerciseId, targetDuration: const Duration(minutes: 20)),
+      ],
+    );
+    final routine = (await repo.getRoutine(routineId))!;
+    final record = await repo.startRecord(
+      routineId: routineId,
+      exerciseId: exerciseId,
+      routineEntryId: routine.entries.single.id,
+    );
+
+    await pumpPage(tester, routineId);
+    await tester.tap(find.text("Start over"));
+    await settle(tester);
+
+    expect((await repo.getRunningRecord())?.id, record.id);
+    expect((await repo.getRoutineProgress(routineId)).records, hasLength(1));
+    expect(find.text("Start over"), findsOneWidget);
   });
 
   testWidgets("the app bar stays generic, the name is in the body", (
@@ -521,7 +546,7 @@ void main() {
     expect(find.text("Morning"), findsOneWidget);
   });
 
-  testWidgets("the session summary fits a narrow screen", (tester) async {
+  testWidgets("the progress summary fits a narrow screen", (tester) async {
     setWidth(tester, 360);
     final exerciseId = await createExercise("Chromatic");
     final routineId = await repo.createRoutine(
@@ -532,13 +557,12 @@ void main() {
       ],
     );
     final routine = (await repo.getRoutine(routineId))!;
-    final session = await repo.startSession(routineId: routineId);
-    final sessionEntry = await repo.startSessionEntry(
-      sessionId: session.id,
+    final sessionEntry = await repo.startRecord(
+      routineId: routineId,
       exerciseId: exerciseId,
       routineEntryId: routine.entries.single.id,
     );
-    await repo.checkpointSessionEntry(
+    await repo.checkpointRecord(
       sessionEntry,
       now: sessionEntry.runningSince!.add(const Duration(minutes: 8)),
       stop: true,
@@ -546,7 +570,7 @@ void main() {
 
     await pumpPage(tester, routineId);
 
-    expect(find.text("New session"), findsOneWidget);
+    expect(find.text("Start over"), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

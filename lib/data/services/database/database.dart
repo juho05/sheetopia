@@ -13,8 +13,8 @@ import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sheetopia/data/services/database/deleted_exercise_categories_table.dart';
 import 'package:sheetopia/data/services/database/deleted_exercises_table.dart';
+import 'package:sheetopia/data/services/database/deleted_practice_records_table.dart';
 import 'package:sheetopia/data/services/database/deleted_practice_routines_table.dart';
-import 'package:sheetopia/data/services/database/deleted_practice_sessions_table.dart';
 import 'package:sheetopia/data/services/database/deleted_scores_table.dart';
 import 'package:sheetopia/data/services/database/deleted_tags_table.dart';
 import 'package:sheetopia/data/services/database/duration_converter.dart';
@@ -26,8 +26,8 @@ import 'package:sheetopia/data/services/database/key_value_table.dart';
 import 'package:sheetopia/data/services/database/log_interceptor.dart';
 import 'package:sheetopia/data/services/database/log_level_converter.dart';
 import 'package:sheetopia/data/services/database/log_message.dart';
+import 'package:sheetopia/data/services/database/practice_records_table.dart';
 import 'package:sheetopia/data/services/database/practice_routines_table.dart';
-import 'package:sheetopia/data/services/database/practice_sessions_table.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/database/setlists_table.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
@@ -57,19 +57,18 @@ part 'database.g.dart';
     ExerciseTagsTable,
     PracticeRoutinesTable,
     PracticeRoutineEntriesTable,
-    PracticeSessionsTable,
-    PracticeSessionEntriesTable,
+    PracticeRecordsTable,
     DeletedExerciseCategoriesTable,
     DeletedExercisesTable,
     DeletedPracticeRoutinesTable,
-    DeletedPracticeSessionsTable,
+    DeletedPracticeRecordsTable,
   ],
 )
 class Database extends _$Database {
   Database([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -181,6 +180,49 @@ class Database extends _$Database {
             from13To14: (m, schema) async {
               await m.addColumn(schema.scores, schema.scores.status);
               await m.createIndex(schema.statusIndex);
+            },
+            from14To15: (m, schema) async {
+              await m.createTable(schema.practiceRecords);
+              await m.createTable(schema.deletedPracticeRecords);
+              await m.createIndex(schema.practiceRecordsStartedAtIndex);
+              await m.createIndex(schema.practiceRecordsExerciseIndex);
+              await m.createIndex(schema.practiceRecordsRoutineIndex);
+              await m.addColumn(
+                schema.practiceRoutines,
+                schema.practiceRoutines.progressResetAt,
+              );
+              await m.addColumn(
+                schema.exercises,
+                schema.exercises.progressResetAt,
+              );
+
+              // TODO: temp migration, delete before release
+              await customStatement(
+                "INSERT INTO practice_records (id, exercise, routine, "
+                "routine_entry, started_at, duration, running_since, "
+                "updated_at, written_at, uploaded) "
+                "SELECT e.id, e.exercise, s.routine, e.routine_entry, "
+                "e.started_at, e.duration, e.running_since, s.updated_at, "
+                "NULL, 0 FROM practice_session_entries e "
+                "JOIN practice_sessions s ON s.id = e.session",
+              );
+              // the latest session becomes the current block
+              await customStatement(
+                "UPDATE practice_routines SET progress_reset_at = "
+                "(SELECT MAX(started_at) FROM practice_sessions "
+                "WHERE routine = practice_routines.id)",
+              );
+              await customStatement(
+                "UPDATE exercises SET progress_reset_at = "
+                "(SELECT MAX(s.started_at) FROM practice_sessions s "
+                "JOIN practice_session_entries e ON e.session = s.id "
+                "WHERE s.routine IS NULL AND e.exercise = exercises.id)",
+              );
+              // ENDTODO
+
+              await m.deleteTable("practice_session_entries");
+              await m.deleteTable("practice_sessions");
+              await m.deleteTable("deleted_practice_sessions");
             },
           ),
         ),

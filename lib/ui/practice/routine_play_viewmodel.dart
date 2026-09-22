@@ -167,14 +167,8 @@ class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
     if (entry == null || routine == null) return;
     if (entry.id == _timedEntryId) return;
     _timedEntryId = entry.id;
-    if (timer.session == null) {
-      await timer.openSession(
-        routineId: routineId,
-        routineTarget: routine.targetDuration,
-      );
-    }
-    if (entry.id != _timedEntryId) return;
     await timer.show(
+      routineId: routineId,
       exerciseId: entry.exercise.id,
       routineEntryId: entry.id,
       target: entry.entry.targetDuration,

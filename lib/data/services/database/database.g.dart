@@ -4671,6 +4671,18 @@ class $ExercisesTableTable extends ExercisesTable
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _progressResetAtMeta = const VerificationMeta(
+    'progressResetAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> progressResetAt =
+      GeneratedColumn<DateTime>(
+        'progress_reset_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _updatedAtMeta = const VerificationMeta(
     'updatedAt',
   );
@@ -4719,6 +4731,7 @@ class $ExercisesTableTable extends ExercisesTable
     sourceLink,
     instrument,
     targetBpm,
+    progressResetAt,
     updatedAt,
     writtenAt,
     uploaded,
@@ -4787,6 +4800,15 @@ class $ExercisesTableTable extends ExercisesTable
         targetBpm.isAcceptableOrUnknown(data['target_bpm']!, _targetBpmMeta),
       );
     }
+    if (data.containsKey('progress_reset_at')) {
+      context.handle(
+        _progressResetAtMeta,
+        progressResetAt.isAcceptableOrUnknown(
+          data['progress_reset_at']!,
+          _progressResetAtMeta,
+        ),
+      );
+    }
     if (data.containsKey('updated_at')) {
       context.handle(
         _updatedAtMeta,
@@ -4846,6 +4868,10 @@ class $ExercisesTableTable extends ExercisesTable
         DriftSqlType.int,
         data['${effectivePrefix}target_bpm'],
       ),
+      progressResetAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}progress_reset_at'],
+      ),
       updatedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
@@ -4877,6 +4903,7 @@ class ExercisesTableData extends DataClass
   final String? sourceLink;
   final String? instrument;
   final int? targetBpm;
+  final DateTime? progressResetAt;
   final DateTime updatedAt;
   final DateTime? writtenAt;
   final bool uploaded;
@@ -4889,6 +4916,7 @@ class ExercisesTableData extends DataClass
     this.sourceLink,
     this.instrument,
     this.targetBpm,
+    this.progressResetAt,
     required this.updatedAt,
     this.writtenAt,
     required this.uploaded,
@@ -4915,6 +4943,9 @@ class ExercisesTableData extends DataClass
     }
     if (!nullToAbsent || targetBpm != null) {
       map['target_bpm'] = Variable<int>(targetBpm);
+    }
+    if (!nullToAbsent || progressResetAt != null) {
+      map['progress_reset_at'] = Variable<DateTime>(progressResetAt);
     }
     map['updated_at'] = Variable<DateTime>(updatedAt);
     if (!nullToAbsent || writtenAt != null) {
@@ -4946,6 +4977,9 @@ class ExercisesTableData extends DataClass
       targetBpm: targetBpm == null && nullToAbsent
           ? const Value.absent()
           : Value(targetBpm),
+      progressResetAt: progressResetAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(progressResetAt),
       updatedAt: Value(updatedAt),
       writtenAt: writtenAt == null && nullToAbsent
           ? const Value.absent()
@@ -4968,6 +5002,7 @@ class ExercisesTableData extends DataClass
       sourceLink: serializer.fromJson<String?>(json['sourceLink']),
       instrument: serializer.fromJson<String?>(json['instrument']),
       targetBpm: serializer.fromJson<int?>(json['targetBpm']),
+      progressResetAt: serializer.fromJson<DateTime?>(json['progressResetAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       writtenAt: serializer.fromJson<DateTime?>(json['writtenAt']),
       uploaded: serializer.fromJson<bool>(json['uploaded']),
@@ -4985,6 +5020,7 @@ class ExercisesTableData extends DataClass
       'sourceLink': serializer.toJson<String?>(sourceLink),
       'instrument': serializer.toJson<String?>(instrument),
       'targetBpm': serializer.toJson<int?>(targetBpm),
+      'progressResetAt': serializer.toJson<DateTime?>(progressResetAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'writtenAt': serializer.toJson<DateTime?>(writtenAt),
       'uploaded': serializer.toJson<bool>(uploaded),
@@ -5000,6 +5036,7 @@ class ExercisesTableData extends DataClass
     Value<String?> sourceLink = const Value.absent(),
     Value<String?> instrument = const Value.absent(),
     Value<int?> targetBpm = const Value.absent(),
+    Value<DateTime?> progressResetAt = const Value.absent(),
     DateTime? updatedAt,
     Value<DateTime?> writtenAt = const Value.absent(),
     bool? uploaded,
@@ -5012,6 +5049,9 @@ class ExercisesTableData extends DataClass
     sourceLink: sourceLink.present ? sourceLink.value : this.sourceLink,
     instrument: instrument.present ? instrument.value : this.instrument,
     targetBpm: targetBpm.present ? targetBpm.value : this.targetBpm,
+    progressResetAt: progressResetAt.present
+        ? progressResetAt.value
+        : this.progressResetAt,
     updatedAt: updatedAt ?? this.updatedAt,
     writtenAt: writtenAt.present ? writtenAt.value : this.writtenAt,
     uploaded: uploaded ?? this.uploaded,
@@ -5032,6 +5072,9 @@ class ExercisesTableData extends DataClass
           ? data.instrument.value
           : this.instrument,
       targetBpm: data.targetBpm.present ? data.targetBpm.value : this.targetBpm,
+      progressResetAt: data.progressResetAt.present
+          ? data.progressResetAt.value
+          : this.progressResetAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       writtenAt: data.writtenAt.present ? data.writtenAt.value : this.writtenAt,
       uploaded: data.uploaded.present ? data.uploaded.value : this.uploaded,
@@ -5049,6 +5092,7 @@ class ExercisesTableData extends DataClass
           ..write('sourceLink: $sourceLink, ')
           ..write('instrument: $instrument, ')
           ..write('targetBpm: $targetBpm, ')
+          ..write('progressResetAt: $progressResetAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('writtenAt: $writtenAt, ')
           ..write('uploaded: $uploaded')
@@ -5066,6 +5110,7 @@ class ExercisesTableData extends DataClass
     sourceLink,
     instrument,
     targetBpm,
+    progressResetAt,
     updatedAt,
     writtenAt,
     uploaded,
@@ -5082,6 +5127,7 @@ class ExercisesTableData extends DataClass
           other.sourceLink == this.sourceLink &&
           other.instrument == this.instrument &&
           other.targetBpm == this.targetBpm &&
+          other.progressResetAt == this.progressResetAt &&
           other.updatedAt == this.updatedAt &&
           other.writtenAt == this.writtenAt &&
           other.uploaded == this.uploaded);
@@ -5096,6 +5142,7 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
   final Value<String?> sourceLink;
   final Value<String?> instrument;
   final Value<int?> targetBpm;
+  final Value<DateTime?> progressResetAt;
   final Value<DateTime> updatedAt;
   final Value<DateTime?> writtenAt;
   final Value<bool> uploaded;
@@ -5109,6 +5156,7 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
     this.sourceLink = const Value.absent(),
     this.instrument = const Value.absent(),
     this.targetBpm = const Value.absent(),
+    this.progressResetAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.writtenAt = const Value.absent(),
     this.uploaded = const Value.absent(),
@@ -5123,6 +5171,7 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
     this.sourceLink = const Value.absent(),
     this.instrument = const Value.absent(),
     this.targetBpm = const Value.absent(),
+    this.progressResetAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.writtenAt = const Value.absent(),
     this.uploaded = const Value.absent(),
@@ -5138,6 +5187,7 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
     Expression<String>? sourceLink,
     Expression<String>? instrument,
     Expression<int>? targetBpm,
+    Expression<DateTime>? progressResetAt,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? writtenAt,
     Expression<bool>? uploaded,
@@ -5152,6 +5202,7 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
       if (sourceLink != null) 'source_link': sourceLink,
       if (instrument != null) 'instrument': instrument,
       if (targetBpm != null) 'target_bpm': targetBpm,
+      if (progressResetAt != null) 'progress_reset_at': progressResetAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (writtenAt != null) 'written_at': writtenAt,
       if (uploaded != null) 'uploaded': uploaded,
@@ -5168,6 +5219,7 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
     Value<String?>? sourceLink,
     Value<String?>? instrument,
     Value<int?>? targetBpm,
+    Value<DateTime?>? progressResetAt,
     Value<DateTime>? updatedAt,
     Value<DateTime?>? writtenAt,
     Value<bool>? uploaded,
@@ -5182,6 +5234,7 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
       sourceLink: sourceLink ?? this.sourceLink,
       instrument: instrument ?? this.instrument,
       targetBpm: targetBpm ?? this.targetBpm,
+      progressResetAt: progressResetAt ?? this.progressResetAt,
       updatedAt: updatedAt ?? this.updatedAt,
       writtenAt: writtenAt ?? this.writtenAt,
       uploaded: uploaded ?? this.uploaded,
@@ -5216,6 +5269,9 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
     if (targetBpm.present) {
       map['target_bpm'] = Variable<int>(targetBpm.value);
     }
+    if (progressResetAt.present) {
+      map['progress_reset_at'] = Variable<DateTime>(progressResetAt.value);
+    }
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
@@ -5242,6 +5298,7 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
           ..write('sourceLink: $sourceLink, ')
           ..write('instrument: $instrument, ')
           ..write('targetBpm: $targetBpm, ')
+          ..write('progressResetAt: $progressResetAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('writtenAt: $writtenAt, ')
           ..write('uploaded: $uploaded, ')
@@ -5785,6 +5842,18 @@ class $PracticeRoutinesTableTable extends PracticeRoutinesTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _progressResetAtMeta = const VerificationMeta(
+    'progressResetAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> progressResetAt =
+      GeneratedColumn<DateTime>(
+        'progress_reset_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _updatedAtMeta = const VerificationMeta(
     'updatedAt',
   );
@@ -5828,6 +5897,7 @@ class $PracticeRoutinesTableTable extends PracticeRoutinesTable
     id,
     name,
     description,
+    progressResetAt,
     updatedAt,
     writtenAt,
     uploaded,
@@ -5863,6 +5933,15 @@ class $PracticeRoutinesTableTable extends PracticeRoutinesTable
         description.isAcceptableOrUnknown(
           data['description']!,
           _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('progress_reset_at')) {
+      context.handle(
+        _progressResetAtMeta,
+        progressResetAt.isAcceptableOrUnknown(
+          data['progress_reset_at']!,
+          _progressResetAtMeta,
         ),
       );
     }
@@ -5908,6 +5987,10 @@ class $PracticeRoutinesTableTable extends PracticeRoutinesTable
         DriftSqlType.string,
         data['${effectivePrefix}description'],
       ),
+      progressResetAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}progress_reset_at'],
+      ),
       updatedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
@@ -5934,6 +6017,7 @@ class PracticeRoutinesTableData extends DataClass
   final String id;
   final String name;
   final String? description;
+  final DateTime? progressResetAt;
   final DateTime updatedAt;
   final DateTime? writtenAt;
   final bool uploaded;
@@ -5941,6 +6025,7 @@ class PracticeRoutinesTableData extends DataClass
     required this.id,
     required this.name,
     this.description,
+    this.progressResetAt,
     required this.updatedAt,
     this.writtenAt,
     required this.uploaded,
@@ -5952,6 +6037,9 @@ class PracticeRoutinesTableData extends DataClass
     map['name'] = Variable<String>(name);
     if (!nullToAbsent || description != null) {
       map['description'] = Variable<String>(description);
+    }
+    if (!nullToAbsent || progressResetAt != null) {
+      map['progress_reset_at'] = Variable<DateTime>(progressResetAt);
     }
     map['updated_at'] = Variable<DateTime>(updatedAt);
     if (!nullToAbsent || writtenAt != null) {
@@ -5968,6 +6056,9 @@ class PracticeRoutinesTableData extends DataClass
       description: description == null && nullToAbsent
           ? const Value.absent()
           : Value(description),
+      progressResetAt: progressResetAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(progressResetAt),
       updatedAt: Value(updatedAt),
       writtenAt: writtenAt == null && nullToAbsent
           ? const Value.absent()
@@ -5985,6 +6076,7 @@ class PracticeRoutinesTableData extends DataClass
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String?>(json['description']),
+      progressResetAt: serializer.fromJson<DateTime?>(json['progressResetAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       writtenAt: serializer.fromJson<DateTime?>(json['writtenAt']),
       uploaded: serializer.fromJson<bool>(json['uploaded']),
@@ -5997,6 +6089,7 @@ class PracticeRoutinesTableData extends DataClass
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
       'description': serializer.toJson<String?>(description),
+      'progressResetAt': serializer.toJson<DateTime?>(progressResetAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'writtenAt': serializer.toJson<DateTime?>(writtenAt),
       'uploaded': serializer.toJson<bool>(uploaded),
@@ -6007,6 +6100,7 @@ class PracticeRoutinesTableData extends DataClass
     String? id,
     String? name,
     Value<String?> description = const Value.absent(),
+    Value<DateTime?> progressResetAt = const Value.absent(),
     DateTime? updatedAt,
     Value<DateTime?> writtenAt = const Value.absent(),
     bool? uploaded,
@@ -6014,6 +6108,9 @@ class PracticeRoutinesTableData extends DataClass
     id: id ?? this.id,
     name: name ?? this.name,
     description: description.present ? description.value : this.description,
+    progressResetAt: progressResetAt.present
+        ? progressResetAt.value
+        : this.progressResetAt,
     updatedAt: updatedAt ?? this.updatedAt,
     writtenAt: writtenAt.present ? writtenAt.value : this.writtenAt,
     uploaded: uploaded ?? this.uploaded,
@@ -6027,6 +6124,9 @@ class PracticeRoutinesTableData extends DataClass
       description: data.description.present
           ? data.description.value
           : this.description,
+      progressResetAt: data.progressResetAt.present
+          ? data.progressResetAt.value
+          : this.progressResetAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       writtenAt: data.writtenAt.present ? data.writtenAt.value : this.writtenAt,
       uploaded: data.uploaded.present ? data.uploaded.value : this.uploaded,
@@ -6039,6 +6139,7 @@ class PracticeRoutinesTableData extends DataClass
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
+          ..write('progressResetAt: $progressResetAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('writtenAt: $writtenAt, ')
           ..write('uploaded: $uploaded')
@@ -6047,8 +6148,15 @@ class PracticeRoutinesTableData extends DataClass
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, description, updatedAt, writtenAt, uploaded);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    description,
+    progressResetAt,
+    updatedAt,
+    writtenAt,
+    uploaded,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -6056,6 +6164,7 @@ class PracticeRoutinesTableData extends DataClass
           other.id == this.id &&
           other.name == this.name &&
           other.description == this.description &&
+          other.progressResetAt == this.progressResetAt &&
           other.updatedAt == this.updatedAt &&
           other.writtenAt == this.writtenAt &&
           other.uploaded == this.uploaded);
@@ -6066,6 +6175,7 @@ class PracticeRoutinesTableCompanion
   final Value<String> id;
   final Value<String> name;
   final Value<String?> description;
+  final Value<DateTime?> progressResetAt;
   final Value<DateTime> updatedAt;
   final Value<DateTime?> writtenAt;
   final Value<bool> uploaded;
@@ -6074,6 +6184,7 @@ class PracticeRoutinesTableCompanion
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.description = const Value.absent(),
+    this.progressResetAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.writtenAt = const Value.absent(),
     this.uploaded = const Value.absent(),
@@ -6083,6 +6194,7 @@ class PracticeRoutinesTableCompanion
     required String id,
     required String name,
     this.description = const Value.absent(),
+    this.progressResetAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.writtenAt = const Value.absent(),
     this.uploaded = const Value.absent(),
@@ -6093,6 +6205,7 @@ class PracticeRoutinesTableCompanion
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? description,
+    Expression<DateTime>? progressResetAt,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? writtenAt,
     Expression<bool>? uploaded,
@@ -6102,6 +6215,7 @@ class PracticeRoutinesTableCompanion
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (description != null) 'description': description,
+      if (progressResetAt != null) 'progress_reset_at': progressResetAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (writtenAt != null) 'written_at': writtenAt,
       if (uploaded != null) 'uploaded': uploaded,
@@ -6113,6 +6227,7 @@ class PracticeRoutinesTableCompanion
     Value<String>? id,
     Value<String>? name,
     Value<String?>? description,
+    Value<DateTime?>? progressResetAt,
     Value<DateTime>? updatedAt,
     Value<DateTime?>? writtenAt,
     Value<bool>? uploaded,
@@ -6122,6 +6237,7 @@ class PracticeRoutinesTableCompanion
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
+      progressResetAt: progressResetAt ?? this.progressResetAt,
       updatedAt: updatedAt ?? this.updatedAt,
       writtenAt: writtenAt ?? this.writtenAt,
       uploaded: uploaded ?? this.uploaded,
@@ -6140,6 +6256,9 @@ class PracticeRoutinesTableCompanion
     }
     if (description.present) {
       map['description'] = Variable<String>(description.value);
+    }
+    if (progressResetAt.present) {
+      map['progress_reset_at'] = Variable<DateTime>(progressResetAt.value);
     }
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
@@ -6162,6 +6281,7 @@ class PracticeRoutinesTableCompanion
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
+          ..write('progressResetAt: $progressResetAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('writtenAt: $writtenAt, ')
           ..write('uploaded: $uploaded, ')
@@ -6677,12 +6797,12 @@ class PracticeRoutineEntriesTableCompanion
   }
 }
 
-class $PracticeSessionsTableTable extends PracticeSessionsTable
-    with TableInfo<$PracticeSessionsTableTable, PracticeSessionsTableData> {
+class $PracticeRecordsTableTable extends PracticeRecordsTable
+    with TableInfo<$PracticeRecordsTableTable, PracticeRecordsTableData> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $PracticeSessionsTableTable(this.attachedDatabase, [this._alias]);
+  $PracticeRecordsTableTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
@@ -6692,27 +6812,16 @@ class $PracticeSessionsTableTable extends PracticeSessionsTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _startedAtMeta = const VerificationMeta(
-    'startedAt',
+  static const VerificationMeta _exerciseMeta = const VerificationMeta(
+    'exercise',
   );
   @override
-  late final GeneratedColumn<DateTime> startedAt = GeneratedColumn<DateTime>(
-    'started_at',
+  late final GeneratedColumn<String> exercise = GeneratedColumn<String>(
+    'exercise',
     aliasedName,
     false,
-    type: DriftSqlType.dateTime,
+    type: DriftSqlType.string,
     requiredDuringInsert: true,
-  );
-  static const VerificationMeta _endedAtMeta = const VerificationMeta(
-    'endedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> endedAt = GeneratedColumn<DateTime>(
-    'ended_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
   );
   static const VerificationMeta _routineMeta = const VerificationMeta(
     'routine',
@@ -6725,15 +6834,47 @@ class $PracticeSessionsTableTable extends PracticeSessionsTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _descriptionMeta = const VerificationMeta(
-    'description',
+  static const VerificationMeta _routineEntryMeta = const VerificationMeta(
+    'routineEntry',
   );
   @override
-  late final GeneratedColumn<String> description = GeneratedColumn<String>(
-    'description',
+  late final GeneratedColumn<String> routineEntry = GeneratedColumn<String>(
+    'routine_entry',
     aliasedName,
     true,
     type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startedAtMeta = const VerificationMeta(
+    'startedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startedAt = GeneratedColumn<DateTime>(
+    'started_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<Duration, int> duration =
+      GeneratedColumn<int>(
+        'duration',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      ).withConverter<Duration>($PracticeRecordsTableTable.$converterduration);
+  static const VerificationMeta _runningSinceMeta = const VerificationMeta(
+    'runningSince',
+  );
+  @override
+  late final GeneratedColumn<DateTime> runningSince = GeneratedColumn<DateTime>(
+    'running_since',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
   static const VerificationMeta _updatedAtMeta = const VerificationMeta(
@@ -6777,10 +6918,12 @@ class $PracticeSessionsTableTable extends PracticeSessionsTable
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    startedAt,
-    endedAt,
+    exercise,
     routine,
-    description,
+    routineEntry,
+    startedAt,
+    duration,
+    runningSince,
     updatedAt,
     writtenAt,
     uploaded,
@@ -6789,10 +6932,10 @@ class $PracticeSessionsTableTable extends PracticeSessionsTable
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'practice_sessions';
+  static const String $name = 'practice_records';
   @override
   VerificationContext validateIntegrity(
-    Insertable<PracticeSessionsTableData> instance, {
+    Insertable<PracticeRecordsTableData> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -6802,6 +6945,29 @@ class $PracticeSessionsTableTable extends PracticeSessionsTable
     } else if (isInserting) {
       context.missing(_idMeta);
     }
+    if (data.containsKey('exercise')) {
+      context.handle(
+        _exerciseMeta,
+        exercise.isAcceptableOrUnknown(data['exercise']!, _exerciseMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_exerciseMeta);
+    }
+    if (data.containsKey('routine')) {
+      context.handle(
+        _routineMeta,
+        routine.isAcceptableOrUnknown(data['routine']!, _routineMeta),
+      );
+    }
+    if (data.containsKey('routine_entry')) {
+      context.handle(
+        _routineEntryMeta,
+        routineEntry.isAcceptableOrUnknown(
+          data['routine_entry']!,
+          _routineEntryMeta,
+        ),
+      );
+    }
     if (data.containsKey('started_at')) {
       context.handle(
         _startedAtMeta,
@@ -6810,24 +6976,12 @@ class $PracticeSessionsTableTable extends PracticeSessionsTable
     } else if (isInserting) {
       context.missing(_startedAtMeta);
     }
-    if (data.containsKey('ended_at')) {
+    if (data.containsKey('running_since')) {
       context.handle(
-        _endedAtMeta,
-        endedAt.isAcceptableOrUnknown(data['ended_at']!, _endedAtMeta),
-      );
-    }
-    if (data.containsKey('routine')) {
-      context.handle(
-        _routineMeta,
-        routine.isAcceptableOrUnknown(data['routine']!, _routineMeta),
-      );
-    }
-    if (data.containsKey('description')) {
-      context.handle(
-        _descriptionMeta,
-        description.isAcceptableOrUnknown(
-          data['description']!,
-          _descriptionMeta,
+        _runningSinceMeta,
+        runningSince.isAcceptableOrUnknown(
+          data['running_since']!,
+          _runningSinceMeta,
         ),
       );
     }
@@ -6855,31 +7009,41 @@ class $PracticeSessionsTableTable extends PracticeSessionsTable
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  PracticeSessionsTableData map(
+  PracticeRecordsTableData map(
     Map<String, dynamic> data, {
     String? tablePrefix,
   }) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return PracticeSessionsTableData(
+    return PracticeRecordsTableData(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
-      startedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}started_at'],
+      exercise: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}exercise'],
       )!,
-      endedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}ended_at'],
-      ),
       routine: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}routine'],
       ),
-      description: attachedDatabase.typeMapping.read(
+      routineEntry: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}description'],
+        data['${effectivePrefix}routine_entry'],
+      ),
+      startedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}started_at'],
+      )!,
+      duration: $PracticeRecordsTableTable.$converterduration.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}duration'],
+        )!,
+      ),
+      runningSince: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}running_since'],
       ),
       updatedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
@@ -6897,27 +7061,34 @@ class $PracticeSessionsTableTable extends PracticeSessionsTable
   }
 
   @override
-  $PracticeSessionsTableTable createAlias(String alias) {
-    return $PracticeSessionsTableTable(attachedDatabase, alias);
+  $PracticeRecordsTableTable createAlias(String alias) {
+    return $PracticeRecordsTableTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<Duration, int> $converterduration =
+      const DurationConverter();
 }
 
-class PracticeSessionsTableData extends DataClass
-    implements Insertable<PracticeSessionsTableData> {
+class PracticeRecordsTableData extends DataClass
+    implements Insertable<PracticeRecordsTableData> {
   final String id;
-  final DateTime startedAt;
-  final DateTime? endedAt;
+  final String exercise;
   final String? routine;
-  final String? description;
+  final String? routineEntry;
+  final DateTime startedAt;
+  final Duration duration;
+  final DateTime? runningSince;
   final DateTime updatedAt;
   final DateTime? writtenAt;
   final bool uploaded;
-  const PracticeSessionsTableData({
+  const PracticeRecordsTableData({
     required this.id,
-    required this.startedAt,
-    this.endedAt,
+    required this.exercise,
     this.routine,
-    this.description,
+    this.routineEntry,
+    required this.startedAt,
+    required this.duration,
+    this.runningSince,
     required this.updatedAt,
     this.writtenAt,
     required this.uploaded,
@@ -6926,15 +7097,21 @@ class PracticeSessionsTableData extends DataClass
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
-    map['started_at'] = Variable<DateTime>(startedAt);
-    if (!nullToAbsent || endedAt != null) {
-      map['ended_at'] = Variable<DateTime>(endedAt);
-    }
+    map['exercise'] = Variable<String>(exercise);
     if (!nullToAbsent || routine != null) {
       map['routine'] = Variable<String>(routine);
     }
-    if (!nullToAbsent || description != null) {
-      map['description'] = Variable<String>(description);
+    if (!nullToAbsent || routineEntry != null) {
+      map['routine_entry'] = Variable<String>(routineEntry);
+    }
+    map['started_at'] = Variable<DateTime>(startedAt);
+    {
+      map['duration'] = Variable<int>(
+        $PracticeRecordsTableTable.$converterduration.toSql(duration),
+      );
+    }
+    if (!nullToAbsent || runningSince != null) {
+      map['running_since'] = Variable<DateTime>(runningSince);
     }
     map['updated_at'] = Variable<DateTime>(updatedAt);
     if (!nullToAbsent || writtenAt != null) {
@@ -6944,19 +7121,21 @@ class PracticeSessionsTableData extends DataClass
     return map;
   }
 
-  PracticeSessionsTableCompanion toCompanion(bool nullToAbsent) {
-    return PracticeSessionsTableCompanion(
+  PracticeRecordsTableCompanion toCompanion(bool nullToAbsent) {
+    return PracticeRecordsTableCompanion(
       id: Value(id),
-      startedAt: Value(startedAt),
-      endedAt: endedAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(endedAt),
+      exercise: Value(exercise),
       routine: routine == null && nullToAbsent
           ? const Value.absent()
           : Value(routine),
-      description: description == null && nullToAbsent
+      routineEntry: routineEntry == null && nullToAbsent
           ? const Value.absent()
-          : Value(description),
+          : Value(routineEntry),
+      startedAt: Value(startedAt),
+      duration: Value(duration),
+      runningSince: runningSince == null && nullToAbsent
+          ? const Value.absent()
+          : Value(runningSince),
       updatedAt: Value(updatedAt),
       writtenAt: writtenAt == null && nullToAbsent
           ? const Value.absent()
@@ -6965,17 +7144,19 @@ class PracticeSessionsTableData extends DataClass
     );
   }
 
-  factory PracticeSessionsTableData.fromJson(
+  factory PracticeRecordsTableData.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return PracticeSessionsTableData(
+    return PracticeRecordsTableData(
       id: serializer.fromJson<String>(json['id']),
-      startedAt: serializer.fromJson<DateTime>(json['startedAt']),
-      endedAt: serializer.fromJson<DateTime?>(json['endedAt']),
+      exercise: serializer.fromJson<String>(json['exercise']),
       routine: serializer.fromJson<String?>(json['routine']),
-      description: serializer.fromJson<String?>(json['description']),
+      routineEntry: serializer.fromJson<String?>(json['routineEntry']),
+      startedAt: serializer.fromJson<DateTime>(json['startedAt']),
+      duration: serializer.fromJson<Duration>(json['duration']),
+      runningSince: serializer.fromJson<DateTime?>(json['runningSince']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       writtenAt: serializer.fromJson<DateTime?>(json['writtenAt']),
       uploaded: serializer.fromJson<bool>(json['uploaded']),
@@ -6986,46 +7167,56 @@ class PracticeSessionsTableData extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
-      'startedAt': serializer.toJson<DateTime>(startedAt),
-      'endedAt': serializer.toJson<DateTime?>(endedAt),
+      'exercise': serializer.toJson<String>(exercise),
       'routine': serializer.toJson<String?>(routine),
-      'description': serializer.toJson<String?>(description),
+      'routineEntry': serializer.toJson<String?>(routineEntry),
+      'startedAt': serializer.toJson<DateTime>(startedAt),
+      'duration': serializer.toJson<Duration>(duration),
+      'runningSince': serializer.toJson<DateTime?>(runningSince),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'writtenAt': serializer.toJson<DateTime?>(writtenAt),
       'uploaded': serializer.toJson<bool>(uploaded),
     };
   }
 
-  PracticeSessionsTableData copyWith({
+  PracticeRecordsTableData copyWith({
     String? id,
-    DateTime? startedAt,
-    Value<DateTime?> endedAt = const Value.absent(),
+    String? exercise,
     Value<String?> routine = const Value.absent(),
-    Value<String?> description = const Value.absent(),
+    Value<String?> routineEntry = const Value.absent(),
+    DateTime? startedAt,
+    Duration? duration,
+    Value<DateTime?> runningSince = const Value.absent(),
     DateTime? updatedAt,
     Value<DateTime?> writtenAt = const Value.absent(),
     bool? uploaded,
-  }) => PracticeSessionsTableData(
+  }) => PracticeRecordsTableData(
     id: id ?? this.id,
-    startedAt: startedAt ?? this.startedAt,
-    endedAt: endedAt.present ? endedAt.value : this.endedAt,
+    exercise: exercise ?? this.exercise,
     routine: routine.present ? routine.value : this.routine,
-    description: description.present ? description.value : this.description,
+    routineEntry: routineEntry.present ? routineEntry.value : this.routineEntry,
+    startedAt: startedAt ?? this.startedAt,
+    duration: duration ?? this.duration,
+    runningSince: runningSince.present ? runningSince.value : this.runningSince,
     updatedAt: updatedAt ?? this.updatedAt,
     writtenAt: writtenAt.present ? writtenAt.value : this.writtenAt,
     uploaded: uploaded ?? this.uploaded,
   );
-  PracticeSessionsTableData copyWithCompanion(
-    PracticeSessionsTableCompanion data,
+  PracticeRecordsTableData copyWithCompanion(
+    PracticeRecordsTableCompanion data,
   ) {
-    return PracticeSessionsTableData(
+    return PracticeRecordsTableData(
       id: data.id.present ? data.id.value : this.id,
-      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
-      endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
+      exercise: data.exercise.present ? data.exercise.value : this.exercise,
       routine: data.routine.present ? data.routine.value : this.routine,
-      description: data.description.present
-          ? data.description.value
-          : this.description,
+      routineEntry: data.routineEntry.present
+          ? data.routineEntry.value
+          : this.routineEntry,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      duration: data.duration.present ? data.duration.value : this.duration,
+      runningSince: data.runningSince.present
+          ? data.runningSince.value
+          : this.runningSince,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       writtenAt: data.writtenAt.present ? data.writtenAt.value : this.writtenAt,
       uploaded: data.uploaded.present ? data.uploaded.value : this.uploaded,
@@ -7034,12 +7225,14 @@ class PracticeSessionsTableData extends DataClass
 
   @override
   String toString() {
-    return (StringBuffer('PracticeSessionsTableData(')
+    return (StringBuffer('PracticeRecordsTableData(')
           ..write('id: $id, ')
-          ..write('startedAt: $startedAt, ')
-          ..write('endedAt: $endedAt, ')
+          ..write('exercise: $exercise, ')
           ..write('routine: $routine, ')
-          ..write('description: $description, ')
+          ..write('routineEntry: $routineEntry, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('duration: $duration, ')
+          ..write('runningSince: $runningSince, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('writtenAt: $writtenAt, ')
           ..write('uploaded: $uploaded')
@@ -7050,10 +7243,12 @@ class PracticeSessionsTableData extends DataClass
   @override
   int get hashCode => Object.hash(
     id,
-    startedAt,
-    endedAt,
+    exercise,
     routine,
-    description,
+    routineEntry,
+    startedAt,
+    duration,
+    runningSince,
     updatedAt,
     writtenAt,
     uploaded,
@@ -7061,57 +7256,68 @@ class PracticeSessionsTableData extends DataClass
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is PracticeSessionsTableData &&
+      (other is PracticeRecordsTableData &&
           other.id == this.id &&
-          other.startedAt == this.startedAt &&
-          other.endedAt == this.endedAt &&
+          other.exercise == this.exercise &&
           other.routine == this.routine &&
-          other.description == this.description &&
+          other.routineEntry == this.routineEntry &&
+          other.startedAt == this.startedAt &&
+          other.duration == this.duration &&
+          other.runningSince == this.runningSince &&
           other.updatedAt == this.updatedAt &&
           other.writtenAt == this.writtenAt &&
           other.uploaded == this.uploaded);
 }
 
-class PracticeSessionsTableCompanion
-    extends UpdateCompanion<PracticeSessionsTableData> {
+class PracticeRecordsTableCompanion
+    extends UpdateCompanion<PracticeRecordsTableData> {
   final Value<String> id;
-  final Value<DateTime> startedAt;
-  final Value<DateTime?> endedAt;
+  final Value<String> exercise;
   final Value<String?> routine;
-  final Value<String?> description;
+  final Value<String?> routineEntry;
+  final Value<DateTime> startedAt;
+  final Value<Duration> duration;
+  final Value<DateTime?> runningSince;
   final Value<DateTime> updatedAt;
   final Value<DateTime?> writtenAt;
   final Value<bool> uploaded;
   final Value<int> rowid;
-  const PracticeSessionsTableCompanion({
+  const PracticeRecordsTableCompanion({
     this.id = const Value.absent(),
-    this.startedAt = const Value.absent(),
-    this.endedAt = const Value.absent(),
+    this.exercise = const Value.absent(),
     this.routine = const Value.absent(),
-    this.description = const Value.absent(),
+    this.routineEntry = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.duration = const Value.absent(),
+    this.runningSince = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.writtenAt = const Value.absent(),
     this.uploaded = const Value.absent(),
     this.rowid = const Value.absent(),
   });
-  PracticeSessionsTableCompanion.insert({
+  PracticeRecordsTableCompanion.insert({
     required String id,
-    required DateTime startedAt,
-    this.endedAt = const Value.absent(),
+    required String exercise,
     this.routine = const Value.absent(),
-    this.description = const Value.absent(),
+    this.routineEntry = const Value.absent(),
+    required DateTime startedAt,
+    this.duration = const Value.absent(),
+    this.runningSince = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.writtenAt = const Value.absent(),
     this.uploaded = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
+       exercise = Value(exercise),
        startedAt = Value(startedAt);
-  static Insertable<PracticeSessionsTableData> custom({
+  static Insertable<PracticeRecordsTableData> custom({
     Expression<String>? id,
-    Expression<DateTime>? startedAt,
-    Expression<DateTime>? endedAt,
+    Expression<String>? exercise,
     Expression<String>? routine,
-    Expression<String>? description,
+    Expression<String>? routineEntry,
+    Expression<DateTime>? startedAt,
+    Expression<int>? duration,
+    Expression<DateTime>? runningSince,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? writtenAt,
     Expression<bool>? uploaded,
@@ -7119,10 +7325,12 @@ class PracticeSessionsTableCompanion
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (startedAt != null) 'started_at': startedAt,
-      if (endedAt != null) 'ended_at': endedAt,
+      if (exercise != null) 'exercise': exercise,
       if (routine != null) 'routine': routine,
-      if (description != null) 'description': description,
+      if (routineEntry != null) 'routine_entry': routineEntry,
+      if (startedAt != null) 'started_at': startedAt,
+      if (duration != null) 'duration': duration,
+      if (runningSince != null) 'running_since': runningSince,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (writtenAt != null) 'written_at': writtenAt,
       if (uploaded != null) 'uploaded': uploaded,
@@ -7130,23 +7338,27 @@ class PracticeSessionsTableCompanion
     });
   }
 
-  PracticeSessionsTableCompanion copyWith({
+  PracticeRecordsTableCompanion copyWith({
     Value<String>? id,
-    Value<DateTime>? startedAt,
-    Value<DateTime?>? endedAt,
+    Value<String>? exercise,
     Value<String?>? routine,
-    Value<String?>? description,
+    Value<String?>? routineEntry,
+    Value<DateTime>? startedAt,
+    Value<Duration>? duration,
+    Value<DateTime?>? runningSince,
     Value<DateTime>? updatedAt,
     Value<DateTime?>? writtenAt,
     Value<bool>? uploaded,
     Value<int>? rowid,
   }) {
-    return PracticeSessionsTableCompanion(
+    return PracticeRecordsTableCompanion(
       id: id ?? this.id,
-      startedAt: startedAt ?? this.startedAt,
-      endedAt: endedAt ?? this.endedAt,
+      exercise: exercise ?? this.exercise,
       routine: routine ?? this.routine,
-      description: description ?? this.description,
+      routineEntry: routineEntry ?? this.routineEntry,
+      startedAt: startedAt ?? this.startedAt,
+      duration: duration ?? this.duration,
+      runningSince: runningSince ?? this.runningSince,
       updatedAt: updatedAt ?? this.updatedAt,
       writtenAt: writtenAt ?? this.writtenAt,
       uploaded: uploaded ?? this.uploaded,
@@ -7160,17 +7372,25 @@ class PracticeSessionsTableCompanion
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
-    if (startedAt.present) {
-      map['started_at'] = Variable<DateTime>(startedAt.value);
-    }
-    if (endedAt.present) {
-      map['ended_at'] = Variable<DateTime>(endedAt.value);
+    if (exercise.present) {
+      map['exercise'] = Variable<String>(exercise.value);
     }
     if (routine.present) {
       map['routine'] = Variable<String>(routine.value);
     }
-    if (description.present) {
-      map['description'] = Variable<String>(description.value);
+    if (routineEntry.present) {
+      map['routine_entry'] = Variable<String>(routineEntry.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<DateTime>(startedAt.value);
+    }
+    if (duration.present) {
+      map['duration'] = Variable<int>(
+        $PracticeRecordsTableTable.$converterduration.toSql(duration.value),
+      );
+    }
+    if (runningSince.present) {
+      map['running_since'] = Variable<DateTime>(runningSince.value);
     }
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
@@ -7189,508 +7409,17 @@ class PracticeSessionsTableCompanion
 
   @override
   String toString() {
-    return (StringBuffer('PracticeSessionsTableCompanion(')
+    return (StringBuffer('PracticeRecordsTableCompanion(')
           ..write('id: $id, ')
-          ..write('startedAt: $startedAt, ')
-          ..write('endedAt: $endedAt, ')
+          ..write('exercise: $exercise, ')
           ..write('routine: $routine, ')
-          ..write('description: $description, ')
-          ..write('updatedAt: $updatedAt, ')
-          ..write('writtenAt: $writtenAt, ')
-          ..write('uploaded: $uploaded, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $PracticeSessionEntriesTableTable extends PracticeSessionEntriesTable
-    with
-        TableInfo<
-          $PracticeSessionEntriesTableTable,
-          PracticeSessionEntriesTableData
-        > {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $PracticeSessionEntriesTableTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<String> id = GeneratedColumn<String>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _sessionMeta = const VerificationMeta(
-    'session',
-  );
-  @override
-  late final GeneratedColumn<String> session = GeneratedColumn<String>(
-    'session',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES practice_sessions (id) ON UPDATE CASCADE ON DELETE CASCADE',
-    ),
-  );
-  static const VerificationMeta _exerciseMeta = const VerificationMeta(
-    'exercise',
-  );
-  @override
-  late final GeneratedColumn<String> exercise = GeneratedColumn<String>(
-    'exercise',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _routineEntryMeta = const VerificationMeta(
-    'routineEntry',
-  );
-  @override
-  late final GeneratedColumn<String> routineEntry = GeneratedColumn<String>(
-    'routine_entry',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _startedAtMeta = const VerificationMeta(
-    'startedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> startedAt = GeneratedColumn<DateTime>(
-    'started_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-    clientDefault: () => DateTime.now().toUtc(),
-  );
-  @override
-  late final GeneratedColumnWithTypeConverter<Duration, int> duration =
-      GeneratedColumn<int>(
-        'duration',
-        aliasedName,
-        false,
-        type: DriftSqlType.int,
-        requiredDuringInsert: false,
-        defaultValue: const Constant(0),
-      ).withConverter<Duration>(
-        $PracticeSessionEntriesTableTable.$converterduration,
-      );
-  static const VerificationMeta _runningSinceMeta = const VerificationMeta(
-    'runningSince',
-  );
-  @override
-  late final GeneratedColumn<DateTime> runningSince = GeneratedColumn<DateTime>(
-    'running_since',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    session,
-    exercise,
-    routineEntry,
-    startedAt,
-    duration,
-    runningSince,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'practice_session_entries';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<PracticeSessionEntriesTableData> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    } else if (isInserting) {
-      context.missing(_idMeta);
-    }
-    if (data.containsKey('session')) {
-      context.handle(
-        _sessionMeta,
-        session.isAcceptableOrUnknown(data['session']!, _sessionMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_sessionMeta);
-    }
-    if (data.containsKey('exercise')) {
-      context.handle(
-        _exerciseMeta,
-        exercise.isAcceptableOrUnknown(data['exercise']!, _exerciseMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_exerciseMeta);
-    }
-    if (data.containsKey('routine_entry')) {
-      context.handle(
-        _routineEntryMeta,
-        routineEntry.isAcceptableOrUnknown(
-          data['routine_entry']!,
-          _routineEntryMeta,
-        ),
-      );
-    }
-    if (data.containsKey('started_at')) {
-      context.handle(
-        _startedAtMeta,
-        startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta),
-      );
-    }
-    if (data.containsKey('running_since')) {
-      context.handle(
-        _runningSinceMeta,
-        runningSince.isAcceptableOrUnknown(
-          data['running_since']!,
-          _runningSinceMeta,
-        ),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  PracticeSessionEntriesTableData map(
-    Map<String, dynamic> data, {
-    String? tablePrefix,
-  }) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return PracticeSessionEntriesTableData(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}id'],
-      )!,
-      session: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}session'],
-      )!,
-      exercise: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}exercise'],
-      )!,
-      routineEntry: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}routine_entry'],
-      ),
-      startedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}started_at'],
-      )!,
-      duration: $PracticeSessionEntriesTableTable.$converterduration.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.int,
-          data['${effectivePrefix}duration'],
-        )!,
-      ),
-      runningSince: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}running_since'],
-      ),
-    );
-  }
-
-  @override
-  $PracticeSessionEntriesTableTable createAlias(String alias) {
-    return $PracticeSessionEntriesTableTable(attachedDatabase, alias);
-  }
-
-  static TypeConverter<Duration, int> $converterduration =
-      const DurationConverter();
-}
-
-class PracticeSessionEntriesTableData extends DataClass
-    implements Insertable<PracticeSessionEntriesTableData> {
-  final String id;
-  final String session;
-  final String exercise;
-  final String? routineEntry;
-  final DateTime startedAt;
-  final Duration duration;
-  final DateTime? runningSince;
-  const PracticeSessionEntriesTableData({
-    required this.id,
-    required this.session,
-    required this.exercise,
-    this.routineEntry,
-    required this.startedAt,
-    required this.duration,
-    this.runningSince,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<String>(id);
-    map['session'] = Variable<String>(session);
-    map['exercise'] = Variable<String>(exercise);
-    if (!nullToAbsent || routineEntry != null) {
-      map['routine_entry'] = Variable<String>(routineEntry);
-    }
-    map['started_at'] = Variable<DateTime>(startedAt);
-    {
-      map['duration'] = Variable<int>(
-        $PracticeSessionEntriesTableTable.$converterduration.toSql(duration),
-      );
-    }
-    if (!nullToAbsent || runningSince != null) {
-      map['running_since'] = Variable<DateTime>(runningSince);
-    }
-    return map;
-  }
-
-  PracticeSessionEntriesTableCompanion toCompanion(bool nullToAbsent) {
-    return PracticeSessionEntriesTableCompanion(
-      id: Value(id),
-      session: Value(session),
-      exercise: Value(exercise),
-      routineEntry: routineEntry == null && nullToAbsent
-          ? const Value.absent()
-          : Value(routineEntry),
-      startedAt: Value(startedAt),
-      duration: Value(duration),
-      runningSince: runningSince == null && nullToAbsent
-          ? const Value.absent()
-          : Value(runningSince),
-    );
-  }
-
-  factory PracticeSessionEntriesTableData.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return PracticeSessionEntriesTableData(
-      id: serializer.fromJson<String>(json['id']),
-      session: serializer.fromJson<String>(json['session']),
-      exercise: serializer.fromJson<String>(json['exercise']),
-      routineEntry: serializer.fromJson<String?>(json['routineEntry']),
-      startedAt: serializer.fromJson<DateTime>(json['startedAt']),
-      duration: serializer.fromJson<Duration>(json['duration']),
-      runningSince: serializer.fromJson<DateTime?>(json['runningSince']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<String>(id),
-      'session': serializer.toJson<String>(session),
-      'exercise': serializer.toJson<String>(exercise),
-      'routineEntry': serializer.toJson<String?>(routineEntry),
-      'startedAt': serializer.toJson<DateTime>(startedAt),
-      'duration': serializer.toJson<Duration>(duration),
-      'runningSince': serializer.toJson<DateTime?>(runningSince),
-    };
-  }
-
-  PracticeSessionEntriesTableData copyWith({
-    String? id,
-    String? session,
-    String? exercise,
-    Value<String?> routineEntry = const Value.absent(),
-    DateTime? startedAt,
-    Duration? duration,
-    Value<DateTime?> runningSince = const Value.absent(),
-  }) => PracticeSessionEntriesTableData(
-    id: id ?? this.id,
-    session: session ?? this.session,
-    exercise: exercise ?? this.exercise,
-    routineEntry: routineEntry.present ? routineEntry.value : this.routineEntry,
-    startedAt: startedAt ?? this.startedAt,
-    duration: duration ?? this.duration,
-    runningSince: runningSince.present ? runningSince.value : this.runningSince,
-  );
-  PracticeSessionEntriesTableData copyWithCompanion(
-    PracticeSessionEntriesTableCompanion data,
-  ) {
-    return PracticeSessionEntriesTableData(
-      id: data.id.present ? data.id.value : this.id,
-      session: data.session.present ? data.session.value : this.session,
-      exercise: data.exercise.present ? data.exercise.value : this.exercise,
-      routineEntry: data.routineEntry.present
-          ? data.routineEntry.value
-          : this.routineEntry,
-      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
-      duration: data.duration.present ? data.duration.value : this.duration,
-      runningSince: data.runningSince.present
-          ? data.runningSince.value
-          : this.runningSince,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('PracticeSessionEntriesTableData(')
-          ..write('id: $id, ')
-          ..write('session: $session, ')
-          ..write('exercise: $exercise, ')
-          ..write('routineEntry: $routineEntry, ')
-          ..write('startedAt: $startedAt, ')
-          ..write('duration: $duration, ')
-          ..write('runningSince: $runningSince')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    id,
-    session,
-    exercise,
-    routineEntry,
-    startedAt,
-    duration,
-    runningSince,
-  );
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is PracticeSessionEntriesTableData &&
-          other.id == this.id &&
-          other.session == this.session &&
-          other.exercise == this.exercise &&
-          other.routineEntry == this.routineEntry &&
-          other.startedAt == this.startedAt &&
-          other.duration == this.duration &&
-          other.runningSince == this.runningSince);
-}
-
-class PracticeSessionEntriesTableCompanion
-    extends UpdateCompanion<PracticeSessionEntriesTableData> {
-  final Value<String> id;
-  final Value<String> session;
-  final Value<String> exercise;
-  final Value<String?> routineEntry;
-  final Value<DateTime> startedAt;
-  final Value<Duration> duration;
-  final Value<DateTime?> runningSince;
-  final Value<int> rowid;
-  const PracticeSessionEntriesTableCompanion({
-    this.id = const Value.absent(),
-    this.session = const Value.absent(),
-    this.exercise = const Value.absent(),
-    this.routineEntry = const Value.absent(),
-    this.startedAt = const Value.absent(),
-    this.duration = const Value.absent(),
-    this.runningSince = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  PracticeSessionEntriesTableCompanion.insert({
-    required String id,
-    required String session,
-    required String exercise,
-    this.routineEntry = const Value.absent(),
-    this.startedAt = const Value.absent(),
-    this.duration = const Value.absent(),
-    this.runningSince = const Value.absent(),
-    this.rowid = const Value.absent(),
-  }) : id = Value(id),
-       session = Value(session),
-       exercise = Value(exercise);
-  static Insertable<PracticeSessionEntriesTableData> custom({
-    Expression<String>? id,
-    Expression<String>? session,
-    Expression<String>? exercise,
-    Expression<String>? routineEntry,
-    Expression<DateTime>? startedAt,
-    Expression<int>? duration,
-    Expression<DateTime>? runningSince,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (session != null) 'session': session,
-      if (exercise != null) 'exercise': exercise,
-      if (routineEntry != null) 'routine_entry': routineEntry,
-      if (startedAt != null) 'started_at': startedAt,
-      if (duration != null) 'duration': duration,
-      if (runningSince != null) 'running_since': runningSince,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  PracticeSessionEntriesTableCompanion copyWith({
-    Value<String>? id,
-    Value<String>? session,
-    Value<String>? exercise,
-    Value<String?>? routineEntry,
-    Value<DateTime>? startedAt,
-    Value<Duration>? duration,
-    Value<DateTime?>? runningSince,
-    Value<int>? rowid,
-  }) {
-    return PracticeSessionEntriesTableCompanion(
-      id: id ?? this.id,
-      session: session ?? this.session,
-      exercise: exercise ?? this.exercise,
-      routineEntry: routineEntry ?? this.routineEntry,
-      startedAt: startedAt ?? this.startedAt,
-      duration: duration ?? this.duration,
-      runningSince: runningSince ?? this.runningSince,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<String>(id.value);
-    }
-    if (session.present) {
-      map['session'] = Variable<String>(session.value);
-    }
-    if (exercise.present) {
-      map['exercise'] = Variable<String>(exercise.value);
-    }
-    if (routineEntry.present) {
-      map['routine_entry'] = Variable<String>(routineEntry.value);
-    }
-    if (startedAt.present) {
-      map['started_at'] = Variable<DateTime>(startedAt.value);
-    }
-    if (duration.present) {
-      map['duration'] = Variable<int>(
-        $PracticeSessionEntriesTableTable.$converterduration.toSql(
-          duration.value,
-        ),
-      );
-    }
-    if (runningSince.present) {
-      map['running_since'] = Variable<DateTime>(runningSince.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('PracticeSessionEntriesTableCompanion(')
-          ..write('id: $id, ')
-          ..write('session: $session, ')
-          ..write('exercise: $exercise, ')
           ..write('routineEntry: $routineEntry, ')
           ..write('startedAt: $startedAt, ')
           ..write('duration: $duration, ')
           ..write('runningSince: $runningSince, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('writtenAt: $writtenAt, ')
+          ..write('uploaded: $uploaded, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8394,22 +8123,22 @@ class DeletedPracticeRoutinesTableCompanion
   }
 }
 
-class $DeletedPracticeSessionsTableTable extends DeletedPracticeSessionsTable
+class $DeletedPracticeRecordsTableTable extends DeletedPracticeRecordsTable
     with
         TableInfo<
-          $DeletedPracticeSessionsTableTable,
-          DeletedPracticeSessionsTableData
+          $DeletedPracticeRecordsTableTable,
+          DeletedPracticeRecordsTableData
         > {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $DeletedPracticeSessionsTableTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
-    'sessionId',
+  $DeletedPracticeRecordsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _recordIdMeta = const VerificationMeta(
+    'recordId',
   );
   @override
-  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
-    'session_id',
+  late final GeneratedColumn<String> recordId = GeneratedColumn<String>(
+    'record_id',
     aliasedName,
     false,
     type: DriftSqlType.string,
@@ -8428,26 +8157,26 @@ class $DeletedPracticeSessionsTableTable extends DeletedPracticeSessionsTable
     clientDefault: () => DateTime.now().toUtc(),
   );
   @override
-  List<GeneratedColumn> get $columns => [sessionId, deletedAt];
+  List<GeneratedColumn> get $columns => [recordId, deletedAt];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'deleted_practice_sessions';
+  static const String $name = 'deleted_practice_records';
   @override
   VerificationContext validateIntegrity(
-    Insertable<DeletedPracticeSessionsTableData> instance, {
+    Insertable<DeletedPracticeRecordsTableData> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
-    if (data.containsKey('session_id')) {
+    if (data.containsKey('record_id')) {
       context.handle(
-        _sessionIdMeta,
-        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+        _recordIdMeta,
+        recordId.isAcceptableOrUnknown(data['record_id']!, _recordIdMeta),
       );
     } else if (isInserting) {
-      context.missing(_sessionIdMeta);
+      context.missing(_recordIdMeta);
     }
     if (data.containsKey('deleted_at')) {
       context.handle(
@@ -8459,17 +8188,17 @@ class $DeletedPracticeSessionsTableTable extends DeletedPracticeSessionsTable
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {sessionId};
+  Set<GeneratedColumn> get $primaryKey => {recordId};
   @override
-  DeletedPracticeSessionsTableData map(
+  DeletedPracticeRecordsTableData map(
     Map<String, dynamic> data, {
     String? tablePrefix,
   }) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return DeletedPracticeSessionsTableData(
-      sessionId: attachedDatabase.typeMapping.read(
+    return DeletedPracticeRecordsTableData(
+      recordId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}session_id'],
+        data['${effectivePrefix}record_id'],
       )!,
       deletedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
@@ -8479,41 +8208,41 @@ class $DeletedPracticeSessionsTableTable extends DeletedPracticeSessionsTable
   }
 
   @override
-  $DeletedPracticeSessionsTableTable createAlias(String alias) {
-    return $DeletedPracticeSessionsTableTable(attachedDatabase, alias);
+  $DeletedPracticeRecordsTableTable createAlias(String alias) {
+    return $DeletedPracticeRecordsTableTable(attachedDatabase, alias);
   }
 }
 
-class DeletedPracticeSessionsTableData extends DataClass
-    implements Insertable<DeletedPracticeSessionsTableData> {
-  final String sessionId;
+class DeletedPracticeRecordsTableData extends DataClass
+    implements Insertable<DeletedPracticeRecordsTableData> {
+  final String recordId;
   final DateTime deletedAt;
-  const DeletedPracticeSessionsTableData({
-    required this.sessionId,
+  const DeletedPracticeRecordsTableData({
+    required this.recordId,
     required this.deletedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    map['session_id'] = Variable<String>(sessionId);
+    map['record_id'] = Variable<String>(recordId);
     map['deleted_at'] = Variable<DateTime>(deletedAt);
     return map;
   }
 
-  DeletedPracticeSessionsTableCompanion toCompanion(bool nullToAbsent) {
-    return DeletedPracticeSessionsTableCompanion(
-      sessionId: Value(sessionId),
+  DeletedPracticeRecordsTableCompanion toCompanion(bool nullToAbsent) {
+    return DeletedPracticeRecordsTableCompanion(
+      recordId: Value(recordId),
       deletedAt: Value(deletedAt),
     );
   }
 
-  factory DeletedPracticeSessionsTableData.fromJson(
+  factory DeletedPracticeRecordsTableData.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return DeletedPracticeSessionsTableData(
-      sessionId: serializer.fromJson<String>(json['sessionId']),
+    return DeletedPracticeRecordsTableData(
+      recordId: serializer.fromJson<String>(json['recordId']),
       deletedAt: serializer.fromJson<DateTime>(json['deletedAt']),
     );
   }
@@ -8521,80 +8250,80 @@ class DeletedPracticeSessionsTableData extends DataClass
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'sessionId': serializer.toJson<String>(sessionId),
+      'recordId': serializer.toJson<String>(recordId),
       'deletedAt': serializer.toJson<DateTime>(deletedAt),
     };
   }
 
-  DeletedPracticeSessionsTableData copyWith({
-    String? sessionId,
+  DeletedPracticeRecordsTableData copyWith({
+    String? recordId,
     DateTime? deletedAt,
-  }) => DeletedPracticeSessionsTableData(
-    sessionId: sessionId ?? this.sessionId,
+  }) => DeletedPracticeRecordsTableData(
+    recordId: recordId ?? this.recordId,
     deletedAt: deletedAt ?? this.deletedAt,
   );
-  DeletedPracticeSessionsTableData copyWithCompanion(
-    DeletedPracticeSessionsTableCompanion data,
+  DeletedPracticeRecordsTableData copyWithCompanion(
+    DeletedPracticeRecordsTableCompanion data,
   ) {
-    return DeletedPracticeSessionsTableData(
-      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+    return DeletedPracticeRecordsTableData(
+      recordId: data.recordId.present ? data.recordId.value : this.recordId,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
     );
   }
 
   @override
   String toString() {
-    return (StringBuffer('DeletedPracticeSessionsTableData(')
-          ..write('sessionId: $sessionId, ')
+    return (StringBuffer('DeletedPracticeRecordsTableData(')
+          ..write('recordId: $recordId, ')
           ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(sessionId, deletedAt);
+  int get hashCode => Object.hash(recordId, deletedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is DeletedPracticeSessionsTableData &&
-          other.sessionId == this.sessionId &&
+      (other is DeletedPracticeRecordsTableData &&
+          other.recordId == this.recordId &&
           other.deletedAt == this.deletedAt);
 }
 
-class DeletedPracticeSessionsTableCompanion
-    extends UpdateCompanion<DeletedPracticeSessionsTableData> {
-  final Value<String> sessionId;
+class DeletedPracticeRecordsTableCompanion
+    extends UpdateCompanion<DeletedPracticeRecordsTableData> {
+  final Value<String> recordId;
   final Value<DateTime> deletedAt;
   final Value<int> rowid;
-  const DeletedPracticeSessionsTableCompanion({
-    this.sessionId = const Value.absent(),
+  const DeletedPracticeRecordsTableCompanion({
+    this.recordId = const Value.absent(),
     this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
-  DeletedPracticeSessionsTableCompanion.insert({
-    required String sessionId,
+  DeletedPracticeRecordsTableCompanion.insert({
+    required String recordId,
     this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
-  }) : sessionId = Value(sessionId);
-  static Insertable<DeletedPracticeSessionsTableData> custom({
-    Expression<String>? sessionId,
+  }) : recordId = Value(recordId);
+  static Insertable<DeletedPracticeRecordsTableData> custom({
+    Expression<String>? recordId,
     Expression<DateTime>? deletedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
-      if (sessionId != null) 'session_id': sessionId,
+      if (recordId != null) 'record_id': recordId,
       if (deletedAt != null) 'deleted_at': deletedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
 
-  DeletedPracticeSessionsTableCompanion copyWith({
-    Value<String>? sessionId,
+  DeletedPracticeRecordsTableCompanion copyWith({
+    Value<String>? recordId,
     Value<DateTime>? deletedAt,
     Value<int>? rowid,
   }) {
-    return DeletedPracticeSessionsTableCompanion(
-      sessionId: sessionId ?? this.sessionId,
+    return DeletedPracticeRecordsTableCompanion(
+      recordId: recordId ?? this.recordId,
       deletedAt: deletedAt ?? this.deletedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -8603,8 +8332,8 @@ class DeletedPracticeSessionsTableCompanion
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    if (sessionId.present) {
-      map['session_id'] = Variable<String>(sessionId.value);
+    if (recordId.present) {
+      map['record_id'] = Variable<String>(recordId.value);
     }
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
@@ -8617,8 +8346,8 @@ class DeletedPracticeSessionsTableCompanion
 
   @override
   String toString() {
-    return (StringBuffer('DeletedPracticeSessionsTableCompanion(')
-          ..write('sessionId: $sessionId, ')
+    return (StringBuffer('DeletedPracticeRecordsTableCompanion(')
+          ..write('recordId: $recordId, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -8661,18 +8390,16 @@ abstract class _$Database extends GeneratedDatabase {
       $PracticeRoutinesTableTable(this);
   late final $PracticeRoutineEntriesTableTable practiceRoutineEntriesTable =
       $PracticeRoutineEntriesTableTable(this);
-  late final $PracticeSessionsTableTable practiceSessionsTable =
-      $PracticeSessionsTableTable(this);
-  late final $PracticeSessionEntriesTableTable practiceSessionEntriesTable =
-      $PracticeSessionEntriesTableTable(this);
+  late final $PracticeRecordsTableTable practiceRecordsTable =
+      $PracticeRecordsTableTable(this);
   late final $DeletedExerciseCategoriesTableTable
   deletedExerciseCategoriesTable = $DeletedExerciseCategoriesTableTable(this);
   late final $DeletedExercisesTableTable deletedExercisesTable =
       $DeletedExercisesTableTable(this);
   late final $DeletedPracticeRoutinesTableTable deletedPracticeRoutinesTable =
       $DeletedPracticeRoutinesTableTable(this);
-  late final $DeletedPracticeSessionsTableTable deletedPracticeSessionsTable =
-      $DeletedPracticeSessionsTableTable(this);
+  late final $DeletedPracticeRecordsTableTable deletedPracticeRecordsTable =
+      $DeletedPracticeRecordsTableTable(this);
   late final Index searchTextIndex = Index(
     'search_text_index',
     'CREATE INDEX search_text_index ON scores (search_text)',
@@ -8701,21 +8428,17 @@ abstract class _$Database extends GeneratedDatabase {
     'practice_routine_entries_exercise_index',
     'CREATE INDEX practice_routine_entries_exercise_index ON practice_routine_entries (exercise)',
   );
-  late final Index practiceSessionsStartedAtIndex = Index(
-    'practice_sessions_started_at_index',
-    'CREATE INDEX practice_sessions_started_at_index ON practice_sessions (started_at)',
+  late final Index practiceRecordsStartedAtIndex = Index(
+    'practice_records_started_at_index',
+    'CREATE INDEX practice_records_started_at_index ON practice_records (started_at)',
   );
-  late final Index practiceSessionsRoutineIndex = Index(
-    'practice_sessions_routine_index',
-    'CREATE INDEX practice_sessions_routine_index ON practice_sessions (routine)',
+  late final Index practiceRecordsExerciseIndex = Index(
+    'practice_records_exercise_index',
+    'CREATE INDEX practice_records_exercise_index ON practice_records (exercise)',
   );
-  late final Index practiceSessionEntriesExerciseIndex = Index(
-    'practice_session_entries_exercise_index',
-    'CREATE INDEX practice_session_entries_exercise_index ON practice_session_entries (exercise)',
-  );
-  late final Index practiceSessionEntriesRoutineEntryIndex = Index(
-    'practice_session_entries_routine_entry_index',
-    'CREATE INDEX practice_session_entries_routine_entry_index ON practice_session_entries (routine_entry)',
+  late final Index practiceRecordsRoutineIndex = Index(
+    'practice_records_routine_index',
+    'CREATE INDEX practice_records_routine_index ON practice_records (routine)',
   );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -8740,12 +8463,11 @@ abstract class _$Database extends GeneratedDatabase {
     exerciseTagsTable,
     practiceRoutinesTable,
     practiceRoutineEntriesTable,
-    practiceSessionsTable,
-    practiceSessionEntriesTable,
+    practiceRecordsTable,
     deletedExerciseCategoriesTable,
     deletedExercisesTable,
     deletedPracticeRoutinesTable,
-    deletedPracticeSessionsTable,
+    deletedPracticeRecordsTable,
     searchTextIndex,
     recentTimeIndex,
     statusIndex,
@@ -8753,10 +8475,9 @@ abstract class _$Database extends GeneratedDatabase {
     exerciseScoresScoreIndex,
     practiceRoutineEntriesRoutineIndex,
     practiceRoutineEntriesExerciseIndex,
-    practiceSessionsStartedAtIndex,
-    practiceSessionsRoutineIndex,
-    practiceSessionEntriesExerciseIndex,
-    practiceSessionEntriesRoutineEntryIndex,
+    practiceRecordsStartedAtIndex,
+    practiceRecordsExerciseIndex,
+    practiceRecordsRoutineIndex,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -8904,24 +8625,6 @@ abstract class _$Database extends GeneratedDatabase {
       ),
       result: [
         TableUpdate('practice_routine_entries', kind: UpdateKind.update),
-      ],
-    ),
-    WritePropagation(
-      on: TableUpdateQuery.onTableName(
-        'practice_sessions',
-        limitUpdateKind: UpdateKind.delete,
-      ),
-      result: [
-        TableUpdate('practice_session_entries', kind: UpdateKind.delete),
-      ],
-    ),
-    WritePropagation(
-      on: TableUpdateQuery.onTableName(
-        'practice_sessions',
-        limitUpdateKind: UpdateKind.update,
-      ),
-      result: [
-        TableUpdate('practice_session_entries', kind: UpdateKind.update),
       ],
     ),
   ]);
@@ -12941,6 +12644,7 @@ typedef $$ExercisesTableTableCreateCompanionBuilder =
       Value<String?> sourceLink,
       Value<String?> instrument,
       Value<int?> targetBpm,
+      Value<DateTime?> progressResetAt,
       Value<DateTime> updatedAt,
       Value<DateTime?> writtenAt,
       Value<bool> uploaded,
@@ -12956,6 +12660,7 @@ typedef $$ExercisesTableTableUpdateCompanionBuilder =
       Value<String?> sourceLink,
       Value<String?> instrument,
       Value<int?> targetBpm,
+      Value<DateTime?> progressResetAt,
       Value<DateTime> updatedAt,
       Value<DateTime?> writtenAt,
       Value<bool> uploaded,
@@ -13102,6 +12807,11 @@ class $$ExercisesTableTableFilterComposer
 
   ColumnFilters<int> get targetBpm => $composableBuilder(
     column: $table.targetBpm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get progressResetAt => $composableBuilder(
+    column: $table.progressResetAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13268,6 +12978,11 @@ class $$ExercisesTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get progressResetAt => $composableBuilder(
+    column: $table.progressResetAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
@@ -13343,6 +13058,11 @@ class $$ExercisesTableTableAnnotationComposer
 
   GeneratedColumn<int> get targetBpm =>
       $composableBuilder(column: $table.targetBpm, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get progressResetAt => $composableBuilder(
+    column: $table.progressResetAt,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
@@ -13500,6 +13220,7 @@ class $$ExercisesTableTableTableManager
                 Value<String?> sourceLink = const Value.absent(),
                 Value<String?> instrument = const Value.absent(),
                 Value<int?> targetBpm = const Value.absent(),
+                Value<DateTime?> progressResetAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> writtenAt = const Value.absent(),
                 Value<bool> uploaded = const Value.absent(),
@@ -13513,6 +13234,7 @@ class $$ExercisesTableTableTableManager
                 sourceLink: sourceLink,
                 instrument: instrument,
                 targetBpm: targetBpm,
+                progressResetAt: progressResetAt,
                 updatedAt: updatedAt,
                 writtenAt: writtenAt,
                 uploaded: uploaded,
@@ -13528,6 +13250,7 @@ class $$ExercisesTableTableTableManager
                 Value<String?> sourceLink = const Value.absent(),
                 Value<String?> instrument = const Value.absent(),
                 Value<int?> targetBpm = const Value.absent(),
+                Value<DateTime?> progressResetAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> writtenAt = const Value.absent(),
                 Value<bool> uploaded = const Value.absent(),
@@ -13541,6 +13264,7 @@ class $$ExercisesTableTableTableManager
                 sourceLink: sourceLink,
                 instrument: instrument,
                 targetBpm: targetBpm,
+                progressResetAt: progressResetAt,
                 updatedAt: updatedAt,
                 writtenAt: writtenAt,
                 uploaded: uploaded,
@@ -14367,6 +14091,7 @@ typedef $$PracticeRoutinesTableTableCreateCompanionBuilder =
       required String id,
       required String name,
       Value<String?> description,
+      Value<DateTime?> progressResetAt,
       Value<DateTime> updatedAt,
       Value<DateTime?> writtenAt,
       Value<bool> uploaded,
@@ -14377,6 +14102,7 @@ typedef $$PracticeRoutinesTableTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> name,
       Value<String?> description,
+      Value<DateTime?> progressResetAt,
       Value<DateTime> updatedAt,
       Value<DateTime?> writtenAt,
       Value<bool> uploaded,
@@ -14443,6 +14169,11 @@ class $$PracticeRoutinesTableTableFilterComposer
 
   ColumnFilters<String> get description => $composableBuilder(
     column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get progressResetAt => $composableBuilder(
+    column: $table.progressResetAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14515,6 +14246,11 @@ class $$PracticeRoutinesTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get progressResetAt => $composableBuilder(
+    column: $table.progressResetAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
@@ -14548,6 +14284,11 @@ class $$PracticeRoutinesTableTableAnnotationComposer
 
   GeneratedColumn<String> get description => $composableBuilder(
     column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get progressResetAt => $composableBuilder(
+    column: $table.progressResetAt,
     builder: (column) => column,
   );
 
@@ -14632,6 +14373,7 @@ class $$PracticeRoutinesTableTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String?> description = const Value.absent(),
+                Value<DateTime?> progressResetAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> writtenAt = const Value.absent(),
                 Value<bool> uploaded = const Value.absent(),
@@ -14640,6 +14382,7 @@ class $$PracticeRoutinesTableTableTableManager
                 id: id,
                 name: name,
                 description: description,
+                progressResetAt: progressResetAt,
                 updatedAt: updatedAt,
                 writtenAt: writtenAt,
                 uploaded: uploaded,
@@ -14650,6 +14393,7 @@ class $$PracticeRoutinesTableTableTableManager
                 required String id,
                 required String name,
                 Value<String?> description = const Value.absent(),
+                Value<DateTime?> progressResetAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> writtenAt = const Value.absent(),
                 Value<bool> uploaded = const Value.absent(),
@@ -14658,6 +14402,7 @@ class $$PracticeRoutinesTableTableTableManager
                 id: id,
                 name: name,
                 description: description,
+                progressResetAt: progressResetAt,
                 updatedAt: updatedAt,
                 writtenAt: writtenAt,
                 uploaded: uploaded,
@@ -15211,465 +14956,38 @@ typedef $$PracticeRoutineEntriesTableTableProcessedTableManager =
       PracticeRoutineEntriesTableData,
       PrefetchHooks Function({bool routine, bool exercise})
     >;
-typedef $$PracticeSessionsTableTableCreateCompanionBuilder =
-    PracticeSessionsTableCompanion Function({
+typedef $$PracticeRecordsTableTableCreateCompanionBuilder =
+    PracticeRecordsTableCompanion Function({
       required String id,
-      required DateTime startedAt,
-      Value<DateTime?> endedAt,
-      Value<String?> routine,
-      Value<String?> description,
-      Value<DateTime> updatedAt,
-      Value<DateTime?> writtenAt,
-      Value<bool> uploaded,
-      Value<int> rowid,
-    });
-typedef $$PracticeSessionsTableTableUpdateCompanionBuilder =
-    PracticeSessionsTableCompanion Function({
-      Value<String> id,
-      Value<DateTime> startedAt,
-      Value<DateTime?> endedAt,
-      Value<String?> routine,
-      Value<String?> description,
-      Value<DateTime> updatedAt,
-      Value<DateTime?> writtenAt,
-      Value<bool> uploaded,
-      Value<int> rowid,
-    });
-
-final class $$PracticeSessionsTableTableReferences
-    extends
-        BaseReferences<
-          _$Database,
-          $PracticeSessionsTableTable,
-          PracticeSessionsTableData
-        > {
-  $$PracticeSessionsTableTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
-
-  static MultiTypedResultKey<
-    $PracticeSessionEntriesTableTable,
-    List<PracticeSessionEntriesTableData>
-  >
-  _practiceSessionEntriesTableRefsTable(_$Database db) =>
-      MultiTypedResultKey.fromTable(
-        db.practiceSessionEntriesTable,
-        aliasName: 'practice_sessions__id__practice_session_entries__session',
-      );
-
-  $$PracticeSessionEntriesTableTableProcessedTableManager
-  get practiceSessionEntriesTableRefs {
-    final manager = $$PracticeSessionEntriesTableTableTableManager(
-      $_db,
-      $_db.practiceSessionEntriesTable,
-    ).filter((f) => f.session.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(
-      _practiceSessionEntriesTableRefsTable($_db),
-    );
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-}
-
-class $$PracticeSessionsTableTableFilterComposer
-    extends Composer<_$Database, $PracticeSessionsTableTable> {
-  $$PracticeSessionsTableTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get startedAt => $composableBuilder(
-    column: $table.startedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get endedAt => $composableBuilder(
-    column: $table.endedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get routine => $composableBuilder(
-    column: $table.routine,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get description => $composableBuilder(
-    column: $table.description,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get writtenAt => $composableBuilder(
-    column: $table.writtenAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get uploaded => $composableBuilder(
-    column: $table.uploaded,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  Expression<bool> practiceSessionEntriesTableRefs(
-    Expression<bool> Function(
-      $$PracticeSessionEntriesTableTableFilterComposer f,
-    )
-    f,
-  ) {
-    final $$PracticeSessionEntriesTableTableFilterComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.practiceSessionEntriesTable,
-          getReferencedColumn: (t) => t.session,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$PracticeSessionEntriesTableTableFilterComposer(
-                $db: $db,
-                $table: $db.practiceSessionEntriesTable,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-}
-
-class $$PracticeSessionsTableTableOrderingComposer
-    extends Composer<_$Database, $PracticeSessionsTableTable> {
-  $$PracticeSessionsTableTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get startedAt => $composableBuilder(
-    column: $table.startedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get endedAt => $composableBuilder(
-    column: $table.endedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get routine => $composableBuilder(
-    column: $table.routine,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get description => $composableBuilder(
-    column: $table.description,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get writtenAt => $composableBuilder(
-    column: $table.writtenAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get uploaded => $composableBuilder(
-    column: $table.uploaded,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$PracticeSessionsTableTableAnnotationComposer
-    extends Composer<_$Database, $PracticeSessionsTableTable> {
-  $$PracticeSessionsTableTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get startedAt =>
-      $composableBuilder(column: $table.startedAt, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get endedAt =>
-      $composableBuilder(column: $table.endedAt, builder: (column) => column);
-
-  GeneratedColumn<String> get routine =>
-      $composableBuilder(column: $table.routine, builder: (column) => column);
-
-  GeneratedColumn<String> get description => $composableBuilder(
-    column: $table.description,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<DateTime> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get writtenAt =>
-      $composableBuilder(column: $table.writtenAt, builder: (column) => column);
-
-  GeneratedColumn<bool> get uploaded =>
-      $composableBuilder(column: $table.uploaded, builder: (column) => column);
-
-  Expression<T> practiceSessionEntriesTableRefs<T extends Object>(
-    Expression<T> Function(
-      $$PracticeSessionEntriesTableTableAnnotationComposer a,
-    )
-    f,
-  ) {
-    final $$PracticeSessionEntriesTableTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.practiceSessionEntriesTable,
-          getReferencedColumn: (t) => t.session,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$PracticeSessionEntriesTableTableAnnotationComposer(
-                $db: $db,
-                $table: $db.practiceSessionEntriesTable,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-}
-
-class $$PracticeSessionsTableTableTableManager
-    extends
-        RootTableManager<
-          _$Database,
-          $PracticeSessionsTableTable,
-          PracticeSessionsTableData,
-          $$PracticeSessionsTableTableFilterComposer,
-          $$PracticeSessionsTableTableOrderingComposer,
-          $$PracticeSessionsTableTableAnnotationComposer,
-          $$PracticeSessionsTableTableCreateCompanionBuilder,
-          $$PracticeSessionsTableTableUpdateCompanionBuilder,
-          (PracticeSessionsTableData, $$PracticeSessionsTableTableReferences),
-          PracticeSessionsTableData,
-          PrefetchHooks Function({bool practiceSessionEntriesTableRefs})
-        > {
-  $$PracticeSessionsTableTableTableManager(
-    _$Database db,
-    $PracticeSessionsTableTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$PracticeSessionsTableTableFilterComposer(
-                $db: db,
-                $table: table,
-              ),
-          createOrderingComposer: () =>
-              $$PracticeSessionsTableTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
-          createComputedFieldComposer: () =>
-              $$PracticeSessionsTableTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<String> id = const Value.absent(),
-                Value<DateTime> startedAt = const Value.absent(),
-                Value<DateTime?> endedAt = const Value.absent(),
-                Value<String?> routine = const Value.absent(),
-                Value<String?> description = const Value.absent(),
-                Value<DateTime> updatedAt = const Value.absent(),
-                Value<DateTime?> writtenAt = const Value.absent(),
-                Value<bool> uploaded = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => PracticeSessionsTableCompanion(
-                id: id,
-                startedAt: startedAt,
-                endedAt: endedAt,
-                routine: routine,
-                description: description,
-                updatedAt: updatedAt,
-                writtenAt: writtenAt,
-                uploaded: uploaded,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String id,
-                required DateTime startedAt,
-                Value<DateTime?> endedAt = const Value.absent(),
-                Value<String?> routine = const Value.absent(),
-                Value<String?> description = const Value.absent(),
-                Value<DateTime> updatedAt = const Value.absent(),
-                Value<DateTime?> writtenAt = const Value.absent(),
-                Value<bool> uploaded = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => PracticeSessionsTableCompanion.insert(
-                id: id,
-                startedAt: startedAt,
-                endedAt: endedAt,
-                routine: routine,
-                description: description,
-                updatedAt: updatedAt,
-                writtenAt: writtenAt,
-                uploaded: uploaded,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<
-                    $PracticeSessionsTableTable,
-                    PracticeSessionsTableData
-                  >(table),
-                  $$PracticeSessionsTableTableReferences(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: ({practiceSessionEntriesTableRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (practiceSessionEntriesTableRefs)
-                  db.practiceSessionEntriesTable,
-              ],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (practiceSessionEntriesTableRefs)
-                    await $_getPrefetchedData<
-                      PracticeSessionsTableData,
-                      $PracticeSessionsTableTable,
-                      PracticeSessionEntriesTableData
-                    >(
-                      currentTable: table,
-                      referencedTable: $$PracticeSessionsTableTableReferences
-                          ._practiceSessionEntriesTableRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$PracticeSessionsTableTableReferences(
-                            db,
-                            table,
-                            p0,
-                          ).practiceSessionEntriesTableRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.session == item.id),
-                      typedResults: items,
-                    ),
-                ];
-              },
-            );
-          },
-        ),
-      );
-}
-
-typedef $$PracticeSessionsTableTableProcessedTableManager =
-    ProcessedTableManager<
-      _$Database,
-      $PracticeSessionsTableTable,
-      PracticeSessionsTableData,
-      $$PracticeSessionsTableTableFilterComposer,
-      $$PracticeSessionsTableTableOrderingComposer,
-      $$PracticeSessionsTableTableAnnotationComposer,
-      $$PracticeSessionsTableTableCreateCompanionBuilder,
-      $$PracticeSessionsTableTableUpdateCompanionBuilder,
-      (PracticeSessionsTableData, $$PracticeSessionsTableTableReferences),
-      PracticeSessionsTableData,
-      PrefetchHooks Function({bool practiceSessionEntriesTableRefs})
-    >;
-typedef $$PracticeSessionEntriesTableTableCreateCompanionBuilder =
-    PracticeSessionEntriesTableCompanion Function({
-      required String id,
-      required String session,
       required String exercise,
+      Value<String?> routine,
       Value<String?> routineEntry,
-      Value<DateTime> startedAt,
+      required DateTime startedAt,
       Value<Duration> duration,
       Value<DateTime?> runningSince,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> writtenAt,
+      Value<bool> uploaded,
       Value<int> rowid,
     });
-typedef $$PracticeSessionEntriesTableTableUpdateCompanionBuilder =
-    PracticeSessionEntriesTableCompanion Function({
+typedef $$PracticeRecordsTableTableUpdateCompanionBuilder =
+    PracticeRecordsTableCompanion Function({
       Value<String> id,
-      Value<String> session,
       Value<String> exercise,
+      Value<String?> routine,
       Value<String?> routineEntry,
       Value<DateTime> startedAt,
       Value<Duration> duration,
       Value<DateTime?> runningSince,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> writtenAt,
+      Value<bool> uploaded,
       Value<int> rowid,
     });
 
-final class $$PracticeSessionEntriesTableTableReferences
-    extends
-        BaseReferences<
-          _$Database,
-          $PracticeSessionEntriesTableTable,
-          PracticeSessionEntriesTableData
-        > {
-  $$PracticeSessionEntriesTableTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
-
-  static $PracticeSessionsTableTable _sessionTable(_$Database db) => db
-      .practiceSessionsTable
-      .createAlias('practice_session_entries__session__practice_sessions__id');
-
-  $$PracticeSessionsTableTableProcessedTableManager get session {
-    final $_column = $_itemColumn<String>('session')!;
-
-    final manager = $$PracticeSessionsTableTableTableManager(
-      $_db,
-      $_db.practiceSessionsTable,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_sessionTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
-class $$PracticeSessionEntriesTableTableFilterComposer
-    extends Composer<_$Database, $PracticeSessionEntriesTableTable> {
-  $$PracticeSessionEntriesTableTableFilterComposer({
+class $$PracticeRecordsTableTableFilterComposer
+    extends Composer<_$Database, $PracticeRecordsTableTable> {
+  $$PracticeRecordsTableTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -15683,6 +15001,11 @@ class $$PracticeSessionEntriesTableTableFilterComposer
 
   ColumnFilters<String> get exercise => $composableBuilder(
     column: $table.exercise,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get routine => $composableBuilder(
+    column: $table.routine,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -15707,34 +15030,25 @@ class $$PracticeSessionEntriesTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  $$PracticeSessionsTableTableFilterComposer get session {
-    final $$PracticeSessionsTableTableFilterComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.session,
-          referencedTable: $db.practiceSessionsTable,
-          getReferencedColumn: (t) => t.id,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$PracticeSessionsTableTableFilterComposer(
-                $db: $db,
-                $table: $db.practiceSessionsTable,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return composer;
-  }
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get writtenAt => $composableBuilder(
+    column: $table.writtenAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get uploaded => $composableBuilder(
+    column: $table.uploaded,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
-class $$PracticeSessionEntriesTableTableOrderingComposer
-    extends Composer<_$Database, $PracticeSessionEntriesTableTable> {
-  $$PracticeSessionEntriesTableTableOrderingComposer({
+class $$PracticeRecordsTableTableOrderingComposer
+    extends Composer<_$Database, $PracticeRecordsTableTable> {
+  $$PracticeRecordsTableTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -15748,6 +15062,11 @@ class $$PracticeSessionEntriesTableTableOrderingComposer
 
   ColumnOrderings<String> get exercise => $composableBuilder(
     column: $table.exercise,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get routine => $composableBuilder(
+    column: $table.routine,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -15771,34 +15090,25 @@ class $$PracticeSessionEntriesTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  $$PracticeSessionsTableTableOrderingComposer get session {
-    final $$PracticeSessionsTableTableOrderingComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.session,
-          referencedTable: $db.practiceSessionsTable,
-          getReferencedColumn: (t) => t.id,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$PracticeSessionsTableTableOrderingComposer(
-                $db: $db,
-                $table: $db.practiceSessionsTable,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return composer;
-  }
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get writtenAt => $composableBuilder(
+    column: $table.writtenAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get uploaded => $composableBuilder(
+    column: $table.uploaded,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
-class $$PracticeSessionEntriesTableTableAnnotationComposer
-    extends Composer<_$Database, $PracticeSessionEntriesTableTable> {
-  $$PracticeSessionEntriesTableTableAnnotationComposer({
+class $$PracticeRecordsTableTableAnnotationComposer
+    extends Composer<_$Database, $PracticeRecordsTableTable> {
+  $$PracticeRecordsTableTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -15810,6 +15120,9 @@ class $$PracticeSessionEntriesTableTableAnnotationComposer
 
   GeneratedColumn<String> get exercise =>
       $composableBuilder(column: $table.exercise, builder: (column) => column);
+
+  GeneratedColumn<String> get routine =>
+      $composableBuilder(column: $table.routine, builder: (column) => column);
 
   GeneratedColumn<String> get routineEntry => $composableBuilder(
     column: $table.routineEntry,
@@ -15827,185 +15140,149 @@ class $$PracticeSessionEntriesTableTableAnnotationComposer
     builder: (column) => column,
   );
 
-  $$PracticeSessionsTableTableAnnotationComposer get session {
-    final $$PracticeSessionsTableTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.session,
-          referencedTable: $db.practiceSessionsTable,
-          getReferencedColumn: (t) => t.id,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$PracticeSessionsTableTableAnnotationComposer(
-                $db: $db,
-                $table: $db.practiceSessionsTable,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return composer;
-  }
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get writtenAt =>
+      $composableBuilder(column: $table.writtenAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get uploaded =>
+      $composableBuilder(column: $table.uploaded, builder: (column) => column);
 }
 
-class $$PracticeSessionEntriesTableTableTableManager
+class $$PracticeRecordsTableTableTableManager
     extends
         RootTableManager<
           _$Database,
-          $PracticeSessionEntriesTableTable,
-          PracticeSessionEntriesTableData,
-          $$PracticeSessionEntriesTableTableFilterComposer,
-          $$PracticeSessionEntriesTableTableOrderingComposer,
-          $$PracticeSessionEntriesTableTableAnnotationComposer,
-          $$PracticeSessionEntriesTableTableCreateCompanionBuilder,
-          $$PracticeSessionEntriesTableTableUpdateCompanionBuilder,
+          $PracticeRecordsTableTable,
+          PracticeRecordsTableData,
+          $$PracticeRecordsTableTableFilterComposer,
+          $$PracticeRecordsTableTableOrderingComposer,
+          $$PracticeRecordsTableTableAnnotationComposer,
+          $$PracticeRecordsTableTableCreateCompanionBuilder,
+          $$PracticeRecordsTableTableUpdateCompanionBuilder,
           (
-            PracticeSessionEntriesTableData,
-            $$PracticeSessionEntriesTableTableReferences,
+            PracticeRecordsTableData,
+            BaseReferences<
+              _$Database,
+              $PracticeRecordsTableTable,
+              PracticeRecordsTableData
+            >,
           ),
-          PracticeSessionEntriesTableData,
-          PrefetchHooks Function({bool session})
+          PracticeRecordsTableData,
+          PrefetchHooks Function()
         > {
-  $$PracticeSessionEntriesTableTableTableManager(
+  $$PracticeRecordsTableTableTableManager(
     _$Database db,
-    $PracticeSessionEntriesTableTable table,
+    $PracticeRecordsTableTable table,
   ) : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$PracticeSessionEntriesTableTableFilterComposer(
-                $db: db,
-                $table: table,
-              ),
+              $$PracticeRecordsTableTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$PracticeSessionEntriesTableTableOrderingComposer(
+              $$PracticeRecordsTableTableOrderingComposer(
                 $db: db,
                 $table: table,
               ),
           createComputedFieldComposer: () =>
-              $$PracticeSessionEntriesTableTableAnnotationComposer(
+              $$PracticeRecordsTableTableAnnotationComposer(
                 $db: db,
                 $table: table,
               ),
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
-                Value<String> session = const Value.absent(),
                 Value<String> exercise = const Value.absent(),
+                Value<String?> routine = const Value.absent(),
                 Value<String?> routineEntry = const Value.absent(),
                 Value<DateTime> startedAt = const Value.absent(),
                 Value<Duration> duration = const Value.absent(),
                 Value<DateTime?> runningSince = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> writtenAt = const Value.absent(),
+                Value<bool> uploaded = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
-              }) => PracticeSessionEntriesTableCompanion(
+              }) => PracticeRecordsTableCompanion(
                 id: id,
-                session: session,
                 exercise: exercise,
+                routine: routine,
                 routineEntry: routineEntry,
                 startedAt: startedAt,
                 duration: duration,
                 runningSince: runningSince,
+                updatedAt: updatedAt,
+                writtenAt: writtenAt,
+                uploaded: uploaded,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
                 required String id,
-                required String session,
                 required String exercise,
+                Value<String?> routine = const Value.absent(),
                 Value<String?> routineEntry = const Value.absent(),
-                Value<DateTime> startedAt = const Value.absent(),
+                required DateTime startedAt,
                 Value<Duration> duration = const Value.absent(),
                 Value<DateTime?> runningSince = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> writtenAt = const Value.absent(),
+                Value<bool> uploaded = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
-              }) => PracticeSessionEntriesTableCompanion.insert(
+              }) => PracticeRecordsTableCompanion.insert(
                 id: id,
-                session: session,
                 exercise: exercise,
+                routine: routine,
                 routineEntry: routineEntry,
                 startedAt: startedAt,
                 duration: duration,
                 runningSince: runningSince,
+                updatedAt: updatedAt,
+                writtenAt: writtenAt,
+                uploaded: uploaded,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
                   e.readTable<
-                    $PracticeSessionEntriesTableTable,
-                    PracticeSessionEntriesTableData
+                    $PracticeRecordsTableTable,
+                    PracticeRecordsTableData
                   >(table),
-                  $$PracticeSessionEntriesTableTableReferences(db, table, e),
+                  BaseReferences<
+                    _$Database,
+                    $PracticeRecordsTableTable,
+                    PracticeRecordsTableData
+                  >(db, table, e),
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({session = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (session) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.session,
-                                referencedTable:
-                                    $$PracticeSessionEntriesTableTableReferences
-                                        ._sessionTable(db),
-                                referencedColumn:
-                                    $$PracticeSessionEntriesTableTableReferences
-                                        ._sessionTable(db)
-                                        .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ),
       );
 }
 
-typedef $$PracticeSessionEntriesTableTableProcessedTableManager =
+typedef $$PracticeRecordsTableTableProcessedTableManager =
     ProcessedTableManager<
       _$Database,
-      $PracticeSessionEntriesTableTable,
-      PracticeSessionEntriesTableData,
-      $$PracticeSessionEntriesTableTableFilterComposer,
-      $$PracticeSessionEntriesTableTableOrderingComposer,
-      $$PracticeSessionEntriesTableTableAnnotationComposer,
-      $$PracticeSessionEntriesTableTableCreateCompanionBuilder,
-      $$PracticeSessionEntriesTableTableUpdateCompanionBuilder,
+      $PracticeRecordsTableTable,
+      PracticeRecordsTableData,
+      $$PracticeRecordsTableTableFilterComposer,
+      $$PracticeRecordsTableTableOrderingComposer,
+      $$PracticeRecordsTableTableAnnotationComposer,
+      $$PracticeRecordsTableTableCreateCompanionBuilder,
+      $$PracticeRecordsTableTableUpdateCompanionBuilder,
       (
-        PracticeSessionEntriesTableData,
-        $$PracticeSessionEntriesTableTableReferences,
+        PracticeRecordsTableData,
+        BaseReferences<
+          _$Database,
+          $PracticeRecordsTableTable,
+          PracticeRecordsTableData
+        >,
       ),
-      PracticeSessionEntriesTableData,
-      PrefetchHooks Function({bool session})
+      PracticeRecordsTableData,
+      PrefetchHooks Function()
     >;
 typedef $$DeletedExerciseCategoriesTableTableCreateCompanionBuilder =
     DeletedExerciseCategoriesTableCompanion Function({
@@ -16533,30 +15810,30 @@ typedef $$DeletedPracticeRoutinesTableTableProcessedTableManager =
       DeletedPracticeRoutinesTableData,
       PrefetchHooks Function()
     >;
-typedef $$DeletedPracticeSessionsTableTableCreateCompanionBuilder =
-    DeletedPracticeSessionsTableCompanion Function({
-      required String sessionId,
+typedef $$DeletedPracticeRecordsTableTableCreateCompanionBuilder =
+    DeletedPracticeRecordsTableCompanion Function({
+      required String recordId,
       Value<DateTime> deletedAt,
       Value<int> rowid,
     });
-typedef $$DeletedPracticeSessionsTableTableUpdateCompanionBuilder =
-    DeletedPracticeSessionsTableCompanion Function({
-      Value<String> sessionId,
+typedef $$DeletedPracticeRecordsTableTableUpdateCompanionBuilder =
+    DeletedPracticeRecordsTableCompanion Function({
+      Value<String> recordId,
       Value<DateTime> deletedAt,
       Value<int> rowid,
     });
 
-class $$DeletedPracticeSessionsTableTableFilterComposer
-    extends Composer<_$Database, $DeletedPracticeSessionsTableTable> {
-  $$DeletedPracticeSessionsTableTableFilterComposer({
+class $$DeletedPracticeRecordsTableTableFilterComposer
+    extends Composer<_$Database, $DeletedPracticeRecordsTableTable> {
+  $$DeletedPracticeRecordsTableTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<String> get sessionId => $composableBuilder(
-    column: $table.sessionId,
+  ColumnFilters<String> get recordId => $composableBuilder(
+    column: $table.recordId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16566,17 +15843,17 @@ class $$DeletedPracticeSessionsTableTableFilterComposer
   );
 }
 
-class $$DeletedPracticeSessionsTableTableOrderingComposer
-    extends Composer<_$Database, $DeletedPracticeSessionsTableTable> {
-  $$DeletedPracticeSessionsTableTableOrderingComposer({
+class $$DeletedPracticeRecordsTableTableOrderingComposer
+    extends Composer<_$Database, $DeletedPracticeRecordsTableTable> {
+  $$DeletedPracticeRecordsTableTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<String> get sessionId => $composableBuilder(
-    column: $table.sessionId,
+  ColumnOrderings<String> get recordId => $composableBuilder(
+    column: $table.recordId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -16586,83 +15863,83 @@ class $$DeletedPracticeSessionsTableTableOrderingComposer
   );
 }
 
-class $$DeletedPracticeSessionsTableTableAnnotationComposer
-    extends Composer<_$Database, $DeletedPracticeSessionsTableTable> {
-  $$DeletedPracticeSessionsTableTableAnnotationComposer({
+class $$DeletedPracticeRecordsTableTableAnnotationComposer
+    extends Composer<_$Database, $DeletedPracticeRecordsTableTable> {
+  $$DeletedPracticeRecordsTableTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<String> get sessionId =>
-      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+  GeneratedColumn<String> get recordId =>
+      $composableBuilder(column: $table.recordId, builder: (column) => column);
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 }
 
-class $$DeletedPracticeSessionsTableTableTableManager
+class $$DeletedPracticeRecordsTableTableTableManager
     extends
         RootTableManager<
           _$Database,
-          $DeletedPracticeSessionsTableTable,
-          DeletedPracticeSessionsTableData,
-          $$DeletedPracticeSessionsTableTableFilterComposer,
-          $$DeletedPracticeSessionsTableTableOrderingComposer,
-          $$DeletedPracticeSessionsTableTableAnnotationComposer,
-          $$DeletedPracticeSessionsTableTableCreateCompanionBuilder,
-          $$DeletedPracticeSessionsTableTableUpdateCompanionBuilder,
+          $DeletedPracticeRecordsTableTable,
+          DeletedPracticeRecordsTableData,
+          $$DeletedPracticeRecordsTableTableFilterComposer,
+          $$DeletedPracticeRecordsTableTableOrderingComposer,
+          $$DeletedPracticeRecordsTableTableAnnotationComposer,
+          $$DeletedPracticeRecordsTableTableCreateCompanionBuilder,
+          $$DeletedPracticeRecordsTableTableUpdateCompanionBuilder,
           (
-            DeletedPracticeSessionsTableData,
+            DeletedPracticeRecordsTableData,
             BaseReferences<
               _$Database,
-              $DeletedPracticeSessionsTableTable,
-              DeletedPracticeSessionsTableData
+              $DeletedPracticeRecordsTableTable,
+              DeletedPracticeRecordsTableData
             >,
           ),
-          DeletedPracticeSessionsTableData,
+          DeletedPracticeRecordsTableData,
           PrefetchHooks Function()
         > {
-  $$DeletedPracticeSessionsTableTableTableManager(
+  $$DeletedPracticeRecordsTableTableTableManager(
     _$Database db,
-    $DeletedPracticeSessionsTableTable table,
+    $DeletedPracticeRecordsTableTable table,
   ) : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$DeletedPracticeSessionsTableTableFilterComposer(
+              $$DeletedPracticeRecordsTableTableFilterComposer(
                 $db: db,
                 $table: table,
               ),
           createOrderingComposer: () =>
-              $$DeletedPracticeSessionsTableTableOrderingComposer(
+              $$DeletedPracticeRecordsTableTableOrderingComposer(
                 $db: db,
                 $table: table,
               ),
           createComputedFieldComposer: () =>
-              $$DeletedPracticeSessionsTableTableAnnotationComposer(
+              $$DeletedPracticeRecordsTableTableAnnotationComposer(
                 $db: db,
                 $table: table,
               ),
           updateCompanionCallback:
               ({
-                Value<String> sessionId = const Value.absent(),
+                Value<String> recordId = const Value.absent(),
                 Value<DateTime> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
-              }) => DeletedPracticeSessionsTableCompanion(
-                sessionId: sessionId,
+              }) => DeletedPracticeRecordsTableCompanion(
+                recordId: recordId,
                 deletedAt: deletedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
-                required String sessionId,
+                required String recordId,
                 Value<DateTime> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
-              }) => DeletedPracticeSessionsTableCompanion.insert(
-                sessionId: sessionId,
+              }) => DeletedPracticeRecordsTableCompanion.insert(
+                recordId: recordId,
                 deletedAt: deletedAt,
                 rowid: rowid,
               ),
@@ -16670,13 +15947,13 @@ class $$DeletedPracticeSessionsTableTableTableManager
               .map(
                 (e) => (
                   e.readTable<
-                    $DeletedPracticeSessionsTableTable,
-                    DeletedPracticeSessionsTableData
+                    $DeletedPracticeRecordsTableTable,
+                    DeletedPracticeRecordsTableData
                   >(table),
                   BaseReferences<
                     _$Database,
-                    $DeletedPracticeSessionsTableTable,
-                    DeletedPracticeSessionsTableData
+                    $DeletedPracticeRecordsTableTable,
+                    DeletedPracticeRecordsTableData
                   >(db, table, e),
                 ),
               )
@@ -16686,25 +15963,25 @@ class $$DeletedPracticeSessionsTableTableTableManager
       );
 }
 
-typedef $$DeletedPracticeSessionsTableTableProcessedTableManager =
+typedef $$DeletedPracticeRecordsTableTableProcessedTableManager =
     ProcessedTableManager<
       _$Database,
-      $DeletedPracticeSessionsTableTable,
-      DeletedPracticeSessionsTableData,
-      $$DeletedPracticeSessionsTableTableFilterComposer,
-      $$DeletedPracticeSessionsTableTableOrderingComposer,
-      $$DeletedPracticeSessionsTableTableAnnotationComposer,
-      $$DeletedPracticeSessionsTableTableCreateCompanionBuilder,
-      $$DeletedPracticeSessionsTableTableUpdateCompanionBuilder,
+      $DeletedPracticeRecordsTableTable,
+      DeletedPracticeRecordsTableData,
+      $$DeletedPracticeRecordsTableTableFilterComposer,
+      $$DeletedPracticeRecordsTableTableOrderingComposer,
+      $$DeletedPracticeRecordsTableTableAnnotationComposer,
+      $$DeletedPracticeRecordsTableTableCreateCompanionBuilder,
+      $$DeletedPracticeRecordsTableTableUpdateCompanionBuilder,
       (
-        DeletedPracticeSessionsTableData,
+        DeletedPracticeRecordsTableData,
         BaseReferences<
           _$Database,
-          $DeletedPracticeSessionsTableTable,
-          DeletedPracticeSessionsTableData
+          $DeletedPracticeRecordsTableTable,
+          DeletedPracticeRecordsTableData
         >,
       ),
-      DeletedPracticeSessionsTableData,
+      DeletedPracticeRecordsTableData,
       PrefetchHooks Function()
     >;
 
@@ -16754,14 +16031,8 @@ class $DatabaseManager {
         _db,
         _db.practiceRoutineEntriesTable,
       );
-  $$PracticeSessionsTableTableTableManager get practiceSessionsTable =>
-      $$PracticeSessionsTableTableTableManager(_db, _db.practiceSessionsTable);
-  $$PracticeSessionEntriesTableTableTableManager
-  get practiceSessionEntriesTable =>
-      $$PracticeSessionEntriesTableTableTableManager(
-        _db,
-        _db.practiceSessionEntriesTable,
-      );
+  $$PracticeRecordsTableTableTableManager get practiceRecordsTable =>
+      $$PracticeRecordsTableTableTableManager(_db, _db.practiceRecordsTable);
   $$DeletedExerciseCategoriesTableTableTableManager
   get deletedExerciseCategoriesTable =>
       $$DeletedExerciseCategoriesTableTableTableManager(
@@ -16776,10 +16047,10 @@ class $DatabaseManager {
         _db,
         _db.deletedPracticeRoutinesTable,
       );
-  $$DeletedPracticeSessionsTableTableTableManager
-  get deletedPracticeSessionsTable =>
-      $$DeletedPracticeSessionsTableTableTableManager(
+  $$DeletedPracticeRecordsTableTableTableManager
+  get deletedPracticeRecordsTable =>
+      $$DeletedPracticeRecordsTableTableTableManager(
         _db,
-        _db.deletedPracticeSessionsTable,
+        _db.deletedPracticeRecordsTable,
       );
 }

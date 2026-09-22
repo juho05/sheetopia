@@ -9,21 +9,17 @@
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 
 Future<String?> runningPracticeLocation(PracticeRepository repo) async {
-  final entry = await repo.getRunningSessionEntry();
-  if (entry == null) return null;
+  final record = await repo.getRunningRecord();
+  if (record == null) return null;
 
-  final routineEntryId = entry.routineEntryId;
+  final routineEntryId = record.routineEntryId;
   final location = routineEntryId == null
       ? null
       : await repo.getRoutineEntryLocation(routineEntryId);
-  final exerciseExists = await repo.getExercise(entry.exerciseId) != null;
+  final exerciseExists = await repo.getExercise(record.exerciseId) != null;
 
   if (!exerciseExists || (routineEntryId != null && location == null)) {
-    await repo.checkpointSessionEntry(
-      entry,
-      now: entry.runningSince,
-      stop: true,
-    );
+    await repo.checkpointRecord(record, now: record.runningSince, stop: true);
     return null;
   }
 
@@ -31,5 +27,5 @@ Future<String?> runningPracticeLocation(PracticeRepository repo) async {
     return "/practice/routines/${location.routineId}/details/play"
         "?startIndex=${location.index}";
   }
-  return "/practice/exercises/${entry.exerciseId}/play";
+  return "/practice/exercises/${record.exerciseId}/play";
 }

@@ -163,7 +163,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets("time in the session offers resuming or practicing again", (
+    testWidgets("time already practiced offers resuming or practicing again", (
       tester,
     ) async {
       final exerciseId = await repo.createExercise(
@@ -174,12 +174,8 @@ void main() {
         sourceLink: "",
         tagIds: const [],
       );
-      final session = await repo.startSession();
-      final entry = await repo.startSessionEntry(
-        sessionId: session.id,
-        exerciseId: exerciseId,
-      );
-      await repo.checkpointSessionEntry(
+      final entry = await repo.startRecord(exerciseId: exerciseId);
+      await repo.checkpointRecord(
         entry,
         now: entry.runningSince!.add(const Duration(minutes: 6)),
         stop: true,
@@ -197,8 +193,11 @@ void main() {
       await tester.tap(find.widgetWithText(OutlinedButton, "Practice again"));
       await tester.pumpAndSettle();
 
-      final sessions = await db.managers.practiceSessionsTable.get();
-      expect(sessions, hasLength(2), reason: "a new session was opened");
+      final exercise = await db.managers.exercisesTable
+          .filter((f) => f.id(exerciseId))
+          .getSingle();
+      expect(exercise.progressResetAt, isNotNull);
+      expect(await db.managers.practiceRecordsTable.count(), 2);
       expect(find.byType(PracticeStopwatch), findsOneWidget);
     });
 

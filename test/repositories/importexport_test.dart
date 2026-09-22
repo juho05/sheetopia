@@ -103,8 +103,7 @@ void main() {
   const exerciseId = "exercise-1";
   const routineId = "routine-1";
   const routineEntryId = "routine-entry-1";
-  const sessionId = "session-1";
-  const sessionEntryId = "session-entry-1";
+  const recordId = "record-1";
 
   final contentTime = DateTime.utc(2026, 1, 1);
 
@@ -191,6 +190,7 @@ void main() {
         id: routineId,
         name: "Morning",
         description: const Value("Before breakfast"),
+        progressResetAt: Value(contentTime),
         updatedAt: Value(contentTime),
       ),
     );
@@ -206,23 +206,15 @@ void main() {
       ),
     );
 
-    await db.managers.practiceSessionsTable.create(
+    await db.managers.practiceRecordsTable.create(
       (o) => o(
-        id: sessionId,
-        startedAt: contentTime,
-        endedAt: Value(contentTime.add(const Duration(minutes: 30))),
-        routine: const Value(routineId),
-        description: const Value("Went well"),
-        updatedAt: Value(contentTime),
-      ),
-    );
-    await db.managers.practiceSessionEntriesTable.create(
-      (o) => o(
-        id: sessionEntryId,
-        session: sessionId,
+        id: recordId,
         exercise: exerciseId,
+        routine: const Value(routineId),
         routineEntry: const Value(routineEntryId),
+        startedAt: contentTime,
         duration: const Value(Duration(minutes: 7)),
+        updatedAt: Value(contentTime),
       ),
     );
   }
@@ -249,7 +241,7 @@ void main() {
       "exercise_categories.json",
       "exercises.json",
       "practice_routines.json",
-      "practice_sessions.json",
+      "practice_records.json",
     ]) {
       await File(path.join(dir.path, name)).delete();
     }
@@ -590,6 +582,7 @@ void main() {
         .getSingle();
     expect(routine.name, "Morning");
     expect(routine.description, "Before breakfast");
+    expect(routine.progressResetAt, contentTime);
     expect(routine.updatedAt, contentTime);
     expect(routine.writtenAt, isNotNull);
     expect(routine.writtenAt!.isAfter(contentTime), isTrue);
@@ -608,41 +601,30 @@ void main() {
     expect(await db.managers.deletedPracticeRoutinesTable.count(), 0);
   });
 
-  test("re-importing a deleted session restores it with its entries", () async {
+  test("re-importing a deleted record restores it", () async {
     await createPracticeData();
     final zip = await exportAll();
 
-    await db.managers.practiceSessionsTable
-        .filter((f) => f.id(sessionId))
-        .delete();
-    await db.managers.deletedPracticeSessionsTable.create(
-      (o) => o(sessionId: sessionId),
-    );
-    expect(await db.managers.practiceSessionEntriesTable.count(), 0);
+    await practiceRepo.deleteRecord(recordId);
+    expect(await db.managers.deletedPracticeRecordsTable.count(), 1);
 
     await importFrom(zip);
 
-    final session = await db.managers.practiceSessionsTable
-        .filter((f) => f.id(sessionId))
+    final record = await db.managers.practiceRecordsTable
+        .filter((f) => f.id(recordId))
         .getSingle();
-    expect(session.startedAt, contentTime);
-    expect(session.endedAt, contentTime.add(const Duration(minutes: 30)));
-    expect(session.routine, routineId);
-    expect(session.description, "Went well");
-    expect(session.updatedAt, contentTime);
-    expect(session.writtenAt, isNotNull);
-    expect(session.writtenAt!.isAfter(contentTime), isTrue);
-    expect(session.uploaded, isFalse);
+    expect(record.exercise, exerciseId);
+    expect(record.routine, routineId);
+    expect(record.routineEntry, routineEntryId);
+    expect(record.startedAt, contentTime);
+    expect(record.duration, const Duration(minutes: 7));
+    expect(record.runningSince, isNull);
+    expect(record.updatedAt, contentTime);
+    expect(record.writtenAt, isNotNull);
+    expect(record.writtenAt!.isAfter(contentTime), isTrue);
+    expect(record.uploaded, isFalse);
 
-    final entry = await db.managers.practiceSessionEntriesTable
-        .filter((f) => f.session.id(sessionId))
-        .getSingle();
-    expect(entry.id, sessionEntryId);
-    expect(entry.exercise, exerciseId);
-    expect(entry.routineEntry, routineEntryId);
-    expect(entry.duration, const Duration(minutes: 7));
-
-    expect(await db.managers.deletedPracticeSessionsTable.count(), 0);
+    expect(await db.managers.deletedPracticeRecordsTable.count(), 0);
   });
 
   test(

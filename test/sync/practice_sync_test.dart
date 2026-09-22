@@ -28,7 +28,7 @@ import 'package:sheetopia/data/services/sync/models/exercise_categories.dart';
 import 'package:sheetopia/data/services/sync/models/exercise_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/exercises.dart';
 import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
-import 'package:sheetopia/data/services/sync/models/practice_sessions.dart';
+import 'package:sheetopia/data/services/sync/models/practice_records.dart';
 import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/server_info.dart';
 import 'package:sheetopia/data/services/sync/models/setlists.dart';
@@ -66,31 +66,32 @@ class _InMemoryEncryptedStorage implements EncryptedStorage {
 typedef _Upload = ({String id, DateTime? writtenAt});
 
 class _FakeSyncService extends SyncService {
-  String apiVersion = "0.4.0";
+  String apiVersion = "0.5.0";
   DateTime syncTime = DateTime.utc(2026, 9, 2, 16);
 
   List<ExerciseCategoryModel> categories = [];
   List<ExerciseModel> exercises = [];
   List<PracticeRoutineModel> routines = [];
-  List<PracticeSessionModel> sessions = [];
+  List<PracticeRecordModel> records = [];
 
   List<RemotelyDeleted> deletedTags = [];
   List<RemotelyDeleted> deletedCategories = [];
   List<RemotelyDeleted> deletedExercises = [];
   List<RemotelyDeleted> deletedRoutines = [];
-  List<RemotelyDeleted> deletedSessions = [];
+  List<RemotelyDeleted> deletedRecords = [];
 
   final uploadedCategories = <_Upload>[];
   final uploadedExercises = <_Upload>[];
   final uploadedRoutines = <_Upload>[];
-  final uploadedSessions = <_Upload>[];
+  final uploadedRecords = <_Upload>[];
 
   final uploadedExerciseTagIds = <String, List<String>>{};
   final uploadedExerciseScoreIds = <String, List<String>>{};
   final uploadedExerciseMetadata = <String, ExerciseMetadataModel>{};
   final uploadedExerciseCategoryIds = <String, String?>{};
   final uploadedRoutineEntries = <String, List<PracticeRoutineEntryModel>>{};
-  final uploadedSessionEntries = <String, List<PracticeSessionEntryModel>>{};
+  final uploadedRecordMetadata = <String, PracticeRecordMetadataModel>{};
+  final uploadedRoutineMetadata = <String, PracticeRoutineMetadataModel>{};
 
   final deletedOnServer = <String>[];
 
@@ -167,10 +168,10 @@ class _FakeSyncService extends SyncService {
   }) async => routines;
 
   @override
-  Future<List<PracticeSessionModel>> getPracticeSessions(
+  Future<List<PracticeRecordModel>> getPracticeRecords(
     SyncConnection con, {
     DateTime? changedAfter,
-  }) async => sessions;
+  }) async => records;
 
   @override
   Future<List<RemotelyDeleted>> getDeletedExerciseCategories(
@@ -191,10 +192,10 @@ class _FakeSyncService extends SyncService {
   }) async => deletedRoutines;
 
   @override
-  Future<List<RemotelyDeleted>> getDeletedPracticeSessions(
+  Future<List<RemotelyDeleted>> getDeletedPracticeRecords(
     SyncConnection con, {
     DateTime? since,
-  }) async => deletedSessions;
+  }) async => deletedRecords;
 
   @override
   Future<void> updateExerciseCategory(
@@ -237,22 +238,22 @@ class _FakeSyncService extends SyncService {
   }) async {
     uploadedRoutines.add((id: routineId, writtenAt: writtenAt));
     uploadedRoutineEntries[routineId] = entries;
+    uploadedRoutineMetadata[routineId] = metadata;
   }
 
   @override
-  Future<void> updatePracticeSession(
+  Future<void> updatePracticeRecord(
     SyncConnection con,
-    String sessionId, {
-    required DateTime startedAt,
-    required DateTime? endedAt,
+    String recordId, {
+    required String exerciseId,
     required String? routineId,
-    required PracticeSessionMetadataModel metadata,
-    required List<PracticeSessionEntryModel> entries,
+    required String? routineEntryId,
+    required PracticeRecordMetadataModel metadata,
     required DateTime updatedAt,
     DateTime? writtenAt,
   }) async {
-    uploadedSessions.add((id: sessionId, writtenAt: writtenAt));
-    uploadedSessionEntries[sessionId] = entries;
+    uploadedRecords.add((id: recordId, writtenAt: writtenAt));
+    uploadedRecordMetadata[recordId] = metadata;
   }
 
   @override
@@ -272,10 +273,10 @@ class _FakeSyncService extends SyncService {
   ) async => deletedOnServer.add(routineId);
 
   @override
-  Future<void> deletePracticeSession(
+  Future<void> deletePracticeRecord(
     SyncConnection con,
-    String sessionId,
-  ) async => deletedOnServer.add(sessionId);
+    String recordId,
+  ) async => deletedOnServer.add(recordId);
 }
 
 void main() {
@@ -297,7 +298,7 @@ void main() {
   const exerciseId = "exercise-1";
   const routineId = "routine-1";
   const entryId = "routine-entry-1";
-  const sessionId = "session-1";
+  const recordId = "record-1";
   const tagId = "tag-1";
 
   final deletedAt = DateTime.utc(2026, 9, 2, 15);
@@ -315,6 +316,7 @@ void main() {
     sourceLink: "",
     instrument: instrument,
     targetBpm: targetBpm,
+    progressResetAt: "",
   );
 
   Future<void> createCategory({DateTime? writtenAt, bool uploaded = true}) =>
@@ -372,33 +374,24 @@ void main() {
     }
   }
 
-  Future<void> createSession({
+  Future<void> createRecord({
     DateTime? writtenAt,
     bool uploaded = true,
     DateTime? runningSince,
-  }) async {
-    await db.managers.practiceSessionsTable.create(
-      (o) => o(
-        id: sessionId,
-        startedAt: contentTime,
-        endedAt: Value(contentTime.add(const Duration(minutes: 30))),
-        routine: const Value(routineId),
-        updatedAt: Value(contentTime),
-        writtenAt: Value(writtenAt),
-        uploaded: Value(uploaded),
-      ),
-    );
-    await db.managers.practiceSessionEntriesTable.create(
-      (o) => o(
-        id: "session-entry-1",
-        session: sessionId,
-        exercise: exerciseId,
-        routineEntry: const Value(entryId),
-        duration: const Value(Duration(minutes: 3)),
-        runningSince: Value(runningSince),
-      ),
-    );
-  }
+  }) => db.managers.practiceRecordsTable.create(
+    (o) => o(
+      id: recordId,
+      exercise: exerciseId,
+      routine: const Value(routineId),
+      routineEntry: const Value(entryId),
+      startedAt: contentTime,
+      duration: const Value(Duration(minutes: 3)),
+      runningSince: Value(runningSince),
+      updatedAt: Value(contentTime),
+      writtenAt: Value(writtenAt),
+      uploaded: Value(uploaded),
+    ),
+  );
 
   // login kicks off a sync without awaiting it
   Future<void> syncAndWait() async {
@@ -453,14 +446,14 @@ void main() {
     await createCategory(uploaded: false);
     await createExercise(uploaded: false, category: categoryId);
     await createRoutine(uploaded: false, withEntry: true);
-    await createSession(uploaded: false);
+    await createRecord(uploaded: false);
 
     await syncAndWait();
 
     expect(service.uploadedCategories, [(id: categoryId, writtenAt: null)]);
     expect(service.uploadedExercises, [(id: exerciseId, writtenAt: null)]);
     expect(service.uploadedRoutines, [(id: routineId, writtenAt: null)]);
-    expect(service.uploadedSessions, [(id: sessionId, writtenAt: null)]);
+    expect(service.uploadedRecords, [(id: recordId, writtenAt: null)]);
     expect(service.uploadedExerciseCategoryIds[exerciseId], categoryId);
     expect(
       service.uploadedExerciseMetadata[exerciseId]?.description,
@@ -472,9 +465,10 @@ void main() {
       const Duration(minutes: 5).inMilliseconds,
     );
     expect(
-      service.uploadedSessionEntries[sessionId]?.single.metadata.duration,
+      service.uploadedRecordMetadata[recordId]?.duration,
       const Duration(minutes: 3).inMilliseconds,
     );
+    expect(service.uploadedRecordMetadata[recordId]?.startedAt, contentTime);
 
     expect(
       await db.managers.exercisesTable
@@ -485,8 +479,8 @@ void main() {
     );
   });
 
-  test("a server before 0.4 receives no practice data", () async {
-    service.apiVersion = "0.3.0";
+  test("a server before 0.5 receives no practice data", () async {
+    service.apiVersion = "0.4.0";
     await createCategory(uploaded: false);
     await createExercise(uploaded: false);
 
@@ -530,7 +524,10 @@ void main() {
       PracticeRoutineModel(
         id: routineId,
         name: "Morning",
-        metadata: PracticeRoutineMetadataModel(description: "Before breakfast"),
+        metadata: PracticeRoutineMetadataModel(
+          description: "Before breakfast",
+          progressResetAt: remoteTime.toIso8601String(),
+        ),
         entries: [
           PracticeRoutineEntryModel(
             id: entryId,
@@ -554,24 +551,16 @@ void main() {
         updatedAt: remoteTime,
       ),
     ];
-    service.sessions = [
-      PracticeSessionModel(
-        id: sessionId,
-        startedAt: contentTime,
-        endedAt: null,
+    service.records = [
+      PracticeRecordModel(
+        id: recordId,
+        exerciseId: exerciseId,
         routineId: routineId,
-        metadata: PracticeSessionMetadataModel(description: ""),
-        entries: [
-          PracticeSessionEntryModel(
-            id: "session-entry-1",
-            exerciseId: exerciseId,
-            routineEntryId: entryId,
-            metadata: PracticeSessionEntryMetadataModel(
-              duration: const Duration(minutes: 3).inMilliseconds,
-              startedAt: contentTime,
-            ),
-          ),
-        ],
+        routineEntryId: entryId,
+        metadata: PracticeRecordMetadataModel(
+          duration: const Duration(minutes: 3).inMilliseconds,
+          startedAt: contentTime,
+        ),
         updatedAt: remoteTime,
       ),
     ];
@@ -615,17 +604,19 @@ void main() {
     expect(entries.single.targetDuration, const Duration(minutes: 5));
     expect(entries.single.defaultScore, "score-1");
 
-    final session = await db.managers.practiceSessionsTable
-        .filter((f) => f.id(sessionId))
+    final routine = await db.managers.practiceRoutinesTable
+        .filter((f) => f.id(routineId))
         .getSingle();
-    expect(session.endedAt, isNull);
-    expect(session.routine, routineId);
-    expect(
-      await db.managers.practiceSessionEntriesTable
-          .filter((f) => f.session.id(sessionId))
-          .getSingle(),
-      isNotNull,
-    );
+    expect(routine.progressResetAt, remoteTime);
+
+    final record = await db.managers.practiceRecordsTable
+        .filter((f) => f.id(recordId))
+        .getSingle();
+    expect(record.routine, routineId);
+    expect(record.routineEntry, entryId);
+    expect(record.startedAt, contentTime);
+    expect(record.duration, const Duration(minutes: 3));
+    expect(record.uploaded, isTrue);
   });
 
   test("an older remote exercise does not overwrite the local one", () async {
@@ -772,12 +763,12 @@ void main() {
     expect(entries.single.position, 0);
   });
 
-  test("a deleted routine and session are removed locally", () async {
+  test("a deleted routine and record are removed locally", () async {
     await createRoutine();
     await createExercise();
-    await createSession();
+    await createRecord();
     service.deletedRoutines = [(id: routineId, deletedAt: deletedAt)];
-    service.deletedSessions = [(id: sessionId, deletedAt: deletedAt)];
+    service.deletedRecords = [(id: recordId, deletedAt: deletedAt)];
 
     await syncAndWait();
 
@@ -788,8 +779,8 @@ void main() {
       0,
     );
     expect(
-      await db.managers.practiceSessionsTable
-          .filter((f) => f.id(sessionId))
+      await db.managers.practiceRecordsTable
+          .filter((f) => f.id(recordId))
           .count(),
       0,
     );
@@ -799,11 +790,11 @@ void main() {
     await createCategory(writtenAt: importedAt);
     await createExercise(writtenAt: importedAt, category: categoryId);
     await createRoutine(writtenAt: importedAt, withEntry: true);
-    await createSession(writtenAt: importedAt);
+    await createRecord(writtenAt: importedAt);
     service.deletedCategories = [(id: categoryId, deletedAt: deletedAt)];
     service.deletedExercises = [(id: exerciseId, deletedAt: deletedAt)];
     service.deletedRoutines = [(id: routineId, deletedAt: deletedAt)];
-    service.deletedSessions = [(id: sessionId, deletedAt: deletedAt)];
+    service.deletedRecords = [(id: recordId, deletedAt: deletedAt)];
 
     await syncAndWait();
 
@@ -818,7 +809,7 @@ void main() {
       (id: exerciseId, writtenAt: importedAt),
     ]);
     expect(service.uploadedRoutines, [(id: routineId, writtenAt: importedAt)]);
-    expect(service.uploadedSessions, [(id: sessionId, writtenAt: importedAt)]);
+    expect(service.uploadedRecords, [(id: recordId, writtenAt: importedAt)]);
   });
 
   test("local deletions are pushed to the server", () async {
@@ -840,5 +831,159 @@ void main() {
     expect(await db.managers.deletedExercisesTable.count(), 0);
     expect(await db.managers.deletedPracticeRoutinesTable.count(), 0);
     expect(await db.managers.deletedExerciseCategoriesTable.count(), 0);
+  });
+
+  test("a running record is uploaded with its last checkpoint", () async {
+    await createExercise();
+    final runningSince = DateTime.now().toUtc();
+    await createRecord(uploaded: false, runningSince: runningSince);
+
+    await syncAndWait();
+
+    expect(service.uploadedRecords, [(id: recordId, writtenAt: null)]);
+    expect(
+      service.uploadedRecordMetadata[recordId]?.duration,
+      const Duration(minutes: 3).inMilliseconds,
+    );
+    final record = await db.managers.practiceRecordsTable
+        .filter((f) => f.id(recordId))
+        .getSingle();
+    expect(record.runningSince, runningSince, reason: "it keeps running");
+    expect(record.uploaded, isTrue);
+  });
+
+  test("the echo of a running record leaves it alone", () async {
+    await createExercise();
+    final runningSince = DateTime.now().toUtc();
+    await createRecord(runningSince: runningSince);
+    service.records = [
+      PracticeRecordModel(
+        id: recordId,
+        exerciseId: exerciseId,
+        routineId: routineId,
+        routineEntryId: entryId,
+        metadata: PracticeRecordMetadataModel(
+          duration: const Duration(minutes: 1).inMilliseconds,
+          startedAt: contentTime,
+        ),
+        updatedAt: contentTime,
+      ),
+    ];
+
+    await syncAndWait();
+
+    final record = await db.managers.practiceRecordsTable
+        .filter((f) => f.id(recordId))
+        .getSingle();
+    expect(record.duration, const Duration(minutes: 3));
+    expect(record.runningSince, runningSince);
+  });
+
+  test("a newer remote record keeps the local stopwatch running", () async {
+    await createExercise();
+    final runningSince = DateTime.now().toUtc();
+    await createRecord(runningSince: runningSince);
+    service.records = [
+      PracticeRecordModel(
+        id: recordId,
+        exerciseId: exerciseId,
+        routineId: routineId,
+        routineEntryId: entryId,
+        metadata: PracticeRecordMetadataModel(
+          duration: const Duration(minutes: 7).inMilliseconds,
+          startedAt: contentTime,
+        ),
+        updatedAt: remoteTime,
+      ),
+    ];
+
+    await syncAndWait();
+
+    final record = await db.managers.practiceRecordsTable
+        .filter((f) => f.id(recordId))
+        .getSingle();
+    expect(record.duration, const Duration(minutes: 7));
+    expect(record.runningSince, runningSince);
+  });
+
+  test("a discarded record is deleted on the server", () async {
+    await createExercise();
+    await createRecord();
+    await syncAndWait();
+
+    await practiceRepo.discardRecord((await practiceRepo.getRecord(recordId))!);
+
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await repo.syncNow();
+    await waitFor(() => service.deletedOnServer.isNotEmpty);
+
+    expect(service.deletedOnServer, [recordId]);
+    expect(await db.managers.deletedPracticeRecordsTable.count(), 0);
+  });
+
+  test("a progress reset travels with the routine and exercise", () async {
+    await createExercise();
+    await createRoutine(withEntry: true);
+    await syncAndWait();
+
+    await practiceRepo.resetRoutineProgress(routineId);
+    await practiceRepo.resetExerciseProgress(exerciseId);
+    final routine = await db.managers.practiceRoutinesTable
+        .filter((f) => f.id(routineId))
+        .getSingle();
+    final exercise = await db.managers.exercisesTable
+        .filter((f) => f.id(exerciseId))
+        .getSingle();
+
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await repo.syncNow();
+    await waitFor(
+      () =>
+          service.uploadedRoutines.isNotEmpty &&
+          service.uploadedExercises.isNotEmpty,
+    );
+
+    expect(
+      DateTime.parse(
+        service.uploadedRoutineMetadata[routineId]!.progressResetAt!,
+      ),
+      routine.progressResetAt,
+    );
+    expect(
+      DateTime.parse(
+        service.uploadedExerciseMetadata[exerciseId]!.progressResetAt!,
+      ),
+      exercise.progressResetAt,
+    );
+  });
+
+  test("an unset remote progress reset clears the local one", () async {
+    await db.managers.exercisesTable.create(
+      (o) => o(
+        id: exerciseId,
+        name: "C major",
+        progressResetAt: Value(contentTime),
+        updatedAt: Value(contentTime),
+        uploaded: const Value(true),
+      ),
+    );
+    service.exercises = [
+      ExerciseModel(
+        id: exerciseId,
+        name: "C major",
+        categoryId: null,
+        tagIds: const [],
+        scoreIds: const [],
+        metadata: metadata(),
+        updatedAt: remoteTime,
+      ),
+    ];
+
+    await syncAndWait();
+
+    final exercise = await db.managers.exercisesTable
+        .filter((f) => f.id(exerciseId))
+        .getSingle();
+    expect(exercise.progressResetAt, isNull);
   });
 }

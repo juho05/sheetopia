@@ -25,9 +25,11 @@ import 'package:sheetopia/data/repositories/version/version.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/sync/exceptions.dart';
+import 'package:sheetopia/data/services/sync/models/datetime_converter.dart';
 import 'package:sheetopia/data/services/sync/models/exercise_metadata.dart';
+import 'package:sheetopia/data/services/sync/models/optional_values.dart';
 import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
-import 'package:sheetopia/data/services/sync/models/practice_sessions.dart';
+import 'package:sheetopia/data/services/sync/models/practice_records.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/sync_connection.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
@@ -46,7 +48,7 @@ class SyncRepository {
 
   static const minAPIVersionType = Version(major: 0, minor: 4);
 
-  static const minAPIVersionPractice = Version(major: 0, minor: 4);
+  static const minAPIVersionPractice = Version(major: 0, minor: 5);
 
   final ScoresRepository _scoresRepo;
   final SetlistsRepository _setlistsRepo;
@@ -70,7 +72,7 @@ class SyncRepository {
   Set<String> _changedCategories = {};
   Set<String> _changedExercises = {};
   Set<String> _changedRoutines = {};
-  Set<String> _changedSessions = {};
+  Set<String> _changedRecords = {};
 
   bool _itemsFailed = false;
 
@@ -111,7 +113,7 @@ class SyncRepository {
       _practiceRepo.locallyUpdatedCategoryIds.listen((event) => requestSync());
       _practiceRepo.locallyUpdatedExerciseIds.listen((event) => requestSync());
       _practiceRepo.locallyUpdatedRoutineIds.listen((event) => requestSync());
-      _practiceRepo.locallyUpdatedSessionIds.listen((event) => requestSync());
+      _practiceRepo.locallyUpdatedRecordIds.listen((event) => requestSync());
       _listener = AppLifecycleListener(
         onDetach: _disableSyncing,
         onPause: _disableSyncing,
@@ -180,7 +182,7 @@ class SyncRepository {
     await _db.managers.deletedExerciseCategoriesTable.delete();
     await _db.managers.deletedExercisesTable.delete();
     await _db.managers.deletedPracticeRoutinesTable.delete();
-    await _db.managers.deletedPracticeSessionsTable.delete();
+    await _db.managers.deletedPracticeRecordsTable.delete();
 
     _sync();
   }
@@ -216,7 +218,7 @@ class SyncRepository {
     await _db.managers.practiceRoutinesTable.update(
       (o) => o(uploaded: const Value(false)),
     );
-    await _db.managers.practiceSessionsTable.update(
+    await _db.managers.practiceRecordsTable.update(
       (o) => o(uploaded: const Value(false)),
     );
   }
@@ -302,7 +304,7 @@ class SyncRepository {
         await _uploadDeletedSetlists();
       }
       if (apiVersion >= minAPIVersionPractice) {
-        await _uploadDeletedPracticeSessions();
+        await _uploadDeletedPracticeRecords();
         await _uploadDeletedPracticeRoutines();
         await _uploadDeletedExercises();
         await _uploadDeletedExerciseCategories();
@@ -340,9 +342,9 @@ class SyncRepository {
         await _uploadPracticeRoutineChanges(sendWrittenAt);
         await _downloadPracticeRoutineChanges();
 
-        await _downloadDeletedPracticeSessions(honourDeletedAt);
-        await _uploadPracticeSessionChanges(sendWrittenAt);
-        await _downloadPracticeSessionChanges();
+        await _downloadDeletedPracticeRecords(honourDeletedAt);
+        await _uploadPracticeRecordChanges(sendWrittenAt);
+        await _downloadPracticeRecordChanges();
       }
 
       await _updateLastSync(syncTime);
@@ -363,14 +365,14 @@ class SyncRepository {
       _practiceRepo.remoteChangedCategories(_changedCategories);
       _practiceRepo.remoteChangedExercises(_changedExercises);
       _practiceRepo.remoteChangedRoutines(_changedRoutines);
-      _practiceRepo.remoteChangedSessions(_changedSessions);
+      _practiceRepo.remoteChangedRecords(_changedRecords);
       _changedTags = {};
       _changedScores = {};
       _changedSetlists = {};
       _changedCategories = {};
       _changedExercises = {};
       _changedRoutines = {};
-      _changedSessions = {};
+      _changedRecords = {};
       _scheduleSync();
     }
   }
@@ -615,21 +617,21 @@ class SyncRepository {
         .delete();
   }
 
-  Future<void> _uploadDeletedPracticeSessions() async {
+  Future<void> _uploadDeletedPracticeRecords() async {
     final startTime = DateTime.now();
-    final ids = (await _db.managers.deletedPracticeSessionsTable.get()).map(
-      (s) => s.sessionId,
+    final ids = (await _db.managers.deletedPracticeRecordsTable.get()).map(
+      (r) => r.recordId,
     );
 
     for (final id in ids) {
       try {
-        await _service.deletePracticeSession(_con!, id);
+        await _service.deletePracticeRecord(_con!, id);
       } on NotFoundException catch (_) {
         // already deleted on the server or never synced
       }
     }
 
-    await _db.managers.deletedPracticeSessionsTable
+    await _db.managers.deletedPracticeRecordsTable
         .filter((f) => f.deletedAt.isBeforeOrOn(startTime))
         .delete();
   }
@@ -845,6 +847,7 @@ class SyncRepository {
             sourceLink: e.sourceLink ?? "",
             instrument: e.instrument ?? "",
             targetBpm: e.targetBpm ?? 0,
+            progressResetAt: e.progressResetAt?.toRFC3339() ?? "",
           ),
           updatedAt: e.updatedAt.toUtc(),
           writtenAt: sendWrittenAt ? e.writtenAt?.toUtc() : null,
@@ -896,11 +899,12 @@ class SyncRepository {
             id: e.id,
             name: e.name,
             category: Value(categoryId),
-            description: _optionalStringValue(e.metadata.description),
-            source: _optionalStringValue(e.metadata.source),
-            sourceLink: _optionalStringValue(e.metadata.sourceLink),
-            instrument: _optionalStringValue(e.metadata.instrument),
-            targetBpm: _optionalIntValue(e.metadata.targetBpm),
+            description: optionalStringValue(e.metadata.description),
+            source: optionalStringValue(e.metadata.source),
+            sourceLink: optionalStringValue(e.metadata.sourceLink),
+            instrument: optionalStringValue(e.metadata.instrument),
+            targetBpm: optionalIntValue(e.metadata.targetBpm),
+            progressResetAt: optionalDateTimeValue(e.metadata.progressResetAt),
             updatedAt: Value(e.updatedAt.toUtc()),
             uploaded: const Value(true),
           ),
@@ -920,6 +924,9 @@ class SyncRepository {
                   : null,
               targetBpm: e.metadata.targetBpm != null
                   ? excluded.targetBpm
+                  : null,
+              progressResetAt: e.metadata.progressResetAt != null
+                  ? excluded.progressResetAt
                   : null,
               uploaded: excluded.uploaded,
               updatedAt: excluded.updatedAt,
@@ -1024,6 +1031,7 @@ class SyncRepository {
           name: r.name,
           metadata: PracticeRoutineMetadataModel(
             description: r.description ?? "",
+            progressResetAt: r.progressResetAt?.toRFC3339() ?? "",
           ),
           entries: [
             for (final e in entries)
@@ -1086,7 +1094,10 @@ class SyncRepository {
               (o) => o(
                 id: r.id,
                 name: r.name,
-                description: _optionalStringValue(r.metadata.description),
+                description: optionalStringValue(r.metadata.description),
+                progressResetAt: optionalDateTimeValue(
+                  r.metadata.progressResetAt,
+                ),
                 updatedAt: Value(r.updatedAt.toUtc()),
                 uploaded: const Value(true),
               ),
@@ -1095,6 +1106,9 @@ class SyncRepository {
                   name: excluded.name,
                   description: r.metadata.description != null
                       ? excluded.description
+                      : null,
+                  progressResetAt: r.metadata.progressResetAt != null
+                      ? excluded.progressResetAt
                       : null,
                   uploaded: excluded.uploaded,
                   updatedAt: excluded.updatedAt,
@@ -1117,11 +1131,9 @@ class SyncRepository {
                 routine: r.id,
                 exercise: e.$2.exerciseId,
                 position: e.$1,
-                extraNotes: _optionalStringValue(e.$2.metadata.extraNotes),
-                defaultScore: _optionalStringValue(
-                  e.$2.metadata.defaultScoreId,
-                ),
-                targetDuration: _optionalDurationValue(
+                extraNotes: optionalStringValue(e.$2.metadata.extraNotes),
+                defaultScore: optionalStringValue(e.$2.metadata.defaultScoreId),
+                targetDuration: optionalDurationValue(
                   e.$2.metadata.targetDuration,
                 ),
               ),
@@ -1155,103 +1167,93 @@ class SyncRepository {
     return entries.where((e) => known.contains(e.exerciseId)).toList();
   }
 
-  Future<void> _downloadDeletedPracticeSessions(bool honourDeletedAt) async {
-    final deleted = await _service.getDeletedPracticeSessions(
+  Future<void> _downloadDeletedPracticeRecords(bool honourDeletedAt) async {
+    final deleted = await _service.getDeletedPracticeRecords(
       _con!,
       since: lastSync.value,
     );
     for (final d in deleted) {
-      final session = await _db.managers.practiceSessionsTable
-          .filter((f) => f.id(d.id))
-          .getSingleOrNull();
-      if (session == null) continue;
-
-      if (honourDeletedAt &&
-          _shouldKeepAfterRemoteDelete(
-            deletedAt: d.deletedAt,
-            writtenAt: session.writtenAt,
-          )) {
-        Log.debug(
-          "Keeping practice session ${d.id} deleted on the server at ${d.deletedAt}: restored by an import at ${session.writtenAt}",
-        );
-        await _db.managers.practiceSessionsTable
+      await _db.transaction(() async {
+        final record = await _db.managers.practiceRecordsTable
             .filter((f) => f.id(d.id))
-            .update((o) => o(uploaded: const Value(false)));
-        continue;
-      }
+            .getSingleOrNull();
+        if (record == null) return;
 
-      if (!session.uploaded) {
-        Log.warn(
-          "Discarding unsynced local changes to practice session ${d.id}: deleted on the server",
-        );
-      }
-      await _db.managers.practiceSessionsTable
-          .filter((f) => f.id(d.id))
-          .delete();
-      _changedSessions.add(d.id);
+        if (honourDeletedAt &&
+            _shouldKeepAfterRemoteDelete(
+              deletedAt: d.deletedAt,
+              writtenAt: record.writtenAt,
+            )) {
+          Log.debug(
+            "Keeping practice record ${d.id} deleted on the server at ${d.deletedAt}: restored by an import at ${record.writtenAt}",
+          );
+          await _db.managers.practiceRecordsTable
+              .filter((f) => f.id(d.id))
+              .update((o) => o(uploaded: const Value(false)));
+          return;
+        }
+
+        if (record.runningSince != null) {
+          Log.warn(
+            "Discarding practice record ${d.id} while its stopwatch runs: deleted on the server",
+          );
+        } else if (!record.uploaded) {
+          Log.warn(
+            "Discarding unsynced local changes to practice record ${d.id}: deleted on the server",
+          );
+        }
+
+        await _db.managers.practiceRecordsTable
+            .filter((f) => f.id(d.id))
+            .delete();
+        _changedRecords.add(d.id);
+      });
     }
   }
 
-  Future<void> _uploadPracticeSessionChanges(bool sendWrittenAt) async {
-    final changed = await _db.managers.practiceSessionsTable
+  Future<void> _uploadPracticeRecordChanges(bool sendWrittenAt) async {
+    final changed = await _db.managers.practiceRecordsTable
         .filter((f) => f.uploaded.isFalse())
         .get();
 
-    for (final s in changed) {
-      final entries =
-          await (_db.select(_db.practiceSessionEntriesTable)
-                ..where((t) => t.session.equals(s.id))
-                ..orderBy([(t) => OrderingTerm.asc(t.id)]))
-              .get();
-
+    for (final r in changed) {
       try {
-        await _service.updatePracticeSession(
+        await _service.updatePracticeRecord(
           _con!,
-          s.id,
-          startedAt: s.startedAt.toUtc(),
-          endedAt: s.endedAt?.toUtc(),
-          routineId: s.routine,
-          metadata: PracticeSessionMetadataModel(
-            description: s.description ?? "",
+          r.id,
+          exerciseId: r.exercise,
+          routineId: r.routine,
+          routineEntryId: r.routineEntry,
+          metadata: PracticeRecordMetadataModel(
+            duration: r.duration.inMilliseconds,
+            startedAt: r.startedAt.toUtc(),
           ),
-          entries: [
-            for (final e in entries)
-              PracticeSessionEntryModel(
-                id: e.id,
-                exerciseId: e.exercise,
-                routineEntryId: e.routineEntry,
-                metadata: PracticeSessionEntryMetadataModel(
-                  duration: e.duration.inMilliseconds,
-                  startedAt: e.startedAt.toUtc(),
-                ),
-              ),
-          ],
-          updatedAt: s.updatedAt.toUtc(),
-          writtenAt: sendWrittenAt ? s.writtenAt?.toUtc() : null,
+          updatedAt: r.updatedAt.toUtc(),
+          writtenAt: sendWrittenAt ? r.writtenAt?.toUtc() : null,
         );
-        await _markPracticeSessionUploaded(s.id, s.updatedAt, sendWrittenAt);
+        await _markPracticeRecordUploaded(r.id, r.updatedAt, sendWrittenAt);
       } on ConflictException catch (_) {
         // the server holds equal or newer content, the local write is settled
-        await _markPracticeSessionUploaded(s.id, s.updatedAt, sendWrittenAt);
+        await _markPracticeRecordUploaded(r.id, r.updatedAt, sendWrittenAt);
       } on DeletedException catch (e) {
         Log.warn(
-          "Skipping upload of practice session ${s.id}: deleted on the server at ${e.deletedAt}",
+          "Skipping upload of practice record ${r.id}: deleted on the server at ${e.deletedAt}",
         );
       } on UnauthenticatedException catch (_) {
         rethrow;
       } on StatusCodeException catch (e) {
         _itemsFailed = true;
-        Log.warn("Failed to upload practice session ${s.id}", e: e);
+        Log.warn("Failed to upload practice record ${r.id}", e: e);
       }
     }
   }
 
-  Future<void> _markPracticeSessionUploaded(
+  Future<void> _markPracticeRecordUploaded(
     String id,
     DateTime updatedAt,
     bool clearWrittenAt,
   ) async {
-    await _db.managers.practiceSessionsTable
+    await _db.managers.practiceRecordsTable
         .filter((f) => f.id(id) & f.updatedAt.equals(updatedAt))
         .update(
           (o) => o(
@@ -1263,64 +1265,42 @@ class SyncRepository {
         );
   }
 
-  Future<void> _downloadPracticeSessionChanges() async {
-    final sessions = await _service.getPracticeSessions(
+  Future<void> _downloadPracticeRecordChanges() async {
+    final records = await _service.getPracticeRecords(
       _con!,
       changedAfter: lastSync.value,
     );
-    for (final s in sessions) {
-      await _db.transaction(() async {
-        final result = await _db.managers.practiceSessionsTable
-            .createReturningOrNull(
-              (o) => o(
-                id: s.id,
-                startedAt: s.startedAt.toUtc(),
-                endedAt: Value(s.endedAt?.toUtc()),
-                routine: Value(s.routineId),
-                description: _optionalStringValue(s.metadata.description),
-                updatedAt: Value(s.updatedAt.toUtc()),
-                uploaded: const Value(true),
+    for (final r in records) {
+      final duration = r.metadata.duration;
+      final startedAt = r.metadata.startedAt;
+      // runningSince stays out, a record running here is never stopped remotely
+      final result = await _db.managers.practiceRecordsTable
+          .createReturningOrNull(
+            (o) => o(
+              id: r.id,
+              exercise: r.exerciseId,
+              routine: Value(r.routineId),
+              routineEntry: Value(r.routineEntryId),
+              startedAt: (startedAt ?? r.updatedAt).toUtc(),
+              duration: Value(Duration(milliseconds: duration ?? 0)),
+              updatedAt: Value(r.updatedAt.toUtc()),
+              uploaded: const Value(true),
+            ),
+            onConflict: DoUpdate.withExcluded(
+              (old, excluded) => PracticeRecordsTableCompanion.custom(
+                exercise: excluded.exercise,
+                routine: excluded.routine,
+                routineEntry: excluded.routineEntry,
+                startedAt: startedAt != null ? excluded.startedAt : null,
+                duration: duration != null ? excluded.duration : null,
+                uploaded: excluded.uploaded,
+                updatedAt: excluded.updatedAt,
               ),
-              onConflict: DoUpdate.withExcluded(
-                (old, excluded) => PracticeSessionsTableCompanion.custom(
-                  startedAt: excluded.startedAt,
-                  endedAt: excluded.endedAt,
-                  routine: excluded.routine,
-                  description: s.metadata.description != null
-                      ? excluded.description
-                      : null,
-                  uploaded: excluded.uploaded,
-                  updatedAt: excluded.updatedAt,
-                ),
-                where: (old, excluded) =>
-                    old.updatedAt.isSmallerThan(excluded.updatedAt),
-              ),
-            );
-        if (result == null) return;
-
-        await _db.managers.practiceSessionEntriesTable
-            .filter((f) => f.session.id(s.id))
-            .delete();
-        if (s.entries.isNotEmpty) {
-          await _db.managers.practiceSessionEntriesTable.bulkCreate(
-            (o) => s.entries.map(
-              (e) => o(
-                id: e.id,
-                session: s.id,
-                exercise: e.exerciseId,
-                routineEntry: Value(e.routineEntryId),
-                duration: Value(
-                  Duration(milliseconds: e.metadata.duration ?? 0),
-                ),
-                startedAt: Value(
-                  e.metadata.startedAt?.toUtc() ?? s.startedAt.toUtc(),
-                ),
-              ),
+              where: (old, excluded) =>
+                  old.updatedAt.isSmallerThan(excluded.updatedAt),
             ),
           );
-        }
-        _changedSessions.add(s.id);
-      });
+      if (result != null) _changedRecords.add(r.id);
     }
   }
 
@@ -1667,10 +1647,10 @@ class SyncRepository {
                 s.metadata.composer,
               ]),
               title: s.title,
-              composer: _optionalStringValue(s.metadata.composer),
-              source: _optionalStringValue(s.metadata.source),
-              sourceLink: _optionalStringValue(s.metadata.sourceLink),
-              notes: _optionalStringValue(s.metadata.notes),
+              composer: optionalStringValue(s.metadata.composer),
+              source: optionalStringValue(s.metadata.source),
+              sourceLink: optionalStringValue(s.metadata.sourceLink),
+              notes: optionalStringValue(s.metadata.notes),
               annotations: _annotationsColumnValue(s.metadata.annotations),
               metadataUploaded: const Value(true),
               metadataUpdatedAt: Value(s.metadataUpdatedAt.toUtc()),
@@ -1701,16 +1681,16 @@ class SyncRepository {
                       ? const Value(true)
                       : const Value.absent(),
                   composer: metadataChanged
-                      ? _optionalStringValue(s.metadata.composer)
+                      ? optionalStringValue(s.metadata.composer)
                       : const Value.absent(),
                   source: metadataChanged
-                      ? _optionalStringValue(s.metadata.source)
+                      ? optionalStringValue(s.metadata.source)
                       : const Value.absent(),
                   sourceLink: metadataChanged
-                      ? _optionalStringValue(s.metadata.sourceLink)
+                      ? optionalStringValue(s.metadata.sourceLink)
                       : const Value.absent(),
                   notes: metadataChanged
-                      ? _optionalStringValue(s.metadata.notes)
+                      ? optionalStringValue(s.metadata.notes)
                       : const Value.absent(),
                   annotations: metadataChanged
                       ? _annotationsColumnValue(s.metadata.annotations)
@@ -1850,24 +1830,6 @@ class SyncRepository {
     } else {
       await _keyValue.store(_lastSyncKey, syncTime);
     }
-  }
-
-  Value<String?> _optionalStringValue(String? str) {
-    if (str == null) return const Value.absent();
-    if (str == "") return const Value(null);
-    return Value(str);
-  }
-
-  Value<int?> _optionalIntValue(int? value) {
-    if (value == null) return const Value.absent();
-    if (value == 0) return const Value(null);
-    return Value(value);
-  }
-
-  Value<Duration?> _optionalDurationValue(int? milliseconds) {
-    if (milliseconds == null) return const Value.absent();
-    if (milliseconds == 0) return const Value(null);
-    return Value(Duration(milliseconds: milliseconds));
   }
 
   Value<String?> _annotationsColumnValue(Map<String, dynamic>? a) {

@@ -21,12 +21,16 @@ class ExerciseMetadataModel {
   final String? instrument;
   final int? targetBpm;
 
+  // RFC 3339
+  final String? progressResetAt;
+
   ExerciseMetadataModel({
     required this.description,
     required this.source,
     required this.sourceLink,
     required this.instrument,
     required this.targetBpm,
+    required this.progressResetAt,
   });
 
   factory ExerciseMetadataModel.fromJson(Map<String, dynamic> json) =>

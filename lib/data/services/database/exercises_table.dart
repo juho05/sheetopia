@@ -28,6 +28,8 @@ class ExercisesTable extends Table {
   late final instrument = text().nullable()();
   late final targetBpm = integer().nullable()();
 
+  late final progressResetAt = dateTime().nullable()();
+
   late final updatedAt = dateTime().clientDefault(
     () => DateTime.now().toUtc(),
   )();

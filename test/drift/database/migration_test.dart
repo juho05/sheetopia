@@ -8,6 +8,8 @@ import 'generated/schema.dart';
 
 import 'generated/schema_v1.dart' as v1;
 import 'generated/schema_v2.dart' as v2;
+import 'generated/schema_v14.dart' as v14;
+import 'generated/schema_v15.dart' as v15;
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -115,4 +117,131 @@ void main() {
       },
     );
   });
+
+  // tester carry over, remove later
+  test(
+    "migration from v14 to v15 turns session entries into records",
+    () async {
+      const updated = "2026-09-20T08:00:00.000Z";
+      const older = "2026-09-19T07:00:00.000Z";
+      const latest = "2026-09-20T07:00:00.000Z";
+      const adHoc = "2026-09-21T10:00:00.000Z";
+
+      await verifier.testWithDataIntegrity(
+        oldVersion: 14,
+        newVersion: 15,
+        createOld: v14.DatabaseAtV14.new,
+        createNew: v15.DatabaseAtV15.new,
+        openTestedDatabase: Database.new,
+        createItems: (batch, oldDb) {
+          batch.insertAll(oldDb.exercises, [
+            const v14.ExercisesData(
+              id: "exercise",
+              name: "Scales",
+              updatedAt: updated,
+              uploaded: 1,
+            ),
+          ]);
+          batch.insertAll(oldDb.practiceRoutines, [
+            const v14.PracticeRoutinesData(
+              id: "routine",
+              name: "Morning",
+              updatedAt: updated,
+              uploaded: 1,
+            ),
+          ]);
+          batch.insertAll(oldDb.practiceSessions, [
+            const v14.PracticeSessionsData(
+              id: "older",
+              startedAt: older,
+              routine: "routine",
+              updatedAt: updated,
+              uploaded: 1,
+            ),
+            const v14.PracticeSessionsData(
+              id: "latest",
+              startedAt: latest,
+              routine: "routine",
+              updatedAt: updated,
+              uploaded: 1,
+            ),
+            const v14.PracticeSessionsData(
+              id: "ad-hoc",
+              startedAt: adHoc,
+              updatedAt: updated,
+              uploaded: 1,
+            ),
+          ]);
+          batch.insertAll(oldDb.practiceSessionEntries, [
+            const v14.PracticeSessionEntriesData(
+              id: "first",
+              session: "latest",
+              exercise: "exercise",
+              routineEntry: "entry-a",
+              startedAt: latest,
+              duration: 60000,
+            ),
+            const v14.PracticeSessionEntriesData(
+              id: "second",
+              session: "latest",
+              exercise: "exercise",
+              routineEntry: "entry-b",
+              startedAt: latest,
+              duration: 120000,
+            ),
+            const v14.PracticeSessionEntriesData(
+              id: "alone",
+              session: "ad-hoc",
+              exercise: "exercise",
+              startedAt: adHoc,
+              duration: 30000,
+            ),
+          ]);
+        },
+        validateItems: (newDb) async {
+          final records = await (newDb.select(
+            newDb.practiceRecords,
+          )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
+          expect(records, const [
+            v15.PracticeRecordsData(
+              id: "alone",
+              exercise: "exercise",
+              startedAt: adHoc,
+              duration: 30000,
+              updatedAt: updated,
+              uploaded: 0,
+            ),
+            v15.PracticeRecordsData(
+              id: "first",
+              exercise: "exercise",
+              routine: "routine",
+              routineEntry: "entry-a",
+              startedAt: latest,
+              duration: 60000,
+              updatedAt: updated,
+              uploaded: 0,
+            ),
+            v15.PracticeRecordsData(
+              id: "second",
+              exercise: "exercise",
+              routine: "routine",
+              routineEntry: "entry-b",
+              startedAt: latest,
+              duration: 120000,
+              updatedAt: updated,
+              uploaded: 0,
+            ),
+          ]);
+
+          final routine = await newDb
+              .select(newDb.practiceRoutines)
+              .getSingle();
+          expect(routine.progressResetAt, latest);
+          expect(routine.uploaded, 1, reason: "the derived reset stays local");
+          final exercise = await newDb.select(newDb.exercises).getSingle();
+          expect(exercise.progressResetAt, adHoc);
+        },
+      );
+    },
+  );
 }

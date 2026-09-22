@@ -61,7 +61,7 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
 
   StreamSubscription? _updatedExercisesSub;
 
-  StreamSubscription? _updatedSessionsSub;
+  StreamSubscription? _updatedRecordsSub;
 
   late final TagSync _tagSync;
 
@@ -75,7 +75,7 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
   }) {
     _updatedRoutinesSub = _repo.updatedRoutineIds.listen((_) => _refresh());
     _updatedExercisesSub = _repo.updatedExerciseIds.listen((_) => _refresh());
-    _updatedSessionsSub = _repo.updatedSessionIds.listen(
+    _updatedRecordsSub = _repo.updatedRecordIds.listen(
       (_) => refreshPracticedToday(),
     );
     _tagSync = TagSync(
@@ -292,7 +292,7 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
     _resetDebounce?.cancel();
     _updatedRoutinesSub?.cancel();
     _updatedExercisesSub?.cancel();
-    _updatedSessionsSub?.cancel();
+    _updatedRecordsSub?.cancel();
     _tagSync.dispose();
     super.dispose();
   }

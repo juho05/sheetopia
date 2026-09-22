@@ -10,7 +10,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
-import 'package:sheetopia/data/repositories/practice/practice_session.dart';
+import 'package:sheetopia/data/repositories/practice/practice_record.dart';
 import 'package:sheetopia/utils/app_shutdown.dart';
 
 enum PracticeTimerState { idle, running, paused }
@@ -44,10 +44,7 @@ class PracticeTimer extends ChangeNotifier {
 
   final PracticeRepository _repo;
 
-  PracticeSession? _session;
-
   String? _routineId;
-  Duration _routineTarget = Duration.zero;
 
   /// Whether an exercise was practiced since the page was opened.
   bool _touched = false;
@@ -56,9 +53,10 @@ class PracticeTimer extends ChangeNotifier {
   String? _routineEntryId;
   Duration? _target;
 
-  PracticeSessionEntry? _entry;
+  PracticeRecord? _record;
 
-  /// Time practiced for this exercise in this session outside of [_entry].
+  /// Time practiced for this exercise in the current progress outside of
+  /// [_record].
   Duration _carry = Duration.zero;
 
   PracticeTimerState _state = PracticeTimerState.idle;
@@ -89,8 +87,6 @@ class PracticeTimer extends ChangeNotifier {
 
   Listenable get ticks => _ticks;
 
-  PracticeSession? get session => _session;
-
   PracticeTimerState get state => _state;
 
   bool get running => _state == PracticeTimerState.running;
@@ -106,10 +102,10 @@ class PracticeTimer extends ChangeNotifier {
   Duration? get target => _target;
 
   Duration get elapsed {
-    final entry = _entry;
-    if (entry == null) return _carry;
-    if (_state == PracticeTimerState.idle) return _carry + entry.duration;
-    return _carry + entry.elapsedAt(DateTime.now());
+    final record = _record;
+    if (record == null) return _carry;
+    if (_state == PracticeTimerState.idle) return _carry + record.duration;
+    return _carry + record.elapsedAt(DateTime.now());
   }
 
   bool get overTarget {
@@ -117,22 +113,9 @@ class PracticeTimer extends ChangeNotifier {
     return target != null && target > Duration.zero && elapsed > target;
   }
 
-  Future<void> openSession({
-    String? routineId,
-    Duration routineTarget = Duration.zero,
-  }) async {
-    if (_disposed) return;
-    _routineId = routineId;
-    _routineTarget = routineTarget;
-    _session = await _repo.getCurrentSession(
-      routineId: routineId,
-      routineTarget: routineTarget,
-    );
-    _notify();
-  }
-
   Future<void> show({
     required String exerciseId,
+    String? routineId,
     String? routineEntryId,
     Duration? target,
   }) async {
@@ -142,75 +125,77 @@ class PracticeTimer extends ChangeNotifier {
     _resolving = true;
     _state = PracticeTimerState.idle;
     _notify();
-    await _stopEntry();
+    await _stopRecord();
+    _routineId = routineId;
     _exerciseId = exerciseId;
     _routineEntryId = routineEntryId;
     _target = target;
-    _entry = null;
+    _record = null;
     _recovery = null;
     _carry = Duration.zero;
     try {
-      await _adoptRunningSession();
+      await _recoverRunningRecord();
       if (_disposed) return;
       await _reloadCarry();
       if (_disposed) return;
-      await _recoverRunningEntry();
+      final record = _record;
+      if (record != null) await _handleGap(record, record.runningSince!);
     } finally {
       if (generation == _showGeneration) _resolving = false;
     }
     _notify();
   }
 
-  /// Only one stopwatch runs at a time. One left running for this exercise
-  /// brings its session along, one left running elsewhere is stopped at its
-  /// last checkpoint.
-  Future<void> _adoptRunningSession() async {
+  /// Only one stopwatch runs at a time. One left running for this exercise is
+  /// adopted, one left running elsewhere is stopped at its last checkpoint.
+  Future<void> _recoverRunningRecord() async {
     final exerciseId = _exerciseId;
-    if (exerciseId == null || _disposed) return;
-    final running = await _repo.getRunningSessionEntry();
-    if (running == null || running.sessionId == _session?.id) return;
-    if (running.matches(
-      exerciseId: exerciseId,
-      routineEntryId: _routineEntryId,
-    )) {
-      _session = await _repo.getSession(running.sessionId);
-      return;
+    if (exerciseId == null) return;
+    while (!_disposed) {
+      final running = await _repo.getRunningRecord();
+      if (running == null) return;
+      if (running.routineId == _routineId &&
+          running.matches(
+            exerciseId: exerciseId,
+            routineEntryId: _routineEntryId,
+          )) {
+        _record = running;
+        _touched = true;
+        return;
+      }
+      await _repo.checkpointRecord(
+        running,
+        now: running.runningSince,
+        stop: true,
+      );
     }
-    await _repo.checkpointSessionEntry(
-      running,
-      now: running.runningSince,
-      stop: true,
-    );
   }
 
   Future<void> start() async {
     final exerciseId = _exerciseId;
     if (exerciseId == null || running) return;
-    final session = _session ??= await _repo.resumeOrStartSession(
-      routineId: _routineId,
-      routineTarget: _routineTarget,
-    );
     _touched = true;
-    final entry = await _repo.startSessionEntry(
-      sessionId: session.id,
+    _record = await _repo.startRecord(
       exerciseId: exerciseId,
+      routineId: _routineId,
       routineEntryId: _routineEntryId,
     );
-    _entry = entry;
     await _reloadCarry();
-    _carry -= entry.duration;
     _state = PracticeTimerState.running;
     _startTicker();
     _notify();
   }
 
-  Future<void> startNewSession() async {
-    if (running || !ready) return;
-    _session = await _repo.startNewSession(
-      routineId: _routineId,
-      routineTarget: _routineTarget,
-    );
-    _entry = null;
+  Future<void> resetProgress() async {
+    final exerciseId = _exerciseId;
+    if (exerciseId == null || running || !ready) return;
+    final routineId = _routineId;
+    if (routineId == null) {
+      await _repo.resetExerciseProgress(exerciseId);
+    } else {
+      await _repo.resetRoutineProgress(routineId);
+    }
+    _record = null;
     _carry = Duration.zero;
     await start();
   }
@@ -229,33 +214,30 @@ class PracticeTimer extends ChangeNotifier {
     _stopTicker();
     if (!_touched) return;
     if (appIsClosing || _detached) {
-      if (_recovery == null) await _checkpoint();
+      if (_recovery == null) await _checkpoint(publish: true);
       return;
     }
-    await _stopEntry();
-    final session = _session;
-    if (session != null) await _repo.endSession(session.id);
+    await _stopRecord();
   }
 
   Future<void> resolveRecovery(PracticeRecoveryChoice choice) async {
-    final entry = _entry;
+    final record = _record;
     final recovery = _recovery;
-    if (entry == null || recovery == null) return;
+    if (record == null || recovery == null) return;
     switch (choice) {
       case PracticeRecoveryChoice.discard:
-        await _repo.discardSessionEntries(entry);
-        _carry = Duration.zero;
-        _entry = null;
+        await _repo.discardRecord(record);
+        _record = null;
         _state = PracticeTimerState.idle;
       case PracticeRecoveryChoice.untilLeft:
-        _entry = await _repo.checkpointSessionEntry(
-          entry,
+        _record = await _repo.checkpointRecord(
+          record,
           now: recovery.leftAt,
           stop: true,
         );
         _state = PracticeTimerState.idle;
       case PracticeRecoveryChoice.untilNow:
-        _entry = await _repo.checkpointSessionEntry(entry);
+        await _checkpoint(publish: true);
         _state = PracticeTimerState.running;
         _startTicker();
     }
@@ -283,7 +265,7 @@ class PracticeTimer extends ChangeNotifier {
   }
 
   void _onTick() {
-    final runningSince = _entry?.runningSince;
+    final runningSince = _record?.runningSince;
     if (runningSince != null &&
         DateTime.now().difference(runningSince) >= checkpointInterval) {
       unawaited(_checkpoint());
@@ -297,26 +279,25 @@ class PracticeTimer extends ChangeNotifier {
     _ticks.value++;
   }
 
-  Future<void> _checkpoint({bool stop = false}) async {
-    final entry = _entry;
-    if (entry == null) return;
-    final next = await _repo.checkpointSessionEntry(entry, stop: stop);
-    if (next.id != entry.id) {
-      // the stopwatch ran over midnight and continues in a new entry
-      _entry = next;
-      await _reloadCarry();
-      _carry -= next.duration;
-    } else {
-      _entry = next;
-    }
+  Future<void> _checkpoint({bool stop = false, bool publish = false}) async {
+    final record = _record;
+    if (record == null) return;
+    final next = await _repo.checkpointRecord(
+      record,
+      stop: stop,
+      publish: publish,
+    );
+    _record = next;
+    // the stopwatch ran over midnight and continues in a new record
+    if (next.id != record.id) await _reloadCarry();
     _tick();
   }
 
-  Future<void> _stopEntry() async {
-    final entry = _entry;
-    if (entry == null) return;
-    _entry = await _repo.checkpointSessionEntry(
-      entry,
+  Future<void> _stopRecord() async {
+    final record = _record;
+    if (record == null) return;
+    _record = await _repo.checkpointRecord(
+      record,
       now: _recovery?.leftAt,
       stop: true,
     );
@@ -324,52 +305,30 @@ class PracticeTimer extends ChangeNotifier {
   }
 
   Future<void> _reloadCarry() async {
-    final session = _session;
     final exerciseId = _exerciseId;
-    if (session == null || exerciseId == null) return;
-    final reloaded = await _repo.getSession(session.id);
-    if (reloaded == null) return;
-    _session = reloaded;
-    _carry = reloaded.durationFor(
+    if (exerciseId == null) return;
+    final routineId = _routineId;
+    final progress = routineId == null
+        ? await _repo.getExerciseProgress(exerciseId)
+        : await _repo.getRoutineProgress(routineId);
+    _carry = progress.durationFor(
       exerciseId: exerciseId,
       routineEntryId: _routineEntryId,
     );
-  }
-
-  Future<void> _recoverRunningEntry() async {
-    final session = _session;
-    final exerciseId = _exerciseId;
-    if (session == null || exerciseId == null) return;
-    for (final entry in session.entries) {
-      final runningSince = entry.runningSince;
-      if (runningSince == null) continue;
-      if (!entry.matches(
-        exerciseId: exerciseId,
-        routineEntryId: _routineEntryId,
-      )) {
-        await _repo.checkpointSessionEntry(
-          entry,
-          now: runningSince,
-          stop: true,
-        );
-        continue;
-      }
-      _entry = entry;
-      _carry -= entry.duration;
-      _touched = true;
-      await _handleGap(entry, runningSince);
-    }
+    final recordId = _record?.id;
+    final stored = progress.records.where((r) => r.id == recordId).firstOrNull;
+    if (stored != null) _carry -= stored.duration;
   }
 
   Future<void> _handleGap(
-    PracticeSessionEntry entry,
+    PracticeRecord record,
     DateTime lastCheckpoint,
   ) async {
     final now = DateTime.now();
     final gap = now.difference(lastCheckpoint);
-    final counted = _carry + entry.duration;
+    final counted = _carry + record.duration;
     if (!_needsRecovery(gap, counted)) {
-      _entry = await _repo.checkpointSessionEntry(entry, now: now);
+      await _checkpoint();
       _state = PracticeTimerState.running;
       _startTicker();
       return;
@@ -394,10 +353,10 @@ class PracticeTimer extends ChangeNotifier {
     switch (state) {
       case AppLifecycleState.detached:
         _detached = true;
-        if (running) unawaited(_checkpoint());
+        if (running) unawaited(_checkpoint(publish: true));
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
-        if (running) unawaited(_checkpoint());
+        if (running) unawaited(_checkpoint(publish: true));
       case AppLifecycleState.resumed:
         _detached = false;
         if (running) unawaited(_onForeground());
@@ -407,17 +366,17 @@ class PracticeTimer extends ChangeNotifier {
   }
 
   Future<void> _onForeground() async {
-    final entry = _entry;
-    final runningSince = entry?.runningSince;
-    if (entry == null || runningSince == null) return;
+    final record = _record;
+    final runningSince = record?.runningSince;
+    if (record == null || runningSince == null) return;
     final gap = DateTime.now().difference(runningSince);
     if (gap < checkpointInterval) return;
-    if (!_needsRecovery(gap, _carry + entry.duration)) {
+    if (!_needsRecovery(gap, _carry + record.duration)) {
       await _checkpoint();
       return;
     }
     _stopTicker();
-    await _handleGap(entry, runningSince);
+    await _handleGap(record, runningSince);
     _notify();
   }
 

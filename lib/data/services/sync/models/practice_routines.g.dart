@@ -11,13 +11,17 @@ PracticeRoutineMetadataModel _$PracticeRoutineMetadataModelFromJson(
 ) => $checkedCreate('PracticeRoutineMetadataModel', json, ($checkedConvert) {
   final val = PracticeRoutineMetadataModel(
     description: $checkedConvert('description', (v) => v as String?),
+    progressResetAt: $checkedConvert('progressResetAt', (v) => v as String?),
   );
   return val;
 });
 
 Map<String, dynamic> _$PracticeRoutineMetadataModelToJson(
   PracticeRoutineMetadataModel instance,
-) => <String, dynamic>{'description': instance.description};
+) => <String, dynamic>{
+  'description': instance.description,
+  'progressResetAt': instance.progressResetAt,
+};
 
 PracticeRoutineEntryMetadataModel _$PracticeRoutineEntryMetadataModelFromJson(
   Map<String, dynamic> json,

@@ -1629,12 +1629,7 @@ void main() {
     await repo.setExerciseScores(exerciseId, ["a"]);
     final routineId = await createRoutine("Morning");
     await repo.addRoutineEntries(routineId, [exerciseId]);
-    await db.managers.practiceSessionsTable.create(
-      (o) => o(id: "session", startedAt: DateTime.now().toUtc()),
-    );
-    await db.managers.practiceSessionEntriesTable.create(
-      (o) => o(id: "session-entry", session: "session", exercise: exerciseId),
-    );
+    await repo.startRecord(exerciseId: exerciseId);
 
     await repo.deleteCategory(await insertCategory("Gone", position: 1));
     expect(await db.managers.deletedExerciseCategoriesTable.count(), 1);
@@ -1647,12 +1642,11 @@ void main() {
     expect(await db.managers.exerciseScoresTable.count(), 0);
     expect(await db.managers.practiceRoutinesTable.count(), 0);
     expect(await db.managers.practiceRoutineEntriesTable.count(), 0);
-    expect(await db.managers.practiceSessionsTable.count(), 0);
-    expect(await db.managers.practiceSessionEntriesTable.count(), 0);
+    expect(await db.managers.practiceRecordsTable.count(), 0);
     expect(await db.managers.deletedExerciseCategoriesTable.count(), 0);
     expect(await db.managers.deletedExercisesTable.count(), 0);
     expect(await db.managers.deletedPracticeRoutinesTable.count(), 0);
-    expect(await db.managers.deletedPracticeSessionsTable.count(), 0);
+    expect(await db.managers.deletedPracticeRecordsTable.count(), 0);
 
     // scores and tags are wiped by the scores repository
     expect(await db.managers.scoresTable.count(), 1);
