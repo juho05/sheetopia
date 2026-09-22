@@ -11,10 +11,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
+import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/ui/common/choice_dialog.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/surface.dart';
 import 'package:sheetopia/ui/common/tag_badge.dart';
+import 'package:sheetopia/ui/practice/exercise_score_selector.dart';
 import 'package:sheetopia/ui/practice/practice_stopwatch.dart';
 import 'package:sheetopia/ui/practice/practice_timer.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -96,6 +98,10 @@ class ExerciseStartOverlay extends StatelessWidget {
   final bool hasPrevious;
   final bool hasNext;
 
+  final List<Score> scores;
+  final int selectedScoreIndex;
+  final void Function(int index)? onScoreSelected;
+
   final void Function()? onStart;
   final void Function()? onNewSession;
   final void Function() onLeave;
@@ -112,6 +118,9 @@ class ExerciseStartOverlay extends StatelessWidget {
     this.target,
     this.hasPrevious = false,
     this.hasNext = false,
+    this.scores = const [],
+    this.selectedScoreIndex = -1,
+    this.onScoreSelected,
     required this.onStart,
     this.onNewSession,
     required this.onLeave,
@@ -152,10 +161,36 @@ class ExerciseStartOverlay extends StatelessWidget {
     );
   }
 
+  Widget _buildScoreSelector(
+    BuildContext context,
+    void Function(int index) onSelected,
+  ) {
+    final theme = Theme.of(context);
+    return Row(
+      spacing: 8,
+      children: [
+        Text(
+          "Score",
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        Flexible(
+          child: ExerciseScoreSelector(
+            scores: scores,
+            selectedIndex: selectedScoreIndex,
+            onSelected: onSelected,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final category = exercise.category;
+    final onScoreSelected = this.onScoreSelected;
     final instrument = exercise.instrument;
     final description = exercise.description;
     final source = exercise.source;
@@ -193,6 +228,8 @@ class ExerciseStartOverlay extends StatelessWidget {
                 TagBadge(tag: tag, tooltip: false),
             ],
           ),
+        if (onScoreSelected != null && scores.length > 1)
+          _buildScoreSelector(context, onScoreSelected),
         if (description != null) ...[
           Divider(height: 1, color: theme.colorScheme.outlineVariant),
           Text(

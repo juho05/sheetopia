@@ -101,6 +101,9 @@ class _ExercisePlayPageState extends State<ExercisePlayPage> {
     return ExerciseStartOverlay(
       exercise: exercise,
       practiced: timer.elapsed,
+      scores: _viewModel.scores,
+      selectedScoreIndex: _viewModel.position,
+      onScoreSelected: _viewModel.selectScore,
       onStart: timer.ready ? timer.start : null,
       onNewSession: timer.startNewSession,
       onLeave: () => _leave(context),
