@@ -53,7 +53,7 @@ class EditExercisePage extends StatelessWidget {
                 ],
               ),
               primaryLabel: "Metadata",
-              secondaryLabel: "Scores",
+              secondaryLabel: "Scores (${viewModel.scoreEntries.length})",
               loading: viewModel.loading,
               lockSecondarySwipe: false,
               primary: (context) => const EditExerciseForm(),
