@@ -14,6 +14,7 @@ import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/filter_button.dart';
 import 'package:sheetopia/ui/common/menu_button.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
+import 'package:sheetopia/ui/common/rounded_tile_icon.dart';
 import 'package:sheetopia/ui/common/search_input.dart';
 import 'package:sheetopia/ui/common/section_header.dart';
 import 'package:sheetopia/ui/common/selection/selectable_tile_icon.dart';
@@ -34,6 +35,7 @@ class ExercisesView extends StatefulWidget {
   final void Function(Exercise exercise)? onExerciseDeselected;
   final void Function(List<String> exerciseIds)? onExercisesSelected;
   final void Function()? onClearSelection;
+  final void Function(Exercise exercise)? onExercisePicked;
   final Set<String> selected;
 
   final Widget? emptyAction;
@@ -47,6 +49,7 @@ class ExercisesView extends StatefulWidget {
     this.onExerciseDeselected,
     this.onExercisesSelected,
     this.onClearSelection,
+    this.onExercisePicked,
     this.selected = const {},
     this.emptyAction,
     this.bottomPadding = 0,
@@ -306,6 +309,7 @@ class _ExercisesViewState extends State<ExercisesView> {
                           : null,
                       onAddToRoutine: () => _addToRoutine(exercise),
                       onDelete: () => _delete(exercise),
+                      onPicked: widget.onExercisePicked,
                     );
                   },
                 ),
@@ -369,6 +373,7 @@ class _ExerciseTile extends StatelessWidget {
   final void Function(Exercise exercise)? onRangeSelect;
   final void Function() onAddToRoutine;
   final void Function() onDelete;
+  final void Function(Exercise exercise)? onPicked;
 
   const _ExerciseTile({
     required this.exercise,
@@ -379,10 +384,19 @@ class _ExerciseTile extends StatelessWidget {
     required this.onDelete,
     this.onSelectionStart,
     this.onRangeSelect,
+    this.onPicked,
   });
 
   @override
   Widget build(BuildContext context) {
+    final onPicked = this.onPicked;
+    if (onPicked != null) {
+      return ExerciseTile(
+        exercise: exercise,
+        leading: const RoundedTileIcon(icon: Symbols.exercise),
+        onTap: () => onPicked(exercise),
+      );
+    }
     final gestures = SelectionGestures(
       item: exercise,
       selecting: selecting,

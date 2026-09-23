@@ -21,6 +21,7 @@ import 'package:sheetopia/ui/common/selection/selection_gestures.dart';
 import 'package:sheetopia/ui/common/selection/selection_shortcuts.dart';
 import 'package:sheetopia/ui/practice/delete_routine_dialog.dart';
 import 'package:sheetopia/ui/practice/practice_routines_viewmodel.dart';
+import 'package:sheetopia/ui/practice/routine_summary.dart';
 import 'package:sheetopia/ui/practice/routines_filter_dialog.dart';
 
 String _formatDuration(Duration duration) {
@@ -28,14 +29,6 @@ String _formatDuration(Duration duration) {
   final minutes = duration.inMinutes.remainder(60);
   if (hours == 0) return "${minutes}min";
   return "${hours}h ${minutes}min";
-}
-
-String _formatPracticed(Duration duration) {
-  if (duration.inHours > 0) return _formatDuration(duration);
-  final minutes = duration.inMinutes;
-  final seconds = duration.inSeconds.remainder(60);
-  if (minutes == 0) return "${seconds}s";
-  return "${minutes}min ${seconds}s";
 }
 
 class PracticePage extends StatefulWidget {
@@ -368,6 +361,7 @@ class _TodayCard extends StatelessWidget {
     final theme = Theme.of(context);
     return _SummaryCard(
       color: theme.colorScheme.primaryContainer,
+      onTap: () => context.go("/practice/records"),
       child: Row(
         spacing: 12,
         children: [
@@ -390,7 +384,7 @@ class _TodayCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  _formatPracticed(practiced),
+                  formatPracticed(practiced),
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleLarge?.copyWith(
                     color: theme.colorScheme.onPrimaryContainer,
@@ -399,6 +393,10 @@ class _TodayCard extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          Icon(
+            Symbols.chevron_right,
+            color: theme.colorScheme.onPrimaryContainer,
           ),
         ],
       ),

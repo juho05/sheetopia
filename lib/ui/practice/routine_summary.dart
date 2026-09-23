@@ -18,6 +18,14 @@ String formatRoutineDuration(Duration duration) {
   return "${hours}h ${minutes}min";
 }
 
+String formatPracticed(Duration duration) {
+  if (duration.inHours > 0) return formatRoutineDuration(duration);
+  final minutes = duration.inMinutes;
+  final seconds = duration.inSeconds.remainder(60);
+  if (minutes == 0) return "${seconds}s";
+  return "${minutes}min ${seconds}s";
+}
+
 String routineSummary(int count, Duration targetDuration) {
   final exercises = "$count ${count == 1 ? "exercise" : "exercises"}";
   if (targetDuration == Duration.zero) return exercises;

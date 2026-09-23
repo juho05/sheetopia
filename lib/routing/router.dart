@@ -16,6 +16,7 @@ import 'package:sheetopia/ui/practice/edit_exercise_page.dart';
 import 'package:sheetopia/ui/practice/edit_routine_page.dart';
 import 'package:sheetopia/ui/practice/exercise_play_page.dart';
 import 'package:sheetopia/ui/practice/exercises_page.dart';
+import 'package:sheetopia/ui/practice/practice_records_page.dart';
 import 'package:sheetopia/ui/practice/routine_detail_page.dart';
 import 'package:sheetopia/ui/practice/routine_play_page.dart';
 import 'package:sheetopia/ui/score/score_page.dart';
@@ -129,6 +130,10 @@ GoRouter get goRouter {
             path: "practice/routines/:routineId/edit",
             builder: (context, state) =>
                 EditRoutinePage(routineId: state.pathParameters["routineId"]),
+          ),
+          GoRoute(
+            path: "practice/records",
+            builder: (context, state) => const PracticeRecordsPage(),
           ),
           GoRoute(
             path: "practice/exercises",

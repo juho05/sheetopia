@@ -1420,6 +1420,47 @@ class PracticeRepository {
     return record;
   }
 
+  Future<String> createRecord({
+    required String exerciseId,
+    required DateTime startedAt,
+    required Duration duration,
+  }) async {
+    final recordId = _db.newId();
+    await _db.managers.practiceRecordsTable.create(
+      (o) => o(
+        id: recordId,
+        exercise: exerciseId,
+        startedAt: startedAt.toUtc(),
+        duration: Value(duration),
+        updatedAt: Value(DateTime.now().toUtc()),
+        uploaded: const Value(false),
+      ),
+    );
+    _updatedRecordIds.add((changed: {recordId}, needsUpload: true));
+    return recordId;
+  }
+
+  Future<List<PracticeRecord>> getRecords({
+    required int size,
+    int offset = 0,
+  }) async {
+    final query = _db.select(_db.practiceRecordsTable)
+      ..orderBy([
+        (t) => OrderingTerm.desc(t.startedAt),
+        (t) => OrderingTerm.desc(t.id),
+      ])
+      ..limit(size, offset: offset);
+    return (await query.get()).map(_toRecord).toList();
+  }
+
+  Future<Map<String, String>> getRoutineNames(Iterable<String> ids) async {
+    if (ids.isEmpty) return const {};
+    final rows = await _db.managers.practiceRoutinesTable
+        .filter((f) => f.id.isIn(ids))
+        .get();
+    return {for (final row in rows) row.id: row.name};
+  }
+
   Future<PracticeRecord> _createRecord({
     required String exerciseId,
     required String? routineId,

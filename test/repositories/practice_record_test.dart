@@ -288,6 +288,53 @@ void main() {
       expect(row.duration, const Duration(minutes: 9));
       expect(row.uploaded, isFalse);
     });
+
+    test("a manual create adds a stopped record marked for upload", () async {
+      final exercise = await createExercise("Scales");
+      final startedAt = DateTime(2026, 3, 4, 10, 30);
+      final updated = expectLater(repo.updatedRecordIds, emits(hasLength(1)));
+
+      final recordId = await repo.createRecord(
+        exerciseId: exercise,
+        startedAt: startedAt,
+        duration: const Duration(minutes: 12),
+      );
+
+      await updated;
+      final record = (await repo.getRecord(recordId))!;
+      expect(record.running, isFalse);
+      expect(record.exerciseId, exercise);
+      expect(record.routineId, isNull);
+      expect(record.startedAt, startedAt);
+      expect(record.duration, const Duration(minutes: 12));
+      expect((await allRecords()).single.uploaded, isFalse);
+    });
+
+    test("records are listed newest first in pages", () async {
+      final exercise = await createExercise("Scales");
+      for (var day = 1; day <= 5; day++) {
+        await repo.createRecord(
+          exerciseId: exercise,
+          startedAt: DateTime(2026, 3, day, 10),
+          duration: const Duration(minutes: 1),
+        );
+      }
+
+      final first = await repo.getRecords(size: 3);
+      final second = await repo.getRecords(size: 3, offset: 3);
+
+      expect([for (final r in first) r.startedAt.day], [5, 4, 3]);
+      expect([for (final r in second) r.startedAt.day], [2, 1]);
+    });
+
+    test("routine names are looked up by id", () async {
+      final exercise = await createExercise("Scales");
+      final routine = await createRoutine("Morning", {exercise: null});
+
+      expect(await repo.getRoutineNames({routine.id, "missing"}), {
+        routine.id: "Morning",
+      });
+    });
   });
 
   group("progress", () {
