@@ -73,11 +73,11 @@ jobs:
 
       - name: Dependencies
         working-directory: ${{ env.APK_BUILD_DIR }}
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Build generated files
         working-directory: ${{ env.APK_BUILD_DIR }}
-        run: flutter pub run build_runner build
+        run: dart run build_runner build
 
       - name: Build APK
         working-directory: ${{ env.APK_BUILD_DIR }}
@@ -112,10 +112,10 @@ jobs:
           channel: "stable"
 
       - name: Dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Build generated files
-        run: flutter pub run build_runner build
+        run: dart run build_runner build
 
       - name: Compile linux
         run: flutter build linux
@@ -188,10 +188,10 @@ jobs:
           channel: "stable"
 
       - name: Dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Build generated files
-        run: flutter pub run build_runner build
+        run: dart run build_runner build
 
       - name: Compile linux
         run: flutter build linux
@@ -226,10 +226,10 @@ jobs:
           channel: "stable"
 
       - name: Dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Build generated files
-        run: flutter pub run build_runner build
+        run: dart run build_runner build
 
       - name: Compile for Windows
         run: flutter build windows
@@ -283,10 +283,10 @@ jobs:
           channel: "stable"
 
       - name: Dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Build generated files
-        run: flutter pub run build_runner build
+        run: dart run build_runner build
 
       - name: Compile for macOS
         run: flutter build macos
@@ -455,9 +455,9 @@ jobs:
           channel: "stable"
 
       - name: Dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
       - name: Build generated files
-        run: flutter pub run build_runner build
+        run: dart run build_runner build
       - name: Compile for iOS
         run: flutter build ipa --dart-define=VERSION_CHECK=false --export-options-plist=./ios/ExportOptions.plist
       - name: Move .ipa to working directory
