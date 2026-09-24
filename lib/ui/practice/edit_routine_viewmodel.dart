@@ -162,7 +162,7 @@ class EditRoutineViewModel extends ChangeNotifier {
       await _repo.createRoutine(
         name: name,
         description: _formValue(formDescription),
-        entries: _entries,
+        entries: List.of(_entries),
       );
       return true;
     } finally {
@@ -178,7 +178,7 @@ class EditRoutineViewModel extends ChangeNotifier {
 
   Future<void> _persistEntries() async {
     if (_routineId == null) return;
-    await _repo.setRoutineEntries(_routineId, _entries);
+    await _repo.setRoutineEntries(_routineId, List.of(_entries));
   }
 
   Future<void> _load() async {
