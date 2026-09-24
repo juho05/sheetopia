@@ -24,6 +24,7 @@ import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/repositories/version/version.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/data/services/sync/exceptions.dart';
 import 'package:sheetopia/data/services/sync/models/datetime_converter.dart';
 import 'package:sheetopia/data/services/sync/models/exercise_metadata.dart';
@@ -48,7 +49,9 @@ class SyncRepository {
 
   static const minAPIVersionType = Version(major: 0, minor: 4);
 
-  static const minAPIVersionPractice = Version(major: 0, minor: 5);
+  static const minAPIVersionPractice = Version(major: 0, minor: 4);
+
+  static const minAPIVersionPracticeRecords = Version(major: 0, minor: 5);
 
   final ScoresRepository _scoresRepo;
   final SetlistsRepository _setlistsRepo;
@@ -303,8 +306,10 @@ class SyncRepository {
       if (apiVersion >= minAPIVersionSetlist) {
         await _uploadDeletedSetlists();
       }
-      if (apiVersion >= minAPIVersionPractice) {
+      if (apiVersion >= minAPIVersionPracticeRecords) {
         await _uploadDeletedPracticeRecords();
+      }
+      if (apiVersion >= minAPIVersionPractice) {
         await _uploadDeletedPracticeRoutines();
         await _uploadDeletedExercises();
         await _uploadDeletedExerciseCategories();
@@ -324,8 +329,9 @@ class SyncRepository {
         await _uploadExerciseChanges(sendWrittenAt);
       }
 
-      await _uploadMetadataChanges(sendWrittenAt, sendType);
-      await _uploadFileChanges();
+      final libraryOnly = apiVersion < minAPIVersionType;
+      await _uploadMetadataChanges(sendWrittenAt, sendType, libraryOnly);
+      await _uploadFileChanges(libraryOnly);
 
       await _downloadMetadataChanges();
       await _downloadFileChanges();
@@ -343,7 +349,9 @@ class SyncRepository {
         await _downloadDeletedPracticeRoutines(honourDeletedAt);
         await _uploadPracticeRoutineChanges(sendWrittenAt);
         await _downloadPracticeRoutineChanges();
+      }
 
+      if (apiVersion >= minAPIVersionPracticeRecords) {
         await _downloadDeletedPracticeRecords(honourDeletedAt);
         await _uploadPracticeRecordChanges(sendWrittenAt);
         await _downloadPracticeRecordChanges();
@@ -1363,9 +1371,10 @@ class SyncRepository {
   }
 
   Future<void> _uploadTagChanges(bool sendWrittenAt, bool sendType) async {
-    final changedTags = await _db.managers.tagsTable
-        .filter((f) => f.uploaded.isFalse())
-        .get();
+    final changedTags = await _db.managers.tagsTable.filter((f) {
+      final pending = f.uploaded.isFalse();
+      return sendType ? pending : pending & f.type.equals(TagType.score);
+    }).get();
 
     for (final t in changedTags) {
       try {
@@ -1494,7 +1503,11 @@ class SyncRepository {
     _scoresRepo.announceDeletedScores(actuallyDeleted);
   }
 
-  Future<void> _uploadMetadataChanges(bool sendWrittenAt, bool sendType) async {
+  Future<void> _uploadMetadataChanges(
+    bool sendWrittenAt,
+    bool sendType,
+    bool libraryOnly,
+  ) async {
     final changedScores = await _db.managers.scoresTable
         .withReferences(
           (prefetch) => prefetch(
@@ -1503,11 +1516,14 @@ class SyncRepository {
             instrumentsTableRefs: true,
           ),
         )
-        .filter(
-          (f) =>
+        .filter((f) {
+          final pending =
               f.status.equals(ScoreStatus.uncreatedParent).not() &
-              f.metadataUploaded.isFalse(),
-        )
+              f.metadataUploaded.isFalse();
+          return libraryOnly
+              ? pending & f.type.equals(ScoreType.score)
+              : pending;
+        })
         .get(distinct: true);
 
     for (final (s, refs) in changedScores) {
@@ -1581,15 +1597,14 @@ class SyncRepository {
         );
   }
 
-  Future<void> _uploadFileChanges() async {
-    final scores = await _db.managers.scoresTable
-        .filter(
-          (f) =>
-              f.status.equals(ScoreStatus.uncreatedParent).not() &
-              f.fileDownloaded.isTrue() &
-              f.fileUploaded.isFalse(),
-        )
-        .get();
+  Future<void> _uploadFileChanges(bool libraryOnly) async {
+    final scores = await _db.managers.scoresTable.filter((f) {
+      final pending =
+          f.status.equals(ScoreStatus.uncreatedParent).not() &
+          f.fileDownloaded.isTrue() &
+          f.fileUploaded.isFalse();
+      return libraryOnly ? pending & f.type.equals(ScoreType.score) : pending;
+    }).get();
     for (final s in scores) {
       final file = await _scoresRepo.scoreFile(s.id, s.fileType);
       try {

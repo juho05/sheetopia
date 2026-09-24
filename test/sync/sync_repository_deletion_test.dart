@@ -82,6 +82,7 @@ class _FakeSyncService extends SyncService {
   final uploadedTags = <_ScoreUpload>[];
 
   final uploadedScoreTypes = <String, ScoreType?>{};
+  final uploadedScoreFiles = <String>[];
   final uploadedTagTypes = <String, TagType?>{};
   final uploadedSetlists = <_ScoreUpload>[];
 
@@ -249,7 +250,7 @@ class _FakeSyncService extends SyncService {
     required File file,
     required DateTime updatedAt,
     required FileType fileType,
-  }) async {}
+  }) async => uploadedScoreFiles.add(scoreId);
 
   @override
   Future<void> downloadScoreFile(
@@ -618,13 +619,11 @@ void main() {
     expect(score.type, ScoreType.score);
   });
 
-  Future<void> createUnuploadedTypedRows() async {
-    await createScore(
-      uploaded: false,
-      type: ScoreType.exercise,
-      ownedByExercise: true,
-    );
-    await createTag(type: TagType.exercise);
+  Future<void> createUnuploadedTypedRows({
+    TagType tagType = TagType.exercise,
+  }) async {
+    await createScore(uploaded: false);
+    await createTag(type: tagType);
     await db.managers.tagsTable
         .filter((f) => f.id(tagId))
         .update((o) => o(uploaded: const Value(false)));
@@ -636,17 +635,50 @@ void main() {
 
     await syncAndWait();
 
-    expect(service.uploadedScoreTypes, {scoreId: ScoreType.exercise});
+    expect(service.uploadedScoreTypes, {scoreId: ScoreType.score});
     expect(service.uploadedTagTypes, {tagId: TagType.exercise});
   });
 
+  test("a server before 0.4 receives no exercise scores", () async {
+    await createScore(
+      uploaded: false,
+      type: ScoreType.exercise,
+      ownedByExercise: true,
+    );
+    await db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .update((o) => o(fileDownloaded: const Value(true)));
+
+    await syncAndWait();
+
+    expect(service.uploadedScoreTypes, isEmpty);
+    expect(service.uploadedScoreFiles, isEmpty);
+    final score = await db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .getSingle();
+    expect(score.metadataUploaded, isFalse);
+    expect(score.fileUploaded, isFalse);
+  });
+
   test("a server before 0.4 receives no types", () async {
-    await createUnuploadedTypedRows();
+    await createUnuploadedTypedRows(tagType: TagType.score);
 
     await syncAndWait();
 
     expect(service.uploadedScoreTypes, {scoreId: null});
     expect(service.uploadedTagTypes, {tagId: null});
+  });
+
+  test("a server before 0.4 receives no exercise tags", () async {
+    await createUnuploadedTypedRows();
+
+    await syncAndWait();
+
+    expect(service.uploadedTagTypes, isEmpty);
+    final tag = await db.managers.tagsTable
+        .filter((f) => f.id(tagId))
+        .getSingle();
+    expect(tag.uploaded, isFalse);
   });
 
   test("an imported setlist survives its tombstone", () async {

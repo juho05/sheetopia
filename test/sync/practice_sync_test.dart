@@ -533,8 +533,8 @@ void main() {
     ]);
   });
 
-  test("a server before 0.5 receives no practice data", () async {
-    service.apiVersion = "0.4.0";
+  test("a server before 0.4 receives no practice data", () async {
+    service.apiVersion = "0.3.0";
     await createCategory(uploaded: false);
     await createExercise(uploaded: false);
 
@@ -542,6 +542,21 @@ void main() {
 
     expect(service.uploadedCategories, isEmpty);
     expect(service.uploadedExercises, isEmpty);
+  });
+
+  test("a 0.4 server receives exercises but no records", () async {
+    service.apiVersion = "0.4.0";
+    await createCategory(uploaded: false);
+    await createExercise(uploaded: false, category: categoryId);
+    await createRoutine(uploaded: false, withEntry: true);
+    await createRecord(uploaded: false);
+
+    await syncAndWait();
+
+    expect(service.uploadedCategories, [(id: categoryId, writtenAt: null)]);
+    expect(service.uploadedExercises, [(id: exerciseId, writtenAt: null)]);
+    expect(service.uploadedRoutines, [(id: routineId, writtenAt: null)]);
+    expect(service.uploadedRecords, isEmpty);
   });
 
   test("remote practice data is stored", () async {
