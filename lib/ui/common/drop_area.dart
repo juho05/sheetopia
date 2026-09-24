@@ -63,6 +63,7 @@ class _DropAreaState extends State<DropArea> {
   void _onDragDone(DropDoneDetails details) {
     _setDragging(false);
     if (details.files.isEmpty || !_isUnobstructed(details.globalPosition)) {
+      DesktopDrop.instance.clearReceivingCache();
       return;
     }
     widget.onDrop(details.files);

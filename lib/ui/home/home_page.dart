@@ -8,6 +8,7 @@
 
 import 'dart:io';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -187,7 +188,10 @@ class _HomePageState extends State<HomePage> {
                               await ImportExerciseScoresChoiceDialog.show(
                                 context,
                               );
-                          if (choice == null) return;
+                          if (choice == null) {
+                            await DesktopDrop.instance.clearReceivingCache();
+                            return;
+                          }
                           separate = choice == ImportExerciseScoresChoice.separate;
                         }
                         final ok = await viewModel.receiveExerciseDrop(files);
