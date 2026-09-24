@@ -16,6 +16,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/utils/id_path.dart';
 
 class ThumbnailService {
   static const int _maxCachedPaths = 2000;
@@ -149,7 +150,7 @@ class ThumbnailService {
     final cacheDir = _cacheDir ??= Directory(
       path.join((await getApplicationCacheDirectory()).path, "thumbnails"),
     );
-    return Directory(path.join(cacheDir.path, scoreId));
+    return Directory(idPath(cacheDir.path, scoreId));
   }
 
   Future<String> _thumbnailPath(

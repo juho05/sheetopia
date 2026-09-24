@@ -39,6 +39,7 @@ import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/setlists.dart';
 import 'package:sheetopia/data/services/sync/models/tags.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
+import 'package:sheetopia/utils/id_path.dart';
 
 enum ImportExportStatus { idle, importing, exporting }
 
@@ -874,7 +875,10 @@ class ImportExportRepository extends ChangeNotifier {
 
         if (score == null || fileChanged) {
           final scoreFile = File(
-            path.join(scoresDir, s.id, "score${fileTypeExtension(s.fileType)}"),
+            path.join(
+              idPath(scoresDir, s.id),
+              "score${fileTypeExtension(s.fileType)}",
+            ),
           );
           if (!await scoreFile.exists()) {
             throw InvalidFileException("missing score file for ${s.id}");

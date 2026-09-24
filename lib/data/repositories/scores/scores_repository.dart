@@ -29,6 +29,7 @@ import 'package:sheetopia/data/services/database/instr_expression.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
+import 'package:sheetopia/utils/id_path.dart';
 
 class InvalidFileTypeException implements Exception {
   final String filePath;
@@ -1398,7 +1399,7 @@ class ScoresRepository {
   }
 
   Future<Directory> scoreDir(String id) async {
-    return Directory(path.join((await scoresDir).path, id));
+    return Directory(idPath((await scoresDir).path, id));
   }
 
   Future<Directory> createScoreDir(String id) async {

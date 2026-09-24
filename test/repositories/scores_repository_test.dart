@@ -13,8 +13,11 @@ import 'package:drift/native.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logger/logger.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
+import 'package:sheetopia/data/repositories/logger/log_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
@@ -37,6 +40,8 @@ class _FakePathProvider extends PathProviderPlatform
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   TestWidgetsFlutterBinding.ensureInitialized();
+  Log.init(LogRepository());
+  Log.level = Level.off;
 
   late Directory tempDir;
   late Database db;
@@ -436,6 +441,19 @@ void main() {
 
     expect(fileTypeExtension(FileType.byName("../..")), ".bin");
     expect(fileTypeExtension(FileType.byName("")), ".bin");
+  });
+
+  test("a score id cannot escape the scores directory", () async {
+    final victim = Directory("${tempDir.path}/victim");
+    await victim.create();
+
+    for (final id in ["..", "../victim", r"..\victim", "a/b", "", "."]) {
+      expect(() => repo.scoreDir(id), throwsArgumentError);
+      await repo.cleanupScoreFilesAfterDelete(id);
+    }
+
+    expect(await victim.exists(), isTrue);
+    expect(await (await repo.scoresDir).exists(), isTrue);
   });
 
   test("changing the file keeps a colliding storage name", () async {
