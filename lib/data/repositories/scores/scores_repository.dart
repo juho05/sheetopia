@@ -1085,6 +1085,7 @@ class ScoresRepository {
     ScoreType type = ScoreType.score,
   }) async {
     List<Score> scores = [];
+    final List<Directory> createdDirs = [];
     try {
       for (final f in files) {
         final fileType = await _getFileType(f);
@@ -1095,7 +1096,7 @@ class ScoresRepository {
         final id = _db.newId();
         final title = path.basenameWithoutExtension(f.name);
 
-        await createScoreDir(id);
+        createdDirs.add(await createScoreDir(id));
         final file = await scoreFile(id, fileType);
 
         await f.saveTo(file.path);
@@ -1138,9 +1139,9 @@ class ScoresRepository {
         ),
       );
     } catch (_) {
-      for (final s in scores) {
+      for (final dir in createdDirs) {
         try {
-          await s.file?.delete();
+          await dir.delete(recursive: true);
         } catch (_) {}
       }
       rethrow;
