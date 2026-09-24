@@ -198,7 +198,10 @@ class _PdfViewState extends State<PdfView> {
             _viewModel.updateForwardPageCount(pageCount);
             _viewModel.updateBackwardPageCount(prevPageCount);
 
-            final loading = _viewModel.document == null || _viewModel.switching;
+            final failed = _viewModel.loadFailed && !_viewModel.switching;
+            final loading =
+                (_viewModel.document == null && !failed) ||
+                _viewModel.switching;
 
             return Listener(
               onPointerSignal: (event) {
@@ -236,6 +239,7 @@ class _PdfViewState extends State<PdfView> {
                         const Center(
                           child: CircularProgressIndicator.adaptive(),
                         ),
+                      if (failed) const _PdfLoadErrorView(),
                       // back layer
                       if (!loading && pageCount > 0 && nextPageCount > 0)
                         Row(
@@ -280,6 +284,41 @@ class _PdfViewState extends State<PdfView> {
           },
         );
       },
+    );
+  }
+}
+
+class _PdfLoadErrorView extends StatelessWidget {
+  const _PdfLoadErrorView();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: muted),
+            const SizedBox(height: 16),
+            Text(
+              "This PDF could not be opened.",
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyLarge?.copyWith(color: muted),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "It may be damaged or password protected.",
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: muted.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

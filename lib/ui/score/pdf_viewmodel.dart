@@ -12,6 +12,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
 import 'package:sheetopia/ui/score/score_file_view.dart';
@@ -62,6 +63,14 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
 
   bool _loadInProgress = false;
 
+  int _loadGeneration = 0;
+
+  bool _loadFailed = false;
+
+  bool get loadFailed => _loadFailed;
+
+  bool _disposed = false;
+
   final Map<String, Future<PdfDocument>> _preloadedDocuments = {};
 
   bool _isPreloaded(String? path) =>
@@ -86,6 +95,7 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
 
   Future<void> _loadAnnotations() async {
     final pages = await _scoresRepository.getAnnotations(_scoreId);
+    if (_disposed) return;
     _annotations
       ..clear()
       ..addAll(pages);
@@ -123,23 +133,34 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
   }
 
   Future<void> _loadDocument() async {
+    final generation = ++_loadGeneration;
+    final path = _file.path;
     _loadInProgress = true;
+    PdfDocument? document;
     try {
-      final preloaded = _preloadedDocuments.remove(_file.path);
-      final document = await (preloaded ?? PdfDocument.openFile(_file.path));
-      _document?.dispose();
-      _document = document;
-      _documentPath = _file.path;
-      final landOnLastPage = _pendingLandOnLastPage;
-      _pendingLandOnLastPage = false;
-      _needsLastSpreadStart = landOnLastPage;
-      _currentPageIndex = landOnLastPage ? document.pages.length - 1 : 0;
-      _switchInFlight = false;
-      _switching = false;
-      notifyListeners();
+      final preloaded = _preloadedDocuments.remove(path);
+      document = await (preloaded ?? PdfDocument.openFile(path));
+    } catch (e, st) {
+      if (_disposed || generation != _loadGeneration) return;
+      Log.error("Failed to open PDF $path", e: e, st: st);
     } finally {
-      _loadInProgress = false;
+      if (generation == _loadGeneration) _loadInProgress = false;
     }
+    if (_disposed || generation != _loadGeneration) {
+      document?.dispose();
+      return;
+    }
+    _document?.dispose();
+    _document = document;
+    _documentPath = path;
+    _loadFailed = document == null;
+    final landOnLastPage = _pendingLandOnLastPage && document != null;
+    _pendingLandOnLastPage = false;
+    _needsLastSpreadStart = landOnLastPage;
+    _currentPageIndex = landOnLastPage ? document.pages.length - 1 : 0;
+    _switchInFlight = false;
+    _switching = false;
+    notifyListeners();
   }
 
   void updateLastSpreadStart(int start) {
@@ -154,6 +175,7 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
 
   @override
   void dispose() {
+    _disposed = true;
     _annotationsSub?.cancel();
     _document?.dispose();
     for (final document in _preloadedDocuments.values) {
@@ -165,9 +187,9 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
 
   @override
   void nextPage() {
-    if (_document == null || _switchInFlight) return;
+    if ((_document == null && !_loadFailed) || _switchInFlight) return;
     final newIndex = _currentPageIndex + _forwardPageCount;
-    if (newIndex >= _document!.pages.length) {
+    if (newIndex >= (_document?.pages.length ?? 0)) {
       final preloaded = _isPreloaded(_nextPath);
       if (_onOverflowForward?.call() ?? false) {
         _pendingLandOnLastPage = false;
@@ -185,7 +207,7 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
 
   @override
   void prevPage() {
-    if (_document == null || _switchInFlight) return;
+    if ((_document == null && !_loadFailed) || _switchInFlight) return;
     if (_currentPageIndex == 0) {
       final preloaded = _isPreloaded(_previousPath);
       if (_onOverflowBackward?.call() ?? false) {
@@ -231,7 +253,11 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
       _disposeWhenReady(_preloadedDocuments.remove(path)!);
     }
     for (final path in wanted) {
-      _preloadedDocuments.putIfAbsent(path, () => PdfDocument.openFile(path));
+      _preloadedDocuments.putIfAbsent(path, () {
+        final document = PdfDocument.openFile(path);
+        document.then((_) {}, onError: (_) {});
+        return document;
+      });
     }
   }
 
