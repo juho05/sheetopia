@@ -34,6 +34,10 @@ open class FSIShareViewController: UIViewController {
     // Results
     private var sharedMedia: [SharingFile] = []
 
+    // Attachment callbacks run concurrently, so results and names are guarded by a lock.
+    private var reservedNames = Set<String>()
+    private let lock = NSLock()
+
     // Debug
     private let debugLogs = false
 
@@ -209,18 +213,18 @@ open class FSIShareViewController: UIViewController {
     // MARK: - Individual handlers (preserve FSI behavior)
     private func handleTextItem(data: NSSecureCoding?, index: Int, total: Int) {
         if let s = data as? String {
-            sharedMedia.append(SharingFile(value: s, thumbnail: nil, duration: nil, type: .text))
+            appendMedia(SharingFile(value: s, thumbnail: nil, duration: nil, type: .text))
         } else if let url = data as? URL {
-            sharedMedia.append(SharingFile(value: url.absoluteString, thumbnail: nil, duration: nil, type: .url))
+            appendMedia(SharingFile(value: url.absoluteString, thumbnail: nil, duration: nil, type: .url))
         }
         
     }
     
     private func handleUrlItem(data: NSSecureCoding?, index: Int, total: Int) {
         if let url = data as? URL {
-            sharedMedia.append(SharingFile(value: url.absoluteString, thumbnail: nil, duration: nil, type: .url))
+            appendMedia(SharingFile(value: url.absoluteString, thumbnail: nil, duration: nil, type: .url))
         } else if let s = data as? String {
-            sharedMedia.append(SharingFile(value: s, thumbnail: nil, duration: nil, type: .text))
+            appendMedia(SharingFile(value: s, thumbnail: nil, duration: nil, type: .text))
         }
         
     }
@@ -229,18 +233,18 @@ open class FSIShareViewController: UIViewController {
         // data can be URL, UIImage, or Data
         if let url = data as? URL {
             let filename = getFileName(from: url, type: .image)
-            if let dst = shareURL()?.appendingPathComponent(filename) {
+            if let dst = reserveDestination(for: filename) {
                 if copyFile(at: url, to: dst) {
-                    sharedMedia.append(SharingFile(value: sharedValue(for: dst), mimeType: url.mimeType(), thumbnail: nil, duration: nil, type: .image))
+                    appendMedia(SharingFile(value: sharedValue(for: dst), mimeType: url.mimeType(), thumbnail: nil, duration: nil, type: .image))
                 }
             }
         } else if let img = data as? UIImage {
             if let saved = writeTempImage(img) {
-                sharedMedia.append(saved)
+                appendMedia(saved)
             }
         } else if let raw = data as? Data, let img = UIImage(data: raw) {
             if let saved = writeTempImage(img) {
-                sharedMedia.append(saved)
+                appendMedia(saved)
             }
         }
         
@@ -249,10 +253,10 @@ open class FSIShareViewController: UIViewController {
     private func handleVideoItem(data: NSSecureCoding?, index: Int, total: Int) {
         if let url = data as? URL {
             let filename = getFileName(from: url, type: .video)
-            if let dst = shareURL()?.appendingPathComponent(filename) {
+            if let dst = reserveDestination(for: filename) {
                 if copyFile(at: url, to: dst) {
                     if let m = getSharedMediaFile(forVideo: dst) {
-                        sharedMedia.append(m)
+                        appendMedia(m)
                     }
                 }
             }
@@ -263,9 +267,9 @@ open class FSIShareViewController: UIViewController {
     private func handleFileItem(data: NSSecureCoding?, provider: NSItemProvider?, index: Int, total: Int) {
         if let url = data as? URL {
             let filename = getFileName(from: url, type: .file)
-            if let dst = shareURL()?.appendingPathComponent(filename) {
+            if let dst = reserveDestination(for: filename) {
                 if copyFile(at: url, to: dst) {
-                    sharedMedia.append(SharingFile(value: sharedValue(for: dst), mimeType: url.mimeType(), thumbnail: nil, duration: nil, type: .file))
+                    appendMedia(SharingFile(value: sharedValue(for: dst), mimeType: url.mimeType(), thumbnail: nil, duration: nil, type: .file))
                 }
             }
         }
@@ -275,10 +279,10 @@ open class FSIShareViewController: UIViewController {
             // provider's suggested name / registered type. Without this the file is
             // written with no extension and the host app can't detect its type.
             let filename = fallbackFileName(for: provider)
-            if let dst = shareURL()?.appendingPathComponent(filename) {
+            if let dst = reserveDestination(for: filename) {
                 do {
                     try raw.write(to: dst)
-                    sharedMedia.append(SharingFile(value: sharedValue(for: dst), mimeType: dst.mimeType(), thumbnail: nil, duration: nil, type: .file))
+                    appendMedia(SharingFile(value: sharedValue(for: dst), mimeType: dst.mimeType(), thumbnail: nil, duration: nil, type: .file))
                 } catch {}
             }
         }
@@ -426,12 +430,10 @@ open class FSIShareViewController: UIViewController {
     private func getSharedMediaFile(forVideo: URL) -> SharingFile? {
         let asset = AVAsset(url: forVideo)
         let duration = (CMTimeGetSeconds(asset.duration) * 1000).rounded()
-        let thumbnailPath = getThumbnailPath(for: forVideo)
-        
-        if FileManager.default.fileExists(atPath: thumbnailPath.path) {
-            return SharingFile(value: sharedValue(for: forVideo), mimeType: forVideo.mimeType(), thumbnail: sharedValue(for: thumbnailPath), duration: Int(duration), type: .video)
+        guard let thumbnailPath = reserveDestination(for: forVideo.deletingPathExtension().lastPathComponent + "_thumbnail.jpg") else {
+            return SharingFile(value: sharedValue(for: forVideo), mimeType: forVideo.mimeType(), thumbnail: nil, duration: Int(duration), type: .video)
         }
-        
+
         let gen = AVAssetImageGenerator(asset: asset)
         gen.appliesPreferredTrackTransform = true
         gen.maximumSize = CGSize(width: 360, height: 360)
@@ -452,10 +454,46 @@ open class FSIShareViewController: UIViewController {
         return SharingFile(value: sharedValue(for: forVideo), mimeType: forVideo.mimeType(), thumbnail: nil, duration: Int(duration), type: .video)
     }
     
-    private func getThumbnailPath(for url: URL) -> URL {
-        guard let dir = shareURL() else { fatalError("App group not configured or missing") }
-        let fileName = Data(url.lastPathComponent.utf8).base64EncodedString().replacingOccurrences(of: "=", with: "")
-        return dir.appendingPathComponent("\(fileName).jpg")
+    private func appendMedia(_ file: SharingFile) {
+        lock.lock()
+        defer { lock.unlock() }
+        sharedMedia.append(file)
+    }
+
+    // Compared case insensitively so names stay unique if the host app copies
+    // them to a case insensitive volume.
+    private func reserveDestination(for name: String) -> URL? {
+        guard let dir = shareURL() else { return nil }
+        let safe = sanitizedFileName(name)
+        var base = (safe as NSString).deletingPathExtension
+        var ext = (safe as NSString).pathExtension
+        if !ext.isEmpty && (base as NSString).pathExtension.lowercased() == "tar" {
+            ext = "tar.\(ext)"
+            base = (base as NSString).deletingPathExtension
+        }
+        lock.lock()
+        defer { lock.unlock() }
+        var candidate = safe
+        var n = 2
+        while reservedNames.contains(candidate.lowercased()) {
+            candidate = ext.isEmpty ? "\(base) (\(n))" : "\(base) (\(n)).\(ext)"
+            n += 1
+        }
+        reservedNames.insert(candidate.lowercased())
+        return dir.appendingPathComponent(candidate)
+    }
+
+    private func sanitizedFileName(_ name: String) -> String {
+        var cleaned = name
+            .components(separatedBy: CharacterSet(charactersIn: "/:\\").union(.controlCharacters))
+            .joined(separator: "_")
+            .trimmingCharacters(in: .whitespaces)
+        while let last = cleaned.last, last == "." || last.isWhitespace {
+            cleaned.removeLast()
+        }
+        if cleaned.isEmpty { return "File_\(UUID().uuidString)" }
+        // Keeps ".pdf" from becoming a hidden file without an extension.
+        return cleaned.hasPrefix(".") ? "File\(cleaned)" : cleaned
     }
 
     private func containerURL() -> URL? {
