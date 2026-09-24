@@ -94,6 +94,7 @@ class PlaySessionState extends State<PlaySession> with FullScreenListener {
 
   void setFullScreen(bool fullScreen) {
     if (!supportsFullScreen || fullScreen == isFullScreen) return;
+    showOverlay();
     AppFullScreen.setFullScreen(fullScreen);
   }
 

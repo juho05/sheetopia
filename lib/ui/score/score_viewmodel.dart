@@ -10,16 +10,14 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:sheetopia/data/repositories/midi/midi_repository.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/ui/score/score_file_view.dart';
 import 'package:sheetopia/ui/score/score_sequence.dart';
-import 'package:sheetopia/utils/full_screen.dart';
 
-class ScoreViewModel extends ChangeNotifier with FullScreenListener {
+class ScoreViewModel extends ChangeNotifier {
   final ScoresRepository _repo;
   final MidiRepository _midiRepository;
 
@@ -52,11 +50,6 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
 
   FileType? get fileType => _score?.fileType;
 
-  bool get supportsFullScreen =>
-      Platform.isWindows || Platform.isMacOS || Platform.isLinux;
-
-  bool get isFullScreen => AppFullScreen.isFullScreen;
-
   final StreamController<bool> _pageChangedStreamController =
       StreamController.broadcast();
 
@@ -79,40 +72,16 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
             _load();
           });
     });
-    AppFullScreen.addListener(this);
     _midiRepository.addActionListener(_midiActionListener);
     _repo.updateLastOpened(scoreId);
-    showOverlay();
     if (sequence != null) _pulseChrome();
   }
 
-  bool _overlayVisible = true;
-
-  bool get overlayVisible => _overlayVisible;
-
-  Timer? _hideOverlayTimer;
-
-  void showOverlay() {
-    _overlayVisible = true;
-    notifyListeners();
-    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-      _hideOverlayTimer?.cancel();
-      _hideOverlayTimer = Timer(const Duration(seconds: 3), () {
-        _overlayVisible = false;
-        _hideOverlayTimer = null;
-        notifyListeners();
-      });
-    }
-  }
-
-  // chrome tied to the sequence (e.g. bubble showing score in setlist) stays up while the
-  // pointer overlay does, and flashes for a moment on every sequence change
   bool _transientChromeVisible = false;
 
-  Timer? _transientChromeTimer;
+  bool get transientChromeVisible => _transientChromeVisible;
 
-  bool get chromeVisible =>
-      (supportsFullScreen && _overlayVisible) || _transientChromeVisible;
+  Timer? _transientChromeTimer;
 
   void _pulseChrome() {
     _transientChromeVisible = true;
@@ -179,31 +148,10 @@ class ScoreViewModel extends ChangeNotifier with FullScreenListener {
   @override
   void dispose() {
     _pageChangedStreamController.close();
-    _hideOverlayTimer?.cancel();
     _transientChromeTimer?.cancel();
     _midiRepository.removeActionListener(_midiActionListener);
-    AppFullScreen.removeListener(this);
     _updatedScoresSub?.cancel();
     sequence?.removeListener(_onSequenceChanged);
     super.dispose();
-  }
-
-  void exitFullScreen() {
-    _setFullScreen(false);
-  }
-
-  void toggleFullScreen() {
-    _setFullScreen(!isFullScreen);
-  }
-
-  void _setFullScreen(bool fullScreen) {
-    if (!supportsFullScreen || fullScreen == isFullScreen) return;
-    showOverlay();
-    AppFullScreen.setFullScreen(fullScreen);
-  }
-
-  @override
-  void onFullScreenChanged(bool enabled, SystemUiMode? systemUiMode) {
-    notifyListeners();
   }
 }
