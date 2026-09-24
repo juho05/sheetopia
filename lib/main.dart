@@ -11,7 +11,7 @@ import 'dart:io';
 
 import 'package:cross_file/cross_file.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_sharing_intent/flutter_sharing_intent.dart';
 import 'package:flutter_sharing_intent/model/sharing_file.dart';
@@ -249,6 +249,10 @@ class _AppState extends State<App> {
           debugShowCheckedModeBanner: false,
           restorationScopeId: "app",
           routerConfig: goRouter,
+          // flutter_colorpicker still uses package:flutter/material.dart
+          builder: (context, child) =>
+              // ignore: deprecated_member_use
+              MaterialUiCompatibilityBridge(child: child!),
         );
       },
     );

@@ -10,7 +10,7 @@ import 'dart:io';
 
 import 'package:cross_file/cross_file.dart';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/file_picker.dart';

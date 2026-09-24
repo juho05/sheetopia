@@ -8,7 +8,7 @@
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';

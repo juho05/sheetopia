@@ -7,7 +7,7 @@
  */
 
 import 'package:dotted_border/dotted_border.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/ui/common/optional_tooltip.dart';
 
 class DashedBadge extends StatelessWidget {

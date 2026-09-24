@@ -6,7 +6,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Scaffold that shows two panes side by side on wide screens and as tabs on
 /// narrow ones. The pane builders are only called while [loading] is false.

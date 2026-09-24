@@ -7,16 +7,17 @@
  */
 
 import 'package:dotted_border/dotted_border.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
-import 'package:reactive_forms/reactive_forms.dart';
+import 'package:reactive_forms/reactive_forms.dart' hide ReactiveTextField;
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/ui/common/buttons.dart';
 import 'package:sheetopia/ui/common/optional_tooltip.dart';
+import 'package:sheetopia/ui/common/reactive_text_field.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/practice/delete_routine_dialog.dart';

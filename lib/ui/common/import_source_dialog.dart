@@ -8,7 +8,7 @@
 
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/ui/common/choice_dialog.dart';
 
 enum ImportSource { file, scan }

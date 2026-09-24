@@ -8,7 +8,7 @@
 
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 

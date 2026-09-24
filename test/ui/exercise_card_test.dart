@@ -11,7 +11,7 @@ import 'dart:ui';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';

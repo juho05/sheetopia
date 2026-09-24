@@ -6,7 +6,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'optional_tooltip.dart';
 import 'surface.dart';

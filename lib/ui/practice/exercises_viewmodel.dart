@@ -9,7 +9,7 @@
 import 'dart:async';
 import 'dart:collection';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
 import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';

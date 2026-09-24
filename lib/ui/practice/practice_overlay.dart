@@ -8,7 +8,7 @@
 
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';

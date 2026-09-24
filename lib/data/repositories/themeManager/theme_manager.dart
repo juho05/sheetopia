@@ -10,7 +10,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/settings/appearance.dart';

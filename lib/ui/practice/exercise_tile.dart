@@ -6,7 +6,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';

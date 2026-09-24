@@ -6,12 +6,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' as legacy;
+import 'package:flutter_colorpicker/flutter_colorpicker.dart'
+    show ColorPicker, PaletteType;
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
-import 'package:reactive_color_picker/reactive_color_picker.dart';
-import 'package:reactive_forms/reactive_forms.dart';
+import 'package:reactive_forms/reactive_forms.dart' hide ReactiveTextField;
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
+import 'package:sheetopia/ui/common/reactive_text_field.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/edit_score/edit_tag_viewmodel.dart';
 
@@ -66,6 +69,40 @@ class EditTagDialog extends StatefulWidget {
 class _EditTagDialogState extends State<EditTagDialog> {
   final FocusNode _nameFocus = FocusNode();
 
+  void _pickColor(ReactiveFormFieldState<Color, Color> field) {
+    showDialog<void>(
+      context: field.context,
+      builder: (context) {
+        return AlertDialog(
+          insetPadding: const EdgeInsets.all(8),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Select"),
+            ),
+          ],
+          titlePadding: const EdgeInsets.all(0.0),
+          contentPadding: const EdgeInsets.all(0.0),
+          content: SingleChildScrollView(
+            // flutter_colorpicker still uses package:flutter/material.dart
+            // widgets which assert a legacy Material ancestor
+            child: legacy.Material(
+              type: legacy.MaterialType.transparency,
+              child: ColorPicker(
+                pickerColor: field.value ?? Colors.transparent,
+                onColorChanged: field.didChange,
+                paletteType: PaletteType.hsv,
+                enableAlpha: false,
+                hexInputBar: false,
+                displayThumbColor: true,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -92,49 +129,37 @@ class _EditTagDialogState extends State<EditTagDialog> {
                 labelText: "Name",
               ),
             ),
-            ReactiveColorPicker(
+            ReactiveFormField<Color, Color>(
               formControlName: EditTagViewModel.formColor,
-              enableAlpha: false,
-              hexInputBar: false,
-              displayThumbColor: true,
-              decoration: const InputDecoration(border: InputBorder.none),
-              colorPickerBuilder: (pickColor, color) {
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (color == null)
-                      OutlinedButton.icon(
-                        icon: const Icon(Icons.edit),
-                        label: const Text("Color"),
-                        onPressed: () => pickColor(),
-                      ),
-                    if (color != null)
-                      FilledButton.icon(
-                        icon: const Icon(Icons.edit),
-                        label: const Text("Color"),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: color,
-                          foregroundColor: color.computeLuminance() > 0.5
-                              ? Colors.black
-                              : Colors.white,
+              builder: (field) {
+                final color = field.value;
+                return InputDecorator(
+                  decoration: const InputDecoration(border: InputBorder.none)
+                      .applyDefaults(theme.inputDecorationTheme)
+                      .copyWith(errorText: field.errorText),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      if (color == null)
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.edit),
+                          label: const Text("Color"),
+                          onPressed: () => _pickColor(field),
                         ),
-                        onPressed: () => pickColor(),
-                      ),
-                  ],
-                );
-              },
-              colorPickerDialogBuilder: (colorPicker) {
-                return AlertDialog(
-                  insetPadding: const EdgeInsets.all(8),
-                  actions: [
-                    FilledButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text("Select"),
-                    ),
-                  ],
-                  titlePadding: const EdgeInsets.all(0.0),
-                  contentPadding: const EdgeInsets.all(0.0),
-                  content: SingleChildScrollView(child: colorPicker),
+                      if (color != null)
+                        FilledButton.icon(
+                          icon: const Icon(Icons.edit),
+                          label: const Text("Color"),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: color,
+                            foregroundColor: color.computeLuminance() > 0.5
+                                ? Colors.black
+                                : Colors.white,
+                          ),
+                          onPressed: () => _pickColor(field),
+                        ),
+                    ],
+                  ),
                 );
               },
             ),

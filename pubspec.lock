@@ -242,13 +242,13 @@ packages:
     source: hosted
     version: "1.0.9"
   cupertino_ui:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: cupertino_ui
-      sha256: c6747018d37d32feeeb858a1d7043831cb541460ebe1a890a995cdb8df8ea5a5
+      sha256: c23816577a1280cff409e989541767887011f8f1d8c1863a794ed308af46f2a9
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.0"
+    version: "1.1.1"
   dart_style:
     dependency: transitive
     description:
@@ -362,14 +362,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.3.1"
-  extended_wrap:
-    dependency: "direct main"
-    description:
-      name: extended_wrap
-      sha256: "9eee580f639a9fd22df572e05db1b8c79e27fa30e045e10b366670c53b237109"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.5"
   fake_async:
     dependency: transitive
     description:
@@ -520,7 +512,7 @@ packages:
     source: sdk
     version: "0.0.0"
   flutter_colorpicker:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: flutter_colorpicker
       sha256: "969de5f6f9e2a570ac660fb7b501551451ea2a1ab9e2097e89475f60e07816ea"
@@ -629,14 +621,6 @@ packages:
       url: "https://github.com/juho05/flutter_sharing_intent"
     source: git
     version: "2.1.0"
-  flutter_staggered_grid_view:
-    dependency: transitive
-    description:
-      name: flutter_staggered_grid_view
-      sha256: "19e7abb550c96fbfeb546b23f3ff356ee7c59a019a651f8f102a4ba9b7349395"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.7.0"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -667,10 +651,10 @@ packages:
     dependency: "direct main"
     description:
       name: go_router
-      sha256: d7a3576cb312649eaa51f2356450aed686085fb58fcdebda5b359aa951eef7ea
+      sha256: "008ab21d89d0de8ccd79586838f7533f126c2d894f50bf25f2947888d3c225b5"
       url: "https://pub.dev"
     source: hosted
-    version: "17.5.0"
+    version: "18.0.1"
   graphs:
     dependency: transitive
     description:
@@ -727,14 +711,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.10.1"
-  infinite_scroll_pagination:
-    dependency: "direct main"
-    description:
-      name: infinite_scroll_pagination
-      sha256: b0d28e37cd8f62490ff6aef63f9db93d4c78b7f11b7c6b26f33c69d8476fda78
-      url: "https://pub.dev"
-    source: hosted
-    version: "5.1.1"
   inno_bundle:
     dependency: "direct dev"
     description:
@@ -872,13 +848,13 @@ packages:
     source: hosted
     version: "4.2960.0"
   material_ui:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: material_ui
-      sha256: "6d056d60ce745335fcf1c726a4fc46a481a62229f202b65dbc2db5edbbabc7e2"
+      sha256: "134ab2f0843545c4e661e4ba2753fe1bcf0753cb690d5a9ee4870638a40411e9"
       url: "https://pub.dev"
     source: hosted
-    version: "1.3.0"
+    version: "1.4.0"
   meta:
     dependency: transitive
     description:
@@ -1193,11 +1169,11 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "17f68b501d0ef5338453476599eb2b0c4af1c1f7"
-      resolved-ref: "17f68b501d0ef5338453476599eb2b0c4af1c1f7"
+      ref: "1c52b52ff1a257d263295d3ed612d465c42c7813"
+      resolved-ref: "1c52b52ff1a257d263295d3ed612d465c42c7813"
       url: "https://github.com/juho05/flutter_predictive_transition"
     source: git
-    version: "0.1.0"
+    version: "0.3.0"
   process:
     dependency: transitive
     description:
@@ -1230,14 +1206,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.6.0"
-  reactive_color_picker:
-    dependency: "direct main"
-    description:
-      name: reactive_color_picker
-      sha256: f8e69b31c8f850e64b8725311d944a0b6c4dda080e16010e60ccf1e3ce30101e
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.2.2"
   reactive_forms:
     dependency: "direct main"
     description:
@@ -1347,14 +1315,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  sliver_tools:
-    dependency: transitive
-    description:
-      name: sliver_tools
-      sha256: eae28220badfb9d0559207badcbbc9ad5331aac829a88cb0964d330d2a4636a6
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.12"
   source_gen:
     dependency: transitive
     description:

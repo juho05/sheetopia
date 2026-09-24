@@ -8,7 +8,7 @@
 
 import 'dart:collection';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';

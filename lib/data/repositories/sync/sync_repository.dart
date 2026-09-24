@@ -12,7 +12,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage.dart';
 import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage_linux.dart';
 import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage_secure_storage.dart';

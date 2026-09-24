@@ -8,7 +8,7 @@
 
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/auto_update/auto_update_repository.dart';
 import 'package:sheetopia/data/services/restart/restart.dart';

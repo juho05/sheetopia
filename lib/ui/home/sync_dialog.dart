@@ -6,12 +6,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
-import 'package:reactive_forms/reactive_forms.dart';
+import 'package:reactive_forms/reactive_forms.dart' hide ReactiveTextField;
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/heading.dart';
+import 'package:sheetopia/ui/common/reactive_text_field.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/common/surface.dart';
 import 'package:sheetopia/ui/home/sync_dialog_viewmodel.dart';

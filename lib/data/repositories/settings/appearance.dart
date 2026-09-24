@@ -6,7 +6,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 

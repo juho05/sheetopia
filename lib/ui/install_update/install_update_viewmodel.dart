@@ -6,7 +6,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sheetopia/data/repositories/auto_update/auto_update_repository.dart';
 

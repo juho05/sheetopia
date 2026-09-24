@@ -6,10 +6,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
-import 'package:reactive_forms/reactive_forms.dart';
+import 'package:reactive_forms/reactive_forms.dart' hide ReactiveTextField;
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/ui/common/auto_complete_field.dart';
@@ -17,6 +17,7 @@ import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/optional_tooltip.dart';
+import 'package:sheetopia/ui/common/reactive_text_field.dart';
 import 'package:sheetopia/ui/common/select_tags_list.dart';
 import 'package:sheetopia/ui/common/tag_selector.dart';
 import 'package:sheetopia/ui/edit_score/auto_complete_input_dialog.dart';

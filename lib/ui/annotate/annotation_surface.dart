@@ -7,7 +7,7 @@
  */
 
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
 import 'package:sheetopia/ui/annotate/annotate_viewmodel.dart';
 import 'package:sheetopia/ui/annotate/annotation_painter.dart';

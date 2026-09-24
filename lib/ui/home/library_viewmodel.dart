@@ -9,7 +9,7 @@
 import 'dart:async';
 import 'dart:collection';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
