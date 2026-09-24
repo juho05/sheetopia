@@ -11,11 +11,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/ui/common/drop_area.dart';
 import 'package:sheetopia/ui/common/fab_menu.dart';
 import 'package:sheetopia/ui/common/selection/clear_selection_button.dart';
 import 'package:sheetopia/ui/common/selection/select_all_button.dart';
 import 'package:sheetopia/ui/common/selection/selection_model.dart';
+import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/practice/bulk_edit/exercises_bulk_edit_menu.dart';
 import 'package:sheetopia/ui/practice/exercises_view.dart';
 import 'package:sheetopia/ui/practice/exercises_viewmodel.dart';
@@ -107,12 +109,21 @@ class _ExercisesPageState extends State<ExercisesPage> {
                 separate = choice == ImportExerciseScoresChoice.separate;
               }
               if (!context.mounted) return;
-              final ok = await receiveExercise(context.read(), files);
-              if (!context.mounted || !ok) {
-                return;
-              }
-
               context.go("/practice/exercises/create?separate=$separate");
+              try {
+                final ok = await receiveExercise(context.read(), files);
+                if (!context.mounted || !ok) {
+                  return;
+                }
+              } on InvalidFileTypeException catch (e, st) {
+                Toast.exception(e, st: st, errorMsg: "Unsupported file type!");
+              } catch (e, st) {
+                Toast.exception(
+                  e,
+                  st: st,
+                  errorMsg: "Failed to import exercise!",
+                );
+              }
             },
             child: Scaffold(
               appBar: _buildAppBar(selecting),
