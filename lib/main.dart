@@ -12,6 +12,7 @@ import 'dart:io';
 import 'package:cross_file/cross_file.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_sharing_intent/flutter_sharing_intent.dart';
 import 'package:flutter_sharing_intent/model/sharing_file.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -51,6 +52,13 @@ Future<void> main() async {
   );
 
   unawaited(clearShareCache());
+
+  LicenseRegistry.addLicense(() async* {
+    final license = await rootBundle.loadString(
+      "assets/fonts/Roboto_LICENSE.txt",
+    );
+    yield LicenseEntryWithLineBreaks(["Roboto"], license);
+  });
 
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
     await windowManager.ensureInitialized();

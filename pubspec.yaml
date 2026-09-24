@@ -127,6 +127,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon/sheetopia-circle.png
+    - assets/fonts/Roboto_LICENSE.txt
   fonts:
     - family: Roboto
       fonts:
