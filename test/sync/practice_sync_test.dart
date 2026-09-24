@@ -441,6 +441,15 @@ void main() {
     expect(done(), isTrue, reason: "timed out waiting for the sync");
   }
 
+  Future<void> syncAgain() async {
+    int exerciseFetches() =>
+        service.calls.where((c) => c == "getExercises").length;
+    final before = exerciseFetches();
+    await repo.syncNow();
+    await waitFor(() => exerciseFetches() > before);
+    await waitFor(() => repo.state.value == SyncState.success);
+  }
+
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp("sheetopia-practice-sync");
     PathProviderPlatform.instance = _FakePathProvider(tempDir.path);
@@ -729,6 +738,108 @@ void main() {
         .filter((f) => f.id(exerciseId))
         .getSingle();
     expect(exercise.category, isNull);
+  });
+
+  test("an exercise gets its late category and tag on the next sync", () async {
+    service.exercises = [
+      ExerciseModel(
+        id: exerciseId,
+        name: "C major",
+        categoryId: categoryId,
+        tagIds: const [tagId],
+        scoreIds: const [],
+        metadata: metadata(),
+        updatedAt: remoteTime,
+      ),
+    ];
+
+    await syncAndWait();
+
+    final settled = await db.managers.exercisesTable
+        .filter((f) => f.id(exerciseId))
+        .getSingle();
+    expect(settled.category, isNull);
+    expect(await db.managers.exerciseTagsTable.count(), 0);
+
+    service.categories = [
+      ExerciseCategoryModel(
+        id: categoryId,
+        name: "Scales",
+        position: 0,
+        updatedAt: remoteTime,
+      ),
+    ];
+    await db.managers.tagsTable.create(
+      (o) => o(
+        id: tagId,
+        name: "Warm up",
+        color: 1,
+        type: const Value(TagType.exercise),
+        updatedAt: Value(contentTime),
+        uploaded: const Value(true),
+      ),
+    );
+    await syncAgain();
+
+    final linked = await db.managers.exercisesTable
+        .filter((f) => f.id(exerciseId))
+        .getSingle();
+    expect(linked.category, categoryId);
+    expect(linked.updatedAt, remoteTime);
+    expect(await db.managers.exerciseTagsTable.map((t) => t.tag).get(), [
+      tagId,
+    ]);
+  });
+
+  test("a routine gets its late exercise entry on the next sync", () async {
+    service.routines = [
+      PracticeRoutineModel(
+        id: routineId,
+        name: "Morning",
+        metadata: PracticeRoutineMetadataModel(
+          description: null,
+          progressResetAt: null,
+        ),
+        entries: [
+          PracticeRoutineEntryModel(
+            id: entryId,
+            exerciseId: exerciseId,
+            metadata: PracticeRoutineEntryMetadataModel(
+              extraNotes: "",
+              defaultScoreId: "",
+              targetDuration: 0,
+            ),
+          ),
+        ],
+        updatedAt: remoteTime,
+      ),
+    ];
+
+    await syncAndWait();
+
+    expect(await db.managers.practiceRoutineEntriesTable.count(), 0);
+
+    service.exercises = [
+      ExerciseModel(
+        id: exerciseId,
+        name: "C major",
+        categoryId: null,
+        tagIds: const [],
+        scoreIds: const [],
+        metadata: metadata(),
+        updatedAt: remoteTime,
+      ),
+    ];
+    await syncAgain();
+
+    final routine = await db.managers.practiceRoutinesTable
+        .filter((f) => f.id(routineId))
+        .getSingle();
+    expect(routine.updatedAt, remoteTime);
+    expect(
+      await db.managers.practiceRoutineEntriesTable.map((e) => e.id).get(),
+      [entryId],
+    );
   });
 
   test("a deleted category unlinks its exercises", () async {

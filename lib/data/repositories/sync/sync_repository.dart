@@ -906,6 +906,9 @@ class SyncRepository {
     for (final e in exercises) {
       await _db.transaction(() async {
         final categoryId = await _knownCategoryId(e.id, e.categoryId);
+        final tagIds = await _knownTagIds("exercise ${e.id}", e.tagIds);
+        final complete =
+            categoryId == e.categoryId && tagIds.length == e.tagIds.length;
         final result = await _db.managers.exercisesTable.createReturningOrNull(
           (o) => o(
             id: e.id,
@@ -917,7 +920,7 @@ class SyncRepository {
             instrument: optionalStringValue(e.metadata.instrument),
             targetBpm: optionalIntValue(e.metadata.targetBpm),
             progressResetAt: optionalDateTimeValue(e.metadata.progressResetAt),
-            updatedAt: Value(e.updatedAt.toUtc()),
+            updatedAt: Value(_storedUpdatedAt(e.updatedAt, complete)),
             uploaded: const Value(true),
           ),
           onConflict: DoUpdate.withExcluded(
@@ -952,7 +955,6 @@ class SyncRepository {
         await _db.managers.exerciseTagsTable
             .filter((f) => f.exercise.id(e.id))
             .delete();
-        final tagIds = await _knownTagIds("exercise ${e.id}", e.tagIds);
         if (tagIds.isNotEmpty) {
           await _db.managers.exerciseTagsTable.bulkCreate(
             (o) => tagIds.map((t) => o(exercise: e.id, tag: t)),
@@ -1101,6 +1103,8 @@ class SyncRepository {
     );
     for (final r in routines) {
       await _db.transaction(() async {
+        final entries = await _knownExerciseEntries(r.id, r.entries);
+        final complete = entries.length == r.entries.length;
         final result = await _db.managers.practiceRoutinesTable
             .createReturningOrNull(
               (o) => o(
@@ -1110,7 +1114,7 @@ class SyncRepository {
                 progressResetAt: optionalDateTimeValue(
                   r.metadata.progressResetAt,
                 ),
-                updatedAt: Value(r.updatedAt.toUtc()),
+                updatedAt: Value(_storedUpdatedAt(r.updatedAt, complete)),
                 uploaded: const Value(true),
               ),
               onConflict: DoUpdate.withExcluded(
@@ -1134,7 +1138,6 @@ class SyncRepository {
         await _db.managers.practiceRoutineEntriesTable
             .filter((f) => f.routine.id(r.id))
             .delete();
-        final entries = await _knownExerciseEntries(r.id, r.entries);
         if (entries.isNotEmpty) {
           await _db.managers.practiceRoutineEntriesTable.bulkCreate(
             (o) => entries.indexed.map(
@@ -1657,6 +1660,13 @@ class SyncRepository {
             score.metadataUpdatedAt.isBefore(s.metadataUpdatedAt);
         final fileChanged =
             score != null && score.fileUpdatedAt.isBefore(s.fileUpdatedAt);
+        final tagIds = score == null || metadataChanged
+            ? await _knownTagIds("score ${s.id}", s.tagIds)
+            : const <String>[];
+        final metadataUpdatedAt = _storedUpdatedAt(
+          s.metadataUpdatedAt,
+          tagIds.length == s.tagIds.length,
+        );
         if (score == null) {
           await _db.managers.scoresTable.create(
             (o) => o(
@@ -1672,7 +1682,7 @@ class SyncRepository {
               notes: optionalStringValue(s.metadata.notes),
               annotations: _annotationsColumnValue(s.metadata.annotations),
               metadataUploaded: const Value(true),
-              metadataUpdatedAt: Value(s.metadataUpdatedAt.toUtc()),
+              metadataUpdatedAt: Value(metadataUpdatedAt),
               lastOpened: Value(
                 s.metadataUpdatedAt.isAfter(s.fileUpdatedAt)
                     ? s.metadataUpdatedAt.toUtc()
@@ -1694,7 +1704,7 @@ class SyncRepository {
                       ? Value(s.title)
                       : const Value.absent(),
                   metadataUpdatedAt: metadataChanged
-                      ? Value(s.metadataUpdatedAt.toUtc())
+                      ? Value(metadataUpdatedAt)
                       : const Value.absent(),
                   metadataUploaded: metadataChanged
                       ? const Value(true)
@@ -1759,13 +1769,10 @@ class SyncRepository {
           }
         }
         if (score == null || metadataChanged) {
-          if (s.tagIds.isNotEmpty) {
-            final tagIds = await _knownTagIds("score ${s.id}", s.tagIds);
-            if (tagIds.isNotEmpty) {
-              await _db.managers.scoreTagsTable.bulkCreate(
-                (o) => tagIds.map((t) => o(score: s.id, tag: t)),
-              );
-            }
+          if (tagIds.isNotEmpty) {
+            await _db.managers.scoreTagsTable.bulkCreate(
+              (o) => tagIds.map((t) => o(score: s.id, tag: t)),
+            );
           }
           if ((s.metadata.instruments ?? []).isNotEmpty) {
             await _db.managers.instrumentsTable.bulkCreate(
@@ -1791,7 +1798,14 @@ class SyncRepository {
     }
   }
 
+  // Stored just below the remote time when references were dropped, so the
+  // next download applies the row again once the referenced rows exist.
+  DateTime _storedUpdatedAt(DateTime remote, bool complete) => complete
+      ? remote.toUtc()
+      : remote.toUtc().subtract(const Duration(milliseconds: 1));
+
   Future<List<String>> _knownTagIds(String owner, List<String> tagIds) async {
+    if (tagIds.isEmpty) return tagIds;
     final known =
         (await _db.managers.tagsTable
                 .filter((f) => f.id.isIn(tagIds))
