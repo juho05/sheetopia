@@ -19,7 +19,11 @@ class EditExercisePage extends StatelessWidget {
 
   final bool separate;
 
-  const EditExercisePage({super.key, required this.exerciseId, this.separate = false});
+  const EditExercisePage({
+    super.key,
+    required this.exerciseId,
+    this.separate = false,
+  });
 
   @override
   Widget build(BuildContext context) {

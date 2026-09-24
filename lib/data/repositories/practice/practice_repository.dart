@@ -275,6 +275,14 @@ class PracticeRepository {
         .toList();
   }
 
+  Future<ExerciseCategory?> getCategory(String categoryId) async {
+    final row = await _db.managers.exerciseCategoriesTable
+        .filter((f) => f.id(categoryId))
+        .getSingleOrNull();
+    if (row == null) return null;
+    return ExerciseCategory(id: row.id, name: row.name);
+  }
+
   Future<Map<String, int>> countExercisesPerCategory() async {
     final countExpr = _db.exercisesTable.id.count();
     final q = _db.selectOnly(_db.exercisesTable)

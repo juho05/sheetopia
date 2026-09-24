@@ -234,4 +234,31 @@ void main() {
 
     expect(namesOf(viewModel), ["Bends", "Chromatic scale"]);
   });
+
+  test("a renamed filter category is updated", () async {
+    final warmup = await insertCategory("Warmup", 0);
+    viewModel.filterCategory = (await repo.getCategory(warmup))!;
+
+    await repo.renameCategory(warmup, "Scales");
+    await Future.delayed(Duration.zero);
+
+    expect(viewModel.filterCategory?.name, "Scales");
+  });
+
+  test("a deleted filter category is cleared", () async {
+    final warmup = await insertCategory("Warmup", 0);
+    await createExercise("Bends", category: warmup);
+    await createExercise("Improvising");
+    await viewModel.loadNextPage();
+    viewModel.filterCategory = (await repo.getCategory(warmup))!;
+    await Future.delayed(const Duration(milliseconds: 300));
+    expect(namesOf(viewModel), ["Bends"]);
+
+    await repo.deleteCategory(warmup);
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    expect(viewModel.filterCategory, isNull);
+    expect(viewModel.hasFilters, isFalse);
+    expect(namesOf(viewModel), ["Bends", "Improvising"]);
+  });
 }

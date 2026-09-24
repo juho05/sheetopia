@@ -16,6 +16,7 @@ import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
+import 'package:sheetopia/utils/category_sync.dart';
 import 'package:sheetopia/utils/tag_sync.dart';
 
 typedef ExerciseGroup = ({ExerciseCategory? category, List<Exercise> exercise});
@@ -58,6 +59,8 @@ class ExercisesViewModel extends ChangeNotifier {
 
   late final TagSync _tagSync;
 
+  late final CategorySync _categorySync;
+
   ExercisesViewModel({
     required this._repo,
     required ScoresRepository scoresRepo,
@@ -68,6 +71,11 @@ class ExercisesViewModel extends ChangeNotifier {
       repo: scoresRepo,
       currentTags: () => _filterTags,
       onChanged: setFilterTags,
+    );
+    _categorySync = CategorySync(
+      repo: _repo,
+      currentCategory: () => _filterCategory,
+      onChanged: _onFilterCategorySynced,
     );
     _refreshCounts();
   }
@@ -106,6 +114,12 @@ class ExercisesViewModel extends ChangeNotifier {
     _filterCategory = category;
     notifyListeners();
     _reset();
+  }
+
+  void _onFilterCategorySynced(ExerciseCategory? category) {
+    _filterCategory = category;
+    notifyListeners();
+    if (category == null) _reset();
   }
 
   String _filterInstrument = "";
@@ -314,6 +328,7 @@ class ExercisesViewModel extends ChangeNotifier {
     _updatedExercisesSub?.cancel();
     _updatedCategoriesSub?.cancel();
     _tagSync.dispose();
+    _categorySync.dispose();
     super.dispose();
   }
 

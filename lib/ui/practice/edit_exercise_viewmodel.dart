@@ -22,6 +22,7 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/file_picker.dart';
+import 'package:sheetopia/utils/category_sync.dart';
 
 class ExerciseScoreEntry {
   final int id;
@@ -77,6 +78,8 @@ class EditExerciseViewModel extends ChangeNotifier {
 
   StreamSubscription? _valueSub;
 
+  late final CategorySync _categorySync;
+
   List<ExerciseScoreEntry> _scoreEntries = [];
 
   UnmodifiableListView<ExerciseScoreEntry> get scoreEntries =>
@@ -110,6 +113,14 @@ class EditExerciseViewModel extends ChangeNotifier {
          formDescription: FormControl<String>(),
          formInstrument: FormControl<String>(),
        }) {
+    _categorySync = CategorySync(
+      repo: _repo,
+      currentCategory: () => _category,
+      onChanged: (category) {
+        _category = category;
+        notifyListeners();
+      },
+    );
     Future<void> load;
     if (_exerciseId == null) {
       load = _loadCreateScores();
@@ -442,6 +453,7 @@ class EditExerciseViewModel extends ChangeNotifier {
     }
     _loading = false;
     notifyListeners();
+    _categorySync.sync();
   }
 
   Timer? _valuesDebounce;
@@ -487,6 +499,7 @@ class EditExerciseViewModel extends ChangeNotifier {
       _saveScoreTitles();
     }
     _valueSub?.cancel();
+    _categorySync.dispose();
     super.dispose();
   }
 }

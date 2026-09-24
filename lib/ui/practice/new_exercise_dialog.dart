@@ -7,9 +7,11 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/practice/category_selector.dart';
+import 'package:sheetopia/utils/category_sync.dart';
 
 typedef NewExerciseDetails = ({String name, ExerciseCategory? category});
 
@@ -40,8 +42,24 @@ class _NewExerciseDialogState extends State<NewExerciseDialog> {
 
   ExerciseCategory? _category;
 
+  late final CategorySync _categorySync;
+
+  @override
+  void initState() {
+    super.initState();
+    _categorySync = CategorySync(
+      repo: context.read(),
+      currentCategory: () => _category,
+      onChanged: (category) {
+        if (!mounted) return;
+        setState(() => _category = category);
+      },
+    );
+  }
+
   @override
   void dispose() {
+    _categorySync.dispose();
     _controller.dispose();
     _focus.dispose();
     super.dispose();
