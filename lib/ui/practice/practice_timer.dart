@@ -10,8 +10,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_record.dart';
+import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/utils/app_shutdown.dart';
 
 enum PracticeTimerState { idle, running, paused }
@@ -71,6 +71,8 @@ class PracticeTimer extends ChangeNotifier {
   int _showGeneration = 0;
 
   Timer? _ticker;
+
+  Future<void> _checkpoints = Future.value();
 
   static const Duration _tickSlack = Duration(milliseconds: 8);
 
@@ -248,11 +250,7 @@ class PracticeTimer extends ChangeNotifier {
         _record = null;
         _state = PracticeTimerState.idle;
       case PracticeRecoveryChoice.untilLeft:
-        _record = await _repo.checkpointRecord(
-          record,
-          now: recovery.leftAt,
-          stop: true,
-        );
+        await _checkpoint(now: recovery.leftAt, stop: true);
         _state = PracticeTimerState.idle;
       case PracticeRecoveryChoice.untilNow:
         await _checkpoint(publish: true);
@@ -297,11 +295,30 @@ class PracticeTimer extends ChangeNotifier {
     _ticks.value++;
   }
 
-  Future<void> _checkpoint({bool stop = false, bool publish = false}) async {
+  /// Checkpoints run one after another, each must see the record the previous
+  /// one left or a split over midnight is done twice.
+  Future<void> _checkpoint({
+    DateTime? now,
+    bool stop = false,
+    bool publish = false,
+  }) {
+    final next = _checkpoints.then(
+      (_) => _checkpointNow(now: now, stop: stop, publish: publish),
+    );
+    _checkpoints = next.then((_) {}, onError: (_) {});
+    return next;
+  }
+
+  Future<void> _checkpointNow({
+    DateTime? now,
+    required bool stop,
+    required bool publish,
+  }) async {
     final record = _record;
     if (record == null) return;
     final next = await _repo.checkpointRecord(
       record,
+      now: now,
       stop: stop,
       publish: publish,
     );
@@ -312,13 +329,7 @@ class PracticeTimer extends ChangeNotifier {
   }
 
   Future<void> _stopRecord() async {
-    final record = _record;
-    if (record == null) return;
-    _record = await _repo.checkpointRecord(
-      record,
-      now: _recovery?.leftAt,
-      stop: true,
-    );
+    await _checkpoint(now: _recovery?.leftAt, stop: true);
     _state = PracticeTimerState.idle;
   }
 
