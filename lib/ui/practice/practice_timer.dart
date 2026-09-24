@@ -8,6 +8,7 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_record.dart';
@@ -356,7 +357,10 @@ class PracticeTimer extends ChangeNotifier {
         if (running) unawaited(_checkpoint(publish: true));
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
-        if (running) unawaited(_checkpoint(publish: true));
+        if (!running) return;
+        // desktop keeps counting in the background, mobile asks about the gap
+        if (_mobile) _stopTicker();
+        unawaited(_checkpoint(publish: true));
       case AppLifecycleState.resumed:
         _detached = false;
         if (running) unawaited(_onForeground());
@@ -369,16 +373,18 @@ class PracticeTimer extends ChangeNotifier {
     final record = _record;
     final runningSince = record?.runningSince;
     if (record == null || runningSince == null) return;
-    final gap = DateTime.now().difference(runningSince);
-    if (gap < checkpointInterval) return;
-    if (!_needsRecovery(gap, _carry + record.duration)) {
-      await _checkpoint();
+    if (DateTime.now().difference(runningSince) < checkpointInterval) {
+      _startTicker();
       return;
     }
     _stopTicker();
     await _handleGap(record, runningSince);
     _notify();
   }
+
+  static bool get _mobile =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
 
   void _notify() {
     if (_disposed) return;

@@ -10,6 +10,8 @@ import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -446,6 +448,81 @@ void main() {
       expect(record.uploaded, isFalse);
     },
   );
+
+  group("lifecycle", () {
+    final binding = TestWidgetsFlutterBinding.instance;
+
+    void lifecycle(List<AppLifecycleState> states) {
+      for (final state in states) {
+        binding.handleAppLifecycleStateChanged(state);
+      }
+    }
+
+    setUp(() => lifecycle([AppLifecycleState.resumed]));
+
+    tearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    Future<int> ticksWithin(PracticeTimer timer, Duration duration) async {
+      var ticks = 0;
+      void count() => ticks++;
+      timer.ticks.addListener(count);
+      await Future<void>.delayed(duration);
+      timer.ticks.removeListener(count);
+      return ticks;
+    }
+
+    const away = [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+    ];
+    const back = [
+      AppLifecycleState.hidden,
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed,
+    ];
+
+    test("android stops ticking in the background and goes on after", () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final exercise = await createExercise("Scales");
+      final timer = PracticeTimer(repo: repo);
+      await timer.show(exerciseId: exercise);
+      await timer.start();
+
+      lifecycle(away);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(await ticksWithin(timer, const Duration(milliseconds: 1500)), 0);
+      final record = (await allRecords()).single;
+      expect(record.runningSince, isNotNull);
+
+      lifecycle(back);
+      expect(timer.running, isTrue);
+      expect(
+        await ticksWithin(timer, const Duration(milliseconds: 1500)),
+        greaterThan(0),
+      );
+      await timer.close();
+      timer.dispose();
+    });
+
+    test("desktop keeps ticking in the background", () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      final exercise = await createExercise("Scales");
+      final timer = PracticeTimer(repo: repo);
+      await timer.show(exerciseId: exercise);
+      await timer.start();
+
+      lifecycle(away.take(2).toList());
+      expect(
+        await ticksWithin(timer, const Duration(milliseconds: 1500)),
+        greaterThan(0),
+      );
+      await timer.close();
+      timer.dispose();
+    });
+  });
 
   group("ticking", () {
     test("the tick waits for the second to turn over", () {
