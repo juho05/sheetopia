@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
+import 'package:sheetopia/data/repositories/practice/practice_record.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/routing/practice_resume.dart';
@@ -81,6 +82,13 @@ void main() {
         .filter((f) => f.id(recordId))
         .update((o) => o(startedAt: Value(startedAt.toUtc())));
   }
+
+  Future<PracticeRecord> stopAfterMinute(PracticeRecord record) =>
+      repo.checkpointRecord(
+        record,
+        now: record.runningSince!.add(const Duration(minutes: 1)),
+        stop: true,
+      );
 
   Future<void> setRunningSince(String recordId, DateTime runningSince) async {
     await db.managers.practiceRecordsTable
@@ -239,6 +247,36 @@ void main() {
       expect(next.startedAt.day, today.day);
     });
 
+    test("stopping a record that is too short deletes it", () async {
+      final exercise = await createExercise("Scales");
+      final record = await repo.startRecord(exerciseId: exercise);
+
+      final stopped = await repo.checkpointRecord(
+        record,
+        now: record.runningSince!.add(const Duration(seconds: 2)),
+        stop: true,
+      );
+
+      expect(stopped.running, isFalse);
+      expect(stopped.duration, Duration.zero);
+      expect(await allRecords(), isEmpty);
+      final tombstones = await db.managers.deletedPracticeRecordsTable.get();
+      expect(tombstones.single.recordId, record.id);
+    });
+
+    test("a short tick checkpoint keeps the record", () async {
+      final exercise = await createExercise("Scales");
+      final record = await repo.startRecord(exerciseId: exercise);
+
+      await repo.checkpointRecord(
+        record,
+        now: record.runningSince!.add(const Duration(seconds: 1)),
+        publish: true,
+      );
+
+      expect(await allRecords(), hasLength(1));
+    });
+
     test("discarding drops only that run", () async {
       final exercise = await createExercise("Scales");
       final first = await repo.startRecord(exerciseId: exercise);
@@ -262,7 +300,7 @@ void main() {
       final record = await repo.startRecord(exerciseId: exercise);
       await expectLater(repo.deleteRecord(record.id), throwsStateError);
 
-      await repo.checkpointRecord(record, stop: true);
+      await stopAfterMinute(record);
       await repo.deleteRecord(record.id);
 
       expect(await allRecords(), isEmpty);
@@ -277,7 +315,7 @@ void main() {
         repo.updateRecord(record.id, duration: const Duration(minutes: 1)),
         throwsStateError,
       );
-      await repo.checkpointRecord(record, stop: true);
+      await stopAfterMinute(record);
       await db.managers.practiceRecordsTable.update(
         (o) => o(uploaded: const Value(true)),
       );
@@ -341,7 +379,7 @@ void main() {
     test("exercises outside a routine group within half an hour", () async {
       final exercise = await createExercise("Scales");
       final record = await repo.startRecord(exerciseId: exercise);
-      await repo.checkpointRecord(record, stop: true);
+      await stopAfterMinute(record);
 
       await backdate(
         record.id,
@@ -366,7 +404,7 @@ void main() {
         routineId: routine.id,
         routineEntryId: routine.entries.first.id,
       );
-      await repo.checkpointRecord(record, stop: true);
+      await stopAfterMinute(record);
 
       expect((await repo.getExerciseProgress(exercise)).records, isEmpty);
       expect((await repo.getRoutineProgress(routine.id)).records, hasLength(1));
@@ -382,7 +420,7 @@ void main() {
         routineId: routine.id,
         routineEntryId: routine.entries.first.id,
       );
-      await repo.checkpointRecord(record, stop: true);
+      await stopAfterMinute(record);
       await backdate(
         record.id,
         DateTime.now().subtract(const Duration(minutes: 1)),
@@ -500,7 +538,7 @@ void main() {
     test("nothing is reopened without a running stopwatch", () async {
       final exercise = await createExercise("Scales");
       final record = await repo.startRecord(exerciseId: exercise);
-      await repo.checkpointRecord(record, stop: true);
+      await stopAfterMinute(record);
 
       expect(await runningPracticeLocation(repo), isNull);
     });

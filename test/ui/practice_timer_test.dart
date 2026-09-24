@@ -101,7 +101,11 @@ void main() {
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
     scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
-    repo = PracticeRepository(db: db, scoresRepo: scoresRepo);
+    repo = PracticeRepository(
+      db: db,
+      scoresRepo: scoresRepo,
+      minRecordDuration: Duration.zero,
+    );
   });
 
   tearDown(() async {
@@ -171,6 +175,20 @@ void main() {
     final record = (await allRecords()).single;
     expect(record.runningSince, isNull, reason: "the stopwatch is not running");
     expect(record.uploaded, isFalse);
+  });
+
+  test("pausing right after starting leaves no record", () async {
+    final exercise = await createExercise("Scales");
+    final timer = PracticeTimer(
+      repo: PracticeRepository(db: db, scoresRepo: scoresRepo),
+    );
+    await timer.show(exerciseId: exercise);
+    await timer.start();
+    await timer.pause();
+
+    expect(await allRecords(), isEmpty);
+    expect(timer.elapsed, Duration.zero);
+    timer.dispose();
   });
 
   test("time already practiced is picked up again", () async {

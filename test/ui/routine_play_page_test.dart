@@ -78,7 +78,11 @@ void main() {
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
     scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
-    repo = PracticeRepository(db: db, scoresRepo: scoresRepo);
+    repo = PracticeRepository(
+      db: db,
+      scoresRepo: scoresRepo,
+      minRecordDuration: Duration.zero,
+    );
   });
 
   tearDown(() async {

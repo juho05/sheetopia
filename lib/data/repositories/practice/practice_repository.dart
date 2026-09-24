@@ -68,7 +68,13 @@ class PracticeRepository {
       .where((event) => event.needsUpload)
       .map((event) => event.changed);
 
-  PracticeRepository({required this._db, required this._scoresRepo}) {
+  final Duration minRecordDuration;
+
+  PracticeRepository({
+    required this._db,
+    required this._scoresRepo,
+    this.minRecordDuration = const Duration(seconds: 3),
+  }) {
     _scoresRepo.deletedScoreIds.listen(removeDeletedScoreEntries);
     _scoresRepo.untaggedExerciseIds.listen(
       (ids) => _updatedExerciseIds.add((changed: ids, needsUpload: false)),
@@ -1536,6 +1542,21 @@ class PracticeRepository {
     }
 
     final duration = current.duration + at.difference(runningSince);
+    if (stop && duration < minRecordDuration) {
+      if (changed.isNotEmpty) {
+        _updatedRecordIds.add((changed: changed, needsUpload: true));
+      }
+      await _deleteRecords({current.id});
+      return PracticeRecord(
+        id: current.id,
+        exerciseId: current.exerciseId,
+        routineId: current.routineId,
+        routineEntryId: current.routineEntryId,
+        startedAt: current.startedAt,
+        duration: Duration.zero,
+        runningSince: null,
+      );
+    }
     await _writeRecord(
       current.id,
       duration: duration,
