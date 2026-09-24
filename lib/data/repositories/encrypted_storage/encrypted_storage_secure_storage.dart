@@ -26,7 +26,13 @@ class EncryptedStorageSecureStorage implements EncryptedStorage {
 
   @override
   Future<String?> read(String key) async {
-    final value = await _storage.read(key: key);
+    final String? value;
+    try {
+      value = await _storage.read(key: key);
+    } catch (e) {
+      Log.warn("Failed to read keychain item", e: e);
+      return null;
+    }
     if (value != null || !Platform.isMacOS) return value;
     return _migrateLegacyMacOS(key);
   }
@@ -39,15 +45,26 @@ class EncryptedStorageSecureStorage implements EncryptedStorage {
       await _LegacyMacOSKeychain.delete(key);
     } catch (e) {
       Log.warn("Failed to delete legacy keychain item", e: e);
+      await _storage.write(key: _legacyDeletedKey(key), value: "1");
     }
   }
 
   @override
-  Future<void> write(String key, String value) {
-    return _storage.write(key: key, value: value);
+  Future<void> write(String key, String value) async {
+    await _storage.write(key: key, value: value);
+    if (Platform.isMacOS) await _storage.delete(key: _legacyDeletedKey(key));
   }
 
+  static String _legacyDeletedKey(String key) => "$key.legacyDeleted";
+
   Future<String?> _migrateLegacyMacOS(String key) async {
+    try {
+      if (await _storage.containsKey(key: _legacyDeletedKey(key))) return null;
+    } catch (e) {
+      Log.warn("Failed to read keychain item", e: e);
+      return null;
+    }
+
     final String? value;
     try {
       value = await _LegacyMacOSKeychain.read(key);
