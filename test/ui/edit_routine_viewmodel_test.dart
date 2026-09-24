@@ -144,6 +144,18 @@ void main() {
     expect(routine.entries.single.id, viewModel.entries.single.id);
   });
 
+  test("creating twice at once creates one routine", () async {
+    final exerciseId = await createExercise("Chromatic");
+    final viewModel = viewModelFor(null);
+    setName(viewModel, "Morning");
+    await viewModel.addExercises([exerciseId]);
+
+    final created = await Future.wait([viewModel.create(), viewModel.create()]);
+
+    expect(created, [true, false]);
+    expect(await db.managers.practiceRoutinesTable.count(), 1);
+  });
+
   test("create is rejected without a name", () async {
     final viewModel = viewModelFor(null);
 

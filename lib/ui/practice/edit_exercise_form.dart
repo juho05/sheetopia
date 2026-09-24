@@ -170,7 +170,7 @@ class _CreateButton extends StatelessWidget {
         onPressed: form.valid
             ? () async {
                 bool hasNext = viewModel.hasNext;
-                await viewModel.create();
+                if (!await viewModel.create()) return;
                 if (hasNext || !context.mounted) return;
                 context.pop();
               }

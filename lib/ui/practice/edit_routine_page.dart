@@ -414,7 +414,7 @@ class _CreateButton extends StatelessWidget {
       builder: (context, form, _) => FilledButton(
         onPressed: form.valid
             ? () async {
-                await viewModel.create();
+                if (!await viewModel.create()) return;
                 if (!context.mounted) return;
                 context.pop();
               }

@@ -35,6 +35,8 @@ class EditRoutineViewModel extends ChangeNotifier {
 
   bool _missing = false;
 
+  bool _creating = false;
+
   /// True when the routine that should be edited does not exist.
   bool get missing => _missing;
 
@@ -150,15 +152,22 @@ class EditRoutineViewModel extends ChangeNotifier {
     await _persistEntries();
   }
 
-  Future<void> create() async {
+  Future<bool> create() async {
     if (form.invalid) {
       throw StateError("Only call create when the form is valid!");
     }
-    await _repo.createRoutine(
-      name: name,
-      description: _formValue(formDescription),
-      entries: _entries,
-    );
+    if (_creating) return false;
+    _creating = true;
+    try {
+      await _repo.createRoutine(
+        name: name,
+        description: _formValue(formDescription),
+        entries: _entries,
+      );
+      return true;
+    } finally {
+      _creating = false;
+    }
   }
 
   Future<void> delete() async {

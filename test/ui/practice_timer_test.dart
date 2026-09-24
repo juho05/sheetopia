@@ -121,6 +121,45 @@ void main() {
     timer.dispose();
   });
 
+  test("starting twice at once starts one record", () async {
+    final exercise = await createExercise("Scales");
+    final timer = PracticeTimer(repo: repo);
+    await timer.show(exerciseId: exercise);
+
+    await Future.wait([timer.start(), timer.start()]);
+
+    final record = (await allRecords()).single;
+    expect(record.runningSince, isNotNull);
+    await timer.pause();
+    await Future.wait([timer.resume(), timer.resume()]);
+    expect(await allRecords(), hasLength(2));
+    timer.dispose();
+  });
+
+  test("answering the question twice at once only applies the first "
+      "answer", () async {
+    final exercise = await createExercise("Scales");
+    await leaveRunning(
+      exercise,
+      counted: const Duration(minutes: 2),
+      ago: const Duration(minutes: 20),
+    );
+
+    final timer = PracticeTimer(repo: repo);
+    await timer.show(exerciseId: exercise, target: const Duration(minutes: 5));
+    await Future.wait([
+      timer.resolveRecovery(PracticeRecoveryChoice.untilLeft),
+      timer.resolveRecovery(PracticeRecoveryChoice.discard),
+    ]);
+
+    expect(timer.recovery, isNull);
+    expect(timer.started, isFalse);
+    final record = (await allRecords()).single;
+    expect(record.duration, const Duration(minutes: 2));
+    expect(record.runningSince, isNull);
+    timer.dispose();
+  });
+
   test("closing stops the stopwatch", () async {
     final exercise = await createExercise("Scales");
     final timer = PracticeTimer(repo: repo);

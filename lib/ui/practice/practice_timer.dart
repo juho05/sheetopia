@@ -66,6 +66,8 @@ class PracticeTimer extends ChangeNotifier {
 
   bool _resolving = false;
 
+  bool _busy = false;
+
   int _showGeneration = 0;
 
   Timer? _ticker;
@@ -172,7 +174,9 @@ class PracticeTimer extends ChangeNotifier {
     }
   }
 
-  Future<void> start() async {
+  Future<void> start() => _exclusive(_start);
+
+  Future<void> _start() async {
     final exerciseId = _exerciseId;
     if (exerciseId == null || running) return;
     _touched = true;
@@ -187,7 +191,7 @@ class PracticeTimer extends ChangeNotifier {
     _notify();
   }
 
-  Future<void> resetProgress() async {
+  Future<void> resetProgress() => _exclusive(() async {
     final exerciseId = _exerciseId;
     if (exerciseId == null || running || !ready) return;
     final routineId = _routineId;
@@ -198,18 +202,28 @@ class PracticeTimer extends ChangeNotifier {
     }
     _record = null;
     _carry = Duration.zero;
-    await start();
-  }
+    await _start();
+  });
 
-  Future<void> pause() async {
+  Future<void> pause() => _exclusive(() async {
     if (!running) return;
     _stopTicker();
     _state = PracticeTimerState.paused;
     await _checkpoint(stop: true);
     _notify();
-  }
+  });
 
   Future<void> resume() => start();
+
+  Future<void> _exclusive(Future<void> Function() action) async {
+    if (_busy) return;
+    _busy = true;
+    try {
+      await action();
+    } finally {
+      _busy = false;
+    }
+  }
 
   Future<void> close() async {
     _stopTicker();
@@ -221,7 +235,10 @@ class PracticeTimer extends ChangeNotifier {
     await _stopRecord();
   }
 
-  Future<void> resolveRecovery(PracticeRecoveryChoice choice) async {
+  Future<void> resolveRecovery(PracticeRecoveryChoice choice) =>
+      _exclusive(() => _resolveRecovery(choice));
+
+  Future<void> _resolveRecovery(PracticeRecoveryChoice choice) async {
     final record = _record;
     final recovery = _recovery;
     if (record == null || recovery == null) return;

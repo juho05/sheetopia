@@ -90,6 +90,8 @@ class EditExerciseViewModel extends ChangeNotifier {
 
   bool _created = false;
 
+  bool _creating = false;
+
   final bool _separate;
 
   bool _hasNext = false;
@@ -351,26 +353,33 @@ class EditExerciseViewModel extends ChangeNotifier {
         .take(10);
   }
 
-  Future<void> create() async {
+  Future<bool> create() async {
     if (form.invalid) {
       throw StateError("Only call create when the form is valid!");
     }
-    _created = !hasNext;
-    await _repo.createExercise(
-      name: name,
-      description: _formValue(formDescription),
-      instrument: _formValue(formInstrument),
-      source: _source ?? "",
-      sourceLink: _sourceLink ?? "",
-      tagIds: _tags.map((t) => t.id),
-      scoreIds: _scoreEntries.map((e) => e.score.id),
-      categoryId: _category?.id,
-    );
-    if (!hasNext) return;
+    if (_creating) return false;
+    _creating = true;
+    try {
+      _created = !hasNext;
+      await _repo.createExercise(
+        name: name,
+        description: _formValue(formDescription),
+        instrument: _formValue(formInstrument),
+        source: _source ?? "",
+        sourceLink: _sourceLink ?? "",
+        tagIds: _tags.map((t) => t.id),
+        scoreIds: _scoreEntries.map((e) => e.score.id),
+        categoryId: _category?.id,
+      );
+      if (!hasNext) return true;
 
-    _reset();
+      _reset();
 
-    await _loadCreateScores();
+      await _loadCreateScores();
+      return true;
+    } finally {
+      _creating = false;
+    }
   }
 
   void _reset() {
