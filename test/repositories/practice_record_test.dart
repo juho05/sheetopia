@@ -320,7 +320,11 @@ void main() {
         (o) => o(uploaded: const Value(true)),
       );
 
-      await repo.updateRecord(record.id, duration: const Duration(minutes: 9));
+      await repo.updateRecord(
+        record.id,
+        startedAt: DateTime(2026, 3, 4, 10),
+        duration: const Duration(minutes: 9),
+      );
 
       final row = (await allRecords()).single;
       expect(row.duration, const Duration(minutes: 9));
@@ -346,6 +350,47 @@ void main() {
       expect(record.startedAt, startedAt);
       expect(record.duration, const Duration(minutes: 12));
       expect((await allRecords()).single.uploaded, isFalse);
+    });
+
+    test("manual records must be positive, past and within a day", () async {
+      final exercise = await createExercise("Scales");
+      final recordId = await repo.createRecord(
+        exerciseId: exercise,
+        startedAt: DateTime(2026, 3, 4, 23, 50),
+        duration: const Duration(minutes: 10),
+      );
+
+      Future<String> create(DateTime startedAt, Duration duration) =>
+          repo.createRecord(
+            exerciseId: exercise,
+            startedAt: startedAt,
+            duration: duration,
+          );
+      await expectLater(
+        create(DateTime(2026, 3, 4, 10), Duration.zero),
+        throwsArgumentError,
+      );
+      await expectLater(
+        create(DateTime(2026, 3, 4, 23, 50), const Duration(minutes: 11)),
+        throwsArgumentError,
+      );
+      await expectLater(
+        create(
+          DateTime.now().subtract(const Duration(minutes: 1)),
+          const Duration(minutes: 2),
+        ),
+        throwsArgumentError,
+      );
+      await expectLater(
+        repo.updateRecord(recordId, duration: const Duration(minutes: 11)),
+        throwsArgumentError,
+      );
+      await expectLater(
+        repo.updateRecord(recordId, duration: const Duration(seconds: -1)),
+        throwsArgumentError,
+      );
+
+      expect((await allRecords()).single.duration, const Duration(minutes: 10));
     });
 
     test("records are listed newest first in pages", () async {

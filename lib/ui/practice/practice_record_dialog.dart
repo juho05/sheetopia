@@ -97,8 +97,11 @@ class _PracticeRecordDialogState extends State<PracticeRecordDialog> {
     super.dispose();
   }
 
+  late bool _startPicked = widget._editing;
+
   // keeps the seconds of the original start so an unchanged time stays equal
   DateTime get _startedAt {
+    if (!_startPicked) return DateTime.now().subtract(_duration);
     final original = widget.startedAt;
     final keepSeconds =
         original != null &&
@@ -124,11 +127,17 @@ class _PracticeRecordDialogState extends State<PracticeRecordDialog> {
     final duration = _duration;
     if (duration <= Duration.zero) return null;
     final startedAt = _startedAt;
-    if (startedAt.isAfter(DateTime.now())) {
+    final now = DateTime.now();
+    if (startedAt.isAfter(now)) {
       return "The start can't be in the future";
     }
+    if (startedAt.add(duration).isAfter(now)) {
+      return "The record can't end in the future";
+    }
     final nextDay = PracticeProgress.startOfDay(
-      _day.add(const Duration(days: 1, hours: 12)),
+      PracticeProgress.startOfDay(
+        startedAt,
+      ).add(const Duration(days: 1, hours: 12)),
     );
     if (startedAt.add(duration).isAfter(nextDay)) {
       return "The record must end on the same day";
@@ -158,22 +167,39 @@ class _PracticeRecordDialogState extends State<PracticeRecordDialog> {
     });
   }
 
+  void _pickStart() {
+    if (_startPicked) return;
+    final startedAt = _startedAt;
+    _day = PracticeProgress.startOfDay(startedAt);
+    _time = TimeOfDay.fromDateTime(startedAt);
+    _startPicked = true;
+  }
+
   Future<void> _pickDay() async {
     final now = DateTime.now();
     final day = await showDatePicker(
       context: context,
-      initialDate: _day,
+      initialDate: PracticeProgress.startOfDay(_startedAt),
       firstDate: DateTime(2000),
       lastDate: now,
     );
     if (day == null || !mounted) return;
-    setState(() => _day = day);
+    setState(() {
+      _pickStart();
+      _day = day;
+    });
   }
 
   Future<void> _pickTime() async {
-    final time = await showTimePicker(context: context, initialTime: _time);
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_startedAt),
+    );
     if (time == null || !mounted) return;
-    setState(() => _time = time);
+    setState(() {
+      _pickStart();
+      _time = time;
+    });
   }
 
   @override
@@ -181,6 +207,7 @@ class _PracticeRecordDialogState extends State<PracticeRecordDialog> {
     final theme = Theme.of(context);
     final localizations = MaterialLocalizations.of(context);
     final error = _error;
+    final startedAt = _startedAt;
     return SheetopiaDialog(
       maxWidth: 480,
       child: Column(
@@ -216,7 +243,7 @@ class _PracticeRecordDialogState extends State<PracticeRecordDialog> {
                   onPressed: _pickDay,
                   icon: const Icon(Symbols.calendar_today),
                   label: Text(
-                    localizations.formatMediumDate(_day),
+                    localizations.formatMediumDate(startedAt),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -227,7 +254,7 @@ class _PracticeRecordDialogState extends State<PracticeRecordDialog> {
                   icon: const Icon(Symbols.schedule),
                   label: Text(
                     localizations.formatTimeOfDay(
-                      _time,
+                      TimeOfDay.fromDateTime(startedAt),
                       alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(
                         context,
                       ),

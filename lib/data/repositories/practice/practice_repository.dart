@@ -1439,6 +1439,7 @@ class PracticeRepository {
     required DateTime startedAt,
     required Duration duration,
   }) async {
+    _checkManualRecord(startedAt, duration);
     final recordId = _db.newId();
     await _db.managers.practiceRecordsTable.create(
       (o) => o(
@@ -1452,6 +1453,24 @@ class PracticeRepository {
     );
     _updatedRecordIds.add((changed: {recordId}, needsUpload: true));
     return recordId;
+  }
+
+  void _checkManualRecord(DateTime startedAt, Duration duration) {
+    if (duration <= Duration.zero) {
+      throw ArgumentError.value(duration, "duration", "must be positive");
+    }
+    final end = startedAt.add(duration);
+    if (end.isAfter(DateTime.now())) {
+      throw ArgumentError.value(startedAt, "startedAt", "ends in the future");
+    }
+    final nextDay = PracticeProgress.startOfDay(
+      PracticeProgress.startOfDay(
+        startedAt,
+      ).add(const Duration(days: 1, hours: 12)),
+    );
+    if (end.isAfter(nextDay)) {
+      throw ArgumentError.value(startedAt, "startedAt", "spans midnight");
+    }
   }
 
   Future<List<PracticeRecord>> getRecords({
@@ -1759,6 +1778,10 @@ class PracticeRepository {
     if (record.running) {
       throw StateError("Practice record $recordId is still running");
     }
+    _checkManualRecord(
+      startedAt ?? record.startedAt,
+      duration ?? record.duration,
+    );
     await _db.managers.practiceRecordsTable
         .filter((f) => f.id(recordId))
         .update(
