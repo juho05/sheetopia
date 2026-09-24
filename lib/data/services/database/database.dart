@@ -68,7 +68,7 @@ class Database extends _$Database {
   Database([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -230,11 +230,15 @@ class Database extends _$Database {
                   schema.scores,
                   newColumns: [schema.scores.insertedAt],
                   columnTransformer: {
-                    schema.scores.insertedAt: Variable(
-                      DateTime.now().toUtc(),
-                    ),
+                    schema.scores.insertedAt: Variable(DateTime.now().toUtc()),
                   },
                 ),
+              );
+            },
+            from16To17: (m, schema) async {
+              await m.createIndex(schema.exerciseTagsTagIndex);
+              await m.createIndex(
+                schema.practiceRecordsStartedAtJuliandayIndex,
               );
             },
           ),

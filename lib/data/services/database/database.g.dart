@@ -8465,6 +8465,10 @@ abstract class _$Database extends GeneratedDatabase {
     'exercise_scores_score_index',
     'CREATE INDEX exercise_scores_score_index ON exercise_scores (score)',
   );
+  late final Index exerciseTagsTagIndex = Index(
+    'exercise_tags_tag_index',
+    'CREATE INDEX exercise_tags_tag_index ON exercise_tags (tag)',
+  );
   late final Index practiceRoutineEntriesRoutineIndex = Index(
     'practice_routine_entries_routine_index',
     'CREATE INDEX practice_routine_entries_routine_index ON practice_routine_entries (routine)',
@@ -8476,6 +8480,10 @@ abstract class _$Database extends GeneratedDatabase {
   late final Index practiceRecordsStartedAtIndex = Index(
     'practice_records_started_at_index',
     'CREATE INDEX practice_records_started_at_index ON practice_records (started_at)',
+  );
+  late final Index practiceRecordsStartedAtJuliandayIndex = Index(
+    'practice_records_started_at_julianday_index',
+    'CREATE INDEX practice_records_started_at_julianday_index ON practice_records (julianday(started_at))',
   );
   late final Index practiceRecordsExerciseIndex = Index(
     'practice_records_exercise_index',
@@ -8518,9 +8526,11 @@ abstract class _$Database extends GeneratedDatabase {
     statusIndex,
     exercisesCategoryIndex,
     exerciseScoresScoreIndex,
+    exerciseTagsTagIndex,
     practiceRoutineEntriesRoutineIndex,
     practiceRoutineEntriesExerciseIndex,
     practiceRecordsStartedAtIndex,
+    practiceRecordsStartedAtJuliandayIndex,
     practiceRecordsExerciseIndex,
     practiceRecordsRoutineIndex,
   ];

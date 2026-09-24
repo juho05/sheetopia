@@ -89,6 +89,7 @@ class ScoreTagsTable extends Table {
   Set<Column<Object>>? get primaryKey => {score, tag};
 }
 
+@TableIndex(name: "exercise_tags_tag_index", columns: {#tag})
 class ExerciseTagsTable extends Table {
   late final exercise = text().references(
     ExercisesTable,

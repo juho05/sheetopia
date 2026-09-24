@@ -10,6 +10,10 @@ import 'package:drift/drift.dart';
 import 'package:sheetopia/data/services/database/duration_converter.dart';
 
 @TableIndex(name: "practice_records_started_at_index", columns: {#startedAt})
+@TableIndex.sql(
+  "CREATE INDEX practice_records_started_at_julianday_index "
+  "ON practice_records (julianday(started_at))",
+)
 @TableIndex(name: "practice_records_exercise_index", columns: {#exercise})
 @TableIndex(name: "practice_records_routine_index", columns: {#routine})
 class PracticeRecordsTable extends Table {
