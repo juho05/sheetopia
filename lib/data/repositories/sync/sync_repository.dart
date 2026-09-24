@@ -28,8 +28,8 @@ import 'package:sheetopia/data/services/sync/exceptions.dart';
 import 'package:sheetopia/data/services/sync/models/datetime_converter.dart';
 import 'package:sheetopia/data/services/sync/models/exercise_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/optional_values.dart';
-import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
 import 'package:sheetopia/data/services/sync/models/practice_records.dart';
+import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/sync_connection.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
@@ -317,6 +317,13 @@ class SyncRepository {
 
       await _downloadDeletedScores(honourDeletedAt);
 
+      if (apiVersion >= minAPIVersionPractice) {
+        await _downloadDeletedExerciseCategories(honourDeletedAt);
+        await _uploadExerciseCategoryChanges(sendWrittenAt);
+        await _downloadDeletedExercises(honourDeletedAt);
+        await _uploadExerciseChanges(sendWrittenAt);
+      }
+
       await _uploadMetadataChanges(sendWrittenAt, sendType);
       await _uploadFileChanges();
 
@@ -330,12 +337,7 @@ class SyncRepository {
       }
 
       if (apiVersion >= minAPIVersionPractice) {
-        await _downloadDeletedExerciseCategories(honourDeletedAt);
-        await _uploadExerciseCategoryChanges(sendWrittenAt);
         await _downloadExerciseCategoryChanges();
-
-        await _downloadDeletedExercises(honourDeletedAt);
-        await _uploadExerciseChanges(sendWrittenAt);
         await _downloadExerciseChanges();
 
         await _downloadDeletedPracticeRoutines(honourDeletedAt);
@@ -350,7 +352,9 @@ class SyncRepository {
       await _updateLastSync(syncTime);
 
       state.value = _itemsFailed ? SyncState.partial : SyncState.success;
-      await _scoresRepo.deleteAbandonedScores();
+      if (!_itemsFailed) {
+        await _scoresRepo.deleteAbandonedScores();
+      }
     } on UnauthenticatedException catch (_) {
       await logout();
     } catch (e, st) {

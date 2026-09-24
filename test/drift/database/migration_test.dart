@@ -10,6 +10,7 @@ import 'generated/schema_v1.dart' as v1;
 import 'generated/schema_v2.dart' as v2;
 import 'generated/schema_v14.dart' as v14;
 import 'generated/schema_v15.dart' as v15;
+import 'generated/schema_v16.dart' as v16;
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -117,6 +118,42 @@ void main() {
       },
     );
   });
+
+  test(
+    "migration from v15 to v16 marks existing scores as just inserted",
+    () async {
+      const old = "2026-01-01T00:00:00.000Z";
+      final before = DateTime.now().toUtc();
+
+      await verifier.testWithDataIntegrity(
+        oldVersion: 15,
+        newVersion: 16,
+        createOld: v15.DatabaseAtV15.new,
+        createNew: v16.DatabaseAtV16.new,
+        openTestedDatabase: Database.new,
+        createItems: (batch, oldDb) {
+          batch.customStatement(
+            "INSERT INTO scores (id, title, search_text, last_opened, "
+            "metadata_updated_at, file_updated_at, file_downloaded, file_type, "
+            "type) VALUES ('score', 'Etude', ' etude ', '$old', '$old', "
+            "'$old', 1, 'pdf', 'exercise')",
+          );
+        },
+        validateItems: (newDb) async {
+          final score = await newDb.select(newDb.scores).getSingle();
+          expect(score.title, "Etude");
+          expect(score.type, "exercise");
+          expect(score.metadataUpdatedAt, old);
+          expect(score.recentTime, old);
+          expect(
+            DateTime.parse(score.insertedAt).isBefore(before),
+            isFalse,
+            reason: "the sweep waits 3h before touching migrated scores",
+          );
+        },
+      );
+    },
+  );
 
   // tester carry over, remove later
   test(

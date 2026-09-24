@@ -1314,7 +1314,7 @@ class ScoresRepository {
   }
 
   /// Deletes all scores not of type score that have no owner.
-  /// Scores modified in the last 3h are not deleted.
+  /// Scores stored or modified in the last 3h are not deleted.
   Future<void> deleteAbandonedScores() async {
     final cutoff = DateTime.now().subtract(const Duration(hours: 3)).toUtc();
     final linkedScoreIds = _db.selectOnly(_db.exerciseScoresTable)
@@ -1324,6 +1324,7 @@ class ScoresRepository {
       ..where(
         _db.scoresTable.type.equalsValue(ScoreType.exercise) &
             _db.scoresTable.id.isNotInQuery(linkedScoreIds) &
+            _db.scoresTable.insertedAt.isSmallerThanValue(cutoff) &
             _db.scoresTable.metadataUpdatedAt.isSmallerThanValue(cutoff) &
             _db.scoresTable.fileUpdatedAt.isSmallerThanValue(cutoff),
       );

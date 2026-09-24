@@ -55,6 +55,10 @@ class ScoresTable extends Table {
     () => DateTime.now().toUtc(),
   )();
 
+  late final insertedAt = dateTime().clientDefault(
+    () => DateTime.now().toUtc(),
+  )();
+
   // non-null means the row was restored by an import and the server has not accepted the restore
   late final writtenAt = dateTime().nullable()();
 

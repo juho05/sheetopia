@@ -23,16 +23,19 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/data/services/sync/models/exercise_categories.dart';
 import 'package:sheetopia/data/services/sync/models/exercise_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/exercises.dart';
 import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
 import 'package:sheetopia/data/services/sync/models/practice_records.dart';
+import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/server_info.dart';
 import 'package:sheetopia/data/services/sync/models/setlists.dart';
 import 'package:sheetopia/data/services/sync/models/tags.dart';
+import 'package:sheetopia/data/services/sync/models/update_score_result.dart';
 import 'package:sheetopia/data/services/sync/sync_connection.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
@@ -95,6 +98,8 @@ class _FakeSyncService extends SyncService {
 
   final deletedOnServer = <String>[];
 
+  final calls = <String>[];
+
   @override
   Future<ServerInfoModel> getServerInfo(Uri baseUri) async => ServerInfoModel(
     server: "sheetopia-sync",
@@ -117,7 +122,25 @@ class _FakeSyncService extends SyncService {
   Future<List<ScoreModel>> getScores(
     SyncConnection con, {
     DateTime? changedAfter,
-  }) async => [];
+  }) async {
+    calls.add("getScores");
+    return [];
+  }
+
+  @override
+  Future<UpdateScoreResultModel?> updateScore(
+    SyncConnection con,
+    String scoreId, {
+    required String title,
+    required DateTime metadataUpdatedAt,
+    required List<String> tagIds,
+    required ScoreMetadataModel metadata,
+    DateTime? writtenAt,
+    ScoreType? type,
+  }) async {
+    calls.add("updateScore");
+    return null;
+  }
 
   @override
   Future<List<TagModel>> getTags(
@@ -159,7 +182,10 @@ class _FakeSyncService extends SyncService {
   Future<List<ExerciseModel>> getExercises(
     SyncConnection con, {
     DateTime? changedAfter,
-  }) async => exercises;
+  }) async {
+    calls.add("getExercises");
+    return exercises;
+  }
 
   @override
   Future<List<PracticeRoutineModel>> getPracticeRoutines(
@@ -219,6 +245,7 @@ class _FakeSyncService extends SyncService {
     required DateTime updatedAt,
     DateTime? writtenAt,
   }) async {
+    calls.add("updateExercise");
     uploadedExercises.add((id: exerciseId, writtenAt: writtenAt));
     uploadedExerciseTagIds[exerciseId] = tagIds;
     uploadedExerciseScoreIds[exerciseId] = scoreIds;
@@ -477,6 +504,33 @@ void main() {
       1,
       reason: "an accepted upload settles the local write",
     );
+  });
+
+  test("exercises go up before their scores and come down after", () async {
+    await createExercise(uploaded: false);
+    await db.managers.scoresTable.create(
+      (o) => o(
+        id: "score-1",
+        title: "Title",
+        searchText: " title ",
+        fileDownloaded: true,
+        fileType: FileType.pdf,
+        fileUploaded: const Value(true),
+        type: const Value(ScoreType.exercise),
+      ),
+    );
+    await db.managers.exerciseScoresTable.create(
+      (o) => o(exercise: exerciseId, score: "score-1", position: 0),
+    );
+
+    await syncAndWait();
+
+    expect(service.calls, [
+      "updateExercise",
+      "updateScore",
+      "getScores",
+      "getExercises",
+    ]);
   });
 
   test("a server before 0.5 receives no practice data", () async {

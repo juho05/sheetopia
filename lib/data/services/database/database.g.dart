@@ -143,6 +143,18 @@ class $ScoresTableTable extends ScoresTable
         requiredDuringInsert: false,
         clientDefault: () => DateTime.now().toUtc(),
       );
+  static const VerificationMeta _insertedAtMeta = const VerificationMeta(
+    'insertedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> insertedAt = GeneratedColumn<DateTime>(
+    'inserted_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    clientDefault: () => DateTime.now().toUtc(),
+  );
   static const VerificationMeta _writtenAtMeta = const VerificationMeta(
     'writtenAt',
   );
@@ -242,6 +254,7 @@ class $ScoresTableTable extends ScoresTable
     lastOpened,
     metadataUpdatedAt,
     fileUpdatedAt,
+    insertedAt,
     writtenAt,
     metadataUploaded,
     fileUploaded,
@@ -335,6 +348,12 @@ class $ScoresTableTable extends ScoresTable
           data['file_updated_at']!,
           _fileUpdatedAtMeta,
         ),
+      );
+    }
+    if (data.containsKey('inserted_at')) {
+      context.handle(
+        _insertedAtMeta,
+        insertedAt.isAcceptableOrUnknown(data['inserted_at']!, _insertedAtMeta),
       );
     }
     if (data.containsKey('written_at')) {
@@ -440,6 +459,10 @@ class $ScoresTableTable extends ScoresTable
         DriftSqlType.dateTime,
         data['${effectivePrefix}file_updated_at'],
       )!,
+      insertedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}inserted_at'],
+      )!,
       writtenAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}written_at'],
@@ -501,6 +524,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
   final DateTime lastOpened;
   final DateTime metadataUpdatedAt;
   final DateTime fileUpdatedAt;
+  final DateTime insertedAt;
   final DateTime? writtenAt;
   final bool metadataUploaded;
   final bool fileUploaded;
@@ -521,6 +545,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     required this.lastOpened,
     required this.metadataUpdatedAt,
     required this.fileUpdatedAt,
+    required this.insertedAt,
     this.writtenAt,
     required this.metadataUploaded,
     required this.fileUploaded,
@@ -555,6 +580,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     map['last_opened'] = Variable<DateTime>(lastOpened);
     map['metadata_updated_at'] = Variable<DateTime>(metadataUpdatedAt);
     map['file_updated_at'] = Variable<DateTime>(fileUpdatedAt);
+    map['inserted_at'] = Variable<DateTime>(insertedAt);
     if (!nullToAbsent || writtenAt != null) {
       map['written_at'] = Variable<DateTime>(writtenAt);
     }
@@ -598,6 +624,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       lastOpened: Value(lastOpened),
       metadataUpdatedAt: Value(metadataUpdatedAt),
       fileUpdatedAt: Value(fileUpdatedAt),
+      insertedAt: Value(insertedAt),
       writtenAt: writtenAt == null && nullToAbsent
           ? const Value.absent()
           : Value(writtenAt),
@@ -634,6 +661,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
         json['metadataUpdatedAt'],
       ),
       fileUpdatedAt: serializer.fromJson<DateTime>(json['fileUpdatedAt']),
+      insertedAt: serializer.fromJson<DateTime>(json['insertedAt']),
       writtenAt: serializer.fromJson<DateTime?>(json['writtenAt']),
       metadataUploaded: serializer.fromJson<bool>(json['metadataUploaded']),
       fileUploaded: serializer.fromJson<bool>(json['fileUploaded']),
@@ -665,6 +693,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       'lastOpened': serializer.toJson<DateTime>(lastOpened),
       'metadataUpdatedAt': serializer.toJson<DateTime>(metadataUpdatedAt),
       'fileUpdatedAt': serializer.toJson<DateTime>(fileUpdatedAt),
+      'insertedAt': serializer.toJson<DateTime>(insertedAt),
       'writtenAt': serializer.toJson<DateTime?>(writtenAt),
       'metadataUploaded': serializer.toJson<bool>(metadataUploaded),
       'fileUploaded': serializer.toJson<bool>(fileUploaded),
@@ -692,6 +721,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     DateTime? lastOpened,
     DateTime? metadataUpdatedAt,
     DateTime? fileUpdatedAt,
+    DateTime? insertedAt,
     Value<DateTime?> writtenAt = const Value.absent(),
     bool? metadataUploaded,
     bool? fileUploaded,
@@ -712,6 +742,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     lastOpened: lastOpened ?? this.lastOpened,
     metadataUpdatedAt: metadataUpdatedAt ?? this.metadataUpdatedAt,
     fileUpdatedAt: fileUpdatedAt ?? this.fileUpdatedAt,
+    insertedAt: insertedAt ?? this.insertedAt,
     writtenAt: writtenAt.present ? writtenAt.value : this.writtenAt,
     metadataUploaded: metadataUploaded ?? this.metadataUploaded,
     fileUploaded: fileUploaded ?? this.fileUploaded,
@@ -735,6 +766,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           ..write('lastOpened: $lastOpened, ')
           ..write('metadataUpdatedAt: $metadataUpdatedAt, ')
           ..write('fileUpdatedAt: $fileUpdatedAt, ')
+          ..write('insertedAt: $insertedAt, ')
           ..write('writtenAt: $writtenAt, ')
           ..write('metadataUploaded: $metadataUploaded, ')
           ..write('fileUploaded: $fileUploaded, ')
@@ -760,6 +792,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     lastOpened,
     metadataUpdatedAt,
     fileUpdatedAt,
+    insertedAt,
     writtenAt,
     metadataUploaded,
     fileUploaded,
@@ -784,6 +817,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           other.lastOpened == this.lastOpened &&
           other.metadataUpdatedAt == this.metadataUpdatedAt &&
           other.fileUpdatedAt == this.fileUpdatedAt &&
+          other.insertedAt == this.insertedAt &&
           other.writtenAt == this.writtenAt &&
           other.metadataUploaded == this.metadataUploaded &&
           other.fileUploaded == this.fileUploaded &&
@@ -805,6 +839,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
   final Value<DateTime> lastOpened;
   final Value<DateTime> metadataUpdatedAt;
   final Value<DateTime> fileUpdatedAt;
+  final Value<DateTime> insertedAt;
   final Value<DateTime?> writtenAt;
   final Value<bool> metadataUploaded;
   final Value<bool> fileUploaded;
@@ -825,6 +860,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.lastOpened = const Value.absent(),
     this.metadataUpdatedAt = const Value.absent(),
     this.fileUpdatedAt = const Value.absent(),
+    this.insertedAt = const Value.absent(),
     this.writtenAt = const Value.absent(),
     this.metadataUploaded = const Value.absent(),
     this.fileUploaded = const Value.absent(),
@@ -846,6 +882,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.lastOpened = const Value.absent(),
     this.metadataUpdatedAt = const Value.absent(),
     this.fileUpdatedAt = const Value.absent(),
+    this.insertedAt = const Value.absent(),
     this.writtenAt = const Value.absent(),
     this.metadataUploaded = const Value.absent(),
     this.fileUploaded = const Value.absent(),
@@ -871,6 +908,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Expression<DateTime>? lastOpened,
     Expression<DateTime>? metadataUpdatedAt,
     Expression<DateTime>? fileUpdatedAt,
+    Expression<DateTime>? insertedAt,
     Expression<DateTime>? writtenAt,
     Expression<bool>? metadataUploaded,
     Expression<bool>? fileUploaded,
@@ -892,6 +930,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       if (lastOpened != null) 'last_opened': lastOpened,
       if (metadataUpdatedAt != null) 'metadata_updated_at': metadataUpdatedAt,
       if (fileUpdatedAt != null) 'file_updated_at': fileUpdatedAt,
+      if (insertedAt != null) 'inserted_at': insertedAt,
       if (writtenAt != null) 'written_at': writtenAt,
       if (metadataUploaded != null) 'metadata_uploaded': metadataUploaded,
       if (fileUploaded != null) 'file_uploaded': fileUploaded,
@@ -915,6 +954,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Value<DateTime>? lastOpened,
     Value<DateTime>? metadataUpdatedAt,
     Value<DateTime>? fileUpdatedAt,
+    Value<DateTime>? insertedAt,
     Value<DateTime?>? writtenAt,
     Value<bool>? metadataUploaded,
     Value<bool>? fileUploaded,
@@ -936,6 +976,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       lastOpened: lastOpened ?? this.lastOpened,
       metadataUpdatedAt: metadataUpdatedAt ?? this.metadataUpdatedAt,
       fileUpdatedAt: fileUpdatedAt ?? this.fileUpdatedAt,
+      insertedAt: insertedAt ?? this.insertedAt,
       writtenAt: writtenAt ?? this.writtenAt,
       metadataUploaded: metadataUploaded ?? this.metadataUploaded,
       fileUploaded: fileUploaded ?? this.fileUploaded,
@@ -985,6 +1026,9 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     if (fileUpdatedAt.present) {
       map['file_updated_at'] = Variable<DateTime>(fileUpdatedAt.value);
     }
+    if (insertedAt.present) {
+      map['inserted_at'] = Variable<DateTime>(insertedAt.value);
+    }
     if (writtenAt.present) {
       map['written_at'] = Variable<DateTime>(writtenAt.value);
     }
@@ -1030,6 +1074,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
           ..write('lastOpened: $lastOpened, ')
           ..write('metadataUpdatedAt: $metadataUpdatedAt, ')
           ..write('fileUpdatedAt: $fileUpdatedAt, ')
+          ..write('insertedAt: $insertedAt, ')
           ..write('writtenAt: $writtenAt, ')
           ..write('metadataUploaded: $metadataUploaded, ')
           ..write('fileUploaded: $fileUploaded, ')
@@ -8646,6 +8691,7 @@ typedef $$ScoresTableTableCreateCompanionBuilder =
       Value<DateTime> lastOpened,
       Value<DateTime> metadataUpdatedAt,
       Value<DateTime> fileUpdatedAt,
+      Value<DateTime> insertedAt,
       Value<DateTime?> writtenAt,
       Value<bool> metadataUploaded,
       Value<bool> fileUploaded,
@@ -8668,6 +8714,7 @@ typedef $$ScoresTableTableUpdateCompanionBuilder =
       Value<DateTime> lastOpened,
       Value<DateTime> metadataUpdatedAt,
       Value<DateTime> fileUpdatedAt,
+      Value<DateTime> insertedAt,
       Value<DateTime?> writtenAt,
       Value<bool> metadataUploaded,
       Value<bool> fileUploaded,
@@ -8806,6 +8853,11 @@ class $$ScoresTableTableFilterComposer
 
   ColumnFilters<DateTime> get fileUpdatedAt => $composableBuilder(
     column: $table.fileUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get insertedAt => $composableBuilder(
+    column: $table.insertedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8991,6 +9043,11 @@ class $$ScoresTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get insertedAt => $composableBuilder(
+    column: $table.insertedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get writtenAt => $composableBuilder(
     column: $table.writtenAt,
     builder: (column) => ColumnOrderings(column),
@@ -9081,6 +9138,11 @@ class $$ScoresTableTableAnnotationComposer
 
   GeneratedColumn<DateTime> get fileUpdatedAt => $composableBuilder(
     column: $table.fileUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get insertedAt => $composableBuilder(
+    column: $table.insertedAt,
     builder: (column) => column,
   );
 
@@ -9232,6 +9294,7 @@ class $$ScoresTableTableTableManager
                 Value<DateTime> lastOpened = const Value.absent(),
                 Value<DateTime> metadataUpdatedAt = const Value.absent(),
                 Value<DateTime> fileUpdatedAt = const Value.absent(),
+                Value<DateTime> insertedAt = const Value.absent(),
                 Value<DateTime?> writtenAt = const Value.absent(),
                 Value<bool> metadataUploaded = const Value.absent(),
                 Value<bool> fileUploaded = const Value.absent(),
@@ -9252,6 +9315,7 @@ class $$ScoresTableTableTableManager
                 lastOpened: lastOpened,
                 metadataUpdatedAt: metadataUpdatedAt,
                 fileUpdatedAt: fileUpdatedAt,
+                insertedAt: insertedAt,
                 writtenAt: writtenAt,
                 metadataUploaded: metadataUploaded,
                 fileUploaded: fileUploaded,
@@ -9274,6 +9338,7 @@ class $$ScoresTableTableTableManager
                 Value<DateTime> lastOpened = const Value.absent(),
                 Value<DateTime> metadataUpdatedAt = const Value.absent(),
                 Value<DateTime> fileUpdatedAt = const Value.absent(),
+                Value<DateTime> insertedAt = const Value.absent(),
                 Value<DateTime?> writtenAt = const Value.absent(),
                 Value<bool> metadataUploaded = const Value.absent(),
                 Value<bool> fileUploaded = const Value.absent(),
@@ -9294,6 +9359,7 @@ class $$ScoresTableTableTableManager
                 lastOpened: lastOpened,
                 metadataUpdatedAt: metadataUpdatedAt,
                 fileUpdatedAt: fileUpdatedAt,
+                insertedAt: insertedAt,
                 writtenAt: writtenAt,
                 metadataUploaded: metadataUploaded,
                 fileUploaded: fileUploaded,

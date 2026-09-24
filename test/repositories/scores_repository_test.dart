@@ -53,6 +53,7 @@ void main() {
     bool fileDownloaded = false,
     DateTime? metadataUpdatedAt,
     DateTime? fileUpdatedAt,
+    DateTime? insertedAt,
   }) async {
     await db.managers.scoresTable.create(
       (o) => o(
@@ -64,6 +65,7 @@ void main() {
         lastOpened: Value(timestamp),
         metadataUpdatedAt: Value(metadataUpdatedAt ?? timestamp),
         fileUpdatedAt: Value(fileUpdatedAt ?? timestamp),
+        insertedAt: Value(insertedAt ?? timestamp),
         type: Value(type),
       ),
     );
@@ -351,6 +353,19 @@ void main() {
     expect((await db.managers.deletedScoresTable.get()).map((d) => d.scoreId), [
       "stale",
     ]);
+  });
+
+  test("old unlinked exercise scores that arrived recently survive", () async {
+    await insertScore(
+      "arrived",
+      type: ScoreType.exercise,
+      insertedAt: DateTime.now().toUtc().subtract(const Duration(minutes: 30)),
+    );
+
+    await repo.deleteAbandonedScores();
+
+    expect(await repo.getScore("arrived"), isNotNull);
+    expect(await db.managers.deletedScoresTable.get(), isEmpty);
   });
 
   test("renaming a score keeps its composer in the search text", () async {
