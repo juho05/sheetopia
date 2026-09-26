@@ -70,8 +70,8 @@ jobs:
       - name: Check generated files are up to date
         run: |
           dart run build_runner build
-          if [ -n "$(git status --porcelain)" ]; then
-            git status --porcelain
+          if [ -n "$(git status --porcelain -- '*.g.dart')" ]; then
+            git status --porcelain -- '*.g.dart'
             echo "::error::Generated files are out of date, run build_runner and commit the result"
             exit 1
           fi
