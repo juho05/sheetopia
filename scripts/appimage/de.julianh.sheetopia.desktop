@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Sheetopia
+Comment=Sheet music app
+Exec=sheetopia
+Icon=de.julianh.sheetopia
+Categories=AudioVideo;Audio;Music;
+Keywords=sheet;music;score;pdf;
+StartupWMClass=de.julianh.sheetopia
+StartupNotify=true
+Terminal=false
