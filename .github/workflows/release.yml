@@ -246,7 +246,7 @@ jobs:
         run: dart run inno_bundle --envs --no-hf | Select-String -Pattern '^[A-Z_]+=' | ForEach-Object { $_.Line } | Out-File -FilePath $Env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Build installer
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
+        uses: Minionguyjpro/Inno-Setup-Action@ec985ef724d1fb4a05bfbc1a8e49930dc76d2b0c # v1.2.9
         with:
           path: ./build/windows/x64/installer/Release/inno-script.iss
           options: /Fsheetopia-installer
@@ -491,6 +491,10 @@ jobs:
       - build_ios_ipa
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
       - name: Create uploads directory
         run: mkdir uploads
@@ -559,6 +563,15 @@ jobs:
       - name: Copy .dmg file to uploads
         run: cp macos-dmg-result/Sheetopia.dmg uploads/Sheetopia-${{ needs.build.outputs.version }}-macOS-universal.dmg
 
+      - name: Generate checksums
+        working-directory: uploads
+        run: sha256sum Sheetopia-* > Sheetopia-${{ needs.build.outputs.version }}-SHA256SUMS.txt
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: uploads/Sheetopia-*
+
       - name: Upload assets
         env:
           GH_TOKEN: ${{ github.token }}
@@ -574,7 +587,8 @@ jobs:
             linux-x86-64.tar.gz \
             windows-x86-64.exe \
             windows-x86-64.zip \
-            macOS-universal.dmg
+            macOS-universal.dmg \
+            SHA256SUMS.txt
           do
             gh release upload "$TAG" "uploads/Sheetopia-$VERSION-$f" --clobber
           done
