@@ -94,8 +94,12 @@ class _AutoCompleteInputDialogState extends State<AutoCompleteInputDialog> {
     final theme = Theme.of(context);
     return CallbackShortcuts(
       bindings: {
-        const SingleActivator(LogicalKeyboardKey.enter): _submit,
-        const SingleActivator(LogicalKeyboardKey.numpadEnter): _submit,
+        const SingleActivator(LogicalKeyboardKey.enter, includeRepeats: false):
+            _submit,
+        const SingleActivator(
+          LogicalKeyboardKey.numpadEnter,
+          includeRepeats: false,
+        ): _submit,
       },
       child: FocusScope(child: _buildDialog(theme)),
     );

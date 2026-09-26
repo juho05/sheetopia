@@ -61,10 +61,13 @@ class SelectionShortcuts extends StatelessWidget {
             LogicalKeyboardKey.keyA,
             control: !isApple,
             meta: isApple,
+            includeRepeats: false,
           ): const _SelectAllIntent(),
         if (onClearSelection != null)
-          const SingleActivator(LogicalKeyboardKey.escape):
-              const _ClearSelectionIntent(),
+          const SingleActivator(
+            LogicalKeyboardKey.escape,
+            includeRepeats: false,
+          ): const _ClearSelectionIntent(),
       },
       child: Actions(
         actions: {

@@ -170,12 +170,18 @@ class _RoutinePlayPageState extends State<RoutinePlayPage> {
       body: CallbackShortcuts(
         bindings: {
           if (session != null) ...{
-            const SingleActivator(LogicalKeyboardKey.escape):
-                session.exitFullScreen,
-            const SingleActivator(LogicalKeyboardKey.keyF):
-                session.toggleFullScreen,
-            const SingleActivator(LogicalKeyboardKey.f11):
-                session.toggleFullScreen,
+            const SingleActivator(
+              LogicalKeyboardKey.escape,
+              includeRepeats: false,
+            ): session.exitFullScreen,
+            const SingleActivator(
+              LogicalKeyboardKey.keyF,
+              includeRepeats: false,
+            ): session.toggleFullScreen,
+            const SingleActivator(
+              LogicalKeyboardKey.f11,
+              includeRepeats: false,
+            ): session.toggleFullScreen,
           },
         },
         child: FocusScope(

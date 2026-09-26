@@ -153,8 +153,10 @@ class _AutoCompleteFieldState extends State<AutoCompleteField> {
         children: [
           Shortcuts(
             shortcuts: const {
-              SingleActivator(LogicalKeyboardKey.arrowDown):
-                  _FocusFirstOptionIntent(),
+              SingleActivator(
+                LogicalKeyboardKey.arrowDown,
+                includeRepeats: false,
+              ): _FocusFirstOptionIntent(),
             },
             child: Actions(
               actions: {_FocusFirstOptionIntent: _focusFirstOptionAction},
@@ -195,10 +197,12 @@ class _AutoCompleteFieldState extends State<AutoCompleteField> {
                                   bindings: {
                                     const SingleActivator(
                                       LogicalKeyboardKey.enter,
+                                      includeRepeats: false,
                                     ): () =>
                                         _select(option),
                                     const SingleActivator(
                                       LogicalKeyboardKey.numpadEnter,
+                                      includeRepeats: false,
                                     ): () =>
                                         _select(option),
                                   },

@@ -8,9 +8,9 @@
 
 import 'dart:async';
 
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/settings/appearance.dart';
 import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
@@ -23,6 +23,22 @@ import 'package:sheetopia/ui/score/score_sequence.dart';
 import 'package:sheetopia/ui/score/score_viewmodel.dart';
 import 'package:sheetopia/ui/score/unsupported_file_view.dart';
 import 'package:sheetopia/utils/full_screen.dart';
+
+const _boundKeys = [
+  LogicalKeyboardKey.escape,
+  LogicalKeyboardKey.keyF,
+  LogicalKeyboardKey.f11,
+  LogicalKeyboardKey.arrowUp,
+  LogicalKeyboardKey.arrowDown,
+  LogicalKeyboardKey.arrowLeft,
+  LogicalKeyboardKey.arrowRight,
+  LogicalKeyboardKey.pageUp,
+  LogicalKeyboardKey.pageDown,
+  LogicalKeyboardKey.space,
+  LogicalKeyboardKey.enter,
+  LogicalKeyboardKey.backspace,
+];
+
 class ScoreViewer extends StatelessWidget {
   final String initialScoreId;
   final ScoreSequence? sequence;
@@ -171,109 +187,140 @@ class _ScoreViewerState extends State<_ScoreViewer>
             cursor: !session.isFullScreen || session.overlayVisible
                 ? SystemMouseCursors.basic
                 : SystemMouseCursors.none,
-            child: CallbackShortcuts(
-              bindings: {
-                const SingleActivator(LogicalKeyboardKey.escape):
-                    session.exitFullScreen,
-                const SingleActivator(LogicalKeyboardKey.keyF):
-                    session.toggleFullScreen,
-                const SingleActivator(LogicalKeyboardKey.f11):
-                    session.toggleFullScreen,
-                const SingleActivator(LogicalKeyboardKey.arrowUp):
-                    _viewModel.prevPage,
-                const SingleActivator(LogicalKeyboardKey.arrowDown):
-                    _viewModel.nextPage,
-                const SingleActivator(LogicalKeyboardKey.arrowLeft):
-                    _viewModel.prevPage,
-                const SingleActivator(LogicalKeyboardKey.arrowRight):
-                    _viewModel.nextPage,
-                const SingleActivator(LogicalKeyboardKey.pageUp):
-                    _viewModel.prevPage,
-                const SingleActivator(LogicalKeyboardKey.pageDown):
-                    _viewModel.nextPage,
-                const SingleActivator(LogicalKeyboardKey.space):
-                    _viewModel.nextPage,
-                const SingleActivator(LogicalKeyboardKey.enter):
-                    _viewModel.nextPage,
-                const SingleActivator(LogicalKeyboardKey.backspace):
-                    _viewModel.prevPage,
+            child: Shortcuts(
+              shortcuts: {
+                for (final key in _boundKeys)
+                  SingleActivator(key): const DoNothingIntent(),
               },
-              child: FocusScope(
-                autofocus: true,
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: Stack(
-                        children: [
-                          if (_viewModel.file == null)
-                            const Center(
-                              child: CircularProgressIndicator.adaptive(),
-                            ),
-                          if (_viewModel.file != null)
-                            switch (_viewModel.fileType!) {
-                              FileType.pdf => PdfView(
-                                file: _viewModel.file!,
-                                scoreId: _viewModel.scoreId,
-                                switchToken: _viewModel.switchToken,
-                                switchSettleCount: _viewModel.switchSettleCount,
-                                controller: _viewModel.fileView,
-                                nextPath: sequence?.nextFile?.path,
-                                previousPath: sequence?.previousFile?.path,
-                                onOverflowForward: widget.advanceOnOverflow
-                                    ? sequence?.next
-                                    : null,
-                                onOverflowBackward: widget.advanceOnOverflow
-                                    ? sequence?.previous
-                                    : null,
-                                onPageTurned: _viewModel.onPageTurned,
-                                onSwipeUp: widget.onSwipeUp,
+              child: CallbackShortcuts(
+                bindings: {
+                  const SingleActivator(
+                    LogicalKeyboardKey.escape,
+                    includeRepeats: false,
+                  ): session.exitFullScreen,
+                  const SingleActivator(
+                    LogicalKeyboardKey.keyF,
+                    includeRepeats: false,
+                  ): session.toggleFullScreen,
+                  const SingleActivator(
+                    LogicalKeyboardKey.f11,
+                    includeRepeats: false,
+                  ): session.toggleFullScreen,
+                  const SingleActivator(
+                    LogicalKeyboardKey.arrowUp,
+                    includeRepeats: false,
+                  ): _viewModel.prevPage,
+                  const SingleActivator(
+                    LogicalKeyboardKey.arrowDown,
+                    includeRepeats: false,
+                  ): _viewModel.nextPage,
+                  const SingleActivator(
+                    LogicalKeyboardKey.arrowLeft,
+                    includeRepeats: false,
+                  ): _viewModel.prevPage,
+                  const SingleActivator(
+                    LogicalKeyboardKey.arrowRight,
+                    includeRepeats: false,
+                  ): _viewModel.nextPage,
+                  const SingleActivator(
+                    LogicalKeyboardKey.pageUp,
+                    includeRepeats: false,
+                  ): _viewModel.prevPage,
+                  const SingleActivator(
+                    LogicalKeyboardKey.pageDown,
+                    includeRepeats: false,
+                  ): _viewModel.nextPage,
+                  const SingleActivator(
+                    LogicalKeyboardKey.space,
+                    includeRepeats: false,
+                  ): _viewModel.nextPage,
+                  const SingleActivator(
+                    LogicalKeyboardKey.enter,
+                    includeRepeats: false,
+                  ): _viewModel.nextPage,
+                  const SingleActivator(
+                    LogicalKeyboardKey.backspace,
+                    includeRepeats: false,
+                  ): _viewModel.prevPage,
+                },
+                child: FocusScope(
+                  autofocus: true,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Stack(
+                          children: [
+                            if (_viewModel.file == null)
+                              const Center(
+                                child: CircularProgressIndicator.adaptive(),
                               ),
-                              _ => UnsupportedFileView(
-                                fileType: _viewModel.fileType!,
-                              ),
-                            },
-                          FadingOverlay(
-                            visible: session.backButtonVisible,
-                            child: Padding(
-                              padding: const EdgeInsets.all(4),
-                              child: SizedBox.square(
-                                dimension: 32,
-                                child: IconButton.filled(
-                                  color: Colors.white,
-                                  style: ButtonStyle(
-                                    backgroundColor: WidgetStateProperty.all(
-                                      Colors.black.withAlpha(100),
+                            if (_viewModel.file != null)
+                              switch (_viewModel.fileType!) {
+                                FileType.pdf => PdfView(
+                                  file: _viewModel.file!,
+                                  scoreId: _viewModel.scoreId,
+                                  switchToken: _viewModel.switchToken,
+                                  switchSettleCount:
+                                      _viewModel.switchSettleCount,
+                                  controller: _viewModel.fileView,
+                                  nextPath: sequence?.nextFile?.path,
+                                  previousPath: sequence?.previousFile?.path,
+                                  onOverflowForward: widget.advanceOnOverflow
+                                      ? sequence?.next
+                                      : null,
+                                  onOverflowBackward: widget.advanceOnOverflow
+                                      ? sequence?.previous
+                                      : null,
+                                  onPageTurned: _viewModel.onPageTurned,
+                                  onSwipeUp: widget.onSwipeUp,
+                                ),
+                                _ => UnsupportedFileView(
+                                  fileType: _viewModel.fileType!,
+                                ),
+                              },
+                            FadingOverlay(
+                              visible: session.backButtonVisible,
+                              child: Padding(
+                                padding: const EdgeInsets.all(4),
+                                child: SizedBox.square(
+                                  dimension: 32,
+                                  child: IconButton.filled(
+                                    color: Colors.white,
+                                    style: ButtonStyle(
+                                      backgroundColor: WidgetStateProperty.all(
+                                        Colors.black.withAlpha(100),
+                                      ),
                                     ),
+                                    icon: const BackButtonIcon(),
+                                    iconSize: 20,
+                                    padding: const EdgeInsets.all(0),
+                                    onPressed: () {
+                                      AppFullScreen.setImmersive(false);
+                                      context.pop();
+                                    },
                                   ),
-                                  icon: const BackButtonIcon(),
-                                  iconSize: 20,
-                                  padding: const EdgeInsets.all(0),
-                                  onPressed: () {
-                                    AppFullScreen.setImmersive(false);
-                                    context.pop();
-                                  },
                                 ),
                               ),
                             ),
-                          ),
-                          if (widget.topOverlay != null)
-                            FadingOverlay(
-                              visible:
-                                  (supportsFullScreen &&
-                                      session.overlayVisible) ||
-                                  _viewModel.transientChromeVisible,
-                              child: widget.topOverlay!,
+                            if (widget.topOverlay != null)
+                              FadingOverlay(
+                                visible:
+                                    (supportsFullScreen &&
+                                        session.overlayVisible) ||
+                                    _viewModel.transientChromeVisible,
+                                child: widget.topOverlay!,
+                              ),
+                            FullScreenButton(
+                              visible: session.overlayVisible,
+                              fullScreen: session.isFullScreen,
+                              onPressed: session.toggleFullScreen,
                             ),
-                          FullScreenButton(
-                            visible: session.overlayVisible,
-                            fullScreen: session.isFullScreen,
-                            onPressed: session.toggleFullScreen,
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    if (widget.bottomBar != null) widget.bottomBar!,
-                  ],
+                      if (widget.bottomBar != null) widget.bottomBar!,
+                    ],
+                  ),
                 ),
               ),
             ),

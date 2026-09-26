@@ -17,11 +17,15 @@ export 'package:flutter_fullscreen/flutter_fullscreen.dart'
 
 /// Drop-in replacement for [FullScreen] that tracks the state optimistically.
 ///
-/// [FullScreen] only learns about a state change once window_manager reports
-/// it back over the platform channel. On Windows that event is never emitted
-/// when entering fullscreen: https://github.com/leanflutter/window_manager/issues/560
+/// On Windows, fullscreen is handled by the runner (`flutter_window.cpp`)
+/// instead of window_manager. window_manager resizes the window several times
+/// per transition, which makes Flutter lay out every intermediate size. It also
+/// never reports entering fullscreen:
+/// https://github.com/leanflutter/window_manager/issues/560
 class AppFullScreen with FullScreenListener {
   static final AppFullScreen _instance = AppFullScreen._();
+
+  static const _windowChannel = MethodChannel('sheetopia/window');
 
   AppFullScreen._();
 
@@ -37,9 +41,17 @@ class AppFullScreen with FullScreenListener {
 
   static bool get isFullScreen => _instance._state;
 
-  static bool get isFullScreenForced => FullScreen.isFullScreenForced;
-
   static Future<void> ensureInitialized() async {
+    if (Platform.isWindows) {
+      _windowChannel.setMethodCallHandler((call) async {
+        if (call.method == 'onFullScreenChanged') {
+          _instance._onStateChanged(call.arguments as bool);
+        }
+      });
+      _instance._state =
+          await _windowChannel.invokeMethod<bool>('isFullScreen') ?? false;
+      return;
+    }
     await FullScreen.ensureInitialized();
     FullScreen.addListener(_instance);
     _instance._state = FullScreen.isFullScreen;
@@ -55,7 +67,11 @@ class AppFullScreen with FullScreenListener {
       _instance._listeners.remove(listener);
 
   static void setFullScreen(bool enabled) {
-    FullScreen.setFullScreen(enabled);
+    if (Platform.isWindows) {
+      _windowChannel.invokeMethod('setFullScreen', enabled);
+    } else {
+      FullScreen.setFullScreen(enabled);
+    }
     _instance._onStateChanged(enabled);
   }
 

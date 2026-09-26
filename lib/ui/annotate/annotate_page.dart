@@ -121,20 +121,25 @@ class _AnnotatePageState extends State<AnnotatePage> {
               LogicalKeyboardKey.keyZ,
               control: !isApple,
               meta: isApple,
+              includeRepeats: false,
             ): _viewModel.undo,
             SingleActivator(
               LogicalKeyboardKey.keyY,
               control: !isApple,
               meta: isApple,
+              includeRepeats: false,
             ): _viewModel.redo,
             SingleActivator(
               LogicalKeyboardKey.keyZ,
               control: !isApple,
               meta: isApple,
               shift: true,
+              includeRepeats: false,
             ): _viewModel.redo,
-            const SingleActivator(LogicalKeyboardKey.escape):
-                _viewModel.clearSelection,
+            const SingleActivator(
+              LogicalKeyboardKey.escape,
+              includeRepeats: false,
+            ): _viewModel.clearSelection,
           },
           child: Focus(
             autofocus: true,
