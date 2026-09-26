@@ -8,6 +8,13 @@ on:
         type: boolean
         default: true
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
 env:
   FLUTTER_VERSION: "3.47.5"
   APK_BUILD_DIR: "/tmp/build"
@@ -15,6 +22,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       version: ${{ steps.get_version.outputs.version }}
 
@@ -50,6 +58,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v7
@@ -71,6 +80,7 @@ jobs:
   build_android:
     needs: build
     runs-on: ubuntu-24.04
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repository
@@ -128,6 +138,7 @@ jobs:
   build_linux_x86_64_AppImage:
     needs: build
     runs-on: ubuntu-22.04
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v7
@@ -199,6 +210,7 @@ jobs:
   build_linux_x86_64_TGZ:
     needs: build
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v7
@@ -239,6 +251,7 @@ jobs:
   build_windows_x86_64:
     needs: build
     runs-on: windows-latest
+    timeout-minutes: 25
 
     steps:
       - name: Fix long file paths
@@ -299,6 +312,7 @@ jobs:
   build_macos_dmg:
     needs: build
     runs-on: macos-latest
+    timeout-minutes: 40
 
     steps:
       - name: Checkout repository
@@ -460,6 +474,7 @@ jobs:
   build_ios_ipa:
     needs: build
     runs-on: macos-26
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -527,6 +542,7 @@ jobs:
       - build_macos_dmg
       - build_ios_ipa
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Create uploads directory
         run: mkdir uploads
@@ -621,6 +637,7 @@ jobs:
       - release
     if: inputs.upload_app_store
     runs-on: macos-latest
+    timeout-minutes: 15
     steps:
       - name: Download iOS .ipa file
         uses: actions/download-artifact@v8
