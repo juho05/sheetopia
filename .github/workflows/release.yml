@@ -2,6 +2,11 @@ name: Release Draft
 
 on:
   workflow_dispatch:
+    inputs:
+      upload_app_store:
+        description: "Upload the iOS build to App Store Connect"
+        type: boolean
+        default: true
 
 env:
   FLUTTER_VERSION: "3.47.5"
@@ -22,18 +27,46 @@ jobs:
           VERSION=$(sed -n 's/^version: \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/p' pubspec.yaml)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-  draft_release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Draft release
-        id: draft_release
-        uses: release-drafter/release-drafter@v7
+      - name: Create or update draft release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ steps.get_version.outputs.version }}
+          VERSION: ${{ steps.get_version.outputs.version }}
+        run: |
+          IS_DRAFT=$(gh release view "$TAG" --json isDraft -q .isDraft 2>/dev/null || true)
+          if [ "$IS_DRAFT" = "false" ]; then
+            echo "::error::$TAG is already published, bump the version in pubspec.yaml"
+            exit 1
+          elif [ "$IS_DRAFT" = "true" ]; then
+            gh release edit "$TAG" --target "$GITHUB_SHA"
+          else
+            PREVIOUS_TAG=$(gh release view --json tagName -q .tagName)
+            sed -e "s|{{VERSION}}|$VERSION|g" \
+              -e "s|{{PREVIOUS_TAG}}|$PREVIOUS_TAG|g" \
+              -e "s|{{REPOSITORY}}|$GITHUB_REPOSITORY|g" \
+              .github/release-template.md > notes.md
+            gh release create "$TAG" --draft --title "$TAG" --target "$GITHUB_SHA" --notes-file notes.md
+          fi
+
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
         with:
-          tag: v${{ needs.build.outputs.version }}
-          name: v${{ needs.build.outputs.version }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+
+      - name: Dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build generated files
+        run: dart run build_runner build
+
+      - name: Run tests
+        run: flutter test
 
   build_android:
     needs: build
@@ -61,7 +94,7 @@ jobs:
         run: mkdir android/app/secrets && echo "$ENCODED_STRING" | base64 -di > android/app/secrets/sheetopia.jks
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: "temurin"
           java-version: "17"
@@ -478,14 +511,14 @@ jobs:
   release:
     needs:
       - build
-      - draft_release
+      - test
       - build_android
       - build_linux_x86_64_TGZ
       - build_linux_x86_64_AppImage
       - build_windows_x86_64
       - build_macos_dmg
       - build_ios_ipa
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Create uploads directory
         run: mkdir uploads
@@ -562,34 +595,42 @@ jobs:
       - name: Copy .dmg file to uploads
         run: cp macos-dmg-result/Sheetopia.dmg uploads/Sheetopia-${{ needs.build.outputs.version }}-macOS-universal.dmg
 
-      # iOS .ipa
+      - name: Upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: v${{ needs.build.outputs.version }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          for f in \
+            android-arm64v8.apk \
+            android-arm32v7.apk \
+            android-x64.apk \
+            linux-x86-64.AppImage \
+            linux-x86-64.AppImage.zsync \
+            linux-x86-64.tar.gz \
+            windows-x86-64.exe \
+            windows-x86-64.zip \
+            macOS-universal.dmg
+          do
+            gh release upload "$TAG" "uploads/Sheetopia-$VERSION-$f" --clobber
+          done
+
+  upload_app_store:
+    needs:
+      - build
+      - release
+    if: inputs.upload_app_store
+    runs-on: macos-latest
+    steps:
       - name: Download iOS .ipa file
         uses: actions/download-artifact@v8
         with:
           name: ios-ipa-result
           path: ios-ipa-result
-      - name: Copy .ipa file to uploads
-        run: cp ios-ipa-result/Sheetopia.ipa uploads/Sheetopia-${{ needs.build.outputs.version }}.ipa
+
       - name: Upload .ipa file to App Store Connect
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_PASS: ${{ secrets.APPLE_ID_PWD }}
-        run: xcrun altool --upload-app -f uploads/Sheetopia-${{ needs.build.outputs.version }}.ipa -t ios -u "$APPLE_ID" -p "$APPLE_APP_PASS"
-
-      - name: Upload assets
-        uses: softprops/action-gh-release@v2
-        with:
-          name: v${{ needs.build.outputs.version }}
-          tag_name: v${{ needs.build.outputs.version }}
-          preserve_order: true
-          draft: true
-          files: |
-            uploads/Sheetopia-${{ needs.build.outputs.version }}-android-arm64v8.apk
-            uploads/Sheetopia-${{ needs.build.outputs.version }}-android-arm32v7.apk
-            uploads/Sheetopia-${{ needs.build.outputs.version }}-android-x64.apk
-            uploads/Sheetopia-${{ needs.build.outputs.version }}-linux-x86-64.AppImage
-            uploads/Sheetopia-${{ needs.build.outputs.version }}-linux-x86-64.AppImage.zsync
-            uploads/Sheetopia-${{ needs.build.outputs.version }}-linux-x86-64.tar.gz
-            uploads/Sheetopia-${{ needs.build.outputs.version }}-windows-x86-64.exe
-            uploads/Sheetopia-${{ needs.build.outputs.version }}-windows-x86-64.zip
-            uploads/Sheetopia-${{ needs.build.outputs.version }}-macOS-universal.dmg
+        run: xcrun altool --upload-app -f ios-ipa-result/Sheetopia.ipa -t ios -u "$APPLE_ID" -p "$APPLE_APP_PASS"
