@@ -196,12 +196,6 @@ jobs:
           name: appimage-x86-64-result
           path: ./*.AppImage
           retention-days: 2
-      - name: Upload AppImage.zsync file
-        uses: actions/upload-artifact@v7
-        with:
-          name: appimage-zsync-x86-64-result
-          path: ./*.AppImage.zsync
-          retention-days: 2
   build_linux_x86_64_TGZ:
     needs: build
     runs-on: ubuntu-24.04
@@ -385,7 +379,7 @@ jobs:
           
           # Sign frameworks first (innermost first)
           echo "Signing frameworks..."
-          find "$APP_PATH/Contents/Frameworks" -name "*.framework" -type d | while read framework; do
+          find "$APP_PATH/Contents/Frameworks" -depth -name "*.framework" -type d | while read framework; do
           echo "Signing framework: $framework"
           
           # Sign binaries inside framework
@@ -433,16 +427,29 @@ jobs:
           echo "Attach staple"
           xcrun stapler staple Sheetopia.app
 
-      - name: Clean up keychain
-        if: ${{ always() }}
-        run: |
-          security delete-keychain build.keychain
+          echo "Verify app"
+          codesign --verify --deep --strict --verbose=2 Sheetopia.app
+          spctl -a -t exec -vv Sheetopia.app
 
       - name: Create .dmg file
         run: |
           npm install -g appdmg
           cd scripts/dmg
           appdmg config.json ../../Sheetopia.dmg
+
+      - name: Sign and notarize .dmg file
+        env:
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
+        run: |
+          codesign --force --timestamp --sign "$MACOS_CERTIFICATE_NAME" Sheetopia.dmg
+          xcrun notarytool submit Sheetopia.dmg --keychain-profile "notarytool-profile" --wait
+          xcrun stapler staple Sheetopia.dmg
+          spctl -a -t open --context context:primary-signature -vv Sheetopia.dmg
+
+      - name: Clean up keychain
+        if: ${{ always() }}
+        run: |
+          security delete-keychain build.keychain
 
       - name: Upload .dmg file
         uses: actions/upload-artifact@v7
@@ -500,7 +507,8 @@ jobs:
         if: ${{ always() }}
         run: |
           security delete-keychain build.keychain
-          rm ~/Library/MobileDevice/Provisioning\ Profiles/build_pp.mobileprovision
+          rm -f ~/Library/MobileDevice/Provisioning\ Profiles/build_pp.mobileprovision
+          rm -f ~/Library/MobileDevice/Provisioning\ Profiles/build_share_pp.mobileprovision
 
       - name: Upload .ipa file
         uses: actions/upload-artifact@v7
@@ -554,16 +562,8 @@ jobs:
           name: appimage-x86-64-result
           path: appimage-x86-64-result
 
-      - name: Download AppImage.zsync file
-        uses: actions/download-artifact@v8
-        with:
-          name: appimage-zsync-x86-64-result
-          path: appimage-zsync-x86-64-result
-
-      - name: Copy AppImage files to uploads
-        run: |
-          cp appimage-x86-64-result/*.AppImage uploads/Sheetopia-${{ needs.build.outputs.version }}-linux-x86-64.AppImage
-          cp appimage-zsync-x86-64-result/*.AppImage.zsync uploads/Sheetopia-${{ needs.build.outputs.version }}-linux-x86-64.AppImage.zsync
+      - name: Copy AppImage file to uploads
+        run: cp appimage-x86-64-result/*.AppImage uploads/Sheetopia-${{ needs.build.outputs.version }}-linux-x86-64.AppImage
 
       # WINDOWS ZIP (x86_64)
       - name: Download windows zip file
@@ -607,7 +607,6 @@ jobs:
             android-arm32v7.apk \
             android-x64.apk \
             linux-x86-64.AppImage \
-            linux-x86-64.AppImage.zsync \
             linux-x86-64.tar.gz \
             windows-x86-64.exe \
             windows-x86-64.zip \

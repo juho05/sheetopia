@@ -47,4 +47,3 @@ AppDir:
 
 AppImage:
   arch: x86_64
-  update-information: gh-releases-zsync|juho05|sheetopia|latest|*x86_64.AppImage.zsync
