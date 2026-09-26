@@ -1,0 +1,21 @@
+name: Flutter setup
+description: Install Flutter and fetch dependencies
+
+inputs:
+  working-directory:
+    description: Directory containing pubspec.yaml
+    default: "."
+
+runs:
+  using: composite
+  steps:
+    - uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: "stable"
+        cache: true
+
+    - name: Dependencies
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: flutter pub get --enforce-lockfile
