@@ -116,12 +116,12 @@ class _ExercisesPageState extends State<ExercisesPage> {
                 await DesktopDrop.instance.clearReceivingCache();
                 return;
               }
-              context.go("/practice/exercises/create?separate=$separate");
               try {
                 final ok = await receiveExercise(context.read(), files);
                 if (!context.mounted || !ok) {
                   return;
                 }
+                context.go("/practice/exercises/create?separate=$separate");
               } on InvalidFileTypeException catch (e, st) {
                 Toast.exception(e, st: st, errorMsg: "Unsupported file type!");
               } catch (e, st) {
