@@ -78,7 +78,6 @@ void main() {
       repo: repo,
       scoresRepo: scoresRepo,
     );
-    addTearDown(viewModel.dispose);
     final router = GoRouter(
       routes: [
         GoRoute(
@@ -117,6 +116,8 @@ void main() {
         providers: [
           Provider<PracticeRepository>.value(value: repo),
           Provider<ScoresRepository>.value(value: scoresRepo),
+          // disposes the view model on unmount, before the pending timer check
+          ChangeNotifierProvider(create: (_) => viewModel, lazy: false),
         ],
         child: MaterialApp.router(routerConfig: router),
       ),

@@ -74,7 +74,6 @@ void main() {
     // the view model must be built inside the test zone so its queries
     // are not stuck behind the drift lock
     viewModel = PracticeRoutinesViewModel(repo: repo, scoresRepo: scoresRepo);
-    addTearDown(viewModel.dispose);
     tester.view.physicalSize = const Size(800, 1400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -126,6 +125,8 @@ void main() {
         providers: [
           Provider<PracticeRepository>.value(value: repo),
           Provider<ScoresRepository>.value(value: scoresRepo),
+          // disposes the view model on unmount, before the pending timer check
+          ChangeNotifierProvider(create: (_) => viewModel, lazy: false),
         ],
         child: MaterialApp.router(routerConfig: router),
       ),

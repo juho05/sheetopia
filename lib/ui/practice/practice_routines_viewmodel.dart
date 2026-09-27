@@ -9,7 +9,8 @@
 import 'dart:async';
 import 'dart:collection';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:sheetopia/data/repositories/practice/practice_progress.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
@@ -69,6 +70,12 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
 
   Duration get practicedToday => _practicedToday;
 
+  DateTime _practicedDay = DateTime.now();
+
+  Timer? _dayCheck;
+
+  late final AppLifecycleListener _lifecycle;
+
   PracticeRoutinesViewModel({
     required this._repo,
     required ScoresRepository scoresRepo,
@@ -83,15 +90,38 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
       currentTags: () => _filterTags,
       onChanged: setFilterTags,
     );
+    _lifecycle = AppLifecycleListener(onStateChange: _onLifecycleChanged);
+    _startDayCheck();
     _refreshCounts();
     refreshPracticedToday();
   }
 
   Future<void> refreshPracticedToday() async {
-    final practiced = await _repo.getPracticedOn(DateTime.now());
+    _practicedDay = DateTime.now();
+    final practiced = await _repo.getPracticedOn(_practicedDay);
     if (practiced == _practicedToday) return;
     _practicedToday = practiced;
     notifyListeners();
+  }
+
+  void _onLifecycleChanged(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        refreshPracticedToday();
+        _startDayCheck();
+      case AppLifecycleState.paused || AppLifecycleState.detached:
+        _dayCheck?.cancel();
+        _dayCheck = null;
+      case AppLifecycleState.inactive || AppLifecycleState.hidden:
+        break;
+    }
+  }
+
+  void _startDayCheck() {
+    _dayCheck ??= Timer.periodic(const Duration(minutes: 1), (_) {
+      if (PracticeProgress.sameDay(DateTime.now(), _practicedDay)) return;
+      refreshPracticedToday();
+    });
   }
 
   Future<void> _refreshCounts() async {
@@ -290,6 +320,8 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _resetDebounce?.cancel();
+    _dayCheck?.cancel();
+    _lifecycle.dispose();
     _updatedRoutinesSub?.cancel();
     _updatedExercisesSub?.cancel();
     _updatedRecordsSub?.cancel();
