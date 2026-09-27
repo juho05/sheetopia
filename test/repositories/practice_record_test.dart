@@ -308,6 +308,26 @@ void main() {
       expect(tombstones.single.recordId, record.id);
     });
 
+    test("a bulk delete skips running records", () async {
+      final exercise = await createExercise("Scales");
+      final stopped = await repo.startRecord(exerciseId: exercise);
+      await stopAfterMinute(stopped);
+      final running = await repo.startRecord(exerciseId: exercise);
+
+      expect(await repo.getStoppedRecordIds(), [stopped.id]);
+      expect(await repo.countStoppedRecords(), 1);
+      final deleted = await repo.deleteStoppedRecords({
+        stopped.id,
+        running.id,
+        "missing",
+      });
+
+      expect(deleted, 1);
+      expect((await allRecords()).single.id, running.id);
+      final tombstones = await db.managers.deletedPracticeRecordsTable.get();
+      expect(tombstones.single.recordId, stopped.id);
+    });
+
     test("a manual edit marks the record for upload", () async {
       final exercise = await createExercise("Scales");
       final record = await repo.startRecord(exerciseId: exercise);

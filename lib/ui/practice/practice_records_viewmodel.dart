@@ -43,10 +43,14 @@ class PracticeRecordsViewModel extends ChangeNotifier {
 
   PracticeRecordsViewModel({required this._repo}) {
     _subs.addAll([
-      _repo.updatedRecordIds.listen((_) => _refresh()),
+      _repo.updatedRecordIds.listen((_) {
+        _refresh();
+        _refreshSelectableCount();
+      }),
       _repo.updatedExerciseIds.listen((_) => _refresh()),
       _repo.updatedRoutineIds.listen((_) => _refresh()),
     ]);
+    _refreshSelectableCount();
   }
 
   Future<String> create({
@@ -66,6 +70,22 @@ class PracticeRecordsViewModel extends ChangeNotifier {
   }) => _repo.updateRecord(recordId, startedAt: startedAt, duration: duration);
 
   Future<void> delete(String recordId) => _repo.deleteRecord(recordId);
+
+  Future<int> deleteAll(Set<String> recordIds) =>
+      _repo.deleteStoppedRecords(recordIds);
+
+  Future<List<String>> getSelectableRecordIds() => _repo.getStoppedRecordIds();
+
+  int? _selectableCount;
+
+  int? get selectableCount => _selectableCount;
+
+  List<String> get loadedRecordIds => _records.map((r) => r.record.id).toList();
+
+  Future<void> _refreshSelectableCount() async {
+    _selectableCount = await _repo.countStoppedRecords();
+    notifyListeners();
+  }
 
   int _generation = 0;
   Future<void>? _pendingLoad;

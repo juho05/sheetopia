@@ -1806,6 +1806,30 @@ class PracticeRepository {
     await _deleteRecords({recordId});
   }
 
+  Future<int> deleteStoppedRecords(Set<String> recordIds) async {
+    if (recordIds.isEmpty) return 0;
+    final stoppedIds =
+        (await _db.managers.practiceRecordsTable
+                .filter((f) => f.id.isIn(recordIds) & f.runningSince.isNull())
+                .map((r) => r.id)
+                .get())
+            .toSet();
+    if (stoppedIds.isEmpty) return 0;
+    await _deleteRecords(stoppedIds);
+    return stoppedIds.length;
+  }
+
+  Future<List<String>> getStoppedRecordIds() => _db
+      .managers
+      .practiceRecordsTable
+      .filter((f) => f.runningSince.isNull())
+      .map((r) => r.id)
+      .get();
+
+  Future<int> countStoppedRecords() => _db.managers.practiceRecordsTable
+      .filter((f) => f.runningSince.isNull())
+      .count();
+
   Future<({String routineId, int index})?> getRoutineEntryLocation(
     String routineEntryId,
   ) async {
