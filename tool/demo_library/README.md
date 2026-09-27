@@ -46,6 +46,7 @@ Scores are dated so the library grid opens on the Bach prelude, `days` in `libra
 | `ly/`            | LilyPond sources, one per score, sharing `ly/common.ily`  |
 | `library.py`     | scores, tags, setlists, annotations, practice content     |
 | `annotations.py` | freehand stroke generation in the app's stroke format     |
+| `strokes/`       | strokes drawn in the app, copied from an export           |
 | `build.py`       | engraves the PDFs and writes the archive                  |
 
 `test/repositories/demo_library_test.dart` imports the built archive through the app's real import path and checks it

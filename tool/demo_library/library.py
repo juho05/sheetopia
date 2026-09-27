@@ -29,19 +29,17 @@ TAGS = [
 
 def _prelude_marks(rng):
     # systems at 0.161/0.212, 0.277/0.328, 0.393/0.444, 0.510/0.560
-    return {
-        0: [
-            ann.stroke(ann.ellipse(rng, 0.305, 0.172, 0.024, 0.018), ann.RED),
-            ann.stroke(ann.line(rng, 0.100, 0.405, 0.560, 0.405, segments=20),
-                       ann.HIGHLIGHTER, ann.HIGHLIGHTER_WIDTH),
-            ann.stroke(ann.bracket(rng, 0.048, 0.505, 0.589), ann.BLUE),
-            ann.stroke(ann.caret(rng, 0.640, 0.268), ann.RED),
-        ],
-        1: [
-            ann.stroke(ann.wave(rng, 0.150, 0.470, 0.274, cycles=6), ann.RED),
-            ann.stroke(ann.ellipse(rng, 0.720, 0.188, 0.026, 0.019), ann.BLUE),
-        ],
-    }
+    # The replaced generated shapes still draw from rng so later scores keep their jitter.
+    ann.ellipse(rng, 0.305, 0.172, 0.024, 0.018)
+    highlight = ann.stroke(ann.line(rng, 0.100, 0.405, 0.560, 0.405, segments=20),
+                           ann.HIGHLIGHTER, ann.HIGHLIGHTER_WIDTH)
+    bracket = ann.stroke(ann.bracket(rng, 0.048, 0.505, 0.589), ann.BLUE)
+    ann.caret(rng, 0.640, 0.268)
+    ann.wave(rng, 0.150, 0.470, 0.274, cycles=6)
+    ann.ellipse(rng, 0.720, 0.188, 0.026, 0.019)
+
+    drawn = ann.hand_drawn("prelude_c_bwv846")
+    return {0: [highlight, bracket] + drawn[0], 1: drawn[1]}
 
 
 def _fuer_elise_marks(rng):
@@ -117,7 +115,7 @@ SCORES = [
         "instruments": ["Piano"],
         "genres": ["Baroque"],
         "tags": ["recital", "practice"],
-        "notes": "Keep the sixteenths perfectly even - no accent on the top note.\n"
+        "notes": "Keep the sixteenths perfectly even. No accent on the top note.\n"
                  "Pedal changes on every bar, half pedal from bar 21.",
         "days": 0,
         "annotations": _prelude_marks,

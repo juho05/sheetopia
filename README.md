@@ -36,6 +36,11 @@ iOS/iPadOS builds will soon be available via TestFlight.
     - [x] Network MIDI on iOS/macOS
 - [x] [Sync your sheet music across your devices](https://github.com/juho05/sheetopia-sync)
 - [x] Full offline support.
+- [x] Practice management and tracking
+    - [x] Exercises with categories, tags and other metadata
+    - [x] Add/link multiple scores to exercises
+    - [x] Build practice routines from exercises with target times
+    - [x] Track practice sessions
 - [x] Import/export your library
 - [x] Modern UI with light/dark theme
 
@@ -90,28 +95,48 @@ Visit [sheetopia-sync](https://github.com/juho05/sheetopia-sync#setup) to instal
 ## Screenshots
 
 <p align="center">
-  <img src="screenshots/library.png" alt="Library"><br>
+  <img src="screenshots/library-0.6.0.png" alt="Library"><br>
   <em>library in light and dark theme</em>
 </p>
 
 <p align="center">
-  <img src="screenshots/filter.png" alt="Filter"><br>
+  <img src="screenshots/filter-0.6.0.png" alt="Filter"><br>
   <em>filter library by metadata</em>
 </p>
 
 <p align="center">
-  <img src="screenshots/edit_score.png" alt="Edit score"><br>
+  <img src="screenshots/edit_score-0.6.0.png" alt="Edit score"><br>
   <em>edit metadata</em>
 </p>
 
 <p align="center">
-  <img src="screenshots/annotate.png" alt="Annotations"><br>
+  <img src="screenshots/annotate-0.6.0.png" alt="Annotations"><br>
   <em>annotate scores with stylus support</em>
 </p>
 
 <p align="center">
-  <img src="screenshots/play_setlist.png" alt="Setlist play mode"><br>
+  <img src="screenshots/play_setlist-0.6.0.png" alt="Setlist play mode"><br>
   <em>create and play setlists</em>
+</p>
+
+<p align="center">
+  <img src="screenshots/practice_tab-0.6.0.png" alt="Practice tab"><br>
+  <em>the separate tab for practice</em>
+</p>
+
+<p align="center">
+  <img src="screenshots/practice_routine-0.6.0.png" alt="Practice routine details page"><br>
+  <em>build practice routines and track your practice time</em>
+</p>
+
+<p align="center">
+  <img src="screenshots/practice_play-0.6.0.png" alt="Practice start overlay"><br>
+  <em>the UI for starting an exercise</em>
+</p>
+
+<p align="center">
+  <img src="screenshots/exercise_edit-0.6.0.png" alt="Exercise edit page"><br>
+  <em>edit exercise metadata and add multiple scores</em>
 </p>
 
 ## License

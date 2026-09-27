@@ -8,9 +8,12 @@ this module reproduces the same space with a plain constant-width offset
 polygon, which renders identically for the smooth strokes used here.
 """
 
+import json
 import math
+import os
 import random
 
+STROKES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "strokes")
 REF_WIDTH = 1000.0
 CAP_SEGMENTS = 8
 
@@ -97,6 +100,12 @@ def stroke(points, color=RED, width=PEN_WIDTH, aspect=math.sqrt(2), pressure=0.5
         "p": [[_round(x), _round(y), pressure] for x, y in points],
         "o": build_outline(points, width, aspect),
     }
+
+
+def hand_drawn(name):
+    """Strokes drawn in the app and copied from an export, keyed by page."""
+    with open(os.path.join(STROKES_DIR, f"{name}.json")) as f:
+        return {int(page): strokes for page, strokes in json.load(f).items()}
 
 
 # --- shape helpers -----------------------------------------------------------
