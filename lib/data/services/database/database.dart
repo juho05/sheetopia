@@ -196,30 +196,6 @@ class Database extends _$Database {
                 schema.exercises.progressResetAt,
               );
 
-              // TODO: temp migration, delete before release
-              await customStatement(
-                "INSERT INTO practice_records (id, exercise, routine, "
-                "routine_entry, started_at, duration, running_since, "
-                "updated_at, written_at, uploaded) "
-                "SELECT e.id, e.exercise, s.routine, e.routine_entry, "
-                "e.started_at, e.duration, e.running_since, s.updated_at, "
-                "NULL, 0 FROM practice_session_entries e "
-                "JOIN practice_sessions s ON s.id = e.session",
-              );
-              // the latest session becomes the current block
-              await customStatement(
-                "UPDATE practice_routines SET progress_reset_at = "
-                "(SELECT MAX(started_at) FROM practice_sessions "
-                "WHERE routine = practice_routines.id)",
-              );
-              await customStatement(
-                "UPDATE exercises SET progress_reset_at = "
-                "(SELECT MAX(s.started_at) FROM practice_sessions s "
-                "JOIN practice_session_entries e ON e.session = s.id "
-                "WHERE s.routine IS NULL AND e.exercise = exercises.id)",
-              );
-              // ENDTODO
-
               await m.deleteTable("practice_session_entries");
               await m.deleteTable("practice_sessions");
               await m.deleteTable("deleted_practice_sessions");
