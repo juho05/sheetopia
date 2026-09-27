@@ -12,6 +12,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
+import 'package:sheetopia/ui/common/centered_scroll_view.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/optional_tooltip.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
@@ -91,32 +92,13 @@ class _RoutineDetailPageState extends State<RoutineDetailPage> {
               ],
             ],
           ),
-          body: SafeArea(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: RoutineDetailPage._maxWidth,
-                ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) => _buildBody(
-                    context,
-                    routine,
-                    narrow: constraints.maxWidth < routineEntryNarrowBreakpoint,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          body: SafeArea(child: _buildBody(context, routine)),
         );
       },
     );
   }
 
-  Widget _buildBody(
-    BuildContext context,
-    PracticeRoutine? routine, {
-    required bool narrow,
-  }) {
+  Widget _buildBody(BuildContext context, PracticeRoutine? routine) {
     if (_viewModel.loading) {
       return const Center(child: CircularProgressIndicator.adaptive());
     }
@@ -132,8 +114,9 @@ class _RoutineDetailPageState extends State<RoutineDetailPage> {
       );
     }
     final description = routine.description;
-    return CustomScrollView(
-      slivers: [
+    return CenteredScrollView(
+      maxWidth: RoutineDetailPage._maxWidth,
+      builder: (context, contentWidth) => [
         SliverPadding(
           padding: const EdgeInsets.symmetric(
             horizontal: RoundedListTile.horizontalMargin,
@@ -174,7 +157,7 @@ class _RoutineDetailPageState extends State<RoutineDetailPage> {
               entry: entry,
               scores: _viewModel.scoresFor(entry.exercise.id),
               practiced: _viewModel.practicedFor(entry.id),
-              narrow: narrow,
+              narrow: contentWidth < routineEntryNarrowBreakpoint,
               onTap: () => context.go(
                 "/practice/routines/${widget.routineId}/details/play?startIndex=$index",
               ),

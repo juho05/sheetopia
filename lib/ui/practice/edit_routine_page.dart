@@ -16,6 +16,7 @@ import 'package:reactive_forms/reactive_forms.dart' hide ReactiveTextField;
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/ui/common/buttons.dart';
+import 'package:sheetopia/ui/common/centered_scroll_view.dart';
 import 'package:sheetopia/ui/common/optional_tooltip.dart';
 import 'package:sheetopia/ui/common/reactive_text_field.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
@@ -49,14 +50,7 @@ class EditRoutinePage extends StatelessWidget {
                   viewModel.isCreate ? "Create routine" : "Edit routine",
                 ),
               ),
-              body: SafeArea(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: _maxWidth),
-                    child: _buildBody(context, viewModel),
-                  ),
-                ),
-              ),
+              body: SafeArea(child: _buildBody(context, viewModel)),
             );
           },
         );
@@ -113,30 +107,19 @@ class _EditRoutineFormState extends State<_EditRoutineForm> {
   @override
   Widget build(BuildContext context) {
     return Consumer<EditRoutineViewModel>(
-      builder: (context, viewModel, _) {
-        return LayoutBuilder(
-          builder: (context, constraints) => _buildForm(
-            context,
-            viewModel,
-            narrow: constraints.maxWidth < routineEntryNarrowBreakpoint,
-          ),
-        );
-      },
+      builder: (context, viewModel, _) => _buildForm(context, viewModel),
     );
   }
 
-  Widget _buildForm(
-    BuildContext context,
-    EditRoutineViewModel viewModel, {
-    required bool narrow,
-  }) {
+  Widget _buildForm(BuildContext context, EditRoutineViewModel viewModel) {
     return ReactiveForm(
       formGroup: viewModel.form,
       child: Column(
         children: [
           Expanded(
-            child: CustomScrollView(
-              slivers: [
+            child: CenteredScrollView(
+              maxWidth: EditRoutinePage._maxWidth,
+              builder: (context, contentWidth) => [
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: RoundedListTile.horizontalMargin,
@@ -183,7 +166,7 @@ class _EditRoutineFormState extends State<_EditRoutineForm> {
                     viewModel: viewModel,
                     entry: viewModel.entries[index],
                     index: index,
-                    narrow: narrow,
+                    narrow: contentWidth < routineEntryNarrowBreakpoint,
                   ),
                   onReorderItem: viewModel.moveEntry,
                   onReorderStart: (_) {
@@ -205,13 +188,18 @@ class _EditRoutineFormState extends State<_EditRoutineForm> {
               ],
             ),
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: viewModel.isCreate
-                  ? _CreateButton(viewModel: viewModel)
-                  : _DeleteButton(viewModel: viewModel),
+          ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: EditRoutinePage._maxWidth,
+            ),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: viewModel.isCreate
+                    ? _CreateButton(viewModel: viewModel)
+                    : _DeleteButton(viewModel: viewModel),
+              ),
             ),
           ),
         ],
