@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: 2026-08-18
+Last updated: 2026-09-28
 
 Sheetopia is a local-first app. It has no analytics, no crash reporting and no advertising. Your data stays on your
 device unless you turn on sync, in which case it goes to the server you configure. The developer, Julian Hofmann,
@@ -8,15 +8,16 @@ operates no server for this app and receives no data from it in either case.
 
 ## Data stored on your device
 
-Your scores (PDF files), their metadata, annotations, setlists, tags and app settings are stored on your device, and are
-uploaded only if you enable sync. Diagnostic logs are stored locally, are never synced, and are deleted automatically
+Your scores (PDF files), their metadata, annotations, setlists, tags, practice data (exercises, routines and practice
+records) are stored on your device, and are uploaded only if you enable sync. App settings and diagnostic logs are
+stored locally and are never synced. Logs are deleted automatically
 after 7 days. Logs leave your device only if you export or share them yourself.
 
 ## Sync (optional)
 
 Sync is off by default. If you enable it, you sign in to a [sync server](https://github.com/juho05/sheetopia-sync) that
 you or someone you trust runs. Your account exists only on that server, not with the developer. Sheetopia then uploads
-your scores, metadata, annotations, setlists and tags to that server so your devices stay in sync. Only that server
+your scores, metadata, annotations, setlists, tags and practice data to that server so your devices stay in sync. Only that server
 receives the data, never the developer. How the data is handled there is up to whoever operates it. Use an HTTPS address
 so the transfer is encrypted.
 
