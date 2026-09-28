@@ -33,7 +33,6 @@ iOS/iPadOS builds will soon be available via TestFlight.
 - [x] Turn pages using MIDI controllers
     - [x] Local/USB MIDI
     - [x] Bluetooth MIDI (incl. BLE)
-    - [x] Network MIDI on iOS/macOS
 - [x] [Sync your sheet music across your devices](https://github.com/juho05/sheetopia-sync)
 - [x] Full offline support.
 - [x] Practice management and tracking
