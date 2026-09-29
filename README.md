@@ -5,9 +5,7 @@
 Sheetopia is a cross-platform local-first sheet music app with
 optional [self-hosted sync](https://github.com/juho05/sheetopia-sync).
 
-Available on: [Windows](#windows), [macOS](#macos), [Linux](#linux), [Android](#android)
-
-iOS/iPadOS builds will soon be available via TestFlight.
+Available on: [Windows](#windows), [macOS](#macos), [Linux](#linux), [Android](#android), [iOS/iPadOS](#iosipados)
 
 [Install](#install)
 
@@ -73,7 +71,7 @@ Visit [sheetopia-sync](https://github.com/juho05/sheetopia-sync#setup) to instal
 1. Download `Sheetopia-x.x.x-linux-x86-64.AppImage` from the *Assets* section of
    the [latest release](https://github.com/juho05/sheetopia/releases/latest).
 2. Execute the downloaded file (allow execution when prompted). On some systems it's necessary to manually make the file
-   executable. You can do that by entering the following command in a terminal in in the directory of the downloaded
+   executable. You can do that by entering the following command in a terminal in the directory of the downloaded
    file:
    ```shell
    # change to the exact name of the downloaded file
@@ -90,6 +88,13 @@ Visit [sheetopia-sync](https://github.com/juho05/sheetopia-sync#setup) to instal
    apps from unknown sources by clicking on *Settings* when prompted and enabling *Allow from this source*.
 3. Click on *Install* when asked whether you want to install Sheetopia (you might have to open the APK file again).
 4. Sheetopia is now installed on your system.
+
+### iOS/iPadOS
+
+1. Install [TestFlight](https://apps.apple.com/us/app/testflight/id899247664) from the App Store.
+2. Join the Sheetopia TestFlight using this link on your device:\
+   https://testflight.apple.com/join/TC6eSdkq
+3. Tap *Install* in the TestFlight app and enable automatic updates if not enabled already.
 
 ## Screenshots
 
