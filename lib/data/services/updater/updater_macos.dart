@@ -15,6 +15,7 @@ import 'package:sheetopia/data/services/updater/updater.dart';
 
 class MacOSUpdateFailedException {
   final String message;
+
   const MacOSUpdateFailedException(this.message);
 
   @override
@@ -50,10 +51,13 @@ class UpdaterMacOS implements Updater {
       );
     }
     String volumePath = "/Volumes/${match.group(1)!}";
+    final sourceApp = path.join(volumePath, "Sheetopia.app");
+    const targetApp = "/Applications/Sheetopia.app";
+    const stagingApp = "/Applications/Sheetopia.app.update";
 
     Process.run("/bin/zsh", [
       "-c",
-      "/bin/zsh -c \"sleep 2 && cp -pPR \\\"${path.join(volumePath, "Sheetopia.app")}\\\" /Applications/ && xattr -r -d com.apple.quarantine /Applications/Sheetopia.app && sleep 1 && open /Applications/Sheetopia.app; hdiutil detach \\\"$volumePath\\\"\" & disown",
+      "/bin/zsh -c \"sleep 2 && rm -rf $stagingApp && ditto \\\"$sourceApp\\\" $stagingApp && rm -rf $targetApp && mv $stagingApp $targetApp && xattr -r -d com.apple.quarantine $targetApp && sleep 1 && open $targetApp; hdiutil detach \\\"$volumePath\\\"\" & disown",
     ]);
     await Future.delayed(const Duration(milliseconds: 250), () => exit(0));
   }
