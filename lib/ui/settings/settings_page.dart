@@ -7,10 +7,9 @@
  */
 
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter_system_integration/flutter_system_integration.dart';
 import 'package:go_router/go_router.dart';
-import 'package:sheetopia/data/repositories/appimage/appimage_repository.dart';
-import 'package:sheetopia/data/repositories/settings/version_checking.dart';
-import 'package:sheetopia/data/repositories/version/version_repository.dart';
+import 'package:sheetopia/system_integration.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -56,7 +55,7 @@ class SettingsPage extends StatelessWidget {
                 context.go("/settings/importExport");
               },
             ),
-            if (!VersionCheckingSettings.externallyDisabled)
+            if (!systemIntegrationConfig.versionCheckExternallyDisabled)
               ListTile(
                 title: const Text("Version Checking"),
                 trailing: const Icon(Icons.arrow_forward_ios_outlined),

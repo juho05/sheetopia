@@ -6,11 +6,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'package:flutter_system_integration/flutter_system_integration.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/settings/appearance.dart';
 import 'package:sheetopia/data/repositories/settings/logging.dart';
-import 'package:sheetopia/data/repositories/settings/version_checking.dart';
+import 'package:sheetopia/system_integration.dart';
 
 class SettingsRepository {
   final LoggingSettings logging;
@@ -23,7 +24,8 @@ class SettingsRepository {
         keyValueRepository: keyValueRepository,
       ),
       versionChecking = VersionCheckingSettings(
-        keyValueRepository: keyValueRepository,
+        config: systemIntegrationConfig,
+        keyValue: keyValueRepository,
       );
 
   Future<void> load() async {

@@ -12,6 +12,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
+import 'package:flutter_system_integration/flutter_system_integration.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage.dart';
 import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage_linux.dart';
@@ -21,7 +22,6 @@ import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
-import 'package:sheetopia/data/repositories/version/version.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';

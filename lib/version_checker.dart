@@ -8,12 +8,12 @@
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter_system_integration/flutter_system_integration.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:sheetopia/data/repositories/auto_update/auto_update_repository.dart';
 import 'package:sheetopia/ui/common/adaptive_dialog_action.dart';
 import 'package:sheetopia/ui/common/toast.dart';
-import 'package:sheetopia/version_checker_viewmodel.dart';
+import 'package:sheetopia/system_integration.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 enum VersionDialogChoice { ignore, remind, view, install }
@@ -30,9 +30,7 @@ class VersionChecker extends StatelessWidget {
         if (viewModel.showUpdateSuccessful) {
           SchedulerBinding.instance.addPostFrameCallback((_) {
             viewModel.showUpdateSuccessful = false;
-            Toast.show(
-              "Successfully updated to v${viewModel.current}!",
-            );
+            Toast.show("Successfully updated to v${viewModel.current}!");
           });
         }
         if (viewModel.newVersionAvailable && !viewModel.isOpen) {
@@ -85,9 +83,7 @@ class VersionChecker extends StatelessWidget {
                   }
                   break;
                 case VersionDialogChoice.view:
-                  launchUrl(
-                    Uri.https("github.com", "/juho05/sheetopia/releases"),
-                  );
+                  launchUrl(systemIntegrationConfig.releasesUrl);
                 case null:
                 case VersionDialogChoice.remind:
                   // default behavior

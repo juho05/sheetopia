@@ -43,7 +43,13 @@ jobs:
           TAG: v${{ steps.get_version.outputs.version }}
           VERSION: ${{ steps.get_version.outputs.version }}
         run: |
-          IS_DRAFT=$(gh release view "$TAG" --json isDraft -q .isDraft 2>/dev/null || true)
+          if ! IS_DRAFT=$(gh release view "$TAG" --json isDraft -q .isDraft 2>&1); then
+            if [ "$IS_DRAFT" != "release not found" ]; then
+              echo "::error::Failed to look up $TAG: $IS_DRAFT"
+              exit 1
+            fi
+            IS_DRAFT=""
+          fi
           if [ "$IS_DRAFT" = "false" ]; then
             echo "::error::$TAG is already published, bump the version in pubspec.yaml"
             exit 1
@@ -210,24 +216,15 @@ jobs:
       - name: Compile for Windows
         run: flutter build windows
 
-      - name: Build iss script
-        run: dart run inno_bundle --no-app --release --no-installer
-
-      - name: Output config into github output
-        id: envs
-        run: dart run inno_bundle --envs --no-hf | Select-String -Pattern '^[A-Z_]+=' | ForEach-Object { $_.Line } | Out-File -FilePath $Env:GITHUB_OUTPUT -Encoding utf8 -Append
-
       - name: Build installer
-        uses: Minionguyjpro/Inno-Setup-Action@ec985ef724d1fb4a05bfbc1a8e49930dc76d2b0c # v1.2.9
-        with:
-          path: ./build/windows/x64/installer/Release/inno-script.iss
-          options: /Fsheetopia-installer
+        run: dart run inno_bundle --no-app --release
 
       - name: Upload installer
         uses: actions/upload-artifact@v7
         with:
           name: windows-installer-x86-64-result
-          path: ./build/windows/x64/installer/Release/sheetopia-installer.exe
+          path: ./build/windows/x64/installer/Release/*-Installer.exe
+          if-no-files-found: error
           retention-days: 2
 
       - name: Add DLL files
@@ -525,7 +522,7 @@ jobs:
           path: windows-installer-x86-64-result
 
       - name: Copy installer file to uploads
-        run: cp windows-installer-x86-64-result/sheetopia-installer.exe uploads/Sheetopia-${{ needs.build.outputs.version }}-windows-x86-64.exe
+        run: cp windows-installer-x86-64-result/*-Installer.exe uploads/Sheetopia-${{ needs.build.outputs.version }}-windows-x86-64.exe
 
       # macOS .dmg (universal)
       - name: Download macOS .dmg file

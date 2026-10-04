@@ -6,10 +6,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'package:flutter_system_integration/flutter_system_integration.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
-import 'package:sheetopia/data/repositories/appimage/appimage_repository.dart';
-import 'package:sheetopia/data/repositories/auto_update/auto_update_repository.dart';
 import 'package:sheetopia/data/repositories/importexport/importexport_repository.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/logger/log_repository.dart';
@@ -20,13 +19,10 @@ import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/repositories/themeManager/theme_manager.dart';
-import 'package:sheetopia/data/repositories/version/version_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
-import 'package:sheetopia/data/services/github/github.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
-import 'package:sheetopia/integrate_appimage_viewmodel.dart';
-import 'package:sheetopia/version_checker_viewmodel.dart';
+import 'package:sheetopia/system_integration.dart';
 
 Future<List<SingleChildWidget>> createProviders({
   required LogRepository logRepository,
@@ -46,16 +42,21 @@ Future<List<SingleChildWidget>> createProviders({
     Provider.value(value: logRepository),
     Provider.value(value: keyValue),
     Provider.value(value: settings),
-    Provider(create: (context) => GitHubService()),
     Provider(
-      create: (context) =>
-          VersionRepository(github: context.read(), keyValue: context.read()),
+      create: (context) => GitHubService(config: systemIntegrationConfig),
+    ),
+    Provider(
+      create: (context) => VersionRepository(
+        config: systemIntegrationConfig,
+        github: context.read(),
+        keyValue: keyValue,
+      ),
     ),
     ChangeNotifierProvider(
       create: (context) => VersionCheckerViewModel(
-        keyValue: context.read(),
+        keyValue: keyValue,
         versionRepo: context.read(),
-        settings: context.read(),
+        settings: settings.versionChecking,
       )..check(),
     ),
     ChangeNotifierProvider(
@@ -112,7 +113,10 @@ Future<List<SingleChildWidget>> createProviders({
     ),
     if (AppImageRepository.isAppImage)
       Provider(
-        create: (context) => AppImageRepository(keyValue: context.read()),
+        create: (context) => AppImageRepository(
+          config: systemIntegrationConfig,
+          keyValue: keyValue,
+        ),
       ),
     if (AppImageRepository.isAppImage)
       ChangeNotifierProvider(
@@ -123,6 +127,7 @@ Future<List<SingleChildWidget>> createProviders({
     if (AutoUpdateRepository.autoUpdatesSupported)
       ChangeNotifierProvider(
         create: (context) => AutoUpdateRepository(
+          config: systemIntegrationConfig,
           versionRepository: context.read(),
           github: context.read(),
         ),

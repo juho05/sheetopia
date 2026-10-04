@@ -6,12 +6,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'package:flutter_system_integration/flutter_system_integration.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/logger/log_message.dart';
+import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
+import 'package:sheetopia/system_integration.dart';
 import 'package:sheetopia/ui/annotate/annotate_page.dart';
+import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_page.dart';
 import 'package:sheetopia/ui/home/home_page.dart';
-import 'package:sheetopia/ui/install_update/install_update_page.dart';
 import 'package:sheetopia/ui/practice/edit_exercise_page.dart';
 import 'package:sheetopia/ui/practice/edit_routine_page.dart';
 import 'package:sheetopia/ui/practice/exercise_play_page.dart';
@@ -23,7 +27,6 @@ import 'package:sheetopia/ui/score/score_page.dart';
 import 'package:sheetopia/ui/setlists/setlist_detail_page.dart';
 import 'package:sheetopia/ui/setlists/setlist_play_page.dart';
 import 'package:sheetopia/ui/settings/appearance_page.dart';
-import 'package:sheetopia/ui/settings/appimage_page.dart';
 import 'package:sheetopia/ui/settings/debug_page.dart';
 import 'package:sheetopia/ui/settings/importexport_page.dart';
 import 'package:sheetopia/ui/settings/logs/choose_log_session_page.dart';
@@ -32,7 +35,6 @@ import 'package:sheetopia/ui/settings/logs/logs_page.dart';
 import 'package:sheetopia/ui/settings/midi/midi_device_page.dart';
 import 'package:sheetopia/ui/settings/midi/midi_page.dart';
 import 'package:sheetopia/ui/settings/settings_page.dart';
-import 'package:sheetopia/ui/settings/version_checking_page.dart';
 
 GoRouter? _goRouter;
 
@@ -198,11 +200,21 @@ GoRouter get goRouter {
               ),
               GoRoute(
                 path: "versionChecking",
-                builder: (context, state) => const VersionCheckingPage(),
+                builder: (context, state) => VersionCheckingSettingsPage(
+                  config: systemIntegrationConfig,
+                  settings: context.read<SettingsRepository>().versionChecking,
+                  versionRepository: context.read(),
+                  onInstallUpdate: (context) => context.go("/installUpdate"),
+                  showMessage: (context, message) => Toast.show(message),
+                ),
               ),
               GoRoute(
                 path: "appimage",
-                builder: (context, state) => const AppImagePage(),
+                builder: (context, state) => AppImageSettingsPage(
+                  config: systemIntegrationConfig,
+                  appImageRepository: context.read(),
+                  showMessage: (context, message) => Toast.show(message),
+                ),
               ),
               GoRoute(
                 path: "debug",
@@ -235,7 +247,11 @@ GoRouter get goRouter {
           ),
           GoRoute(
             path: "installUpdate",
-            builder: (context, state) => const InstallUpdatePage(),
+            builder: (context, state) => InstallUpdatePage(
+              autoUpdateRepository: AutoUpdateRepository.autoUpdatesSupported
+                  ? context.read()
+                  : null,
+            ),
           ),
         ],
       ),

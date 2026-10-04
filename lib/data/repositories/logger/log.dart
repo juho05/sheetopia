@@ -8,6 +8,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
+import 'package:logging/logging.dart' as logging;
 import 'package:sheetopia/data/repositories/logger/log_message.dart';
 import 'package:sheetopia/data/repositories/logger/log_repository.dart';
 
@@ -57,6 +58,27 @@ class Log {
       );
       return true;
     };
+
+    logging.Logger.root.level = logging.Level.ALL;
+    logging.Logger.root.onRecord.listen(
+      (record) => _log(
+        _fromLoggingLevel(record.level),
+        record.message,
+        e: record.error,
+        st: record.stackTrace,
+        tag: record.loggerName,
+        time: record.time,
+      ),
+    );
+  }
+
+  static Level _fromLoggingLevel(logging.Level level) {
+    if (level >= logging.Level.SHOUT) return Level.fatal;
+    if (level >= logging.Level.SEVERE) return Level.error;
+    if (level >= logging.Level.WARNING) return Level.warning;
+    if (level >= logging.Level.INFO) return Level.info;
+    if (level >= logging.Level.FINE) return Level.debug;
+    return Level.trace;
   }
 
   static Level _level = kDebugMode ? Level.debug : Level.info;

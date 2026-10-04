@@ -8,11 +8,9 @@
 
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_system_integration/flutter_system_integration.dart';
 import 'package:provider/provider.dart';
-import 'package:sheetopia/data/repositories/appimage/appimage_repository.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
-import 'package:sheetopia/data/services/restart/restart.dart';
-import 'package:sheetopia/integrate_appimage_viewmodel.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 
