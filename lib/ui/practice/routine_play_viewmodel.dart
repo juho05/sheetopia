@@ -131,6 +131,9 @@ class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
   File? get previousFile =>
       hasPrevious ? _entries[_index - 1].score?.file : null;
 
+  @override
+  String? get nextScoreId => hasNext ? _entries[_index + 1].score?.id : null;
+
   Set<String> get _exerciseIds => _entries.map((e) => e.exercise.id).toSet();
 
   Set<String> get _scoreIds =>

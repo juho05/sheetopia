@@ -42,7 +42,16 @@ class ScoreViewModel extends ChangeNotifier {
   int get switchSettleCount => _switchSettleCount;
 
   late int _lastHandledIndex;
+  late int _shownIndex;
   int _switchGeneration = 0;
+
+  // false while the sequence already points at a score that is not shown yet
+  bool get sequenceSettled {
+    final sequence = this.sequence;
+    if (sequence == null) return true;
+    return sequence.position == _shownIndex &&
+        sequence.currentScoreId == _scoreId;
+  }
 
   Score? _score;
 
@@ -64,6 +73,7 @@ class ScoreViewModel extends ChangeNotifier {
     this.sequence,
   }) : _scoreId = scoreId {
     _lastHandledIndex = sequence?.position ?? -1;
+    _shownIndex = _lastHandledIndex;
     sequence?.addListener(_onSequenceChanged);
     _load().then((_) {
       _updatedScoresSub = _repo.updatedScoreIds
@@ -128,16 +138,17 @@ class ScoreViewModel extends ChangeNotifier {
     _lastHandledIndex = targetIndex;
     _switchGeneration++;
     final generation = _switchGeneration;
-    switchScore(target).then((_) {
+    switchScore(target, sequenceIndex: targetIndex).then((_) {
       if (generation != _switchGeneration) return;
       _switchSettleCount++;
       notifyListeners();
     });
   }
 
-  Future<void> switchScore(String scoreId) async {
+  Future<void> switchScore(String scoreId, {int? sequenceIndex}) async {
     final score = await _repo.getScore(scoreId);
     if (score == null) return;
+    if (sequenceIndex != null) _shownIndex = sequenceIndex;
     _scoreId = scoreId;
     _score = score;
     _switchToken++;

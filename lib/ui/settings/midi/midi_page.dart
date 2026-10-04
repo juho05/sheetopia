@@ -52,7 +52,7 @@ class MidiPage extends StatelessWidget {
                               trailing: const Icon(Icons.arrow_forward_ios),
                               onTap: () {
                                 context.go(
-                                  "/settings/midi/devices/${Uri.encodeComponent(device.id)}",
+                                  "/settings/pageTurning/midi/devices/${Uri.encodeComponent(device.id)}",
                                 );
                               },
                             ),

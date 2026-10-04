@@ -89,6 +89,9 @@ class ExercisePlayViewModel extends ChangeNotifier implements ScoreSequence {
   File? get previousFile => null;
 
   @override
+  String? get nextScoreId => null;
+
+  @override
   bool next() => false;
 
   @override

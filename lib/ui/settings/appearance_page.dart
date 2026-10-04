@@ -51,12 +51,6 @@ class AppearancePage extends StatelessWidget {
                           );
                         }).toList(),
                       ),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text("Flash on page turn"),
-                        value: viewModel.flashOnPageTurn,
-                        onChanged: viewModel.updateFlashOnPageTurn,
-                      ),
                     ],
                   ),
                 );

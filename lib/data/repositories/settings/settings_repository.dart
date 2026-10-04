@@ -11,11 +11,13 @@ import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/settings/appearance.dart';
 import 'package:sheetopia/data/repositories/settings/logging.dart';
+import 'package:sheetopia/data/repositories/settings/page_turning.dart';
 import 'package:sheetopia/system_integration.dart';
 
 class SettingsRepository {
   final LoggingSettings logging;
   final AppearanceSettings appearanceSettings;
+  final PageTurningSettings pageTurning;
   final VersionCheckingSettings versionChecking;
 
   SettingsRepository({required KeyValueRepository keyValueRepository})
@@ -23,6 +25,7 @@ class SettingsRepository {
       appearanceSettings = AppearanceSettings(
         keyValueRepository: keyValueRepository,
       ),
+      pageTurning = PageTurningSettings(keyValueRepository: keyValueRepository),
       versionChecking = VersionCheckingSettings(
         config: systemIntegrationConfig,
         keyValue: keyValueRepository,
@@ -31,11 +34,16 @@ class SettingsRepository {
   Future<void> load() async {
     Log.debug("loading settings from db");
     await logging.load();
-    await Future.wait([appearanceSettings.load(), versionChecking.load()]);
+    await Future.wait([
+      appearanceSettings.load(),
+      pageTurning.load(),
+      versionChecking.load(),
+    ]);
   }
 
   void dispose() {
     appearanceSettings.dispose();
+    pageTurning.dispose();
     versionChecking.dispose();
     logging.dispose();
   }

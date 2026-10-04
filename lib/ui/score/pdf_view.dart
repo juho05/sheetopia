@@ -25,8 +25,13 @@ class PdfView extends StatefulWidget {
 
   final ScoreFileViewController controller;
 
+  final bool gradualPageTurns;
+
   final String? nextPath;
   final String? previousPath;
+
+  final String? nextScoreId;
+  final bool neighborsSettled;
 
   final bool Function()? onOverflowForward;
   final bool Function()? onOverflowBackward;
@@ -40,8 +45,11 @@ class PdfView extends StatefulWidget {
     required this.switchToken,
     required this.switchSettleCount,
     required this.controller,
+    this.gradualPageTurns = false,
     this.nextPath,
     this.previousPath,
+    this.nextScoreId,
+    this.neighborsSettled = true,
     this.onOverflowForward,
     this.onOverflowBackward,
     this.onPageTurned,
@@ -52,8 +60,12 @@ class PdfView extends StatefulWidget {
   State<PdfView> createState() => _PdfViewState();
 }
 
+typedef _SpreadPage = ({PdfDocument document, PdfPage page, bool spill});
+
 class _PdfViewState extends State<PdfView> {
   late final PdfViewModel _viewModel;
+
+  final Map<String, GlobalKey> _pageKeys = {};
 
   @override
   void initState() {
@@ -62,8 +74,11 @@ class _PdfViewState extends State<PdfView> {
       file: widget.file,
       scoresRepository: context.read(),
       scoreId: widget.scoreId,
+      gradual: widget.gradualPageTurns,
       nextPath: widget.nextPath,
       previousPath: widget.previousPath,
+      nextScoreId: widget.nextScoreId,
+      neighborsSettled: widget.neighborsSettled,
       onOverflowForward: () => widget.onOverflowForward?.call() ?? false,
       onOverflowBackward: () => widget.onOverflowBackward?.call() ?? false,
       onPageTurned: (forward) => widget.onPageTurned?.call(forward),
@@ -78,6 +93,7 @@ class _PdfViewState extends State<PdfView> {
       oldWidget.controller.detach(_viewModel);
       widget.controller.attach(_viewModel);
     }
+    _viewModel.updateGradual(widget.gradualPageTurns);
     if (widget.switchToken != oldWidget.switchToken ||
         widget.file.path != oldWidget.file.path) {
       _viewModel.updateFile(widget.file);
@@ -88,9 +104,11 @@ class _PdfViewState extends State<PdfView> {
     if (widget.switchSettleCount != oldWidget.switchSettleCount) {
       _viewModel.clearSwitchInFlight();
     }
-    _viewModel.updateNeighborPaths(
+    _viewModel.updateNeighbors(
       next: widget.nextPath,
       previous: widget.previousPath,
+      nextScoreId: widget.nextScoreId,
+      settled: widget.neighborsSettled,
     );
   }
 
@@ -110,7 +128,8 @@ class _PdfViewState extends State<PdfView> {
           return constraints.maxHeight * (page.width / page.height);
         }
 
-        Widget buildPage(PdfPage page) {
+        Widget buildPage(_SpreadPage entry) {
+          final page = entry.page;
           return AspectRatio(
             aspectRatio: page.width / page.height,
             child: Stack(
@@ -121,14 +140,17 @@ class _PdfViewState extends State<PdfView> {
                     devicePixelRatio: max(mediaQuery.devicePixelRatio, 2.0),
                   ),
                   child: PdfPageView(
-                    document: _viewModel.document!,
+                    document: entry.document,
                     pageNumber: page.pageNumber,
                   ),
                 ),
                 Positioned.fill(
                   child: CustomPaint(
                     painter: AnnotationPainter(
-                      strokes: _viewModel.strokesForPage(page.pageNumber),
+                      strokes: _viewModel.strokesForPage(
+                        page.pageNumber,
+                        spill: entry.spill,
+                      ),
                     ),
                   ),
                 ),
@@ -140,7 +162,16 @@ class _PdfViewState extends State<PdfView> {
         return ListenableBuilder(
           listenable: _viewModel,
           builder: (context, _) {
-            final pages = _viewModel.document?.pages ?? [];
+            final document = _viewModel.document;
+            final spillDocument = _viewModel.spillDocument;
+            final pages = <_SpreadPage>[
+              if (document != null)
+                for (final page in document.pages)
+                  (document: document, page: page, spill: false),
+              if (spillDocument != null)
+                for (final page in spillDocument.pages)
+                  (document: spillDocument, page: page, spill: true),
+            ];
 
             (int, double) calcPageCountAndGap(
               int startIndex, {
@@ -151,7 +182,8 @@ class _PdfViewState extends State<PdfView> {
               while (startIndex + pageCount >= 0 &&
                   startIndex + pageCount < pages.length) {
                 final newTotalWidth =
-                    totalWidth + calcPageWidth(pages[startIndex + pageCount]);
+                    totalWidth +
+                    calcPageWidth(pages[startIndex + pageCount].page);
                 if (newTotalWidth > constraints.maxWidth &&
                     pageCount.abs() > 0) {
                   break;
@@ -190,9 +222,14 @@ class _PdfViewState extends State<PdfView> {
               pageIndex + pageCount,
             );
 
+            final gradual = _viewModel.gradual;
+            final handleColor = HSLColor.fromColor(
+              Theme.of(context).colorScheme.primary,
+            ).withSaturation(1).withLightness(0.5).toColor();
+
             final (prevPageCount, _) = calcPageCountAndGap(
               pageIndex - 1,
-              reverse: true,
+              reverse: !gradual,
             );
 
             _viewModel.updateForwardPageCount(pageCount);
@@ -202,6 +239,145 @@ class _PdfViewState extends State<PdfView> {
             final loading =
                 (_viewModel.document == null && !failed) ||
                 _viewModel.switching;
+
+            final usedPageKeys = <String>{};
+
+            Widget buildKeyedPage(int index) {
+              final entry = pages[index];
+              final path = entry.spill
+                  ? _viewModel.spillPath
+                  : _viewModel.documentPath;
+              final copy = entry.spill && path == _viewModel.documentPath
+                  ? "-spill"
+                  : "";
+              final id = "$path-${entry.page.pageNumber}$copy";
+              usedPageKeys.add(id);
+              return KeyedSubtree(
+                key: _pageKeys.putIfAbsent(id, GlobalKey.new),
+                child: buildPage(entry),
+              );
+            }
+
+            Widget buildHiddenPage(int index) {
+              return Opacity(
+                opacity: 0,
+                child: Center(child: buildKeyedPage(index)),
+              );
+            }
+
+            Widget buildHalfPage(int index, {required bool top}) {
+              return ClipRect(
+                clipper: _SplitClipper(split: _viewModel.split, top: top),
+                child: Center(child: buildKeyedPage(index)),
+              );
+            }
+
+            final half =
+                gradual &&
+                _viewModel.half &&
+                pageCount == 1 &&
+                pageIndex + 1 < pages.length;
+            final shownPageCount = half ? 2 : pageCount;
+
+            final List<Widget> layers;
+            if (loading) {
+              layers = const [];
+            } else if (gradual) {
+              layers = [
+                if (pageIndex > 0) buildHiddenPage(pageIndex - 1),
+                if (pageIndex + shownPageCount < pages.length)
+                  buildHiddenPage(pageIndex + shownPageCount),
+                if (half) ...[
+                  buildHalfPage(pageIndex, top: false),
+                  buildHalfPage(pageIndex + 1, top: true),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: constraints.maxHeight * _viewModel.split - 16,
+                    height: 32,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.resizeRow,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {},
+                        onVerticalDragUpdate: (details) => _viewModel.moveSplit(
+                          details.delta.dy / constraints.maxHeight,
+                        ),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              top: 14.5,
+                              height: 3,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: handleColor,
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black54,
+                                      blurRadius: 2,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Container(
+                              width: 56,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: handleColor,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ] else
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    spacing: gap,
+                    children: [
+                      for (var index = 0; index < pageCount; index++)
+                        Flexible(child: buildKeyedPage(pageIndex + index)),
+                    ],
+                  ),
+              ];
+            } else {
+              layers = [
+                // back layer
+                if (pageCount > 0 && nextPageCount > 0)
+                  Row(
+                    key: ValueKey(
+                      "${pageIndex + pageCount}-${_viewModel.documentPath}",
+                    ),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    spacing: nextGap,
+                    children: List.generate(nextPageCount, (index) {
+                      final page = pages[pageIndex + pageCount + index];
+                      return Flexible(
+                        child: Opacity(opacity: 0, child: buildPage(page)),
+                      );
+                    }),
+                  ),
+                // front layer
+                Row(
+                  key: ValueKey("$pageIndex-${_viewModel.documentPath}"),
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  spacing: gap,
+                  children: List.generate(pageCount, (index) {
+                    final page = pages[pageIndex + index];
+                    return Flexible(
+                      child: Opacity(opacity: 1, child: buildPage(page)),
+                    );
+                  }),
+                ),
+              ];
+            }
+            _pageKeys.removeWhere((id, _) => !usedPageKeys.contains(id));
 
             return Listener(
               onPointerSignal: (event) {
@@ -240,42 +416,7 @@ class _PdfViewState extends State<PdfView> {
                           child: CircularProgressIndicator.adaptive(),
                         ),
                       if (failed) const _PdfLoadErrorView(),
-                      // back layer
-                      if (!loading && pageCount > 0 && nextPageCount > 0)
-                        Row(
-                          key: ValueKey(
-                            "${pageIndex + pageCount}-${_viewModel.documentPath}",
-                          ),
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          spacing: nextGap,
-                          children: List.generate(nextPageCount, (index) {
-                            final page = pages[pageIndex + pageCount + index];
-                            return Flexible(
-                              child: Opacity(
-                                opacity: 0,
-                                child: buildPage(page),
-                              ),
-                            );
-                          }),
-                        ),
-                      // front layer
-                      if (!loading)
-                        Row(
-                          key: ValueKey(
-                            "$pageIndex-${_viewModel.documentPath}",
-                          ),
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          spacing: gap,
-                          children: List.generate(pageCount, (index) {
-                            final page = pages[pageIndex + index];
-                            return Flexible(
-                              child: Opacity(
-                                opacity: 1,
-                                child: buildPage(page),
-                              ),
-                            );
-                          }),
-                        ),
+                      ...layers,
                     ],
                   ),
                 ),
@@ -286,6 +427,25 @@ class _PdfViewState extends State<PdfView> {
       },
     );
   }
+}
+
+class _SplitClipper extends CustomClipper<Rect> {
+  final double split;
+  final bool top;
+
+  const _SplitClipper({required this.split, required this.top});
+
+  @override
+  Rect getClip(Size size) {
+    final y = size.height * split;
+    return top
+        ? Rect.fromLTRB(0, 0, size.width, y)
+        : Rect.fromLTRB(0, y, size.width, size.height);
+  }
+
+  @override
+  bool shouldReclip(_SplitClipper oldClipper) =>
+      oldClipper.split != split || oldClipper.top != top;
 }
 
 class _PdfLoadErrorView extends StatelessWidget {

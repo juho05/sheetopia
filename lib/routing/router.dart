@@ -34,6 +34,7 @@ import 'package:sheetopia/ui/settings/logs/log_details_page.dart';
 import 'package:sheetopia/ui/settings/logs/logs_page.dart';
 import 'package:sheetopia/ui/settings/midi/midi_device_page.dart';
 import 'package:sheetopia/ui/settings/midi/midi_page.dart';
+import 'package:sheetopia/ui/settings/page_turning_page.dart';
 import 'package:sheetopia/ui/settings/settings_page.dart';
 
 GoRouter? _goRouter;
@@ -181,16 +182,22 @@ GoRouter get goRouter {
             builder: (context, state) => const SettingsPage(),
             routes: [
               GoRoute(
-                path: "midi",
-                builder: (context, state) => const MidiPage(),
+                path: "pageTurning",
+                builder: (context, state) => const PageTurningPage(),
                 routes: [
                   GoRoute(
-                    path: "devices/:deviceId",
-                    builder: (context, state) => MidiDevicePage(
-                      deviceId: Uri.decodeComponent(
-                        state.pathParameters["deviceId"]!,
+                    path: "midi",
+                    builder: (context, state) => const MidiPage(),
+                    routes: [
+                      GoRoute(
+                        path: "devices/:deviceId",
+                        builder: (context, state) => MidiDevicePage(
+                          deviceId: Uri.decodeComponent(
+                            state.pathParameters["deviceId"]!,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),

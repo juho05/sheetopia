@@ -35,10 +35,10 @@ class SettingsPage extends StatelessWidget {
         child: ListView(
           children: [
             ListTile(
-              title: const Text("MIDI Devices"),
+              title: const Text("Page Turning"),
               trailing: const Icon(Icons.arrow_forward_ios_outlined),
               onTap: () {
-                context.go("/settings/midi");
+                context.go("/settings/pageTurning");
               },
             ),
             ListTile(

@@ -13,29 +13,21 @@ class AppearanceViewModel extends ChangeNotifier {
   final AppearanceSettings _settings;
 
   ThemeMode _mode = ThemeMode.system;
+
   ThemeMode get mode => _mode;
 
-  bool _flashOnPageTurn = false;
-  bool get flashOnPageTurn => _flashOnPageTurn;
-
-  AppearanceViewModel({required AppearanceSettings settings})
-    : _settings = settings {
+  AppearanceViewModel({required this._settings}) {
     _settings.addListener(_onSettingsChanged);
     _onSettingsChanged();
   }
 
   void _onSettingsChanged() {
     _mode = _settings.themeMode;
-    _flashOnPageTurn = _settings.flashOnPageTurn;
     notifyListeners();
   }
 
   void updateMode(ThemeMode mode) {
     _settings.themeMode = mode;
-  }
-
-  void updateFlashOnPageTurn(bool value) {
-    _settings.flashOnPageTurn = value;
   }
 
   @override

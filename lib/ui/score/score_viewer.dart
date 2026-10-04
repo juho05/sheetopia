@@ -12,7 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
-import 'package:sheetopia/data/repositories/settings/appearance.dart';
+import 'package:sheetopia/data/repositories/settings/page_turning.dart';
 import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/ui/common/fading_overlay.dart';
@@ -100,7 +100,8 @@ class _ScoreViewer extends StatefulWidget {
 class _ScoreViewerState extends State<_ScoreViewer>
     with SingleTickerProviderStateMixin {
   late final ScoreViewModel _viewModel;
-  late final AppearanceSettings _appearanceSettings;
+  late final PageTurningSettings _pageTurningSettings;
+  late final Listenable _rebuildListenable;
 
   final Color _forwardHighlight = Colors.green;
   final Color _backwardHighlight = Colors.orange;
@@ -120,7 +121,8 @@ class _ScoreViewerState extends State<_ScoreViewer>
       scoreId: widget.initialScoreId,
       sequence: widget.sequence,
     );
-    _appearanceSettings = context.read<SettingsRepository>().appearanceSettings;
+    _pageTurningSettings = context.read<SettingsRepository>().pageTurning;
+    _rebuildListenable = Listenable.merge([_viewModel, _pageTurningSettings]);
     _pageTurnHighlightController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -155,7 +157,7 @@ class _ScoreViewerState extends State<_ScoreViewer>
   }
 
   void _triggerPageTurnHighlight(bool forward) {
-    if (!_appearanceSettings.flashOnPageTurn) return;
+    if (!_pageTurningSettings.flashOnPageTurn) return;
 
     final targetColor = forward ? _forwardHighlight : _backwardHighlight;
 
@@ -179,7 +181,7 @@ class _ScoreViewerState extends State<_ScoreViewer>
     final child = SafeArea(
       bottom: widget.bottomBar == null,
       child: ListenableBuilder(
-        listenable: _viewModel,
+        listenable: _rebuildListenable,
         builder: (context, _) {
           final session = PlaySession.of(context)!;
           final sequence = widget.sequence;
@@ -263,8 +265,14 @@ class _ScoreViewerState extends State<_ScoreViewer>
                                   switchSettleCount:
                                       _viewModel.switchSettleCount,
                                   controller: _viewModel.fileView,
+                                  gradualPageTurns:
+                                      _pageTurningSettings.gradualPageTurns,
                                   nextPath: sequence?.nextFile?.path,
                                   previousPath: sequence?.previousFile?.path,
+                                  nextScoreId: widget.advanceOnOverflow
+                                      ? sequence?.nextScoreId
+                                      : null,
+                                  neighborsSettled: _viewModel.sequenceSettled,
                                   onOverflowForward: widget.advanceOnOverflow
                                       ? sequence?.next
                                       : null,

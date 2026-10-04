@@ -20,6 +20,8 @@ abstract class ScoreSequence implements Listenable {
 
   File? get previousFile;
 
+  String? get nextScoreId;
+
   // True once the underlying collection is gone
   bool get deleted;
 
