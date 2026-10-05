@@ -22,12 +22,14 @@ typedef PracticeRecordInput = ({
 class PracticeRecordDialog extends StatefulWidget {
   final String? exerciseId;
   final String? exerciseName;
+  final bool exerciseDeleted;
   final DateTime? startedAt;
   final Duration? duration;
 
   const PracticeRecordDialog._({
     this.exerciseId,
     this.exerciseName,
+    this.exerciseDeleted = false,
     this.startedAt,
     this.duration,
   });
@@ -45,6 +47,7 @@ class PracticeRecordDialog extends StatefulWidget {
     BuildContext context, {
     required String exerciseId,
     required String exerciseName,
+    bool exerciseDeleted = false,
     required DateTime startedAt,
     required Duration duration,
   }) {
@@ -53,6 +56,7 @@ class PracticeRecordDialog extends StatefulWidget {
       builder: (context) => PracticeRecordDialog._(
         exerciseId: exerciseId,
         exerciseName: exerciseName,
+        exerciseDeleted: exerciseDeleted,
         startedAt: startedAt,
         duration: duration,
       ),
@@ -224,7 +228,9 @@ class _PracticeRecordDialogState extends State<PracticeRecordDialog> {
             Text(
               _exerciseName ?? "",
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyLarge,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontStyle: widget.exerciseDeleted ? FontStyle.italic : null,
+              ),
             )
           else
             OutlinedButton.icon(

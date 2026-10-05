@@ -91,8 +91,8 @@ void main() {
           builder: (context, state) => const Text("exercises page"),
         ),
         GoRoute(
-          path: "/practice/records",
-          builder: (context, state) => const Text("records page"),
+          path: "/practice/statistics",
+          builder: (context, state) => const Text("statistics page"),
         ),
         GoRoute(
           path: "/practice/routines/create",
@@ -154,13 +154,13 @@ void main() {
     expect(find.text("exercises page"), findsOneWidget);
   });
 
-  testWidgets("the today card opens the records page", (tester) async {
+  testWidgets("the today card opens the statistics page", (tester) async {
     await pumpPractice(tester);
 
     await tester.tap(find.text("Practiced today"));
     await tester.pumpAndSettle();
 
-    expect(find.text("records page"), findsOneWidget);
+    expect(find.text("statistics page"), findsOneWidget);
   });
 
   testWidgets("routines are listed with their count", (tester) async {

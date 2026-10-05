@@ -34,8 +34,11 @@ Re-importing updates existing items instead of duplicating them.
 setlists, and 6 scores carrying handwritten-looking annotations. Two scores are multi-page so page turning can be shown.
 
 Practice: 6 exercise-only scores (scales, arpeggios, cadences, chromatic scale, violin bowing), 4 of them annotated, 14 exercises in 4
-categories with 4 exercise tags, 5 routines, and six weeks of practice records. Today the *Daily piano* routine is done
+categories with 4 exercise tags, 5 routines, and 14 months of practice records. Today the *Daily piano* routine is done
 up to its fourth exercise.
+
+The history is shaped for the statistics page: practice grows over the months, weekends are busier and move to the late
+morning, Fridays are quiet, a few breaks interrupt it, and a current streak of 12 days follows a longer best streak.
 
 Scores are dated so the library grid opens on the Bach prelude, `days` in `library.py` controls that order.
 
@@ -58,5 +61,6 @@ lands correctly. It skips when the archive has not been built.
 - **A new score**: add `ly/<name>.ly` and an entry with the matching `source` to
   `SCORES`, or to `EXERCISE_SCORES` for a score only an exercise uses.
 - **Practice**: `EXERCISES`, `ROUTINES`, and `HISTORY`/`AD_HOC` for how often each is practiced.
+- **Statistics**: `HISTORY_DAYS`, `WEEKDAY_ACTIVITY`, `BREAKS` and `STREAKS` shape the history.
 - **Annotations**: coordinates are normalized to the page. LilyPond puts the first system near `y=0.16` with roughly
   `0.10` between systems, so marks are easy to place by eye; rebuild and check the result before committing.

@@ -71,7 +71,11 @@ void main() {
       rect.bottomRight,
       rect.bottomLeft,
     ];
-    viewModel.startStroke(page, _p(corners.first.dx, corners.first.dy), _aspect);
+    viewModel.startStroke(
+      page,
+      _p(corners.first.dx, corners.first.dy),
+      _aspect,
+    );
     for (var i = 1; i <= corners.length; i++) {
       final from = corners[i - 1];
       final to = corners[i % corners.length];
@@ -159,7 +163,10 @@ void main() {
       expect(moved[1].bounds.minY, closeTo(second.bounds.minY, 1e-4));
       // The selection survives the commit, zeroed, ready for another drag.
       expect(viewModel.dragOffset.value, Offset.zero);
-      expect(identical(viewModel.selectionFor(0)!.strokes[1], moved[1]), isTrue);
+      expect(
+        identical(viewModel.selectionFor(0)!.strokes[1], moved[1]),
+        isTrue,
+      );
     });
 
     test('undo restores the originals in place, redo re-applies', () {

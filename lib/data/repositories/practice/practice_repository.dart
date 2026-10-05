@@ -22,6 +22,13 @@ import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 
+typedef ExercisePracticeTotal = ({
+  String exerciseId,
+  String name,
+  Duration duration,
+  bool deleted,
+});
+
 class PracticeRepository {
   final Database _db;
   final ScoresRepository _scoresRepo;
@@ -1864,6 +1871,102 @@ class PracticeRepository {
       total += _toRecord(row).elapsedAt(now);
     }
     return total;
+  }
+
+  /// Oldest first, [to] is exclusive.
+  Future<List<PracticeRecord>> getRecordsBetween(
+    DateTime from,
+    DateTime to,
+  ) async {
+    final query = _db.select(_db.practiceRecordsTable)
+      ..where(
+        (t) =>
+            t.startedAt.isBiggerOrEqualValue(from.toUtc()) &
+            t.startedAt.isSmallerThanValue(to.toUtc()),
+      )
+      ..orderBy([
+        (t) => OrderingTerm.asc(t.startedAt),
+        (t) => OrderingTerm.asc(t.id),
+      ]);
+    return (await query.get()).map(_toRecord).toList();
+  }
+
+  /// Every exercise matching [filter], most practiced since [from] first.
+  Future<List<ExercisePracticeTotal>> getExercisePracticeTotals({
+    required int size,
+    int offset = 0,
+    String filter = "",
+    DateTime? from,
+    String? deletedName,
+  }) async {
+    final exercises = _db.exercisesTable;
+    final records = _db.practiceRecordsTable;
+    final total = records.duration.sum();
+    final sortName = exercises.name.lower();
+    var on = records.exercise.equalsExp(exercises.id);
+    if (from != null) {
+      on = on & records.startedAt.isBiggerOrEqualValue(from.toUtc());
+    }
+    final q = _db.selectOnly(exercises).join([
+      leftOuterJoin(records, on, useColumns: false),
+    ]);
+    const existing = Constant<bool>(false);
+    q.addColumns([exercises.id, exercises.name, total, sortName, existing]);
+    final words = _searchWords(filter);
+    for (final word in words) {
+      q.where(exercises.name.contains(word));
+    }
+    q.groupBy([exercises.id]);
+
+    final sortDeletedName = deletedName?.toLowerCase();
+    if (deletedName != null &&
+        words.every((w) => sortDeletedName!.contains(w.toLowerCase()))) {
+      final deleted = _db.selectOnly(records)
+        ..addColumns([
+          records.exercise,
+          Variable<String>(deletedName),
+          total,
+          Variable<String>(sortDeletedName),
+          const Constant<bool>(true),
+        ])
+        ..where(
+          records.exercise.isNotInQuery(
+            _db.selectOnly(exercises)..addColumns([exercises.id]),
+          ),
+        )
+        ..groupBy([records.exercise]);
+      if (from != null) {
+        deleted.where(records.startedAt.isBiggerOrEqualValue(from.toUtc()));
+      }
+      q.unionAll(deleted);
+    }
+
+    q.orderBy([
+      OrderingTerm.desc(
+        const CustomExpression<int>("3"),
+        nulls: NullsOrder.last,
+      ),
+      OrderingTerm.asc(const CustomExpression<String>("4")),
+      OrderingTerm.asc(const CustomExpression<String>("1")),
+    ]);
+    q.limit(size, offset: offset);
+    return [
+      for (final row in await q.get())
+        (
+          exerciseId: row.read(exercises.id)!,
+          name: row.read(exercises.name)!,
+          duration: Duration(milliseconds: row.read(total) ?? 0),
+          deleted: row.read(existing)!,
+        ),
+    ];
+  }
+
+  Future<List<DateTime>> getRecordStartTimes() async {
+    final table = _db.practiceRecordsTable;
+    final query = _db.selectOnly(table)..addColumns([table.startedAt]);
+    return [
+      for (final row in await query.get()) row.read(table.startedAt)!.toLocal(),
+    ];
   }
 
   void remoteChangedRecords(Set<String> recordIds) {

@@ -361,7 +361,7 @@ class _TodayCard extends StatelessWidget {
     final theme = Theme.of(context);
     return _SummaryCard(
       color: theme.colorScheme.primaryContainer,
-      onTap: () => context.go("/practice/records"),
+      onTap: () => context.go("/practice/statistics"),
       child: Row(
         spacing: 12,
         children: [

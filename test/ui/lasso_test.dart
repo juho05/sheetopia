@@ -202,7 +202,9 @@ void main() {
 
   group('remapToAspect', () {
     test('equal aspects return the very same instances', () {
-      final strokes = [_stroke([(0.3, 0.3), (0.5, 0.5)])];
+      final strokes = [
+        _stroke([(0.3, 0.3), (0.5, 0.5)]),
+      ];
       final remapped = remapToAspect(strokes, 1.4, 1.4);
       expect(identical(remapped, strokes), isTrue);
       expect(identical(remapped[0].outline, strokes[0].outline), isTrue);
@@ -260,7 +262,9 @@ void main() {
     });
 
     test('non-positive aspects are left alone', () {
-      final strokes = [_stroke([(0.3, 0.3)])];
+      final strokes = [
+        _stroke([(0.3, 0.3)]),
+      ];
       expect(identical(remapToAspect(strokes, 0, 1.4), strokes), isTrue);
       expect(identical(remapToAspect(strokes, 1.4, 0), strokes), isTrue);
     });

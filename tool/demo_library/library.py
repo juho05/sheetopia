@@ -644,7 +644,23 @@ ROUTINES = [
 # Practice history, relative to the build time so "Practiced today" and the
 # routine progress show up. Each routine is practiced on a share of the past
 # HISTORY_DAYS days, starting at a local time of day in hours.
-HISTORY_DAYS = 42
+HISTORY_DAYS = 430
+
+# The statistics should have something to show in every time frame. The shares
+# below are scaled per day, by a factor growing from HISTORY_START_ACTIVITY to
+# 1 over the history and by the weekday, Monday first.
+HISTORY_START_ACTIVITY = 0.45
+WEEKDAY_ACTIVITY = [1.0, 0.9, 1.05, 0.85, 0.55, 1.3, 1.35]
+
+# on weekends the evening routines move to the late morning
+WEEKEND_EVENING_SHIFT = -7.5
+
+# (first, last) days ago without any practice
+BREAKS = [(12, 12), (47, 48), (131, 139), (262, 267), (345, 346)]
+
+# (first, last) days ago on which TODAY_ROUTINE is never skipped. The first one
+# reaches up to today and is the current streak.
+STREAKS = [(1, 11), (63, 96)]
 
 HISTORY = [
     ("quick_warmup", 0.15, 7.5),

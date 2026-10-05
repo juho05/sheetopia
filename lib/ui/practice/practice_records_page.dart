@@ -100,6 +100,7 @@ class _PracticeRecordsPageState extends State<PracticeRecordsPage> {
       context,
       exerciseId: record.exerciseId,
       exerciseName: item.exerciseName ?? _deletedExercise,
+      exerciseDeleted: item.exerciseName == null,
       startedAt: record.startedAt,
       duration: record.duration,
     );
@@ -345,6 +346,9 @@ class _RecordTile extends StatelessWidget {
         selected: selected,
       ),
       title: exerciseName,
+      titleStyle: item.exerciseName == null
+          ? const TextStyle(fontStyle: FontStyle.italic)
+          : null,
       subtitle: Text(subtitle),
       selected: selected,
       onTap: running ? null : gestures.onTap,

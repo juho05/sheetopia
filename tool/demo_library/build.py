@@ -244,20 +244,30 @@ class History:
         for days_ago in range(library.HISTORY_DAYS, 0, -1):
             self._day, self._index = days_ago, 0
             day = midnight - dt.timedelta(days=days_ago)
+            if any(first <= days_ago <= last for first, last in library.BREAKS):
+                continue
+            start_activity = library.HISTORY_START_ACTIVITY
+            activity = library.WEEKDAY_ACTIVITY[day.weekday()] * (
+                start_activity
+                + (1 - start_activity) * (1 - days_ago / library.HISTORY_DAYS))
+            streak = any(first <= days_ago <= last for first, last in library.STREAKS)
             cursor = None
             for key, share, hour in library.HISTORY:
-                if rng.random() >= share:
+                forced = streak and key == library.TODAY_ROUTINE
+                if rng.random() >= share * activity and not forced:
                     continue
                 if hour is None:
                     start = (cursor or day + dt.timedelta(hours=19)) \
                         + dt.timedelta(minutes=rng.randint(10, 40))
                 else:
+                    if hour >= 17 and day.weekday() >= 5:
+                        hour += library.WEEKEND_EVENING_SHIFT
                     start = day + dt.timedelta(hours=hour, minutes=rng.randint(0, 30))
                     if cursor and start < cursor:
                         start = cursor + dt.timedelta(minutes=10)
                 cursor = self.routine(rng, key, start)
             for exercise, share, hour in library.AD_HOC:
-                if rng.random() >= share:
+                if rng.random() >= share * activity:
                     continue
                 start = day + dt.timedelta(hours=hour, minutes=rng.randint(0, 20))
                 self.add(exercise, start, dt.timedelta(minutes=rng.randint(6, 25)))

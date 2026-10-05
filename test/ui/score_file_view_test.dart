@@ -138,11 +138,13 @@ void main() {
     await tester.pumpWidget(host("b"));
     controller.nextPage();
 
-    expect(
-      log,
-      ["attach a", "a.next", "attach b", "detach a", "b.next"],
-      reason: "the replacement attaches before the outgoing host is disposed",
-    );
+    expect(log, [
+      "attach a",
+      "a.next",
+      "attach b",
+      "detach a",
+      "b.next",
+    ], reason: "the replacement attaches before the outgoing host is disposed");
   });
 
   testWidgets("unmounting the host stops page turns", (tester) async {
@@ -152,9 +154,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Stack(
-          children: [
-            _ViewHost(controller: controller, name: "a", log: log),
-          ],
+          children: [_ViewHost(controller: controller, name: "a", log: log)],
         ),
       ),
     );

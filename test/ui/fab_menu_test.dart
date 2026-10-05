@@ -136,9 +136,7 @@ void main() {
   });
 
   testWidgets("the fab icon defaults to add", (tester) async {
-    await pumpMenu(tester, [
-      FabMenuItem(label: "Only", onPressed: () {}),
-    ]);
+    await pumpMenu(tester, [FabMenuItem(label: "Only", onPressed: () {})]);
     expect(find.byIcon(Icons.add), findsOneWidget);
   });
 
