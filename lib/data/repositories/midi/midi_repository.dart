@@ -78,6 +78,7 @@ class MidiRepository with WidgetsBindingObserver {
     _midi.onMidiDataReceived?.listen(_onData);
     _midi.onMidiDeviceDisconnected?.listen(_onDeviceDisconnected);
     _midi.onMidiSetupChanged?.listen(_onSetupChanged);
+    _midi.onBatteryLevelChanged?.listen(_onBatteryLevelChanged);
     _midi.onBluetoothStateChanged.listen(_onBluetoothStateChanged);
     await _midi
         .startBluetoothCentral()
@@ -352,7 +353,8 @@ class MidiRepository with WidgetsBindingObserver {
       if (a[i].id != b[i].id ||
           a[i].name != b[i].name ||
           a[i].type != b[i].type ||
-          a[i].connected != b[i].connected) {
+          a[i].connected != b[i].connected ||
+          a[i].batteryLevel != b[i].batteryLevel) {
         return false;
       }
     }
@@ -362,6 +364,10 @@ class MidiRepository with WidgetsBindingObserver {
   Future<void> _onSetupChanged(String event) async {
     _devices.add(await _midi.devices ?? []);
     _maybeAutoReconnect();
+  }
+
+  Future<void> _onBatteryLevelChanged(MidiDevice device) async {
+    _devices.add(await _midi.devices ?? []);
   }
 
   Future<void> _onBluetoothStateChanged(BluetoothState state) async {

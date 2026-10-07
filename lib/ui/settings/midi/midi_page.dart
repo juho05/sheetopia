@@ -49,6 +49,10 @@ class MidiPage extends StatelessWidget {
                             (device) => ListTile(
                               leading: Icon(_deviceIcon(device.type)),
                               title: Text(device.name),
+                              subtitle: device.batteryLevel != null
+                                  ? _BatteryLevel(level: device.batteryLevel!)
+                                  : null,
+                              minTileHeight: 56,
                               trailing: const Icon(Icons.arrow_forward_ios),
                               onTap: () {
                                 context.go(
@@ -139,6 +143,43 @@ class MidiPage extends StatelessWidget {
     );
   }
 }
+
+class _BatteryLevel extends StatelessWidget {
+  final int level;
+
+  const _BatteryLevel({required this.level});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = switch (level) {
+      < 10 => theme.colorScheme.error,
+      < 30 =>
+        theme.brightness == Brightness.dark
+            ? Colors.amber
+            : Colors.amber.shade800,
+      _ => null,
+    };
+    return Row(
+      spacing: 2,
+      children: [
+        Icon(_batteryIcon(level), size: 12, color: color),
+        Text("$level%", style: TextStyle(fontSize: 11, color: color)),
+      ],
+    );
+  }
+}
+
+IconData _batteryIcon(int level) => switch (level) {
+  <= 5 => Icons.battery_0_bar,
+  <= 20 => Icons.battery_1_bar,
+  <= 35 => Icons.battery_2_bar,
+  <= 50 => Icons.battery_3_bar,
+  <= 65 => Icons.battery_4_bar,
+  <= 80 => Icons.battery_5_bar,
+  <= 95 => Icons.battery_6_bar,
+  _ => Icons.battery_full,
+};
 
 IconData _deviceIcon(String type) => switch (type) {
   "native" => Icons.devices,
