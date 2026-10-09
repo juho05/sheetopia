@@ -10,10 +10,15 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/gestures.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:provider/provider.dart';
-import 'package:sheetopia/ui/annotate/annotation_painter.dart';
+import 'package:sheetopia/ui/annotate/annotate_viewmodel.dart';
+import 'package:sheetopia/ui/annotate/annotation_surface.dart';
+import 'package:sheetopia/ui/annotate/pan_zoom_overlay.dart';
+import 'package:sheetopia/ui/common/overlay_icon_button.dart';
+import 'package:sheetopia/ui/score/annotation_mode.dart';
 import 'package:sheetopia/ui/score/pdf_viewmodel.dart';
 import 'package:sheetopia/ui/score/score_file_view.dart';
 
@@ -24,6 +29,7 @@ class PdfView extends StatefulWidget {
   final int switchSettleCount;
 
   final ScoreFileViewController controller;
+  final AnnotationMode annotation;
 
   final bool gradualPageTurns;
 
@@ -35,6 +41,8 @@ class PdfView extends StatefulWidget {
 
   final bool Function()? onOverflowForward;
   final bool Function()? onOverflowBackward;
+  final bool canOverflowForward;
+  final bool canOverflowBackward;
   final void Function(bool forward)? onPageTurned;
   final void Function()? onSwipeUp;
 
@@ -45,6 +53,7 @@ class PdfView extends StatefulWidget {
     required this.switchToken,
     required this.switchSettleCount,
     required this.controller,
+    required this.annotation,
     this.gradualPageTurns = false,
     this.nextPath,
     this.previousPath,
@@ -52,6 +61,8 @@ class PdfView extends StatefulWidget {
     this.neighborsSettled = true,
     this.onOverflowForward,
     this.onOverflowBackward,
+    this.canOverflowForward = false,
+    this.canOverflowBackward = false,
     this.onPageTurned,
     this.onSwipeUp,
   });
@@ -67,9 +78,15 @@ class _PdfViewState extends State<PdfView> {
 
   final Map<String, GlobalKey> _pageKeys = {};
 
+  late final AnnotationMode _annotation;
+  late final Listenable _rebuildListenable;
+
+  AnnotateViewModel? _annotator;
+
   @override
   void initState() {
     super.initState();
+    _annotation = widget.annotation;
     _viewModel = PdfViewModel(
       file: widget.file,
       scoresRepository: context.read(),
@@ -81,9 +98,84 @@ class _PdfViewState extends State<PdfView> {
       neighborsSettled: widget.neighborsSettled,
       onOverflowForward: () => widget.onOverflowForward?.call() ?? false,
       onOverflowBackward: () => widget.onOverflowBackward?.call() ?? false,
-      onPageTurned: (forward) => widget.onPageTurned?.call(forward),
+      onPageTurned: (forward) {
+        _annotation.transform.reset();
+        _annotation.save();
+        widget.onPageTurned?.call(forward);
+      },
     );
     widget.controller.attach(_viewModel);
+    _rebuildListenable = Listenable.merge([
+      _viewModel,
+      _annotation,
+      _annotation.transform,
+    ]);
+    _viewModel.addListener(_followDocument);
+    _annotation.addListener(_onAnnotationChanged);
+    _annotation.pageAspect = (index) {
+      final spill = index >= AnnotateViewModel.spillBase;
+      if (spill) index -= AnnotateViewModel.spillBase;
+      final pages =
+          (spill ? _viewModel.spillDocument : _viewModel.document)?.pages;
+      if (pages == null || index < 0 || index >= pages.length) return null;
+      return pages[index].height / pages[index].width;
+    };
+    _annotation.onEnterRequested = _enterAnnotation;
+    _onAnnotationChanged();
+  }
+
+  // The annotations always go to the score of the shown document.
+  // and those on spill pages to the following one
+  void _followDocument() {
+    final annotator = _annotation.viewModel;
+    if (annotator == null || _following) return;
+    final scoreId = _viewModel.documentScoreId;
+    final spillScoreId = _viewModel.spillScoreId;
+    if (annotator.scoreId == scoreId &&
+        annotator.spillScoreId == spillScoreId) {
+      return;
+    }
+    // the new view model starts from what the old one drew
+    _following = true;
+    _showAnnotationsOf(annotator);
+    _following = false;
+    _annotation.switchScore(
+      scoreId,
+      _viewModel.documentAnnotations,
+      spillScoreId: spillScoreId,
+      spillPages: _viewModel.spillAnnotations,
+    );
+  }
+
+  bool _following = false;
+
+  void _showAnnotationsOf(AnnotateViewModel annotator) {
+    _viewModel.setAnnotations({
+      annotator.scoreId: annotator.pages,
+      ?annotator.spillScoreId: annotator.spillPages,
+    });
+  }
+
+  void _onAnnotationChanged() {
+    final old = _annotator;
+    _annotator = _annotation.viewModel;
+    if (old != null && !identical(old, _annotator)) _showAnnotationsOf(old);
+  }
+
+  AnnotateViewModel? _enterAnnotation({PointerDownEvent? stylus}) {
+    final pages = _viewModel.documentAnnotations;
+    final box = context.findRenderObject() as RenderBox?;
+    if (_annotation.active || pages == null || box == null) return null;
+    return _annotation.enter(
+      scoreId: _viewModel.documentScoreId,
+      pages: pages,
+      spillScoreId: _viewModel.spillScoreId,
+      spillPages: _viewModel.spillAnnotations,
+      byStylus: stylus != null,
+      toolbarAtTop:
+          stylus != null &&
+          box.globalToLocal(stylus.position).dy > box.size.height * 2 / 3,
+    );
   }
 
   @override
@@ -110,10 +202,18 @@ class _PdfViewState extends State<PdfView> {
       nextScoreId: widget.nextScoreId,
       settled: widget.neighborsSettled,
     );
+    // The updates above can move the scores without notifying, and switching
+    // the view model notifies the viewer which is building right now.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _followDocument();
+    });
   }
 
   @override
   void dispose() {
+    _annotation.removeListener(_onAnnotationChanged);
+    _annotation.pageAspect = null;
+    _annotation.onEnterRequested = null;
     widget.controller.detach(_viewModel);
     _viewModel.dispose();
     super.dispose();
@@ -128,8 +228,21 @@ class _PdfViewState extends State<PdfView> {
           return constraints.maxHeight * (page.width / page.height);
         }
 
-        Widget buildPage(_SpreadPage entry) {
+        final transform = _annotation.transform;
+        transform.viewport = constraints.biggest;
+
+        // Only a visible page takes input.
+        Widget buildPage(_SpreadPage entry, {bool visible = false}) {
           final page = entry.page;
+          final annotator = _annotation.viewModel;
+          final spillScoreId = _viewModel.spillScoreId;
+          final base = entry.spill && spillScoreId != null
+              ? AnnotateViewModel.spillBase
+              : 0;
+          final ready =
+              annotator != null &&
+              annotator.scoreId == _viewModel.documentScoreId &&
+              (base == 0 || annotator.spillScoreId == spillScoreId);
           return AspectRatio(
             aspectRatio: page.width / page.height,
             child: Stack(
@@ -145,13 +258,19 @@ class _PdfViewState extends State<PdfView> {
                   ),
                 ),
                 Positioned.fill(
-                  child: CustomPaint(
-                    painter: AnnotationPainter(
-                      strokes: _viewModel.strokesForPage(
-                        page.pageNumber,
-                        spill: entry.spill,
-                      ),
+                  child: AnnotationSurface(
+                    viewModel: visible && ready ? annotator : null,
+                    pageIndex: base + page.pageNumber - 1,
+                    strokes: _viewModel.strokesForPage(
+                      page.pageNumber,
+                      spill: entry.spill,
                     ),
+                    onStylusDown:
+                        visible &&
+                            annotator == null &&
+                            _viewModel.documentAnnotations != null
+                        ? (event) => _enterAnnotation(stylus: event)
+                        : null,
                   ),
                 ),
               ],
@@ -160,7 +279,7 @@ class _PdfViewState extends State<PdfView> {
         }
 
         return ListenableBuilder(
-          listenable: _viewModel,
+          listenable: _rebuildListenable,
           builder: (context, _) {
             final document = _viewModel.document;
             final spillDocument = _viewModel.spillDocument;
@@ -242,7 +361,21 @@ class _PdfViewState extends State<PdfView> {
 
             final usedPageKeys = <String>{};
 
-            Widget buildKeyedPage(int index) {
+            final annotator = _annotation.viewModel;
+            final scale = transform.scale;
+
+            Widget unzoomed(Widget child, {Key? key}) {
+              return Positioned(
+                key: key,
+                left: 0,
+                top: 0,
+                width: constraints.maxWidth,
+                height: constraints.maxHeight,
+                child: child,
+              );
+            }
+
+            Widget buildKeyedPage(int index, {bool visible = true}) {
               final entry = pages[index];
               final path = entry.spill
                   ? _viewModel.spillPath
@@ -254,14 +387,16 @@ class _PdfViewState extends State<PdfView> {
               usedPageKeys.add(id);
               return KeyedSubtree(
                 key: _pageKeys.putIfAbsent(id, GlobalKey.new),
-                child: buildPage(entry),
+                child: buildPage(entry, visible: visible),
               );
             }
 
             Widget buildHiddenPage(int index) {
-              return Opacity(
-                opacity: 0,
-                child: Center(child: buildKeyedPage(index)),
+              return unzoomed(
+                Opacity(
+                  opacity: 0,
+                  child: Center(child: buildKeyedPage(index, visible: false)),
+                ),
               );
             }
 
@@ -279,6 +414,36 @@ class _PdfViewState extends State<PdfView> {
                 pageIndex + 1 < pages.length;
             final shownPageCount = half ? 2 : pageCount;
 
+            // mirrors the steps of the view model
+            final length = document?.pages.length ?? 0;
+            final canTurnForward =
+                widget.canOverflowForward ||
+                (!gradual
+                    ? pageIndex + pageCount < length
+                    : half
+                    ? pageIndex + 1 < length
+                    : pageCount == 1
+                    ? pageIndex + 1 < pages.length
+                    : pageIndex + pageCount < pages.length &&
+                          pageIndex + 1 < length);
+            final canTurnBackward =
+                widget.canOverflowBackward || pageIndex > 0 || half;
+            final buttonsAtBottom = _annotation.toolbarAtTop;
+
+            _annotation.pageIndex = min(
+              pageIndex,
+              max(0, (document?.pages.length ?? 1) - 1),
+            );
+            if (pageIndex < pages.length) {
+              final page = pages[pageIndex].page;
+              final height = min(
+                constraints.maxHeight,
+                constraints.maxWidth * page.height / page.width,
+              );
+              _annotation.pageMaxSide =
+                  max(height, height * page.width / page.height) * scale;
+            }
+
             final List<Widget> layers;
             if (loading) {
               layers = const [];
@@ -293,7 +458,7 @@ class _PdfViewState extends State<PdfView> {
                   Positioned(
                     left: 0,
                     right: 0,
-                    top: constraints.maxHeight * _viewModel.split - 16,
+                    top: constraints.maxHeight * scale * _viewModel.split - 16,
                     height: 32,
                     child: MouseRegion(
                       cursor: SystemMouseCursors.resizeRow,
@@ -301,7 +466,7 @@ class _PdfViewState extends State<PdfView> {
                         behavior: HitTestBehavior.opaque,
                         onTap: () {},
                         onVerticalDragUpdate: (details) => _viewModel.moveSplit(
-                          details.delta.dy / constraints.maxHeight,
+                          details.delta.dy / (constraints.maxHeight * scale),
                         ),
                         child: Stack(
                           alignment: Alignment.center,
@@ -339,7 +504,7 @@ class _PdfViewState extends State<PdfView> {
                 ] else
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    spacing: gap,
+                    spacing: gap * scale,
                     children: [
                       for (var index = 0; index < pageCount; index++)
                         Flexible(child: buildKeyedPage(pageIndex + index)),
@@ -350,30 +515,37 @@ class _PdfViewState extends State<PdfView> {
               layers = [
                 // back layer
                 if (pageCount > 0 && nextPageCount > 0)
-                  Row(
+                  unzoomed(
                     key: ValueKey(
                       "${pageIndex + pageCount}-${_viewModel.documentPath}",
                     ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      spacing: nextGap,
+                      children: List.generate(nextPageCount, (index) {
+                        final page = pages[pageIndex + pageCount + index];
+                        return Flexible(
+                          child: Opacity(opacity: 0, child: buildPage(page)),
+                        );
+                      }),
+                    ),
+                  ),
+                // front layer
+                Positioned.fill(
+                  key: ValueKey("$pageIndex-${_viewModel.documentPath}"),
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    spacing: nextGap,
-                    children: List.generate(nextPageCount, (index) {
-                      final page = pages[pageIndex + pageCount + index];
+                    spacing: gap * scale,
+                    children: List.generate(pageCount, (index) {
+                      final page = pages[pageIndex + index];
                       return Flexible(
-                        child: Opacity(opacity: 0, child: buildPage(page)),
+                        child: Opacity(
+                          opacity: 1,
+                          child: buildPage(page, visible: true),
+                        ),
                       );
                     }),
                   ),
-                // front layer
-                Row(
-                  key: ValueKey("$pageIndex-${_viewModel.documentPath}"),
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  spacing: gap,
-                  children: List.generate(pageCount, (index) {
-                    final page = pages[pageIndex + index];
-                    return Flexible(
-                      child: Opacity(opacity: 1, child: buildPage(page)),
-                    );
-                  }),
                 ),
               ];
             }
@@ -381,6 +553,7 @@ class _PdfViewState extends State<PdfView> {
 
             return Listener(
               onPointerSignal: (event) {
+                if (annotator != null) return;
                 if (event is PointerScrollEvent &&
                     event.kind == PointerDeviceKind.mouse) {
                   if (event.scrollDelta.dy > 0) {
@@ -391,7 +564,7 @@ class _PdfViewState extends State<PdfView> {
                 }
               },
               child: GestureDetector(
-                onVerticalDragEnd: widget.onSwipeUp == null
+                onVerticalDragEnd: widget.onSwipeUp == null || annotator != null
                     ? null
                     : (details) {
                         final velocity = details.primaryVelocity;
@@ -399,13 +572,16 @@ class _PdfViewState extends State<PdfView> {
                           widget.onSwipeUp!();
                         }
                       },
-                onTapUp: (details) {
-                  if (details.localPosition.dx < constraints.maxWidth / 2) {
-                    _viewModel.prevPage();
-                  } else {
-                    _viewModel.nextPage();
-                  }
-                },
+                onTapUp: annotator != null
+                    ? null
+                    : (details) {
+                        if (details.localPosition.dx <
+                            constraints.maxWidth / 2) {
+                          _viewModel.prevPage();
+                        } else {
+                          _viewModel.nextPage();
+                        }
+                      },
                 child: Material(
                   color: Colors.transparent,
                   child: Stack(
@@ -416,7 +592,47 @@ class _PdfViewState extends State<PdfView> {
                           child: CircularProgressIndicator.adaptive(),
                         ),
                       if (failed) const _PdfLoadErrorView(),
-                      ...layers,
+                      ClipRect(
+                        clipBehavior: scale > 1 ? Clip.hardEdge : Clip.none,
+                        child: OverflowBox(
+                          alignment: Alignment.topLeft,
+                          minWidth: constraints.maxWidth * scale,
+                          maxWidth: constraints.maxWidth * scale,
+                          minHeight: constraints.maxHeight * scale,
+                          maxHeight: constraints.maxHeight * scale,
+                          child: Transform.translate(
+                            offset: transform.offset,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: layers,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (annotator != null)
+                        PanZoomOverlay(target: transform, viewModel: annotator),
+                      if (annotator != null && canTurnBackward)
+                        Align(
+                          alignment: buttonsAtBottom
+                              ? Alignment.bottomLeft
+                              : Alignment.topLeft,
+                          child: OverlayIconButton(
+                            icon: const Icon(Symbols.arrow_left_alt),
+                            tooltip: "Previous page",
+                            onPressed: _viewModel.prevPage,
+                          ),
+                        ),
+                      if (annotator != null && canTurnForward)
+                        Align(
+                          alignment: buttonsAtBottom
+                              ? Alignment.bottomRight
+                              : Alignment.topRight,
+                          child: OverlayIconButton(
+                            icon: const Icon(Symbols.arrow_right_alt),
+                            tooltip: "Next page",
+                            onPressed: _viewModel.nextPage,
+                          ),
+                        ),
                     ],
                   ),
                 ),

@@ -120,8 +120,10 @@ class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
   @override
   String? get currentScoreId => currentEntry?.score?.id;
 
+  @override
   bool get hasNext => _index >= 0 && _index < _entries.length - 1;
 
+  @override
   bool get hasPrevious => _index > 0;
 
   @override

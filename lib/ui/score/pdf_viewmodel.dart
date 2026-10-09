@@ -50,7 +50,24 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
 
   String _documentScoreId;
 
+  String get documentScoreId => _documentScoreId;
+
   final Map<String, Map<int, List<Stroke>>> _annotations = {};
+
+  Map<int, List<Stroke>>? get documentAnnotations =>
+      _annotations[_documentScoreId];
+
+  String? get spillScoreId =>
+      _gradual && _spillScoreId != _documentScoreId ? _spillScoreId : null;
+
+  Map<int, List<Stroke>>? get spillAnnotations => _annotations[spillScoreId];
+
+  void setAnnotations(Map<String, Map<int, List<Stroke>>> annotations) {
+    for (final MapEntry(key: scoreId, value: pages) in annotations.entries) {
+      if (_annotatedScoreIds.contains(scoreId)) _annotations[scoreId] = pages;
+    }
+    notifyListeners();
+  }
 
   StreamSubscription? _annotationsSub;
 

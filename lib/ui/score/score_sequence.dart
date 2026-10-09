@@ -25,6 +25,10 @@ abstract class ScoreSequence implements Listenable {
   // True once the underlying collection is gone
   bool get deleted;
 
+  bool get hasNext;
+
+  bool get hasPrevious;
+
   bool next();
 
   bool previous();

@@ -13,13 +13,19 @@ import 'package:sheetopia/ui/annotate/annotate_viewmodel.dart';
 import 'package:sheetopia/ui/annotate/annotation_painter.dart';
 
 class AnnotationSurface extends StatefulWidget {
-  final AnnotateViewModel viewModel;
+  final AnnotateViewModel? viewModel;
   final int pageIndex;
+
+  final List<Stroke> strokes;
+
+  final AnnotateViewModel? Function(PointerDownEvent event)? onStylusDown;
 
   const AnnotationSurface({
     super.key,
     required this.viewModel,
     required this.pageIndex,
+    this.strokes = const [],
+    this.onStylusDown,
   });
 
   @override
@@ -27,18 +33,30 @@ class AnnotationSurface extends StatefulWidget {
 }
 
 class _AnnotationSurfaceState extends State<AnnotationSurface> {
+  static const double _tapSlop = 4;
+
   Size _size = Size.zero;
 
+  // The view model taking the stroke in progress. The widget only catches up
+  // with one from onStylusDown on the next frame.
+  AnnotateViewModel? _drawing;
+
+  Offset? _tapOrigin;
+
+  bool _isStylus(PointerDownEvent event) =>
+      event.kind == PointerDeviceKind.stylus ||
+      event.kind == PointerDeviceKind.invertedStylus;
+
   bool _shouldDraw(PointerDownEvent event) {
-    switch (event.kind) {
-      case PointerDeviceKind.stylus:
-      case PointerDeviceKind.invertedStylus:
-        return true;
-      case PointerDeviceKind.mouse:
-        return widget.viewModel.drawMode && event.buttons == kPrimaryButton;
-      default:
-        return widget.viewModel.drawMode;
+    final viewModel = widget.viewModel;
+    if (viewModel == null) {
+      return widget.onStylusDown != null && _isStylus(event);
     }
+    if (_isStylus(event)) return true;
+    if (event.kind == PointerDeviceKind.mouse) {
+      return viewModel.drawMode && event.buttons == kPrimaryButton;
+    }
+    return viewModel.drawMode;
   }
 
   StrokePoint _normalize(Offset local) {
@@ -54,7 +72,13 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
   double get _aspect => _size.width <= 0 ? 1.0 : _size.height / _size.width;
 
   void _onStart(PointerDownEvent event) {
-    widget.viewModel.startStroke(
+    var viewModel = widget.viewModel;
+    if (viewModel == null) {
+      viewModel = widget.onStylusDown?.call(event);
+      _tapOrigin = event.position;
+    }
+    _drawing = viewModel;
+    viewModel?.startStroke(
       widget.pageIndex,
       _normalize(event.localPosition),
       _aspect,
@@ -63,24 +87,31 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
   }
 
   void _onUpdate(PointerMoveEvent event) {
-    widget.viewModel.appendPoint(
-      _normalize(event.localPosition),
-      _aspect,
-    );
+    final origin = _tapOrigin;
+    if (origin != null && (event.position - origin).distance > _tapSlop) {
+      _tapOrigin = null;
+    }
+    _drawing?.appendPoint(_normalize(event.localPosition), _aspect);
   }
 
   void _onEnd() {
-    widget.viewModel.endStroke();
+    if (_tapOrigin != null) {
+      _drawing?.cancelStroke();
+    } else {
+      _drawing?.endStroke();
+    }
+    _tapOrigin = null;
+    _drawing = null;
   }
 
   // The inner RepaintBoundary is what makes a drag cheap: the Transform above
   // it only swaps a layer matrix, so the selected strokes and their marquee are
   // rasterized once and recomposited from then on.
-  Widget _buildSelection() {
-    final selection = widget.viewModel.selectionFor(widget.pageIndex);
+  Widget _buildSelection(AnnotateViewModel viewModel) {
+    final selection = viewModel.selectionFor(widget.pageIndex);
     if (selection == null) return const SizedBox.expand();
     return ValueListenableBuilder<Offset>(
-      valueListenable: widget.viewModel.dragOffset,
+      valueListenable: viewModel.dragOffset,
       builder: (context, offset, child) => Transform.translate(
         offset: Offset(offset.dx * _size.width, offset.dy * _size.height),
         child: child,
@@ -99,6 +130,7 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
 
   @override
   Widget build(BuildContext context) {
+    final viewModel = widget.viewModel;
     return LayoutBuilder(
       builder: (context, constraints) {
         _size = Size(constraints.maxWidth, constraints.maxHeight);
@@ -117,66 +149,69 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
                   },
                 ),
           },
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              RepaintBoundary(
-                child: ListenableBuilder(
-                  listenable: widget.viewModel,
-                  builder: (context, _) {
-                    final eraserCursor = widget.viewModel.eraserCursorFor(
-                      widget.pageIndex,
-                    );
-                    return CustomPaint(
-                      size: Size.infinite,
-                      painter: AnnotationPainter(
-                        strokes: widget.viewModel.strokesFor(widget.pageIndex),
-                        hidden: widget.viewModel.selectionStrokesFor(
-                          widget.pageIndex,
-                        ),
-                        eraserCursor: eraserCursor,
-                        // Only track width while it is actually drawn, so the
-                        // width slider does not repaint every committed stroke.
-                        eraserWidth: eraserCursor == null
-                            ? 0
-                            : widget.viewModel.width,
-                      ),
-                    );
-                  },
-                ),
-              ),
-              // The marquee can reach past the strokes it encloses, so a drag
-              // that keeps them on the page can still push it off one.
-              ClipRect(
-                child: RepaintBoundary(
-                  child: ListenableBuilder(
-                    listenable: widget.viewModel,
-                    builder: (context, _) => _buildSelection(),
-                  ),
-                ),
-              ),
-              RepaintBoundary(
-                child: CustomPaint(
+          child: viewModel == null
+              ? CustomPaint(
                   size: Size.infinite,
-                  painter: LassoPainter(
-                    viewModel: widget.viewModel,
-                    pageIndex: widget.pageIndex,
-                  ),
-                ),
-              ),
-              RepaintBoundary(
-                child: CustomPaint(
-                  size: Size.infinite,
-                  painter: LiveStrokePainter(
-                    viewModel: widget.viewModel,
-                    pageIndex: widget.pageIndex,
-                  ),
-                ),
-              ),
-            ],
-          ),
+                  painter: AnnotationPainter(strokes: widget.strokes),
+                )
+              : _buildLayers(viewModel),
         );
       },
+    );
+  }
+
+  Widget _buildLayers(AnnotateViewModel viewModel) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        RepaintBoundary(
+          child: ListenableBuilder(
+            listenable: viewModel,
+            builder: (context, _) {
+              final eraserCursor = viewModel.eraserCursorFor(widget.pageIndex);
+              return CustomPaint(
+                size: Size.infinite,
+                painter: AnnotationPainter(
+                  strokes: viewModel.strokesFor(widget.pageIndex),
+                  hidden: viewModel.selectionStrokesFor(widget.pageIndex),
+                  eraserCursor: eraserCursor,
+                  // Only track width while it is actually drawn, so the
+                  // width slider does not repaint every committed stroke.
+                  eraserWidth: eraserCursor == null ? 0 : viewModel.width,
+                ),
+              );
+            },
+          ),
+        ),
+        // The marquee can reach past the strokes it encloses, so a drag
+        // that keeps them on the page can still push it off one.
+        ClipRect(
+          child: RepaintBoundary(
+            child: ListenableBuilder(
+              listenable: viewModel,
+              builder: (context, _) => _buildSelection(viewModel),
+            ),
+          ),
+        ),
+        RepaintBoundary(
+          child: CustomPaint(
+            size: Size.infinite,
+            painter: LassoPainter(
+              viewModel: viewModel,
+              pageIndex: widget.pageIndex,
+            ),
+          ),
+        ),
+        RepaintBoundary(
+          child: CustomPaint(
+            size: Size.infinite,
+            painter: LiveStrokePainter(
+              viewModel: viewModel,
+              pageIndex: widget.pageIndex,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

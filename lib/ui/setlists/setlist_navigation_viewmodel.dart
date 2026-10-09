@@ -78,6 +78,12 @@ class SetlistNavigationViewModel extends ChangeNotifier
   }
 
   @override
+  bool get hasNext => _nextPlayable() != null;
+
+  @override
+  bool get hasPrevious => _previousPlayable() != null;
+
+  @override
   File? get nextFile => nextPlayableEntry?.score?.file;
 
   @override

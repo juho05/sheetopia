@@ -165,7 +165,30 @@ class AnnotateViewModel extends ChangeNotifier {
   final ScoresRepository _repo;
   final String _scoreId;
 
+  String get scoreId => _scoreId;
+
   final Map<int, List<Stroke>> _pages = {};
+
+  // The pages of the following score are annotated along at spillBase and up.
+  // This number is so large that there are no index collisions between the pages of both files.
+  static const int spillBase = 1 << 20;
+
+  final String? _spillScoreId;
+
+  String? get spillScoreId => _spillScoreId;
+
+  Map<int, List<Stroke>> get pages => {
+    for (final MapEntry(key: index, value: strokes) in _pages.entries)
+      if (index < spillBase) index: strokes,
+  };
+
+  Map<int, List<Stroke>> get spillPages => {
+    for (final MapEntry(key: index, value: strokes) in _pages.entries)
+      if (index >= spillBase) index - spillBase: strokes,
+  };
+
+  // the page lists as they are stored
+  Map<int, List<Stroke>> _saved = {};
   bool _dirty = false;
 
   // Two channels so a pen sample never dirties the lasso layer and a lasso
@@ -206,10 +229,12 @@ class AnnotateViewModel extends ChangeNotifier {
 
   double get width => _width;
 
-  bool _drawMode =
+  static bool get defaultDrawMode =>
       defaultTargetPlatform == TargetPlatform.windows ||
       defaultTargetPlatform == TargetPlatform.macOS ||
       defaultTargetPlatform == TargetPlatform.linux;
+
+  bool _drawMode;
 
   bool get drawMode => _drawMode;
 
@@ -247,15 +272,55 @@ class AnnotateViewModel extends ChangeNotifier {
   // AnnotatePage, which owns the pdfrx controller; null until it is ready.
   double? Function(int pageIndex)? pageAspect;
 
-  AnnotateViewModel({required ScoresRepository repo, required String scoreId})
-    : _repo = repo,
-      _scoreId = scoreId {
-    _load();
+  // Without pages they are loaded from the repository. The tools (color,
+  // width, clipboard) continue from toolsFrom.
+  AnnotateViewModel({
+    required this._repo,
+    required this._scoreId,
+    Map<int, List<Stroke>>? pages,
+    this._spillScoreId,
+    Map<int, List<Stroke>>? spillPages,
+    AnnotateViewModel? toolsFrom,
+    bool? drawMode,
+  }) : _drawMode = drawMode ?? toolsFrom?._drawMode ?? defaultDrawMode {
+    if (toolsFrom != null) {
+      _colorValue = toolsFrom._colorValue;
+      _tool = toolsFrom._tool;
+      _width = toolsFrom._width;
+      _clipboard = toolsFrom._clipboard;
+    }
+    if (pages != null) _addLoaded(pages, 0);
+    if (spillPages != null) _addLoaded(spillPages, spillBase);
+    _load(own: pages == null, spill: spillPages == null);
   }
 
-  Future<void> _load() async {
-    _pages.addAll(await _repo.getAnnotations(_scoreId));
+  Future<void> _load({required bool own, required bool spill}) async {
+    final spillScoreId = _spillScoreId;
+    final loaded = own ? await _repo.getAnnotations(_scoreId) : null;
+    final loadedSpill = spill && spillScoreId != null
+        ? await _repo.getAnnotations(spillScoreId)
+        : null;
+    if (_disposed || (loaded == null && loadedSpill == null)) return;
+    if (loaded != null) _addLoaded(loaded, 0);
+    if (loadedSpill != null) _addLoaded(loadedSpill, spillBase);
     notifyListeners();
+  }
+
+  // Strokes drawn before the load finished stay on top of the loaded ones.
+  void _addLoaded(Map<int, List<Stroke>> pages, int base) {
+    for (final MapEntry(key: index, value: strokes) in pages.entries) {
+      final drawn = _pages[base + index];
+      _saved[base + index] = strokes;
+      _pages[base + index] = drawn == null ? strokes : [...strokes, ...drawn];
+    }
+  }
+
+  bool _changed({required bool spill}) {
+    final indices = {
+      ..._pages.keys,
+      ..._saved.keys,
+    }.where((index) => (index >= spillBase) == spill);
+    return indices.any((index) => !identical(_pages[index], _saved[index]));
   }
 
   void setColor(int color) {
@@ -710,8 +775,12 @@ class AnnotateViewModel extends ChangeNotifier {
   // Drops an in-progress finger stroke without committing it, restoring
   // anything the eraser already removed. A stylus stroke keeps going.
   void cancelTouchStroke() {
+    if (_activeIsTouch) cancelStroke();
+  }
+
+  void cancelStroke() {
     final pageIndex = _activePageIndex;
-    if (pageIndex == null || !_activeIsTouch) return;
+    if (pageIndex == null) return;
     final snapshot = _eraseSnapshot;
     if (snapshot != null) _pages[pageIndex] = snapshot;
     _lassoPoints = null;
@@ -859,14 +928,14 @@ class AnnotateViewModel extends ChangeNotifier {
     return sqrt(cx * cx + cy * cy);
   }
 
-  bool get hasAnnotations => _pages.values.any((s) => s.isNotEmpty);
+  bool get hasAnnotations => pages.values.any((s) => s.isNotEmpty);
 
   // Leaves the clipboard alone: cutting strokes, wiping the page and pasting
-  // them back is a legitimate move.
+  // them back is a legitimate move. The following score is left alone too.
   void clearAll() {
     final active = _activePageIndex;
     _dirty = true;
-    _pages.clear();
+    _pages.removeWhere((index, _) => index < spillBase);
     _undoStack.clear();
     _redoStack.clear();
     _resetLasso();
@@ -943,12 +1012,20 @@ class AnnotateViewModel extends ChangeNotifier {
 
   Future<void> saveAll() async {
     if (!_dirty) return;
-    await _repo.saveAnnotations(_scoreId, _pages);
     _dirty = false;
+    final own = _changed(spill: false);
+    final spillScoreId = _spillScoreId;
+    final spill = spillScoreId != null && _changed(spill: true);
+    _saved = Map.of(_pages);
+    if (own) await _repo.saveAnnotations(_scoreId, pages);
+    if (spill) await _repo.saveAnnotations(spillScoreId, spillPages);
   }
+
+  bool _disposed = false;
 
   @override
   void dispose() {
+    _disposed = true;
     for (final n in _liveRepaints.values) {
       n.dispose();
     }

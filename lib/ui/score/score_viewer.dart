@@ -12,6 +12,10 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/ui/annotate/annotate_viewmodel.dart';
+import 'package:sheetopia/ui/annotate/annotation_toolbar.dart';
+import 'package:sheetopia/ui/common/overlay_icon_button.dart';
+import 'package:sheetopia/ui/score/annotation_mode.dart';
 import 'package:sheetopia/data/repositories/settings/page_turning.dart';
 import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
@@ -27,6 +31,7 @@ import 'package:sheetopia/utils/full_screen.dart';
 const _boundKeys = [
   LogicalKeyboardKey.escape,
   LogicalKeyboardKey.keyF,
+  LogicalKeyboardKey.keyA,
   LogicalKeyboardKey.f11,
   LogicalKeyboardKey.arrowUp,
   LogicalKeyboardKey.arrowDown,
@@ -112,9 +117,12 @@ class _ScoreViewerState extends State<_ScoreViewer>
 
   StreamSubscription? _pageChangeSub;
 
+  late final AnnotationMode _annotation;
+
   @override
   void initState() {
     super.initState();
+    _annotation = AnnotationMode(repo: context.read());
     _viewModel = ScoreViewModel(
       repo: context.read(),
       midiRepository: context.read(),
@@ -122,7 +130,12 @@ class _ScoreViewerState extends State<_ScoreViewer>
       sequence: widget.sequence,
     );
     _pageTurningSettings = context.read<SettingsRepository>().pageTurning;
-    _rebuildListenable = Listenable.merge([_viewModel, _pageTurningSettings]);
+    _rebuildListenable = Listenable.merge([
+      _viewModel,
+      _pageTurningSettings,
+      _annotation,
+    ]);
+    _viewModel.addListener(_exitAnnotationWithoutPdf);
     _pageTurnHighlightController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -152,8 +165,27 @@ class _ScoreViewerState extends State<_ScoreViewer>
   void dispose() {
     _pageChangeSub?.cancel();
     _viewModel.dispose();
+    _annotation.dispose();
     _pageTurnHighlightController.dispose();
     super.dispose();
+  }
+
+  void _exitAnnotationWithoutPdf() {
+    if (_viewModel.fileType != FileType.pdf) _annotation.exit();
+  }
+
+  Widget _buildAnnotationChrome(AnnotateViewModel annotator) {
+    return Positioned.fill(
+      child: AnnotationToolbar(
+        viewModel: annotator,
+        bottomPadding: widget.bottomBar == null ? 16 : 4,
+        atTop: _annotation.toolbarAtTop,
+        slideIn: true,
+        onPaste: _annotation.paste,
+        onDone: _annotation.exit,
+        pageMaxSidePx: () => _annotation.pageMaxSide,
+      ),
+    );
   }
 
   void _triggerPageTurnHighlight(bool forward) {
@@ -185,8 +217,11 @@ class _ScoreViewerState extends State<_ScoreViewer>
         builder: (context, _) {
           final session = PlaySession.of(context)!;
           final sequence = widget.sequence;
+          final annotator = _annotation.viewModel;
+          final annotating = annotator != null;
           return MouseRegion(
-            cursor: !session.isFullScreen || session.overlayVisible
+            cursor:
+                !session.isFullScreen || session.overlayVisible || annotating
                 ? SystemMouseCursors.basic
                 : SystemMouseCursors.none,
             child: Shortcuts(
@@ -196,10 +231,19 @@ class _ScoreViewerState extends State<_ScoreViewer>
               },
               child: CallbackShortcuts(
                 bindings: {
+                  if (annotating) ...annotationShortcuts(annotator),
                   const SingleActivator(
                     LogicalKeyboardKey.escape,
                     includeRepeats: false,
-                  ): session.exitFullScreen,
+                  ): !annotating
+                      ? session.exitFullScreen
+                      : annotator.hasSelection
+                      ? annotator.clearSelection
+                      : _annotation.exit,
+                  const SingleActivator(
+                    LogicalKeyboardKey.keyA,
+                    includeRepeats: false,
+                  ): _annotation.toggle,
                   const SingleActivator(
                     LogicalKeyboardKey.keyF,
                     includeRepeats: false,
@@ -265,6 +309,7 @@ class _ScoreViewerState extends State<_ScoreViewer>
                                   switchSettleCount:
                                       _viewModel.switchSettleCount,
                                   controller: _viewModel.fileView,
+                                  annotation: _annotation,
                                   gradualPageTurns:
                                       _pageTurningSettings.gradualPageTurns,
                                   nextPath: sequence?.nextFile?.path,
@@ -279,6 +324,12 @@ class _ScoreViewerState extends State<_ScoreViewer>
                                   onOverflowBackward: widget.advanceOnOverflow
                                       ? sequence?.previous
                                       : null,
+                                  canOverflowForward:
+                                      widget.advanceOnOverflow &&
+                                      (sequence?.hasNext ?? false),
+                                  canOverflowBackward:
+                                      widget.advanceOnOverflow &&
+                                      (sequence?.hasPrevious ?? false),
                                   onPageTurned: _viewModel.onPageTurned,
                                   onSwipeUp: widget.onSwipeUp,
                                 ),
@@ -287,46 +338,42 @@ class _ScoreViewerState extends State<_ScoreViewer>
                                 ),
                               },
                             FadingOverlay(
-                              visible: session.backButtonVisible,
-                              child: Padding(
-                                padding: const EdgeInsets.all(4),
-                                child: SizedBox.square(
-                                  dimension: 32,
-                                  child: IconButton.filled(
-                                    color: Colors.white,
-                                    style: ButtonStyle(
-                                      backgroundColor: WidgetStateProperty.all(
-                                        Colors.black.withAlpha(100),
-                                      ),
-                                    ),
-                                    icon: const BackButtonIcon(),
-                                    iconSize: 20,
-                                    padding: const EdgeInsets.all(0),
-                                    onPressed: () {
-                                      AppFullScreen.setImmersive(false);
-                                      context.pop();
-                                    },
-                                  ),
-                                ),
+                              visible: session.backButtonVisible && !annotating,
+                              child: OverlayIconButton(
+                                icon: const BackButtonIcon(),
+                                onPressed: () {
+                                  AppFullScreen.setImmersive(false);
+                                  context.pop();
+                                },
                               ),
                             ),
                             if (widget.topOverlay != null)
                               FadingOverlay(
                                 visible:
-                                    (supportsFullScreen &&
-                                        session.overlayVisible) ||
-                                    _viewModel.transientChromeVisible,
+                                    !annotating &&
+                                    ((supportsFullScreen &&
+                                            session.overlayVisible) ||
+                                        _viewModel.transientChromeVisible),
                                 child: widget.topOverlay!,
                               ),
                             FullScreenButton(
-                              visible: session.overlayVisible,
+                              visible: session.overlayVisible && !annotating,
                               fullScreen: session.isFullScreen,
                               onPressed: session.toggleFullScreen,
                             ),
+                            if (annotating) _buildAnnotationChrome(annotator),
                           ],
                         ),
                       ),
-                      if (widget.bottomBar != null) widget.bottomBar!,
+                      // stays laid out so nothing shifts
+                      if (widget.bottomBar != null)
+                        Visibility(
+                          visible: !annotating,
+                          maintainSize: true,
+                          maintainAnimation: true,
+                          maintainState: true,
+                          child: widget.bottomBar!,
+                        ),
                     ],
                   ),
                 ),
@@ -339,6 +386,7 @@ class _ScoreViewerState extends State<_ScoreViewer>
     return PopScope(
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
+          _annotation.exit();
           AppFullScreen.setImmersive(false);
         }
       },

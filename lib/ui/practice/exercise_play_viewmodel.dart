@@ -83,6 +83,12 @@ class ExercisePlayViewModel extends ChangeNotifier implements ScoreSequence {
   Set<String> get _scoreIds => _scores.map((s) => s.id).toSet();
 
   @override
+  bool get hasNext => false;
+
+  @override
+  bool get hasPrevious => false;
+
+  @override
   File? get nextFile => null;
 
   @override

@@ -122,7 +122,9 @@ class ScoreViewModel extends ChangeNotifier {
   }
 
   Future<void> _load() async {
-    final score = await _repo.getScore(_scoreId);
+    final scoreId = _scoreId;
+    final score = await _repo.getScore(scoreId);
+    if (scoreId != _scoreId) return;
     _score = score;
     // TODO properly handle score == null
     notifyListeners();

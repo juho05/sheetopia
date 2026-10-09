@@ -373,4 +373,43 @@ void main() {
     expect(reloaded.strokesFor(0).first.bounds.minX, closeTo(moved.minX, 1e-5));
     reloaded.dispose();
   });
+
+  test(
+    "strokes on spill pages are saved to the following score only",
+    () async {
+      await db.managers.scoresTable.create(
+        (o) => o(
+          id: "next",
+          title: "Next",
+          searchText: " next ",
+          fileDownloaded: false,
+          fileType: FileType.pdf,
+        ),
+      );
+      viewModel.dispose();
+      viewModel = AnnotateViewModel(
+        repo: repo,
+        scoreId: _scoreId,
+        spillScoreId: "next",
+      );
+      await pumpEventQueue();
+      final updated = <String>{};
+      final sub = repo.updatedScoreIds.listen(updated.addAll);
+
+      draw(AnnotateViewModel.spillBase + 2, const [
+        Offset(0.3, 0.3),
+        Offset(0.4, 0.4),
+      ]);
+      await viewModel.saveAll();
+      await pumpEventQueue();
+
+      expect(updated, {"next"});
+      expect((await repo.getAnnotations("next"))[2], hasLength(1));
+      expect(await repo.getAnnotations(_scoreId), isEmpty);
+
+      viewModel.clearAll();
+      expect(viewModel.spillPages[2], hasLength(1));
+      await sub.cancel();
+    },
+  );
 }
