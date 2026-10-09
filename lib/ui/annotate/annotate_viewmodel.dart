@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
 import 'package:sheetopia/ui/annotate/lasso.dart';
+import 'package:sheetopia/ui/annotate/shape_snap.dart';
 import 'package:sheetopia/ui/annotate/stroke_outline.dart';
 
 enum AnnotateTool { pen, eraser, lasso }
@@ -111,6 +112,18 @@ class _Selection {
       maxDy: max(-minY, 1 - maxY),
     );
   }
+}
+
+class _Snap {
+  final SnapShape shape;
+
+  // The line start or the fixed corner of the bounding box.
+  final Offset anchor;
+
+  // From the pointer to the corner it drags, zero for a line.
+  final Offset grab;
+
+  const _Snap({required this.shape, required this.anchor, required this.grab});
 }
 
 class _Clipboard {
@@ -246,12 +259,16 @@ class AnnotateViewModel extends ChangeNotifier {
   double _sy = 0;
 
   Path? _livePath;
+  _Snap? _snap;
 
   List<Stroke>? _eraseSnapshot;
   List<(int, Stroke)>? _erasePending;
   StrokePoint? _lastErasePoint;
   double _eraseAspect = 1.0;
   double _drawAspect = 1.0;
+
+  // On-screen width of the page being drawn on, zoom included.
+  double _drawPageWidth = 1.0;
 
   _Selection? _selection;
   _Clipboard? _clipboard;
@@ -477,7 +494,8 @@ class AnnotateViewModel extends ChangeNotifier {
     _pingLasso(pageIndex);
   }
 
-  void appendPoint(StrokePoint p, double aspect) {
+  void appendPoint(StrokePoint p, double aspect, {double? pageWidth}) {
+    if (pageWidth != null) _drawPageWidth = pageWidth;
     if (_tool == AnnotateTool.lasso) {
       _appendLasso(p, aspect);
       return;
@@ -493,6 +511,11 @@ class AnnotateViewModel extends ChangeNotifier {
     final points = _activePoints;
     if (points == null) return;
     _drawAspect = aspect;
+    final snap = _snap;
+    if (snap != null) {
+      _moveSnap(snap, p);
+      return;
+    }
     _lastRawPoint = p;
     _sx += (p.x - _sx) * _streamlineT;
     _sy += (p.y - _sy) * _streamlineT;
@@ -504,6 +527,82 @@ class AnnotateViewModel extends ChangeNotifier {
       points.add(StrokePoint(x: _sx, y: _sy, pressure: p.pressure));
       _livePath?.lineTo(_sx, _sy * aspect);
     }
+    _pingLive(_activePageIndex);
+  }
+
+  // Turns the pen stroke in progress into the shape it resembles. The samples
+  // after it move the line end or the grabbed corner instead of drawing.
+  bool snapToShape({required double pageWidth}) {
+    _drawPageWidth = pageWidth;
+    final points = _activePoints;
+    final tip = _lastRawPoint;
+    if (_disposed || points == null || tip == null || _snap != null) {
+      return false;
+    }
+    final aspect = _drawAspect;
+    final path = [
+      for (final p in points) Offset(p.x, p.y * aspect),
+      if (!identical(tip, points.last)) Offset(tip.x, tip.y * aspect),
+    ];
+    final shape = recognizeShape(path);
+    if (shape == null) return false;
+
+    final _Snap snap;
+    if (shape == SnapShape.line) {
+      snap = _Snap(
+        shape: shape,
+        anchor: Offset(points.first.x, points.first.y),
+        grab: Offset.zero,
+      );
+    } else {
+      var minX = tip.x;
+      var minY = tip.y;
+      var maxX = tip.x;
+      var maxY = tip.y;
+      for (final p in points) {
+        minX = min(minX, p.x);
+        minY = min(minY, p.y);
+        maxX = max(maxX, p.x);
+        maxY = max(maxY, p.y);
+      }
+      final left = tip.x - minX < maxX - tip.x;
+      final top = tip.y - minY < maxY - tip.y;
+      snap = _Snap(
+        shape: shape,
+        anchor: Offset(left ? maxX : minX, top ? maxY : minY),
+        grab: Offset((left ? minX : maxX) - tip.x, (top ? minY : maxY) - tip.y),
+      );
+    }
+    _snap = snap;
+    _moveSnap(snap, tip);
+    return true;
+  }
+
+  void _moveSnap(_Snap snap, StrokePoint p) {
+    final aspect = _drawAspect;
+    var target = Offset(
+      (p.x + snap.grab.dx).clamp(0.0, 1.0),
+      (p.y + snap.grab.dy).clamp(0.0, 1.0),
+    );
+    if (snap.shape == SnapShape.line) {
+      target = snapLineEnd(snap.anchor, target, aspect, _drawPageWidth);
+    }
+    final points = shapePoints(
+      snap.shape,
+      snap.anchor,
+      target,
+      aspect: aspect,
+      width: _width,
+    );
+    final path = Path()..moveTo(points.first.x, points.first.y * aspect);
+    for (final point in points.skip(1)) {
+      path.lineTo(point.x, point.y * aspect);
+    }
+    _activePoints = points;
+    // Identical to the last point, so neither the painter nor endStroke adds
+    // a segment to the pointer.
+    _lastRawPoint = points.last;
+    _livePath = path;
     _pingLive(_activePageIndex);
   }
 
@@ -546,6 +645,7 @@ class AnnotateViewModel extends ChangeNotifier {
     _activePoints = null;
     _lastRawPoint = null;
     _livePath = null;
+    _snap = null;
     _eraseSnapshot = null;
     _erasePending = null;
     _lastErasePoint = null;
@@ -792,6 +892,7 @@ class AnnotateViewModel extends ChangeNotifier {
     _activePoints = null;
     _lastRawPoint = null;
     _livePath = null;
+    _snap = null;
     _eraseSnapshot = null;
     _erasePending = null;
     _lastErasePoint = null;
@@ -945,6 +1046,7 @@ class AnnotateViewModel extends ChangeNotifier {
     _activePoints = null;
     _lastRawPoint = null;
     _livePath = null;
+    _snap = null;
     _eraseSnapshot = null;
     _erasePending = null;
     _lastErasePoint = null;

@@ -71,6 +71,7 @@ dependencies:
       url: https://github.com/juho05/flutter_predictive_transition
       ref: 1c52b52ff1a257d263295d3ed612d465c42c7813
   cunning_document_scanner: ^3.0.1
+  one_dollar_unistroke_recognizer: ^1.3.5
 
 dependency_overrides:
   path_provider_linux:

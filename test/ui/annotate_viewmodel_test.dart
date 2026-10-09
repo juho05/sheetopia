@@ -6,6 +6,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:drift/drift.dart' hide isNotNull, isNull;
@@ -357,6 +358,175 @@ void main() {
         closeTo((source.maxY - source.minY) / 2, 1e-3),
       );
       expect(viewModel.strokesFor(1).first.width, closeTo(0.004 / 2, 1e-6));
+    });
+  });
+
+  group('snap to shape', () {
+    void trace(List<Offset> corners) {
+      viewModel.startStroke(0, _p(corners.first.dx, corners.first.dy), _aspect);
+      for (var i = 1; i < corners.length; i++) {
+        for (var s = 1; s <= 10; s++) {
+          final at = Offset.lerp(corners[i - 1], corners[i], s / 10)!;
+          viewModel.appendPoint(_p(at.dx, at.dy), _aspect);
+        }
+      }
+    }
+
+    void traceRect() => trace(const [
+      Offset(0.3, 0.3),
+      Offset(0.6, 0.3),
+      Offset(0.6, 0.5),
+      Offset(0.3, 0.5),
+      Offset(0.3, 0.32),
+    ]);
+
+    test('a held line runs straight from its start to the pointer', () {
+      trace(const [Offset(0.2, 0.2), Offset(0.4, 0.33), Offset(0.6, 0.5)]);
+      expect(viewModel.snapToShape(pageWidth: 1000), isTrue);
+      viewModel.endStroke();
+
+      final points = viewModel.strokesFor(0).single.points;
+      expect(points.first.x, 0.2);
+      expect(points.first.y, 0.2);
+      expect(points.last.x, 0.6);
+      expect(points.last.y, 0.5);
+      for (final p in points) {
+        expect((p.y - 0.2) / 0.3, closeTo((p.x - 0.2) / 0.4, 1e-4));
+      }
+    });
+
+    test('the pointer keeps moving the end of a snapped line', () {
+      trace(const [Offset(0.2, 0.2), Offset(0.6, 0.5)]);
+      viewModel.snapToShape(pageWidth: 1000);
+      viewModel.appendPoint(_p(0.7, 0.8), _aspect);
+      viewModel.endStroke();
+
+      final points = viewModel.strokesFor(0).single.points;
+      expect(points.first.x, 0.2);
+      expect(points.last.x, 0.7);
+      expect(points.last.y, 0.8);
+    });
+
+    test('a nearly horizontal line becomes horizontal', () {
+      trace(const [Offset(0.2, 0.2), Offset(0.6, 0.5)]);
+      viewModel.snapToShape(pageWidth: 1000);
+      viewModel.appendPoint(_p(0.7, 0.203), _aspect);
+      viewModel.endStroke();
+
+      final points = viewModel.strokesFor(0).single.points;
+      expect(points.last.x, 0.7);
+      expect(points.every((p) => p.y == 0.2), isTrue);
+    });
+
+    test('a held rectangle takes the bounds of the stroke', () {
+      traceRect();
+      expect(viewModel.snapToShape(pageWidth: 1000), isTrue);
+      viewModel.endStroke();
+
+      final bounds = viewModel.strokesFor(0).single.bounds;
+      expect(bounds.minX, closeTo(0.3, 0.005));
+      expect(bounds.minY, closeTo(0.3, 0.005));
+      expect(bounds.maxX, closeTo(0.6, 0.005));
+      expect(bounds.maxY, closeTo(0.5, 0.005));
+    });
+
+    test('the pointer drags the nearest corner without a jump', () {
+      traceRect();
+      viewModel.snapToShape(pageWidth: 1000);
+      viewModel.appendPoint(_p(0.2, 0.22), _aspect);
+      viewModel.endStroke();
+
+      final bounds = viewModel.strokesFor(0).single.bounds;
+      expect(bounds.minX, closeTo(0.2, 0.005));
+      expect(bounds.minY, closeTo(0.2, 0.005));
+      expect(bounds.maxX, closeTo(0.6, 0.005));
+      expect(bounds.maxY, closeTo(0.5, 0.005));
+    });
+
+    test('a corner dragged past the fixed one flips the shape', () {
+      traceRect();
+      viewModel.snapToShape(pageWidth: 1000);
+      viewModel.appendPoint(_p(0.8, 0.72), _aspect);
+      viewModel.endStroke();
+
+      final bounds = viewModel.strokesFor(0).single.bounds;
+      expect(bounds.minX, closeTo(0.6, 0.005));
+      expect(bounds.minY, closeTo(0.5, 0.005));
+      expect(bounds.maxX, closeTo(0.8, 0.005));
+      expect(bounds.maxY, closeTo(0.7, 0.005));
+    });
+
+    test('an ellipse is resized by its bounding box', () {
+      viewModel.startStroke(0, _p(0.6, 0.4), _aspect);
+      for (var i = 1; i <= 58; i++) {
+        final a = 2 * pi * i / 60;
+        viewModel.appendPoint(
+          _p(0.4 + 0.2 * cos(a), 0.4 + 0.1 * sin(a)),
+          _aspect,
+        );
+      }
+      expect(viewModel.snapToShape(pageWidth: 1000), isTrue);
+      viewModel.endStroke();
+
+      final stroke = viewModel.strokesFor(0).single;
+      expect(stroke.bounds.minX, closeTo(0.2, 0.01));
+      expect(stroke.bounds.maxX, closeTo(0.6, 0.01));
+      expect(stroke.bounds.minY, closeTo(0.3, 0.01));
+      expect(stroke.bounds.maxY, closeTo(0.5, 0.01));
+      final center = Offset(
+        (stroke.bounds.minX + stroke.bounds.maxX) / 2,
+        (stroke.bounds.minY + stroke.bounds.maxY) / 2,
+      );
+      final rx = (stroke.bounds.maxX - stroke.bounds.minX) / 2;
+      final ry = (stroke.bounds.maxY - stroke.bounds.minY) / 2;
+      for (final p in stroke.points) {
+        final x = (p.x - center.dx) / rx;
+        final y = (p.y - center.dy) / ry;
+        expect(x * x + y * y, closeTo(1, 0.01));
+      }
+    });
+
+    test('an unrecognized stroke stays as drawn', () {
+      trace(const [Offset(0.2, 0.2), Offset(0.5, 0.2), Offset(0.5, 0.5)]);
+      expect(viewModel.snapToShape(pageWidth: 1000), isFalse);
+      viewModel.appendPoint(_p(0.2, 0.5), _aspect);
+      viewModel.endStroke();
+
+      final bounds = viewModel.strokesFor(0).single.bounds;
+      expect(bounds.minX, closeTo(0.2, 0.005));
+      expect(bounds.maxY, closeTo(0.5, 0.005));
+    });
+
+    test('only a pen stroke in progress can snap', () {
+      expect(viewModel.snapToShape(pageWidth: 1000), isFalse);
+
+      draw(0, const [Offset(0.2, 0.2), Offset(0.6, 0.5)]);
+      viewModel.setEraser();
+      viewModel.startStroke(0, _p(0.8, 0.8), _aspect);
+      viewModel.appendPoint(_p(0.9, 0.9), _aspect);
+      expect(viewModel.snapToShape(pageWidth: 1000), isFalse);
+      viewModel.endStroke();
+
+      viewModel.setLasso();
+      viewModel.startStroke(0, _p(0.8, 0.8), _aspect);
+      viewModel.appendPoint(_p(0.9, 0.9), _aspect);
+      expect(viewModel.snapToShape(pageWidth: 1000), isFalse);
+      viewModel.endStroke();
+      expect(viewModel.strokesFor(0), hasLength(1));
+    });
+
+    test('a snapped shape is one undo step and the next stroke is free', () {
+      traceRect();
+      viewModel.snapToShape(pageWidth: 1000);
+      viewModel.endStroke();
+      trace(const [Offset(0.1, 0.8), Offset(0.3, 0.9), Offset(0.1, 0.9)]);
+      viewModel.endStroke();
+      expect(viewModel.strokesFor(0), hasLength(2));
+      expect(viewModel.strokesFor(0).last.bounds.maxX, closeTo(0.3, 0.005));
+
+      viewModel.undo();
+      viewModel.undo();
+      expect(viewModel.strokesFor(0), isEmpty);
     });
   });
 

@@ -6,6 +6,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
@@ -33,7 +35,7 @@ class AnnotationSurface extends StatefulWidget {
 }
 
 class _AnnotationSurfaceState extends State<AnnotationSurface> {
-  static const double _tapSlop = 4;
+  static const double _tapSlop = 8;
 
   Size _size = Size.zero;
 
@@ -42,6 +44,29 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
   AnnotateViewModel? _drawing;
 
   Offset? _tapOrigin;
+
+  static const Duration _holdDelay = Duration(milliseconds: 1000);
+
+  // In on-screen pixels, wide enough for the jitter of a resting stylus.
+  static const double _holdSlop = 8;
+
+  Timer? _holdTimer;
+  Offset _holdOrigin = Offset.zero;
+
+  void _armHold(Offset position) {
+    _holdOrigin = position;
+    _holdTimer?.cancel();
+    _holdTimer = Timer(
+      _holdDelay,
+      () => _drawing?.snapToShape(pageWidth: _size.width),
+    );
+  }
+
+  @override
+  void dispose() {
+    _holdTimer?.cancel();
+    super.dispose();
+  }
 
   bool _isStylus(PointerDownEvent event) =>
       event.kind == PointerDeviceKind.stylus ||
@@ -84,6 +109,7 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
       _aspect,
       isTouch: event.kind == PointerDeviceKind.touch,
     );
+    _armHold(event.position);
   }
 
   void _onUpdate(PointerMoveEvent event) {
@@ -91,10 +117,18 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
     if (origin != null && (event.position - origin).distance > _tapSlop) {
       _tapOrigin = null;
     }
-    _drawing?.appendPoint(_normalize(event.localPosition), _aspect);
+    if ((event.position - _holdOrigin).distance > _holdSlop) {
+      _armHold(event.position);
+    }
+    _drawing?.appendPoint(
+      _normalize(event.localPosition),
+      _aspect,
+      pageWidth: _size.width,
+    );
   }
 
   void _onEnd() {
+    _holdTimer?.cancel();
     if (_tapOrigin != null) {
       _drawing?.cancelStroke();
     } else {

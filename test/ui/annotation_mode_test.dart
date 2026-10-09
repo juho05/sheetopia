@@ -137,6 +137,52 @@ void main() {
       expect(mode.viewModel!.strokesFor(0), hasLength(1));
     });
 
+    testWidgets("holding still snaps the stroke to a shape", (tester) async {
+      await pumpSurface(tester);
+      final gesture = await tester.startGesture(
+        const Offset(100, 100),
+        kind: PointerDeviceKind.stylus,
+      );
+      await gesture.moveBy(const Offset(60, 35));
+      await gesture.moveBy(const Offset(60, 45));
+      await tester.pump(const Duration(milliseconds: 900));
+      await gesture.moveBy(const Offset(3, 3));
+      await tester.pump(const Duration(milliseconds: 200));
+      await gesture.moveBy(const Offset(100, 0));
+      await gesture.up();
+      await tester.pump();
+
+      final size = tester.getSize(find.byType(AnnotationSurface));
+      final points = mode.viewModel!.strokesFor(0).single.points;
+      final slope = (183 - 100) / size.height / ((323 - 100) / size.width);
+      expect(points.last.x, closeTo(323 / size.width, 1e-4));
+      for (final p in points) {
+        expect(
+          p.y - points.first.y,
+          closeTo((p.x - points.first.x) * slope, 1e-4),
+        );
+      }
+    });
+
+    testWidgets("a stroke that keeps moving stays freehand", (tester) async {
+      await pumpSurface(tester);
+      final gesture = await tester.startGesture(
+        const Offset(100, 100),
+        kind: PointerDeviceKind.stylus,
+      );
+      for (var i = 0; i < 4; i++) {
+        await gesture.moveBy(const Offset(30, 10));
+        await tester.pump(const Duration(milliseconds: 800));
+      }
+      await gesture.moveBy(const Offset(0, 100));
+      await gesture.up();
+      await tester.pump();
+
+      final bounds = mode.viewModel!.strokesFor(0).single.bounds;
+      final size = tester.getSize(find.byType(AnnotationSurface));
+      expect(bounds.maxX, lessThan(230 / size.width));
+    });
+
     testWidgets("a finger does not enter", (tester) async {
       await pumpSurface(tester);
       final gesture = await tester.startGesture(const Offset(100, 100));
