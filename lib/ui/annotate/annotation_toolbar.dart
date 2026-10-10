@@ -9,6 +9,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:material_ui/material_ui.dart';
@@ -218,21 +219,31 @@ class _Toolbar extends StatelessWidget {
                 crossAxisAlignment: WrapCrossAlignment.center,
                 runSpacing: 4,
                 children: [
-                  IconButton(
-                    tooltip: !viewModel.drawMode
-                        ? "Move"
-                        : viewModel.lasso
-                        ? "Select"
-                        : "Draw",
-                    isSelected: viewModel.drawMode,
-                    onPressed: viewModel.toggleDrawMode,
-                    icon: Icon(
-                      !viewModel.drawMode
-                          ? Icons.back_hand
-                          : viewModel.lasso
-                          ? Symbols.lasso_select
-                          : Symbols.stylus,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: !viewModel.drawMode
+                            ? "Move"
+                            : viewModel.lasso
+                            ? "Select"
+                            : "Draw",
+                        isSelected: viewModel.drawMode,
+                        onPressed: viewModel.toggleDrawMode,
+                        icon: Icon(
+                          !viewModel.drawMode
+                              ? Icons.back_hand
+                              : CupertinoIcons.hand_draw_fill,
+                        ),
+                      ),
+                      if (!viewModel.lasso)
+                        IconButton(
+                          tooltip: "Select",
+                          onPressed: viewModel.setLasso,
+                          icon: const Icon(Symbols.lasso_select),
+                        ),
+                      const _SectionDivider(),
+                    ],
                   ),
                   if (viewModel.lasso)
                     _LassoTools(viewModel: viewModel, onPaste: onPaste)
@@ -245,6 +256,7 @@ class _Toolbar extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      const _SectionDivider(),
                       IconButton(
                         tooltip: "Undo",
                         icon: const Icon(Icons.undo),
@@ -283,6 +295,15 @@ class _Toolbar extends StatelessWidget {
   }
 }
 
+class _SectionDivider extends StatelessWidget {
+  const _SectionDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(height: 24, child: VerticalDivider(width: 12));
+  }
+}
+
 class _PenTools extends StatelessWidget {
   final AnnotateViewModel viewModel;
   final void Function(Offset globalPosition) onWidthPreview;
@@ -305,8 +326,16 @@ class _PenTools extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(width: 4),
-            for (final color in AnnotateViewModel.palette)
+            IconButton(
+              tooltip: viewModel.penType == PenType.pen ? "Pen" : "Marker",
+              onPressed: viewModel.togglePenType,
+              icon: Icon(
+                viewModel.penType == PenType.pen
+                    ? Symbols.stylus
+                    : Symbols.ink_highlighter,
+              ),
+            ),
+            for (final color in viewModel.palette)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 3),
                 child: GestureDetector(
@@ -345,16 +374,6 @@ class _PenTools extends StatelessWidget {
                         : null,
                   ),
                   child: const Icon(Symbols.ink_eraser, size: 20),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 3),
-              child: GestureDetector(
-                onTap: viewModel.setLasso,
-                child: const SizedBox.square(
-                  dimension: 26,
-                  child: Icon(Symbols.lasso_select, size: 20),
                 ),
               ),
             ),

@@ -18,6 +18,8 @@ import 'package:sheetopia/ui/annotate/stroke_outline.dart';
 
 enum AnnotateTool { pen, eraser, lasso }
 
+enum PenType { pen, marker }
+
 sealed class _UndoOp {
   final int pageIndex;
 
@@ -154,9 +156,19 @@ class AnnotateViewModel extends ChangeNotifier {
   static const int red = 0xFFFF0000;
   static const int blue = 0xFF2196F3;
   static const int green = 0xFF4CAF50;
-  static const int highlighterYellow = 0x88FFEB3B;
+  static const int black = 0xFF000000;
+  static const int markerYellow = 0x88FFEB3B;
+  static const int markerGreen = 0x8866BB6A;
+  static const int markerPink = 0x88FF4081;
+  static const int markerBlue = 0x8840C4FF;
 
-  static const List<int> palette = [red, blue, green, highlighterYellow];
+  static const Map<PenType, List<int>> palettes = {
+    PenType.pen: [red, blue, green, black],
+    PenType.marker: [markerYellow, markerGreen, markerPink, markerBlue],
+  };
+
+  static const double defaultPenWidth = 0.004;
+  static const double defaultMarkerWidth = 0.02;
 
   static const double minWidth = 0.0008;
   static const double maxWidth = 0.05;
@@ -226,7 +238,18 @@ class AnnotateViewModel extends ChangeNotifier {
   final List<_UndoOp> _undoStack = [];
   final List<_UndoOp> _redoStack = [];
 
-  int _colorValue = red;
+  PenType _penType = PenType.pen;
+
+  PenType get penType => _penType;
+
+  List<int> get palette => palettes[_penType]!;
+
+  final Map<PenType, int> _colors = {
+    PenType.pen: red,
+    PenType.marker: markerYellow,
+  };
+
+  int get _colorValue => _colors[_penType]!;
 
   int get colorValue => _colorValue;
 
@@ -238,7 +261,12 @@ class AnnotateViewModel extends ChangeNotifier {
 
   bool get lasso => _tool == AnnotateTool.lasso;
 
-  double _width = 0.004;
+  final Map<PenType, double> _widths = {
+    PenType.pen: defaultPenWidth,
+    PenType.marker: defaultMarkerWidth,
+  };
+
+  double get _width => _widths[_penType]!;
 
   double get width => _width;
 
@@ -289,8 +317,8 @@ class AnnotateViewModel extends ChangeNotifier {
   // AnnotatePage, which owns the pdfrx controller; null until it is ready.
   double? Function(int pageIndex)? pageAspect;
 
-  // Without pages they are loaded from the repository. The tools (color,
-  // width, clipboard) continue from toolsFrom.
+  // Without pages they are loaded from the repository. The tools (pen type,
+  // colors, widths, clipboard) continue from toolsFrom.
   AnnotateViewModel({
     required this._repo,
     required this._scoreId,
@@ -301,9 +329,10 @@ class AnnotateViewModel extends ChangeNotifier {
     bool? drawMode,
   }) : _drawMode = drawMode ?? toolsFrom?._drawMode ?? defaultDrawMode {
     if (toolsFrom != null) {
-      _colorValue = toolsFrom._colorValue;
+      _penType = toolsFrom._penType;
+      _colors.addAll(toolsFrom._colors);
       _tool = toolsFrom._tool;
-      _width = toolsFrom._width;
+      _widths.addAll(toolsFrom._widths);
       _clipboard = toolsFrom._clipboard;
     }
     if (pages != null) _addLoaded(pages, 0);
@@ -341,7 +370,12 @@ class AnnotateViewModel extends ChangeNotifier {
   }
 
   void setColor(int color) {
-    _colorValue = color;
+    _colors[_penType] = color;
+    _setTool(AnnotateTool.pen);
+  }
+
+  void togglePenType() {
+    _penType = _penType == PenType.pen ? PenType.marker : PenType.pen;
     _setTool(AnnotateTool.pen);
   }
 
@@ -383,7 +417,7 @@ class AnnotateViewModel extends ChangeNotifier {
       (log(_width / minWidth) / log(maxWidth / minWidth)).clamp(0.0, 1.0);
 
   void setWidthFraction(double t) {
-    _width = minWidth * pow(maxWidth / minWidth, t.clamp(0.0, 1.0));
+    _widths[_penType] = minWidth * pow(maxWidth / minWidth, t.clamp(0.0, 1.0));
     notifyListeners();
   }
 

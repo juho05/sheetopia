@@ -147,6 +147,35 @@ void main() {
     });
   });
 
+  group('pen type', () {
+    test('color and width are kept per pen type', () {
+      expect(viewModel.penType, PenType.pen);
+      viewModel.setColor(AnnotateViewModel.blue);
+      viewModel.setWidthFraction(0);
+
+      viewModel.togglePenType();
+      expect(viewModel.penType, PenType.marker);
+      expect(viewModel.colorValue, AnnotateViewModel.markerYellow);
+      expect(viewModel.width, AnnotateViewModel.defaultMarkerWidth);
+      viewModel.setColor(AnnotateViewModel.markerPink);
+      viewModel.setWidthFraction(1);
+
+      viewModel.togglePenType();
+      expect(viewModel.colorValue, AnnotateViewModel.blue);
+      expect(viewModel.width, closeTo(AnnotateViewModel.minWidth, 1e-9));
+
+      viewModel.togglePenType();
+      expect(viewModel.colorValue, AnnotateViewModel.markerPink);
+      expect(viewModel.width, closeTo(AnnotateViewModel.maxWidth, 1e-9));
+    });
+
+    test('toggling leaves the eraser', () {
+      viewModel.setEraser();
+      viewModel.togglePenType();
+      expect(viewModel.tool, AnnotateTool.pen);
+    });
+  });
+
   group('move', () {
     test('shifts the strokes and keeps their z-order', () {
       draw(0, const [Offset(0.3, 0.3), Offset(0.4, 0.4)]);
