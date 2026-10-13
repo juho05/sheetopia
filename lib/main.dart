@@ -35,6 +35,7 @@ import 'package:sheetopia/ui/score/chrome/play_session.dart';
 import 'package:sheetopia/utils/full_screen.dart';
 import 'package:sheetopia/utils/receive_drop.dart';
 import 'package:sheetopia/utils/score_file.dart';
+import 'package:sheetopia/utils/week_start.dart';
 import 'package:sheetopia/window_listener.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -249,6 +250,9 @@ class _AppState extends State<App> {
           debugShowCheckedModeBanner: false,
           restorationScopeId: "app",
           routerConfig: goRouter,
+          localizationsDelegates: const [
+            RegionalMaterialLocalizations.delegate,
+          ],
           // flutter_colorpicker still uses package:flutter/material.dart
           builder: (context, child) =>
               // ignore: deprecated_member_use
