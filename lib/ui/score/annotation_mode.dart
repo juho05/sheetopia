@@ -169,7 +169,7 @@ class AnnotationMode extends ChangeNotifier {
 
   @override
   void dispose() {
-    _viewModel?.saveAll();
+    _viewModel?.saveAll().whenComplete(_viewModel!.dispose);
     transform.dispose();
     super.dispose();
   }
