@@ -91,6 +91,7 @@ void main() {
       "rx_channel",
       "setup_channel",
       "disconnect_channel",
+      "battery_channel",
     ]) {
       binding.defaultBinaryMessenger.setMockStreamHandler(
         EventChannel("$_midiChannel/$suffix"),
