@@ -1023,21 +1023,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.5.2+1"
-  permission_handler_platform_interface:
-    dependency: transitive
-    description:
-      name: permission_handler_platform_interface
-      sha256: ed86a61c190258fdd65de395ea0632822e3415c1faec38eae0c31b479c28a531
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.4.1"
-  permission_handler_windows:
-    dependency: "direct overridden"
-    description:
-      path: "dependency_overrides/stubs/permission_handler_windows"
-      relative: true
-    source: path
-    version: "0.0.0"
   petitparser:
     dependency: transitive
     description:
