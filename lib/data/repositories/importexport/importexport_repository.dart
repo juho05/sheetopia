@@ -13,6 +13,7 @@ import 'dart:ui';
 
 import 'package:archive/archive_io.dart';
 import 'package:drift/drift.dart';
+import 'package:file_picker/file_picker.dart' as fp;
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
@@ -32,8 +33,8 @@ import 'package:sheetopia/data/services/sync/models/exercise_categories.dart';
 import 'package:sheetopia/data/services/sync/models/exercise_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/exercises.dart';
 import 'package:sheetopia/data/services/sync/models/optional_values.dart';
-import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
 import 'package:sheetopia/data/services/sync/models/practice_records.dart';
+import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/setlists.dart';
@@ -414,8 +415,17 @@ class ImportExportRepository extends ChangeNotifier {
 
           await dir.delete(recursive: true);
 
-          if (Platform.isIOS || Platform.isAndroid) {
-            // TODO provide an option for android users to save file locally
+          if (Platform.isAndroid) {
+            final result = await fp.FilePicker.saveFile(
+              fileName: fileName,
+              bytes: await zipFile.readAsBytes(),
+              mimeType: "application/zip",
+              dialogTitle: "Export library",
+            );
+            return result != null;
+          }
+
+          if (Platform.isIOS) {
             final result = await SharePlus.instance.share(
               ShareParams(
                 title: "Export scores",
