@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=E2E desktop setup
+Exec=/usr/local/bin/e2e-desktop-setup
+NoDisplay=true

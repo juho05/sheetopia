@@ -27,6 +27,7 @@ class Toast {
         showCloseIcon: true,
       ),
     );
+    Log.debug("Toast: $message");
   }
 
   static void exception(

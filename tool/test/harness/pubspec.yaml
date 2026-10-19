@@ -1,0 +1,20 @@
+name: sheetopia_e2e
+description: "Command line tools of the Sheetopia E2E test harness."
+publish_to: 'none'
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  archive: ^4.0.9
+  args: ^2.7.0
+  crypto: ^3.0.6
+  flutter_driver:
+    sdk: flutter
+  image: ^4.12.0
+  path: ^1.9.1
+  pointycastle: ^4.0.0
+  yaml: ^3.1.3
+
+dev_dependencies:
+  lints: ^6.0.0

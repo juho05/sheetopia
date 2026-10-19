@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=E2E Browser
+Comment=Records opened URLs for the Sheetopia E2E tests
+Exec=/usr/local/bin/e2e-open-url %u
+MimeType=x-scheme-handler/http;x-scheme-handler/https;text/html;
+NoDisplay=true

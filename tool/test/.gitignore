@@ -1,0 +1,5 @@
+# Run directories (builds, VM state, screenshots, reports).
+runs/
+# Machine specific secrets and paths, see local.env.example.
+local.env
+harness/.dart_tool/

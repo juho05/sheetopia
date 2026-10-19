@@ -1,0 +1,606 @@
+# Sheetopia E2E test plan.
+#
+# Read by the orchestrator (harness/bin/e2e.dart) and the harness scripts.
+# Every run copies this file into its run directory, so editing it during a
+# run is harmless.
+#
+# Two machines share this plan and run it independently: a Mac tests macOS
+# (tart VM) and iOS (simulator), an x86_64 Linux machine tests Linux (desktop
+# container), Android (emulator) and runs the feature suite. Each host only
+# runs the platforms whose `host` it is.
+#
+# Tests are written for the agents that execute them: say what to do and what
+# must be true afterwards, the agent figures out the clicks. Each test has an
+# `id` (stable, used in reports), a `test` description and optionally
+# `enabled: false`.
+#
+# Rule for platform_features: platform-dependent behaviour that comes from a
+# third-party package/plugin or from a platform branch in Sheetopia's own code
+# runs on EVERY platform where it exists (`via` names the source; leaving a
+# platform out needs a reason in `excluded`). Flutter's own behaviour (text
+# input, clipboard, pointer delivery, relayout, state restoration, system
+# back) isn't tested. The feature suite covers the app's logic once.
+#
+# Override anything for a single run without editing this file by passing
+# `--set` to the orchestrator, e.g. `--set platforms.android.enabled=false`.
+
+run:
+  # Environments running at the same time on one host, one agent each.
+  # Mac: macOS VM (8 GB) + iOS simulators (~2 GB each).
+  # Linux: desktop container (light) + Android emulator (~3 GB).
+  max_parallel_environments: 2
+  # Tests per agent. Each agent starts from the restored starting state, and
+  # an agent's cost grows with the square of its length: keep it small.
+  tests_per_agent: 2
+
+build:
+  # Release the old→new update test starts from: "latest" (newest published
+  # GitHub release) or a tag like v0.7.0.
+  previous_release: latest
+  # Local checkouts used instead of the git refs in pubspec.yaml for the build
+  # under test, for testing unpublished changes in dependencies. Remove an
+  # entry to build with the pinned ref. Paths are per machine: an entry whose
+  # path doesn't exist on a host fails the run there.
+  local_packages:
+  #flutter_system_integration: ~/Code/Flutter/flutter_system_integration
+  # The imaginary next release for the final update test: the same commit with
+  # this part of the version bumped.
+  next_version_bump: patch
+
+platforms:
+  macos:
+    host: macos
+    enabled: true
+    vm: { cpus: 4, memory_gb: 8 }
+  ios:
+    host: macos
+    enabled: true
+    # Simulator device types. The tablet is used for iPad-only behaviour
+    # (Split View drag and drop, large layouts).
+    devices: { phone: "iPhone 17", tablet: "iPad Pro 11-inch (M5)" }
+  linux:
+    host: linux
+    enabled: true
+  android:
+    host: linux
+    enabled: true
+
+phases:
+  build:
+    enabled: true
+  old_to_new_update:
+    # Previous release → build under test, through the in-app updater.
+    # Needs a previous release that supports SHEETOPIA_GITHUB_API_URL /
+    # debug.sheetopia.github_api_url (any release after v0.7.0).
+    enabled: false
+  platform_features:
+    enabled: true
+  feature_suite:
+    # Full feature suite, Linux host only (desktop container, profile build
+    # with the driver).
+    enabled: true
+  new_to_next_update:
+    # Build under test → imaginary next version, through the in-app updater.
+    enabled: true
+
+demo_library:
+  # The demo library is generated fresh for every run with
+  # tool/demo_library/build.py --now <run start>.
+  rebuild_scores: false   # true re-engraves all LilyPond scores (slow)
+
+data_verification:
+  # Fields allowed to differ between the baseline export and the export after
+  # an update (pattern syntax: harness/bin/export_diff.dart).
+  ignore_fields: [ ]
+
+# Update tests (old→new and new→next) run on these platforms. iOS has no
+# in-app updater (App Store), Linux tests the AppImage (the tar.gz has none).
+update_platforms: [ macos, linux, android ]
+
+update_checks:
+  - id: update.dialog
+    test: >-
+      After launch with the fake GitHub serving the newer version, the "New
+      version available" dialog shows "Current: v<old>" and "Latest: v<new>"
+      with Ignore, Remind later, View and Install (adaptive: Cupertino style
+      on macOS).
+  - id: update.view
+    test: >-
+      "View" opens the fake server's releases page in the system browser
+      (Linux: recorded in ~/e2e/opened-urls.log).
+  - id: update.install
+    test: >-
+      Install downloads the platform's asset from the fake server (check its
+      request log), shows progress, installs and restarts into the new version.
+      On Android, allow "install unknown apps" when asked and confirm the
+      system installer.
+  - id: update.success_toast
+    test: >-
+      After the restart the toast "Successfully updated to v<new>!" appears
+      once (the app log has its `Toast:` entry, see the update guide),
+      Settings > About shows the new version, and the update dialog does not
+      reappear.
+  - id: update.data
+    test: >-
+      All data survived: the library, setlists, practice routines, statistics
+      and annotations look as before, the settings changed before the update
+      are unchanged, and an export diffs clean against the baseline export.
+  - id: update.no_dialog_when_current
+    test: >-
+      With the fake server serving only the installed version, "Check now" in
+      Settings > Version Checking reports no new version.
+  - id: update.ignore_remind
+    test: >-
+      Ignore suppresses that version (toast, no dialog on the next start);
+      Remind later shows it again once a day has passed (move the clock or
+      check the stored timestamp) and Check now always finds it.
+
+# Platform dependent tests (see the rule at the top). Each runs on all listed
+# platforms: macOS in the VM, iOS in the simulator(s), Linux in the desktop
+# container, Android in the emulator, with real input and system UI.
+platform_features:
+  - id: launch.cold_start
+    platforms: [ macos, linux, android, ios ]
+    via: platform builds, plugin registration
+    test: >-
+      The app starts without errors, shows the library, and Settings > Debug >
+      View logs has no Error/Fatal entries from startup.
+  - id: launch.linux_targz
+    platforms: [ linux ]
+    excluded: tar.gz is a Linux-only package
+    via: release packaging
+    test: >-
+      The tar.gz bundle extracts and its `sheetopia` binary starts and shows the
+      library. It does not offer AppImage integration or auto updates.
+  - id: import.file_picker
+    platforms: [ macos, linux, android, ios ]
+    via: file_selector (desktop), file_picker (mobile), lib/file_picker.dart
+    test: >-
+      Library FAB > Import files opens the native picker, which only offers
+      PDFs. One PDF: the import page opens with it and saving a title adds it
+      to the library. Three PDFs at once: Next/Next/Done imports all. Same for
+      Edit exercise > Import score (iOS/Android first ask Files or Scan).
+      Cancelling changes nothing and shows no error. Where the picker lets you
+      choose them (renamed/"all files"), fake.pdf and corrupt.pdf give a clear
+      error and import nothing from that batch.
+  - id: import.drag_and_drop
+    platforms: [ macos, linux, android, ios ]
+    via: desktop_drop, lib/ui/common/drop_area.dart
+    test: >-
+      Drag PDFs from the system file manager onto the app: one PDF (library:
+      "Drop to import" scrim, then the import page), several PDFs, a non-PDF,
+      a mix of valid and invalid (nothing imported, "Unsupported file type!"),
+      dropping onto the Practice tab and the Exercises page (several files
+      ask Separate/Single exercises) and onto Edit exercise > scores. The
+      Setlists tab and a drop while a dialog is open are ignored.
+      macOS: Finder → app window. Linux: Thunar → app window. Android: split
+      screen with the Files app, long-press drag. iOS: iPad simulator
+      (`--sim tablet`), Split View or Slide Over with Files, drag.
+  - id: share.receive
+    platforms: [ android, ios ]
+    excluded: desktop apps don't receive shares
+    via: flutter_sharing_intent (fork), lib/main.dart, share_inbox.dart
+    test: >-
+      Share from the Files app into Sheetopia: one PDF ("Import as"
+      Score → import page; Exercise → exercise editor with the score), three
+      PDFs (Score: all through the import page; Exercise: Separate creates
+      three, Single one exercise with three scores), invalid files
+      (notes.txt, image.png, fake.pdf, corrupt.pdf: clear error, nothing
+      half-imported) and a mix of valid and invalid (nothing imported, error
+      toast). Do it with the app running on another page (score, exercise)
+      and with the app not running (cold start). iOS: the shared copies are
+      cleaned up from the share inbox afterwards.
+  - id: share.send
+    platforms: [ macos, android, ios ]
+    excluded: Linux has no share action, it saves files instead (export.save_dialog)
+    via: share_plus, edit_score_preview.dart, edit_exercise_scores.dart, logs_page.dart, importexport_repository.dart
+    test: >-
+      Every share action opens the system share sheet with the right file:
+      the score PDF from Edit score and from the Edit exercise score menu
+      (Android/iOS, named after the title; Android: Edit score share menu >
+      Share), the export .zip (iOS only), the full and the filtered log
+      (.txt, all three). macOS only has the log share. Complete one share per
+      kind (save to Files / share back into Sheetopia) and check the received
+      file. Dismissing the sheet shows no success message. On iPad the sheet
+      is anchored to its button.
+  - id: export.save_dialog
+    platforms: [ macos, linux, android ]
+    excluded: iOS has no save dialog, it shares instead (share.send)
+    via: file_selector getSaveLocation (desktop), file_picker saveFile (Android), score_file.dart, importexport_repository.dart, logs_page_viewmodel.dart
+    test: >-
+      Save score PDF (Edit score save button; Android: share menu > Export),
+      Edit exercise score menu > Export, Export .zip (Settings >
+      Import/Export) and Save log (Debug > logs, Linux/Android only, macOS
+      shares instead) use the native save dialog with a sensible default
+      file name (<title>.pdf, sheetopia-export-<date>.zip,
+      sheetopia-logs_<date>.txt), the files land where chosen and are
+      complete. Cancelling shows no success toast.
+  - id: import.archive
+    platforms: [ macos, linux, android, ios ]
+    via: file_selector openFile, importexport_page.dart
+    test: >-
+      Settings > Import/Export > Import: a valid export imports ("Import
+      successful!"); archive.zip, no-marker.zip and notes.txt show "The
+      selected file is not a valid sheetopia archive!". Where the picker
+      greys out non-zip files (Android), notes.txt not being selectable
+      passes.
+  - id: shortcuts.platform_modifier
+    platforms: [ macos, linux ]
+    excluded: >-
+      the Apple/other branch is the same on mobile, macOS and Linux cover both
+      sides; key delivery from hardware keyboards is Flutter's
+    via: selection_shortcuts.dart, selection_gestures.dart, annotation_toolbar.dart (Cmd on Apple, Ctrl elsewhere)
+    test: >-
+      Select all in the library, setlists, routines, exercises and practice
+      records, modifier+click to start a selection and Shift+click range
+      select, undo/redo in
+      annotations use Cmd on macOS and Ctrl on Linux, and the other modifier
+      does nothing.
+  - id: annotate.default_mode
+    platforms: [ macos, linux, android, ios ]
+    via: annotate_viewmodel.dart (draw mode on desktop, move mode on mobile)
+    test: >-
+      Opening Edit score > Annotate starts in Draw mode on macOS/Linux and in
+      Move mode on Android/iOS; drawing with the platform's primary input
+      (mouse/finger) behaves accordingly.
+  - id: ui.platform_adaptive
+    platforms: [ macos, linux, android, ios ]
+    via: adaptive_dialog_action.dart, menu_button.dart, home_viewmodel.dart, import_source_dialog.dart
+    test: >-
+      Confirmation dialogs (delete score, delete setlist, update available
+      through a fake GitHub serving a newer release) use Cupertino actions on
+      macOS/iOS and Material buttons elsewhere, and they work. Popup menus use the compact item height on desktop. "Scan
+      pages" appears only on Android/iOS (FAB menu, import source dialog).
+  - id: links.external
+    platforms: [ macos, linux, android, ios ]
+    via: url_launcher
+    test: >-
+      A score source link, an exercise source link (editor and the practice
+      start overlay), About > GitHub and Privacy policy open in the system
+      browser (Linux: check ~/e2e/opened-urls.log); the app stays
+      usable and returning to it keeps its state.
+  - id: theme.linux_portal
+    platforms: [ linux ]
+    excluded: only Linux reads the system theme through Sheetopia's own code (DBus portal), elsewhere it's Flutter's
+    via: theme_manager.dart, org_freedesktop_portal_settings.dart
+    test: >-
+      Appearance > Theme System follows the desktop portal's color scheme,
+      also when it changes while the app runs; Light and Dark override it;
+      without a portal the app falls back without errors.
+  - id: locale.week_start_linux
+    platforms: [ linux ]
+    excluded: only Linux has Sheetopia's own POSIX locale lookup, elsewhere the locale comes from Flutter
+    via: week_start.dart
+    test: >-
+      Practice statistics weeks start on Monday with LC_TIME=de_DE.UTF-8 and
+      on Sunday with LC_TIME=en_US.UTF-8 (LANG unchanged), also when only
+      LC_ALL is set.
+  - id: viewer.fullscreen
+    platforms: [ macos, linux ]
+    excluded: mobile has no window fullscreen, see viewer.immersive
+    via: flutter_fullscreen, window_manager, full_screen.dart, play_session.dart
+    test: >-
+      In the score viewer, setlist play, routine play and exercise play F/F11
+      and the fullscreen button toggle real window fullscreen, Esc leaves it,
+      the overlay hides after 3s and the cursor hides with it. Leaving the
+      viewer exits fullscreen (except on macOS, where it intentionally stays,
+      with the back button visible while the overlay shows).
+  - id: viewer.immersive
+    platforms: [ android, ios ]
+    excluded: desktop has window fullscreen instead, see viewer.fullscreen
+    via: full_screen.dart setImmersive, play_session.dart
+    test: >-
+      The viewer (and setlist/routine/exercise play) hides the system bars;
+      leaving restores them, also when leaving via system back or a
+      notification.
+  - id: viewer.keep_awake
+    platforms: [ macos, linux, android, ios ]
+    via: wakelock_plus, play_session.dart
+    test: >-
+      While a score is open the display doesn't sleep: macOS `pmset -g
+      assertions`, Linux the screensaver inhibition over D-Bus, Android
+      `dumpsys power | grep -i wake`, iOS best effort (say how you checked).
+      Leaving the viewer releases it.
+  - id: window.close
+    platforms: [ macos, linux ]
+    excluded: mobile apps have no close button
+    via: window_manager setPreventClose, window_listener.dart, app_shutdown.dart
+    test: >-
+      Closing the window (close button, Cmd+Q / Alt+F4) while a score is open
+      and while an import is half done exits cleanly; the next start shows the
+      library with all data and no broken scores. Files of a half done import
+      wizard are kept as scores with their file names as titles, that is
+      intended.
+  - id: lifecycle.practice_timer
+    platforms: [ macos, linux, android, ios ]
+    via: practice_timer.dart (mobile stops ticking and checks the gap on return, desktop keeps counting)
+    test: >-
+      Start an exercise without a target duration, send the app to the
+      background for a minute (home on mobile, minimise/hide on desktop) and
+      return: on both the minute away is counted without asking. Background
+      it again, move the clock forward by >10 min and return: mobile shows the
+      "Stopwatch left running" recovery with sensible counts, desktop just
+      counted on. Ending the app mid-exercise resumes it on the next start,
+      both by killing it and by closing it normally (close button, Cmd+Q /
+      Alt+F4 on desktop, swiping it away from the recent apps on mobile).
+      Ending it either way and starting again after >10 min (move the clock,
+      or wait if it can't be moved) shows the recovery instead, on all
+      platforms.
+  - id: midi.virtual_device
+    platforms: [ macos, linux, ios ]
+    excluded: the Android emulator has no MIDI devices
+    via: flutter_midi_command (fork), midi_repository.dart
+    test: >-
+      Create a virtual MIDI source (see the platform guide). Settings > Page
+      Turning > MIDI devices lists it; connect it, map "Next page" to a note
+      and "Prev page" to a CC via learn mode. In a multi-page score the mapped
+      messages turn pages both ways, a held CC turns only once. The mapping
+      survives an app restart and the device reconnects (listed under
+      Remembered while away); Disconnect and Forget remove the mapping and
+      stop the reconnecting.
+  - id: midi.bluetooth_unavailable
+    platforms: [ macos, linux, android, ios ]
+    via: flutter_midi_command, midi_repository.dart
+    test: >-
+      Without Bluetooth the MIDI page still lists wired/virtual devices, no
+      crash and no error in the log. A denied permission shows the "Bluetooth
+      permission denied" toast at start. Android: deny, then allow the "nearby
+      devices" permission; macOS: deny, then allow the Bluetooth prompt.
+  - id: storage.credentials
+    platforms: [ macos, linux, android, ios ]
+    via: flutter_secure_storage, dbus_secrets (Linux), encrypted_storage_*.dart, sync_dialog_viewmodel.dart
+    test: >-
+      The sync dialog validates URLs ("invalid URI"; plain http:// to a
+      non-local host is rejected on iOS/macOS only) and an unreachable server
+      shows an error without crashing. Credential storage needs a sync
+      server and is not tested yet.
+  - id: appimage.integration
+    platforms: [ linux ]
+    excluded: AppImage is Linux-only
+    via: flutter_system_integration AppImage integration, integrate_appimage.dart
+    test: >-
+      Starting the AppImage from ~/Downloads asks "Integrate AppImage?".
+      Later → asked again next start. Yes → the AppImage moves to
+      ~/.local/bin/sheetopia, a .desktop file with icon is created, the app
+      restarts from there and shows in the Xfce menu with the right icon.
+      Settings > AppImage Integration shows it integrated, Re-Integrate works.
+      No → never asked again. SHEETOPIA_DISABLE_APPIMAGE_INTEGRATION=1
+      suppresses the prompt.
+  - id: scan.unavailable
+    platforms: [ android, ios ]
+    excluded: scanning is mobile-only
+    via: cunning_document_scanner, home_viewmodel.dart, edit_exercise_viewmodel.dart
+    test: >-
+      "Scan pages" (FAB menu, Edit exercise > Import score > Scan) opens the
+      scanner or fails with "Failed to scan score!" without crashing (the
+      emulator/simulator camera is fake or missing).
+
+# Full feature suite, Linux host only (desktop container, profile build with
+# the driver). Covers the app's own logic once; everything platform dependent
+# is in platform_features. Driven like a user, including edge cases. Linux
+# shortcuts use Ctrl.
+# `inputs` lists the pointer kinds to exercise where it matters (the driver
+# can send touch, stylus, mouse and trackpad).
+feature_suite:
+  - area: Library
+    tests:
+      - id: library.overview
+        test: >-
+          In the starting state (check before opening any score, opening one
+          moves it to the front) the demo library shows all scores, most
+          recently touched first, the Bach prelude first, with thumbnails,
+          composer, instrument and tag badges and the "N scores" count. All
+          demo scores have a composer, a score without one (e.g. freshly
+          imported) shows "No composer".
+      - id: library.search
+        test: >-
+          Search by title and composer, case and diacritics insensitive
+          ("frederic" finds Frédéric Chopin, "fur elise" finds "Für Elise");
+          count shows "X of Y"; no match shows "No scores found.".
+      - id: library.filter
+        test: >-
+          Filter by composer, source, instruments, genres and tags, combined
+          with search; instruments, genres and tags each match Any, All or
+          Exact; the active indicator shows; Clear resets.
+      - id: library.selection
+        test: >-
+          Long-press starts selection (touch), Ctrl+click starts it (mouse),
+          Shift+click selects a range, Ctrl+A selects all filtered (not while
+          typing in search), Esc and back clear it.
+      - id: library.bulk_edit
+        test: >-
+          On a selection: edit composer, source, instruments (add and remove),
+          genres, tags, add to setlist, delete (with confirmation and "Deleted
+          N scores"). Each change is visible afterwards.
+      - id: library.fab_scroll
+        test: The FAB hides when scrolling down and returns when scrolling up.
+  - area: Import and edit score
+    tests:
+      - id: edit.import_flow
+        test: >-
+          Import two PDFs: Next then Done, the title is required (empty title
+          is not saved), autosave keeps edits without an explicit save.
+      - id: edit.metadata
+        test: >-
+          Edit title, composer (autocomplete), source with link (an invalid
+          link shows "Must be an http(s) link"), instruments, genres, notes.
+          Changes show in the library and survive a restart.
+      - id: edit.tags
+        test: >-
+          Create, rename, recolour and delete tags in the tag selector; deleting
+          removes the tag from scores.
+      - id: edit.change_file
+        test: >-
+          Change file to another PDF updates the preview and thumbnail;
+          changing to a non-PDF shows an error and keeps the old file (known
+          risk: changeFile has no error handling).
+      - id: edit.delete
+        test: Delete asks for confirmation and removes the score everywhere, incl. setlists.
+      - id: edit.two_pane
+        test: Below 900px the editor shows Metadata/File tabs, above it two panes.
+  - area: Score viewer
+    tests:
+      - id: viewer.page_turn_inputs
+        inputs: [ touch, mouse, stylus, keyboard ]
+        test: >-
+          Turn pages by tapping the right/left half (touch and mouse), mouse
+          wheel, arrow keys, PageUp/PageDown, Space, Enter, Backspace. A stylus
+          touch does NOT turn the page but enters annotation mode. Wide windows
+          show several pages side by side, the last spread aligns to the end.
+      - id: viewer.settings
+        test: >-
+          "Flash on page turn" flashes green/orange; "Gradual page turns" turns
+          half pages with a draggable split handle.
+      - id: viewer.broken_pdf
+        test: A damaged PDF shows "This PDF could not be opened." instead of crashing.
+      - id: viewer.last_opened
+        test: Opening a score moves it to the front of the library.
+  - area: Annotations
+    tests:
+      - id: annotate.enter
+        inputs: [ stylus, keyboard, touch ]
+        test: >-
+          Enter annotation mode in the viewer with A and with a stylus touch
+          (stylus touch in the bottom third puts the toolbar at the top, and
+          the entering tap leaves no dot). A stylus entry starts in Move mode,
+          A in the platform default; pen, colour and width carry over to the
+          next entry. A again, Esc and Done leave it. Also works in setlist,
+          routine and exercise play. On touch-only: the pencil on a library
+          card opens Edit score, its Annotate button (bottom left of the
+          preview) opens the annotate page. The viewer itself has no Edit
+          menu.
+      - id: annotate.stylus_vs_touch
+        inputs: [ stylus, touch, mouse, trackpad ]
+        test: >-
+          In Move mode: stylus draws, finger and mouse pan/zoom, trackpad
+          always navigates, and while a stylus draws a finger can pan. In Draw
+          mode: finger and mouse draw too and don't pan. A second finger
+          landing cancels an in-progress finger stroke (pinch) but never a
+          stylus stroke. Default mode is Draw on desktop. A finger panning
+          while a stylus draws moves the page under the stylus, so the stroke
+          follows the page, not the screen path.
+      - id: annotate.tools
+        test: >-
+          Pen and marker in every colour, width slider, eraser (also with an
+          inverted stylus), lasso select with delete/cut/copy/paste, shape
+          snapping when holding still for 1s, Clear all with confirmation
+          (and it can't be undone).
+      - id: annotate.undo_redo
+        inputs: [ keyboard, touch ]
+        test: >-
+          Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y; two-finger tap undo and three-finger
+          tap redo (touch only, not when the fingers move).
+      - id: annotate.zoom_pan
+        test: Ctrl+wheel and pinch zoom up to 8x, wheel pans; strokes stay where drawn.
+      - id: annotate.persistence
+        test: >-
+          Annotations save on page turn, exit and back; they reappear after a
+          restart (also when quitting from the annotate page) and in the
+          thumbnail-less viewer; the demo scores' existing annotations render
+          correctly.
+  - area: Setlists
+    tests:
+      - id: setlists.crud
+        test: >-
+          Create (empty name not allowed), rename via menu and title, delete
+          with the confirmation text that scores are kept, search, bulk delete.
+      - id: setlists.entries
+        test: >-
+          Add scores (dialog Add disabled until selection), reorder by drag,
+          remove, play from an entry; empty setlist shows "This setlist is
+          empty." and Play is disabled.
+      - id: setlists.play
+        test: >-
+          Playing turns across score boundaries with the spill page, swipe up
+          (a fast fling) opens the sequence sheet to jump, the bubble shows
+          name and position.
+  - area: Practice
+    tests:
+      - id: practice.routines
+        test: >-
+          Create, edit (add exercises, also "Create from score" in the add
+          dialog, reorder, target minutes digits only, default score),
+          duplicate, delete routines (the exercises stay); bulk duplicate
+          and delete; search and filter (instrument, source, tags); detail
+          page shows progress and Start over works. The "Practiced today"
+          card opens the statistics.
+      - id: practice.exercises
+        test: >-
+          Create exercises with import/link scores (drag and drop too), edit
+          score titles (empty shows "Title is required"), reorder scores,
+          View opens a score for annotating, Change file to a non-PDF shows
+          "Unsupported file type!", unlink library scores vs delete owned
+          scores, exercise tags, categories (create, rename to an existing
+          name shows an error, reorder, delete), the list grouped by
+          category, filter (category, instrument, source, tags), bulk edit
+          (category, instrument, source, tags, delete), add to routine.
+      - id: practice.play
+        test: >-
+          Play a routine: start overlay, stopwatch pause/resume, prev/next,
+          score selector, finishing records time. Esc/F/F11 shortcuts. Playing
+          an exercise standalone (Exercises > exercise > Play) that already
+          has standalone time offers "Practice again" next to Resume in its
+          start overlay: it counts from zero and the time so far stays
+          recorded. Time from routines doesn't count, and routine play never
+          offers it.
+      - id: practice.resume_after_restart
+        test: >-
+          Quit while an exercise runs and remove that exercise while the app
+          is closed (e.g. sqlite3 on the database): on the next start nothing reopens, the dangling
+          record is stopped at its last checkpoint and statistics show no
+          runaway time (resuming itself is lifecycle.practice_timer).
+      - id: practice.statistics
+        test: >-
+          Demo statistics: current streak 12 days, a longer best streak,
+          busier weekends, quiet Fridays; Week/Month/3 months/Year, period
+          arrows and picker, Today; Top exercises opens Practiced exercises,
+          Records opens the records list.
+      - id: practice.exercise_statistics
+        test: >-
+          Practiced exercises: 7 days/30 days/90 days/Year/All change the
+          totals and order, search filters ("No matching exercises."),
+          time of a deleted exercise stays listed as "Deleted exercise".
+      - id: practice.records
+        test: >-
+          Add a record (validation: future start, future end, different day,
+          zero duration rejected), edit one, delete one and several, "Deleted
+          exercise" for orphaned records. A running record shows "Running"
+          and can't be edited or selected.
+  - area: Settings and data
+    tests:
+      - id: settings.appearance
+        test: Theme System/Light/Dark switches immediately and persists.
+      - id: settings.page_turning
+        test: Flash and gradual switches persist across a restart.
+      - id: settings.version_checking
+        test: >-
+          The switch disables the startup check (Check now, Ignore and Remind
+          later are covered by the update checks).
+      - id: settings.debug_logs
+        test: >-
+          Log level changes; logs page filters by level, chooses sessions,
+          shows details with copy buttons, saves full and filtered logs.
+      - id: settings.about
+        test: About shows the right version and licenses (incl. Roboto).
+      - id: data.export_import_roundtrip
+        test: >-
+          Export, Delete local data (confirmation text, everything gone,
+          "Successfully deleted all local data!"), import the export: the
+          library is complete again and export_diff against the first export
+          matches.
+      - id: data.reimport_merges
+        test: >-
+          Importing the demo library again does not duplicate anything; a
+          locally newer score is not overwritten by the older archive.
+  - area: Robustness
+    tests:
+      - id: robust.navigation
+        test: >-
+          Back arrows everywhere return sensibly; Esc closes dialogs and leaves
+          fullscreen, annotation and selection mode (it doesn't leave pages);
+          system back (driver `back`) on a non-library tab goes to Library;
+          deep pages survive window resizes.
+      - id: robust.large_library
+        test: >-
+          Import ~40 PDFs at once (duplicate the demo PDFs): infinite scroll,
+          search and selection stay responsive.

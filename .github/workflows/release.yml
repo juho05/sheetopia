@@ -38,6 +38,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Create or update draft release
+        if: ${{ !env.ACT }}
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: v${{ steps.get_version.outputs.version }}
@@ -117,6 +118,12 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
+      - name: Set up Android SDK (act only)
+        if: ${{ env.ACT }}
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
       - uses: ./.github/actions/flutter-setup
         with:
           working-directory: ${{ env.APK_BUILD_DIR }}
@@ -126,6 +133,7 @@ jobs:
         run: flutter build apk --split-per-abi
 
       - name: Upload APK
+        if: ${{ !env.ACT }}
         uses: actions/upload-artifact@v7
         with:
           name: android-apk-result
@@ -134,6 +142,16 @@ jobs:
             ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
             ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk/app-x86_64-release.apk
           retention-days: 2
+
+      - name: Upload APK (act only)
+        if: ${{ env.ACT }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-result
+          path: |
+            ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk/app-x86_64-release.apk
   build_linux_x86_64_AppImage:
     needs: build
     runs-on: ubuntu-22.04
@@ -160,6 +178,7 @@ jobs:
             "gh-releases-zsync|${{ github.repository_owner }}|${{ github.event.repository.name }}|latest|Sheetopia-*-linux-x86-64.AppImage.zsync"
 
       - name: Upload AppImage file
+        if: ${{ !env.ACT }}
         uses: actions/upload-artifact@v7
         with:
           name: appimage-x86-64-result
@@ -167,6 +186,15 @@ jobs:
             ./*.AppImage
             ./*.AppImage.zsync
           retention-days: 2
+
+      - name: Upload AppImage file (act only)
+        if: ${{ env.ACT }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage-x86-64-result
+          path: |
+            ./*.AppImage
+            ./*.AppImage.zsync
   build_linux_x86_64_TGZ:
     needs: build
     runs-on: ubuntu-24.04
@@ -193,11 +221,19 @@ jobs:
           tar -czvf ../../../../../result.tar.gz *
 
       - name: Upload tar.gz archive
+        if: ${{ !env.ACT }}
         uses: actions/upload-artifact@v7
         with:
           name: tar-gz-x86-64-result
           path: ./*.tar.gz
           retention-days: 2
+
+      - name: Upload tar.gz archive (act only)
+        if: ${{ env.ACT }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: tar-gz-x86-64-result
+          path: ./*.tar.gz
 
   build_windows_x86_64:
     needs: build
@@ -283,12 +319,16 @@ jobs:
         run: |
           APP_PATH="build/macos/Build/Products/Release/Sheetopia.app"
           
-          echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
-          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain 
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          # Local test builds via act (tool/test) sign with the identity in the
+          # login keychain and leave the keychains alone.
+          if [ -z "${ACT:-}" ]; then
+            echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
+            security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain 
+            security default-keychain -s build.keychain
+            security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+            security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          fi
           
           # Function to recursively sign all binaries
           sign_binaries() {
@@ -347,6 +387,7 @@ jobs:
           codesign --verify --verbose "$APP_PATH"
 
       - name: "Notarize app bundle"
+        if: ${{ !env.ACT }}
         working-directory: build/macos/Build/Products/Release
         env:
           PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -371,7 +412,13 @@ jobs:
 
       - name: Create .dmg file
         run: |
-          npm install -g appdmg
+          if [ -n "${ACT:-}" ]; then
+            # Don't install globally on the machine running act.
+            npm install --prefix "$RUNNER_TEMP/appdmg" appdmg
+            export PATH="$RUNNER_TEMP/appdmg/node_modules/.bin:$PATH"
+          else
+            npm install -g appdmg
+          fi
           cd scripts/dmg
           appdmg config.json ../../Sheetopia.dmg
 
@@ -380,21 +427,33 @@ jobs:
           MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
         run: |
           codesign --force --timestamp --sign "$MACOS_CERTIFICATE_NAME" Sheetopia.dmg
+          if [ -n "${ACT:-}" ]; then
+            echo "Skipping notarization of the .dmg in a local act build"
+            exit 0
+          fi
           xcrun notarytool submit Sheetopia.dmg --keychain-profile "notarytool-profile" --wait
           xcrun stapler staple Sheetopia.dmg
           spctl -a -t open --context context:primary-signature -vv Sheetopia.dmg
 
       - name: Clean up keychain
-        if: ${{ always() }}
+        if: ${{ always() && !env.ACT }}
         run: |
           security delete-keychain build.keychain
 
       - name: Upload .dmg file
+        if: ${{ !env.ACT }}
         uses: actions/upload-artifact@v7
         with:
           name: macos-dmg-result
           path: Sheetopia.dmg
           retention-days: 2
+
+      - name: Upload .dmg file (act only)
+        if: ${{ env.ACT }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg-result
+          path: Sheetopia.dmg
   build_ios_ipa:
     needs: build
     runs-on: macos-26
@@ -539,11 +598,13 @@ jobs:
         run: sha256sum Sheetopia-* > Sheetopia-${{ needs.build.outputs.version }}-SHA256SUMS.txt
 
       - name: Attest build provenance
+        if: ${{ !env.ACT }}
         uses: actions/attest-build-provenance@v4
         with:
           subject-path: uploads/Sheetopia-*
 
       - name: Upload assets
+        if: ${{ !env.ACT }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

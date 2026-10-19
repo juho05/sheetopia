@@ -7,6 +7,11 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    - tool/test/runs/**
+    # Separate package with its own analysis_options.yaml.
+    - tool/test/harness/**
+    - tool/screenshots/cli/**
+    - tool/screenshots/out/**
 include: package:flutter_lints/flutter.yaml
 
 linter:
