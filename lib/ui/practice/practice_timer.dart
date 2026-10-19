@@ -87,7 +87,10 @@ class PracticeTimer extends ChangeNotifier {
   bool _disposed = false;
 
   PracticeTimer({required this._repo}) {
-    _lifecycle = AppLifecycleListener(onStateChange: _onLifecycleChanged);
+    _lifecycle = AppLifecycleListener(
+      onStateChange: _onLifecycleChanged,
+      onHide: _onHide,
+    );
   }
 
   Listenable get ticks => _ticks;
@@ -383,18 +386,22 @@ class PracticeTimer extends ChangeNotifier {
       case AppLifecycleState.detached:
         _detached = true;
         if (running) unawaited(_checkpoint(publish: true));
-      case AppLifecycleState.paused:
-      case AppLifecycleState.hidden:
-        if (!running) return;
-        // desktop keeps counting in the background, mobile asks about the gap
-        if (_mobile) _stopTicker();
-        unawaited(_checkpoint(publish: true));
       case AppLifecycleState.resumed:
         _detached = false;
         if (running) unawaited(_onForeground());
       case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
         break;
     }
+  }
+
+  /// Only on the way into the background, coming back passes hidden too and
+  /// a checkpoint then would count the gap without asking.
+  void _onHide() {
+    if (!running) return;
+    if (_mobile) _stopTicker();
+    unawaited(_checkpoint(publish: true));
   }
 
   Future<void> _onForeground() async {

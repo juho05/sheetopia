@@ -564,6 +564,25 @@ void main() {
       timer.dispose();
     });
 
+    test("coming back leaves the time away to the gap check", () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final exercise = await createExercise("Scales");
+      final timer = PracticeTimer(repo: repo);
+      await timer.show(exerciseId: exercise);
+      await timer.start();
+
+      lifecycle(away);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      final left = (await allRecords()).single.runningSince;
+      await Future<void>.delayed(const Duration(milliseconds: 1100));
+
+      lifecycle(back.take(2).toList());
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect((await allRecords()).single.runningSince, left);
+      await timer.close();
+      timer.dispose();
+    });
+
     test("desktop keeps ticking in the background", () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.linux;
       final exercise = await createExercise("Scales");
