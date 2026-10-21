@@ -1,0 +1,17 @@
+name: sheetopia_screenshots
+description: "Captures the README and store screenshots of Sheetopia."
+publish_to: 'none'
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  archive: ^4.0.9
+  args: ^2.7.0
+  flutter_driver:
+    sdk: flutter
+  image: ^4.12.0
+  path: ^1.9.1
+
+dev_dependencies:
+  lints: ^6.0.0
