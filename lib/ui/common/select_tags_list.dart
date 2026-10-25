@@ -11,14 +11,16 @@ import 'package:sheetopia/ui/common/dashed_badge.dart';
 
 class SelectTagsList extends StatelessWidget {
   final Iterable<Widget> tags;
-  final void Function() onAdd;
+
+  /// hides the add badge when null
+  final void Function()? onAdd;
   final String addLabel;
   final IconData addIcon;
 
   const SelectTagsList({
     super.key,
     required this.tags,
-    required this.onAdd,
+    this.onAdd,
     this.addLabel = "Add",
     this.addIcon = Icons.add,
   });
@@ -29,13 +31,15 @@ class SelectTagsList extends StatelessWidget {
       alignment: WrapAlignment.start,
       spacing: 4,
       runSpacing: 4,
-      children: tags.followedBy([
-        // aligns with the badges, which are offset by their remove button
-        Padding(
-          padding: const EdgeInsets.only(left: 9, top: 9),
-          child: DashedBadge(onTap: onAdd, label: addLabel, icon: addIcon),
-        ),
-      ]).toList(),
+      children: [
+        ...tags,
+        if (onAdd != null)
+          // aligns with the badges, which are offset by their remove button
+          Padding(
+            padding: const EdgeInsets.only(left: 9, top: 9),
+            child: DashedBadge(onTap: onAdd, label: addLabel, icon: addIcon),
+          ),
+      ],
     );
   }
 }

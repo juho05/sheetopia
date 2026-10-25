@@ -26,8 +26,11 @@ class CategorySelector extends StatelessWidget {
   /// shown when nothing is selected, e.g. "No category" or "All categories"
   final String emptyLabel;
 
-  final String label;
+  final String? label;
   final bool allowCreate;
+
+  /// nothing is chosen yet, so the dialog highlights no option
+  final bool unchosen;
   final void Function(ExerciseCategory? category) onChanged;
 
   const CategorySelector({
@@ -37,12 +40,13 @@ class CategorySelector extends StatelessWidget {
     required this.onChanged,
     this.label = "Category",
     this.allowCreate = false,
+    this.unchosen = false,
   });
 
   Future<void> _select(BuildContext context) async {
     final choice = await SelectCategoryDialog.show(
       context,
-      selected: (category: category),
+      selected: unchosen ? null : (category: category),
       emptyLabel: emptyLabel,
       allowCreate: allowCreate,
     );
@@ -59,7 +63,7 @@ class CategorySelector extends StatelessWidget {
       borderRadius: BorderRadius.circular(4),
       child: InputDecorator(
         decoration: InputDecoration(
-          label: Text(label),
+          label: label == null ? null : Text(label!),
           border: const OutlineInputBorder(),
           suffixIcon: const Icon(Symbols.edit),
         ),

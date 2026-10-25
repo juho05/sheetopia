@@ -18,6 +18,8 @@ Available on: [Windows](#windows), [macOS](#macos), [Linux](#linux), [Android](#
 - [x] Manage metadata such as:
     - Title
     - Composer
+    - Arranger
+    - Difficulty
     - Instruments
     - Genres
     - Tags

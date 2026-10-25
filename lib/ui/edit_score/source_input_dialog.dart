@@ -51,6 +51,13 @@ class SourceInputDialog extends StatefulWidget {
     );
   }
 
+  static Uri? parseLink(String link) {
+    final uri = Uri.tryParse(link);
+    if (uri == null || uri.host.isEmpty) return null;
+    if (uri.scheme != "http" && uri.scheme != "https") return null;
+    return uri;
+  }
+
   @override
   State<SourceInputDialog> createState() => _SourceInputDialogState();
 }
@@ -79,12 +86,7 @@ class _SourceInputDialogState extends State<SourceInputDialog> {
 
   bool get _valid => _hasSource && !_invalidLink;
 
-  Uri? get _linkUri {
-    final uri = Uri.tryParse(_link);
-    if (uri == null || uri.host.isEmpty) return null;
-    if (uri.scheme != "http" && uri.scheme != "https") return null;
-    return uri;
-  }
+  Uri? get _linkUri => SourceInputDialog.parseLink(_link);
 
   @override
   void initState() {

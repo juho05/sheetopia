@@ -9,7 +9,6 @@
 import 'dart:io';
 
 import 'package:cross_file/cross_file.dart';
-import 'package:dotted_border/dotted_border.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -19,6 +18,7 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/ui/common/buttons.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
+import 'package:sheetopia/ui/common/dashed_placeholder.dart';
 import 'package:sheetopia/ui/common/drop_area.dart';
 import 'package:sheetopia/ui/common/import_source_dialog.dart';
 import 'package:sheetopia/ui/common/menu_button.dart';
@@ -460,59 +460,44 @@ class _AddScorePlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return DottedBorder(
-      options: RoundedRectDottedBorderOptions(
-        radius: const Radius.circular(16),
-        padding: const EdgeInsets.all(1),
-        dashPattern: const [6, 6],
-        strokeWidth: 2,
-        color: theme.colorScheme.onSurface.withAlpha(160),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480, minHeight: 40),
-            child: loading
-                ? const Center(child: CircularProgressIndicator.adaptive())
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      return Row(
-                        spacing: 12,
-                        children: [
-                          Expanded(
-                            child: Button(
-                              onPressed: onAdd,
-                              icon: Symbols.upload_file,
-                              darkTonal: true,
-                              child: constraints.maxWidth >= 375
-                                  ? const Text("Import score")
-                                  : const Text("Import"),
-                            ),
-                          ),
-                          Text(
-                            "OR",
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          Expanded(
-                            child: Button(
-                              onPressed: onLink,
-                              icon: Symbols.link,
-                              darkTonal: true,
-                              child: constraints.maxWidth >= 375
-                                  ? const Text("Link score")
-                                  : const Text("Link"),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-          ),
-        ),
-      ),
+    return DashedPlaceholder(
+      child: loading
+          ? const Center(child: CircularProgressIndicator.adaptive())
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                return Row(
+                  spacing: 12,
+                  children: [
+                    Expanded(
+                      child: Button(
+                        onPressed: onAdd,
+                        icon: Symbols.upload_file,
+                        darkTonal: true,
+                        child: constraints.maxWidth >= 375
+                            ? const Text("Import score")
+                            : const Text("Import"),
+                      ),
+                    ),
+                    Text(
+                      "OR",
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    Expanded(
+                      child: Button(
+                        onPressed: onLink,
+                        icon: Symbols.link,
+                        darkTonal: true,
+                        child: constraints.maxWidth >= 375
+                            ? const Text("Link score")
+                            : const Text("Link"),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
     );
   }
 }

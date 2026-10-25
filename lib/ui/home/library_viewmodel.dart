@@ -10,6 +10,7 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:material_ui/material_ui.dart';
+import 'package:sheetopia/data/repositories/scores/difficulty.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
@@ -40,10 +41,13 @@ class LibraryViewModel extends ChangeNotifier {
 
   int? get totalCount => _totalCount;
 
-  bool get isFiltered =>
-      _filterSearch.isNotEmpty ||
+  bool get isFiltered => _filterSearch.isNotEmpty || hasFilters;
+
+  bool get hasFilters =>
       _filterComposer.isNotEmpty ||
+      _filterArranger.isNotEmpty ||
       _filterSource.isNotEmpty ||
+      _filterDifficulties.isNotEmpty ||
       _filterInstruments.isNotEmpty ||
       _filterGenres.isNotEmpty ||
       _filterTags.isNotEmpty;
@@ -57,7 +61,9 @@ class LibraryViewModel extends ChangeNotifier {
             instruments: _filterInstruments,
             genres: _filterGenres,
             composer: _filterComposer,
+            arranger: _filterArranger,
             source: _filterSource,
+            difficulties: _filterDifficulties,
             tagIds: _filterTags.map((t) => t.id),
             genreMatch: _genreMatch,
             instrumentMatch: _instrumentMatch,
@@ -88,6 +94,17 @@ class LibraryViewModel extends ChangeNotifier {
     _reset();
   }
 
+  String _filterArranger = "";
+
+  String get filterArranger => _filterArranger;
+
+  set filterArranger(String arranger) {
+    if (_filterArranger == arranger) return;
+    _filterArranger = arranger;
+    notifyListeners();
+    _reset();
+  }
+
   String _filterSource = "";
 
   String get filterSource => _filterSource;
@@ -95,6 +112,26 @@ class LibraryViewModel extends ChangeNotifier {
   set filterSource(String source) {
     if (_filterSource == source) return;
     _filterSource = source;
+    notifyListeners();
+    _reset();
+  }
+
+  final Set<Difficulty> _filterDifficulties = {};
+
+  Set<Difficulty> get filterDifficulties => _filterDifficulties;
+
+  void toggleFilterDifficulty(Difficulty difficulty, bool selected) {
+    final changed = selected
+        ? _filterDifficulties.add(difficulty)
+        : _filterDifficulties.remove(difficulty);
+    if (!changed) return;
+    notifyListeners();
+    _reset();
+  }
+
+  void clearFilterDifficulties() {
+    if (_filterDifficulties.isEmpty) return;
+    _filterDifficulties.clear();
     notifyListeners();
     _reset();
   }
@@ -218,7 +255,9 @@ class LibraryViewModel extends ChangeNotifier {
       instruments: _filterInstruments,
       genres: _filterGenres,
       composer: _filterComposer,
+      arranger: _filterArranger,
       source: _filterSource,
+      difficulties: _filterDifficulties,
       tagIds: _filterTags.map((t) => t.id),
       genreMatch: _genreMatch,
       instrumentMatch: _instrumentMatch,
@@ -233,7 +272,9 @@ class LibraryViewModel extends ChangeNotifier {
       instruments: _filterInstruments,
       genres: _filterGenres,
       composer: _filterComposer,
+      arranger: _filterArranger,
       source: _filterSource,
+      difficulties: _filterDifficulties,
       tagIds: _filterTags.map((t) => t.id),
       genreMatch: _genreMatch,
       instrumentMatch: _instrumentMatch,
@@ -295,6 +336,13 @@ class LibraryViewModel extends ChangeNotifier {
     _reset();
   }
 
+  void clearFilterGenres() {
+    if (_filterGenres.isEmpty) return;
+    _filterGenres.clear();
+    notifyListeners();
+    _reset();
+  }
+
   void removeFilterGenre(String genre) {
     _filterGenres.remove(genre);
     notifyListeners();
@@ -321,6 +369,10 @@ class LibraryViewModel extends ChangeNotifier {
     return await _repo.getComposers(filter: filter, size: 10);
   }
 
+  Future<Iterable<String>> getArrangers({String filter = ""}) async {
+    return await _repo.getArrangers(filter: filter, size: 10);
+  }
+
   Future<Iterable<String>> getSources({String filter = ""}) async {
     return await _repo.getSources(filter: filter, size: 10);
   }
@@ -328,7 +380,9 @@ class LibraryViewModel extends ChangeNotifier {
   void clearFilters() {
     _filterTags.clear();
     _filterComposer = "";
+    _filterArranger = "";
     _filterSource = "";
+    _filterDifficulties.clear();
     _filterGenres.clear();
     _filterInstruments.clear();
     _genreMatch = FilterMatchType.any;

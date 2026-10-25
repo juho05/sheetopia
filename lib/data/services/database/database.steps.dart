@@ -6088,6 +6088,532 @@ final class Schema17 extends i0.VersionedSchema {
   );
 }
 
+final class Schema18 extends i0.VersionedSchema {
+  Schema18({required super.database}) : super(version: 18);
+  @override
+  late final List<i1.DatabaseSchemaEntity> entities = [
+    scores,
+    genres,
+    instruments,
+    tags,
+    scoreTags,
+    keyValue,
+    deletedTags,
+    deletedScores,
+    logMessage,
+    setlists,
+    setlistEntries,
+    deletedSetlists,
+    exerciseCategories,
+    exercises,
+    exerciseScores,
+    exerciseTags,
+    practiceRoutines,
+    practiceRoutineEntries,
+    practiceRecords,
+    deletedExerciseCategories,
+    deletedExercises,
+    deletedPracticeRoutines,
+    deletedPracticeRecords,
+    searchTextIndex,
+    recentTimeIndex,
+    statusIndex,
+    exercisesCategoryIndex,
+    exerciseScoresScoreIndex,
+    exerciseTagsTagIndex,
+    practiceRoutineEntriesRoutineIndex,
+    practiceRoutineEntriesExerciseIndex,
+    practiceRecordsStartedAtIndex,
+    practiceRecordsStartedAtJuliandayIndex,
+    practiceRecordsExerciseIndex,
+    practiceRecordsRoutineIndex,
+  ];
+  late final Shape41 scores = Shape41(
+    source: i0.VersionedTable(
+      entityName: 'scores',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_72,
+        _column_73,
+        _column_42,
+        _column_43,
+        _column_3,
+        _column_4,
+        _column_68,
+        _column_32,
+        _column_33,
+        _column_5,
+        _column_6,
+        _column_71,
+        _column_41,
+        _column_7,
+        _column_8,
+        _column_9,
+        _column_10,
+        _column_36,
+        _column_44,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape1 genres = Shape1(
+    source: i0.VersionedTable(
+      entityName: 'genres',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(score, genre)'],
+      columns: [_column_11, _column_12],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape2 instruments = Shape2(
+    source: i0.VersionedTable(
+      entityName: 'instruments',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(score, instrument)'],
+      columns: [_column_11, _column_13],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape19 tags = Shape19(
+    source: i0.VersionedTable(
+      entityName: 'tags',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_14,
+        _column_15,
+        _column_16,
+        _column_44,
+        _column_41,
+        _column_17,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape4 scoreTags = Shape4(
+    source: i0.VersionedTable(
+      entityName: 'score_tags',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(score, tag)'],
+      columns: [_column_11, _column_18],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape5 keyValue = Shape5(
+    source: i0.VersionedTable(
+      entityName: 'key_value',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY("key")'],
+      columns: [_column_19, _column_20],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape6 deletedTags = Shape6(
+    source: i0.VersionedTable(
+      entityName: 'deleted_tags',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(tag_id)'],
+      columns: [_column_21, _column_22],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape7 deletedScores = Shape7(
+    source: i0.VersionedTable(
+      entityName: 'deleted_scores',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(score_id)'],
+      columns: [_column_23, _column_22],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape8 logMessage = Shape8(
+    source: i0.VersionedTable(
+      entityName: 'log_message',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [
+        _column_24,
+        _column_25,
+        _column_26,
+        _column_27,
+        _column_28,
+        _column_29,
+        _column_30,
+        _column_31,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape17 setlists = Shape17(
+    source: i0.VersionedTable(
+      entityName: 'setlists',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [_column_0, _column_14, _column_16, _column_41, _column_17],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape13 setlistEntries = Shape13(
+    source: i0.VersionedTable(
+      entityName: 'setlist_entries',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(setlist, position)'],
+      columns: [_column_37, _column_38, _column_39],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape14 deletedSetlists = Shape14(
+    source: i0.VersionedTable(
+      entityName: 'deleted_setlists',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(setlist_id)'],
+      columns: [_column_40, _column_22],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape20 exerciseCategories = Shape20(
+    source: i0.VersionedTable(
+      entityName: 'exercise_categories',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_14,
+        _column_39,
+        _column_16,
+        _column_41,
+        _column_17,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape42 exercises = Shape42(
+    source: i0.VersionedTable(
+      entityName: 'exercises',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_14,
+        _column_45,
+        _column_46,
+        _column_42,
+        _column_43,
+        _column_47,
+        _column_73,
+        _column_48,
+        _column_69,
+        _column_16,
+        _column_41,
+        _column_17,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape33 exerciseScores = Shape33(
+    source: i0.VersionedTable(
+      entityName: 'exercise_scores',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(exercise, position)'],
+      columns: [_column_49, _column_38, _column_39],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape23 exerciseTags = Shape23(
+    source: i0.VersionedTable(
+      entityName: 'exercise_tags',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(exercise, tag)'],
+      columns: [_column_49, _column_18],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape37 practiceRoutines = Shape37(
+    source: i0.VersionedTable(
+      entityName: 'practice_routines',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_14,
+        _column_46,
+        _column_69,
+        _column_16,
+        _column_41,
+        _column_17,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape25 practiceRoutineEntries = Shape25(
+    source: i0.VersionedTable(
+      entityName: 'practice_routine_entries',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_51,
+        _column_52,
+        _column_39,
+        _column_53,
+        _column_54,
+        _column_55,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape38 practiceRecords = Shape38(
+    source: i0.VersionedTable(
+      entityName: 'practice_records',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_60,
+        _column_58,
+        _column_61,
+        _column_56,
+        _column_62,
+        _column_63,
+        _column_16,
+        _column_41,
+        _column_17,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape28 deletedExerciseCategories = Shape28(
+    source: i0.VersionedTable(
+      entityName: 'deleted_exercise_categories',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(category_id)'],
+      columns: [_column_64, _column_22],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape29 deletedExercises = Shape29(
+    source: i0.VersionedTable(
+      entityName: 'deleted_exercises',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(exercise_id)'],
+      columns: [_column_65, _column_22],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape30 deletedPracticeRoutines = Shape30(
+    source: i0.VersionedTable(
+      entityName: 'deleted_practice_routines',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(routine_id)'],
+      columns: [_column_66, _column_22],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape39 deletedPracticeRecords = Shape39(
+    source: i0.VersionedTable(
+      entityName: 'deleted_practice_records',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(record_id)'],
+      columns: [_column_70, _column_22],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  final i1.Index searchTextIndex = i1.Index(
+    'search_text_index',
+    'CREATE INDEX search_text_index ON scores (search_text)',
+  );
+  final i1.Index recentTimeIndex = i1.Index(
+    'recent_time_index',
+    'CREATE INDEX recent_time_index ON scores (recent_time)',
+  );
+  final i1.Index statusIndex = i1.Index(
+    'status_index',
+    'CREATE INDEX status_index ON scores (status)',
+  );
+  final i1.Index exercisesCategoryIndex = i1.Index(
+    'exercises_category_index',
+    'CREATE INDEX exercises_category_index ON exercises (category)',
+  );
+  final i1.Index exerciseScoresScoreIndex = i1.Index(
+    'exercise_scores_score_index',
+    'CREATE INDEX exercise_scores_score_index ON exercise_scores (score)',
+  );
+  final i1.Index exerciseTagsTagIndex = i1.Index(
+    'exercise_tags_tag_index',
+    'CREATE INDEX exercise_tags_tag_index ON exercise_tags (tag)',
+  );
+  final i1.Index practiceRoutineEntriesRoutineIndex = i1.Index(
+    'practice_routine_entries_routine_index',
+    'CREATE INDEX practice_routine_entries_routine_index ON practice_routine_entries (routine)',
+  );
+  final i1.Index practiceRoutineEntriesExerciseIndex = i1.Index(
+    'practice_routine_entries_exercise_index',
+    'CREATE INDEX practice_routine_entries_exercise_index ON practice_routine_entries (exercise)',
+  );
+  final i1.Index practiceRecordsStartedAtIndex = i1.Index(
+    'practice_records_started_at_index',
+    'CREATE INDEX practice_records_started_at_index ON practice_records (started_at)',
+  );
+  final i1.Index practiceRecordsStartedAtJuliandayIndex = i1.Index(
+    'practice_records_started_at_julianday_index',
+    'CREATE INDEX practice_records_started_at_julianday_index ON practice_records (julianday(started_at))',
+  );
+  final i1.Index practiceRecordsExerciseIndex = i1.Index(
+    'practice_records_exercise_index',
+    'CREATE INDEX practice_records_exercise_index ON practice_records (exercise)',
+  );
+  final i1.Index practiceRecordsRoutineIndex = i1.Index(
+    'practice_records_routine_index',
+    'CREATE INDEX practice_records_routine_index ON practice_records (routine)',
+  );
+}
+
+class Shape41 extends i0.VersionedTable {
+  Shape41({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<String> get id =>
+      columnsByName['id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get title =>
+      columnsByName['title']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get composer =>
+      columnsByName['composer']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get arranger =>
+      columnsByName['arranger']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get difficulty =>
+      columnsByName['difficulty']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get source =>
+      columnsByName['source']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get sourceLink =>
+      columnsByName['source_link']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get notes =>
+      columnsByName['notes']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get searchText =>
+      columnsByName['search_text']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get status =>
+      columnsByName['status']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get recentTime =>
+      columnsByName['recent_time']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get lastOpened =>
+      columnsByName['last_opened']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get metadataUpdatedAt =>
+      columnsByName['metadata_updated_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get fileUpdatedAt =>
+      columnsByName['file_updated_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get insertedAt =>
+      columnsByName['inserted_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get writtenAt =>
+      columnsByName['written_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get metadataUploaded =>
+      columnsByName['metadata_uploaded']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get fileUploaded =>
+      columnsByName['file_uploaded']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get fileDownloaded =>
+      columnsByName['file_downloaded']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get fileType =>
+      columnsByName['file_type']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get annotations =>
+      columnsByName['annotations']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get type =>
+      columnsByName['type']! as i1.GeneratedColumn<String>;
+}
+
+i1.GeneratedColumn<String> _column_72(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'arranger',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<int> _column_73(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'difficulty',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.int,
+      $customConstraints: 'NULL',
+    );
+
+class Shape42 extends i0.VersionedTable {
+  Shape42({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<String> get id =>
+      columnsByName['id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get name =>
+      columnsByName['name']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get category =>
+      columnsByName['category']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get description =>
+      columnsByName['description']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get source =>
+      columnsByName['source']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get sourceLink =>
+      columnsByName['source_link']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get instrument =>
+      columnsByName['instrument']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get difficulty =>
+      columnsByName['difficulty']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get targetBpm =>
+      columnsByName['target_bpm']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get progressResetAt =>
+      columnsByName['progress_reset_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get updatedAt =>
+      columnsByName['updated_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get writtenAt =>
+      columnsByName['written_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get uploaded =>
+      columnsByName['uploaded']! as i1.GeneratedColumn<int>;
+}
+
 i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,
   required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,
@@ -6105,6 +6631,7 @@ i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema15 schema) from14To15,
   required Future<void> Function(i1.Migrator m, Schema16 schema) from15To16,
   required Future<void> Function(i1.Migrator m, Schema17 schema) from16To17,
+  required Future<void> Function(i1.Migrator m, Schema18 schema) from17To18,
 }) {
   return (currentVersion, database) async {
     switch (currentVersion) {
@@ -6188,6 +6715,11 @@ i0.MigrationStepWithVersion migrationSteps({
         final migrator = i1.Migrator(database, schema);
         await from16To17(migrator, schema);
         return 17;
+      case 17:
+        final schema = Schema18(database: database);
+        final migrator = i1.Migrator(database, schema);
+        await from17To18(migrator, schema);
+        return 18;
       default:
         throw ArgumentError.value('Unknown migration from $currentVersion');
     }
@@ -6211,6 +6743,7 @@ i1.OnUpgrade stepByStep({
   required Future<void> Function(i1.Migrator m, Schema15 schema) from14To15,
   required Future<void> Function(i1.Migrator m, Schema16 schema) from15To16,
   required Future<void> Function(i1.Migrator m, Schema17 schema) from16To17,
+  required Future<void> Function(i1.Migrator m, Schema18 schema) from17To18,
 }) => i0.VersionedSchema.stepByStepHelper(
   step: migrationSteps(
     from1To2: from1To2,
@@ -6229,5 +6762,6 @@ i1.OnUpgrade stepByStep({
     from14To15: from14To15,
     from15To16: from15To16,
     from16To17: from16To17,
+    from17To18: from17To18,
   ),
 );

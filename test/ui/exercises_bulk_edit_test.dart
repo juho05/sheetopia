@@ -12,8 +12,10 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/common/menu_button.dart';
@@ -82,6 +84,11 @@ void main() {
       MultiProvider(
         providers: [
           Provider<PracticeRepository>.value(value: repo),
+          Provider<SettingsRepository>.value(
+            value: SettingsRepository(
+              keyValueRepository: KeyValueRepository(database: db),
+            ),
+          ),
           Provider<ScoresRepository>.value(value: scoresRepo),
         ],
         child: MaterialApp.router(routerConfig: router),
@@ -109,6 +116,16 @@ void main() {
     await tester.tap(find.byIcon(Icons.more_vert));
     await settle(tester);
     await tester.tap(find.text(option));
+    await settle(tester);
+  }
+
+  Future<void> openCategoryDialog(WidgetTester tester) async {
+    await openBulkMenu(tester, "Edit metadata");
+    await tester.tap(find.text("Field"));
+    await settle(tester);
+    await tester.tap(find.text("Category").last);
+    await settle(tester);
+    await tester.tap(find.text("Select a category"));
     await settle(tester);
   }
 
@@ -170,8 +187,10 @@ void main() {
     await longPressExercise(tester, "Exercise 0");
     await tapExercise(tester, "Exercise 1");
 
-    await openBulkMenu(tester, "Edit category");
+    await openCategoryDialog(tester);
     await tester.tap(find.text("Warmup"));
+    await settle(tester);
+    await tester.tap(find.text("Update"));
     await settle(tester);
 
     final exercises = await repo.getExercises(size: 100);
@@ -189,11 +208,11 @@ void main() {
     await pumpExercises(tester);
 
     await longPressExercise(tester, "Exercise 0");
-    await openBulkMenu(tester, "Edit category");
+    await openCategoryDialog(tester);
 
     final rows = tester.widgetList<RoundedListTile>(
       find.descendant(
-        of: find.byType(SheetopiaDialog),
+        of: find.byType(SheetopiaDialog).last,
         matching: find.byType(RoundedListTile),
       ),
     );

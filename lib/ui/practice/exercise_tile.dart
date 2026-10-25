@@ -7,8 +7,12 @@
  */
 
 import 'package:material_ui/material_ui.dart';
+import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
+import 'package:sheetopia/data/repositories/scores/difficulty.dart';
+import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
+import 'package:sheetopia/ui/common/difficulty.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
 import 'package:sheetopia/ui/common/tag_badge.dart';
 
@@ -45,12 +49,24 @@ class ExerciseTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appearance = context.read<SettingsRepository>().appearanceSettings;
+    return ListenableBuilder(
+      listenable: appearance,
+      builder: (context, _) => _build(
+        context,
+        appearance.cardDifficulty ? exercise.difficulty : null,
+      ),
+    );
+  }
+
+  Widget _build(BuildContext context, Difficulty? difficulty) {
     final theme = Theme.of(context);
     final instrument = exercise.instrument;
     final category = exercise.category;
     final hasBadges =
         showBadges &&
         (leadingBadge != null ||
+            difficulty != null ||
             instrument != null ||
             exercise.tags.isNotEmpty);
     return RoundedListTile(
@@ -70,6 +86,8 @@ class ExerciseTile extends StatelessWidget {
                       spacing: 6,
                       children: [
                         ?leadingBadge,
+                        if (difficulty != null)
+                          DifficultyIcon(difficulty: difficulty, size: 16),
                         if (leadingBadge != null &&
                             ((showCategory && category != null) ||
                                 instrument != null ||

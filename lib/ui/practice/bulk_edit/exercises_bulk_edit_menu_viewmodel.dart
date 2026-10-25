@@ -7,6 +7,7 @@
  */
 
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
+import 'package:sheetopia/data/repositories/scores/difficulty.dart';
 
 class ExercisesBulkEditMenuViewModel {
   final PracticeRepository _repo;
@@ -31,6 +32,10 @@ class ExercisesBulkEditMenuViewModel {
 
   Future<void> editInstrument(String instrument) async {
     await _repo.bulkUpdateExerciseInstrument(_selectedExercises, instrument);
+  }
+
+  Future<void> editDifficulty(Difficulty? difficulty) async {
+    await _repo.bulkUpdateExerciseDifficulty(_selectedExercises, difficulty);
   }
 
   Future<void> editSource(String source, String sourceLink) async {

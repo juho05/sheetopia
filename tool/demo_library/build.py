@@ -83,9 +83,11 @@ def score_model(entry, strokes, score_type, source="", tags=(), genres=()):
         "type": score_type,
         "metadata": {
             "composer": entry.get("composer") or "",
+            "arranger": "",
             "source": source,
             "sourceLink": "",
             "notes": entry.get("notes") or "",
+            "difficulty": entry.get("difficulty") or 0,
             "instruments": entry["instruments"],
             "genres": list(genres),
             "annotations": {str(page): s for page, s in sorted(strokes.items())},

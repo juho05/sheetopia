@@ -12,6 +12,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
+import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
@@ -73,6 +75,11 @@ void main() {
         providers: [
           Provider<ScoresRepository>.value(value: repo),
           Provider<ThumbnailService>.value(value: ThumbnailService()),
+          Provider<SettingsRepository>.value(
+            value: SettingsRepository(
+              keyValueRepository: KeyValueRepository(database: db),
+            ),
+          ),
         ],
         child: MaterialApp(
           home: Scaffold(
@@ -99,6 +106,11 @@ void main() {
         providers: [
           Provider<ScoresRepository>.value(value: repo),
           Provider<ThumbnailService>.value(value: ThumbnailService()),
+          Provider<SettingsRepository>.value(
+            value: SettingsRepository(
+              keyValueRepository: KeyValueRepository(database: db),
+            ),
+          ),
         ],
         child: MaterialApp(
           home: StatefulBuilder(
@@ -206,6 +218,11 @@ void main() {
         providers: [
           Provider<ScoresRepository>.value(value: repo),
           Provider<ThumbnailService>.value(value: ThumbnailService()),
+          Provider<SettingsRepository>.value(
+            value: SettingsRepository(
+              keyValueRepository: KeyValueRepository(database: db),
+            ),
+          ),
         ],
         child: MaterialApp(
           home: StatefulBuilder(

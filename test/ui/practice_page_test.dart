@@ -12,8 +12,10 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/common/filter_button.dart';
@@ -115,6 +117,11 @@ void main() {
       MultiProvider(
         providers: [
           Provider<PracticeRepository>.value(value: repo),
+          Provider<SettingsRepository>.value(
+            value: SettingsRepository(
+              keyValueRepository: KeyValueRepository(database: db),
+            ),
+          ),
           Provider<ScoresRepository>.value(value: scoresRepo),
           // disposes the view model on unmount, before the pending timer check
           ChangeNotifierProvider(create: (_) => viewModel, lazy: false),
@@ -202,7 +209,7 @@ void main() {
     await tester.tap(find.byType(FilterButton));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.widgetWithText(TextField, "Instrument"),
+      find.widgetWithText(TextField, "All"),
       "Guitar",
     );
     await tester.pumpAndSettle();

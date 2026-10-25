@@ -389,19 +389,21 @@ feature_suite:
           In the starting state (check before opening any score, opening one
           moves it to the front) the demo library shows all scores, most
           recently touched first, the Bach prelude first, with thumbnails,
-          composer, instrument and tag badges and the "N scores" count. All
-          demo scores have a composer, a score without one (e.g. freshly
-          imported) shows "No composer".
+          composer, instrument and tag badges and the "N scores" count. All demo scores have a composer, a
+          score without one (e.g. freshly imported) shows "No composer".
       - id: library.search
         test: >-
-          Search by title and composer, case and diacritics insensitive
+          Search by title, composer and arranger, case and diacritics insensitive
           ("frederic" finds Frédéric Chopin, "fur elise" finds "Für Elise");
           count shows "X of Y"; no match shows "No scores found.".
       - id: library.filter
         test: >-
-          Filter by composer, source, instruments, genres and tags, combined
-          with search; instruments, genres and tags each match Any, All or
-          Exact; the active indicator shows; Clear resets.
+          Filter by composer, instruments and tags; arranger, source,
+          difficulty (coloured badges, any of the selected) and genres are
+          added with "Add filter", stay visible while active and their close
+          button clears them; combined with search; instruments, genres and
+          tags each match Any, All or Exact; the active indicator shows; Clear
+          resets and hides the added filters.
       - id: library.selection
         test: >-
           Long-press starts selection (touch), Ctrl+click starts it (mouse),
@@ -409,9 +411,11 @@ feature_suite:
           typing in search), Esc and back clear it.
       - id: library.bulk_edit
         test: >-
-          On a selection: edit composer, source, instruments (add and remove),
-          genres, tags, add to setlist, delete (with confirmation and "Deleted
-          N scores"). Each change is visible afterwards.
+          On a selection: "Edit metadata" picks composer, arranger, source,
+          difficulty, instruments, genres or tags (add and remove) in one
+          dialog, an empty value offers Clear; add to setlist, delete (with
+          confirmation and "Deleted N scores"). Each change is visible
+          afterwards.
       - id: library.fab_scroll
         test: The FAB hides when scrolling down and returns when scrolling up.
   - area: Import and edit score
@@ -422,8 +426,12 @@ feature_suite:
           is not saved), autosave keeps edits without an explicit save.
       - id: edit.metadata
         test: >-
-          Edit title, composer (autocomplete), source with link (an invalid
-          link shows "Must be an http(s) link"), instruments, genres, notes.
+          Edit title, composer (autocomplete), instruments and tags in the
+          first card. Arranger, difficulty (coloured dropdown with icons),
+          source with link (an invalid link shows "Must be an http(s) link"),
+          genres and notes each get their own card, only when filled or added
+          with "Add field" (a tile picker); the card's close button clears and
+          hides it.
           Changes show in the library and survive a restart.
       - id: edit.tags
         test: >-
@@ -521,7 +529,8 @@ feature_suite:
           Create, edit (add exercises, also "Create from score" in the add
           dialog, reorder, target minutes digits only, default score),
           duplicate, delete routines (the exercises stay); bulk duplicate
-          and delete; search and filter (instrument, source, tags); detail
+          and delete; search and filter (instrument and tags, source via "Add
+          filter"); detail
           page shows progress and Start over works. The "Practiced today"
           card opens the statistics.
       - id: practice.exercises
@@ -532,8 +541,11 @@ feature_suite:
           "Unsupported file type!", unlink library scores vs delete owned
           scores, exercise tags, categories (create, rename to an existing
           name shows an error, reorder, delete), the list grouped by
-          category, filter (category, instrument, source, tags), bulk edit
-          (category, instrument, source, tags, delete), add to routine.
+          category; the form has title, category, description, instrument
+          and tags in one card, difficulty and source are cards added with
+          "Add field"; filter (category, instrument, tags, difficulty and
+          source via "Add filter"); bulk "Edit metadata" (category,
+          instrument, difficulty, source, tags), delete, add to routine.
       - id: practice.play
         test: >-
           Play a routine: start overlay, stopwatch pause/resume, prev/next,
@@ -569,7 +581,13 @@ feature_suite:
   - area: Settings and data
     tests:
       - id: settings.appearance
-        test: Theme System/Light/Dark switches immediately and persists.
+        test: >-
+          Theme System/Light/Dark switches immediately and persists. Library
+          cards: Subtitle (Composer, Arranger, "Composer, arr. Arranger"),
+          Badges (Instruments, Genres, None) and Show difficulty (off by
+          default, a coloured icon with the level as tooltip, also on exercise
+          tiles in the exercise list and routines) change the library cards,
+          setlist subtitles and exercise tiles and persist.
       - id: settings.page_turning
         test: Flash and gradual switches persist across a restart.
       - id: settings.version_checking

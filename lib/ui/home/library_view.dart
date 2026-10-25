@@ -235,12 +235,7 @@ class _LibraryViewState extends State<LibraryView> {
                               child: ListenableBuilder(
                                 listenable: _viewModel,
                                 builder: (context, _) => FilterButton(
-                                  active:
-                                      _viewModel.filterComposer.isNotEmpty ||
-                                      _viewModel.filterSource.isNotEmpty ||
-                                      _viewModel.filterInstruments.isNotEmpty ||
-                                      _viewModel.filterGenres.isNotEmpty ||
-                                      _viewModel.filterTags.isNotEmpty,
+                                  active: _viewModel.hasFilters,
                                   collapsed:
                                       crossAxisExtent <
                                       FilterButton.collapseWidth,

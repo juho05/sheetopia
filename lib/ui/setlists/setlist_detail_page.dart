@@ -9,6 +9,8 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
+import 'package:sheetopia/ui/home/score_grid_cell.dart';
 import 'package:sheetopia/ui/home/thumbnail.dart';
 import 'package:sheetopia/ui/setlists/add_scores_dialog.dart';
 import 'package:sheetopia/ui/setlists/setlist_detail_viewmodel.dart';
@@ -75,6 +77,10 @@ class _SetlistDetailPageState extends State<SetlistDetailPage> {
     final entry = _viewModel.entries[index];
     final score = entry.score;
     final greyed = !entry.playable;
+    final subtitle = context
+        .read<SettingsRepository>()
+        .appearanceSettings
+        .cardSubtitle;
     final titleStyle = theme.textTheme.bodyLarge?.copyWith(
       color: greyed ? theme.colorScheme.onSurfaceVariant : null,
     );
@@ -129,7 +135,8 @@ class _SetlistDetailPageState extends State<SetlistDetailPage> {
             ? "Not downloaded yet"
             : !score.fileType.isKnown
             ? "Needs a newer version of Sheetopia"
-            : score.composer ?? "No composer",
+            : scoreSubtitle(score, subtitle) ??
+                  scoreSubtitlePlaceholder(subtitle),
         overflow: TextOverflow.ellipsis,
         style: theme.textTheme.bodySmall?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
@@ -159,7 +166,10 @@ class _SetlistDetailPageState extends State<SetlistDetailPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return ListenableBuilder(
-      listenable: _viewModel,
+      listenable: Listenable.merge([
+        _viewModel,
+        context.read<SettingsRepository>().appearanceSettings,
+      ]),
       builder: (context, _) {
         final setlist = _viewModel.setlist;
         return Scaffold(

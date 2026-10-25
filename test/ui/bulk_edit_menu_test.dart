@@ -15,11 +15,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/scores/difficulty.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
+import 'package:sheetopia/ui/common/difficulty.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_menu.dart';
@@ -192,5 +194,66 @@ void main() {
     await openMenu(tester, "Delete");
 
     expect(find.text("Delete 1 score?"), findsOneWidget);
+  });
+
+  Future<void> pickField(WidgetTester tester, String field) async {
+    await openMenu(tester, "Edit metadata");
+    await tester.tap(find.text("Field"));
+    await settle(tester);
+    await tester.tap(find.text(field).last);
+    await settle(tester);
+  }
+
+  testWidgets("the metadata dialog sets the arranger of the selection", (
+    tester,
+  ) async {
+    await insertScore("a");
+    await insertScore("b");
+    selected = ["a"];
+    await pumpMenu(tester);
+
+    await pickField(tester, "Arranger");
+    expect(find.text("Edit metadata of 1 score"), findsOneWidget);
+    await tester.enterText(
+      find.widgetWithText(TextField, "Arranger").last,
+      "Busoni",
+    );
+    await settle(tester);
+    await tester.tap(find.text("Update"));
+    await settle(tester);
+
+    expect((await repo.getScore("a"))!.arranger, "Busoni");
+    expect((await repo.getScore("b"))!.arranger, isNull);
+  });
+
+  testWidgets("an empty value clears the field", (tester) async {
+    await insertScore("a");
+    await repo.bulkEditScoreComposer(["a"], "Bach");
+    selected = ["a"];
+    await pumpMenu(tester);
+
+    await pickField(tester, "Composer");
+    await tester.tap(find.text("Clear"));
+    await settle(tester);
+
+    expect((await repo.getScore("a"))!.composer, isNull);
+  });
+
+  testWidgets("the metadata dialog sets the difficulty", (tester) async {
+    await insertScore("a");
+    await insertScore("b");
+    selected = ["a", "b"];
+    await pumpMenu(tester);
+
+    await pickField(tester, "Difficulty");
+    await tester.tap(find.byType(DifficultyDropdown));
+    await settle(tester);
+    await tester.tap(find.text("Hard").last);
+    await settle(tester);
+    await tester.tap(find.text("Update"));
+    await settle(tester);
+
+    expect((await repo.getScore("a"))!.difficulty, Difficulty.hard);
+    expect((await repo.getScore("b"))!.difficulty, Difficulty.hard);
   });
 }

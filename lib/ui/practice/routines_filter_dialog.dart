@@ -8,11 +8,14 @@
 
 import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
-import 'package:sheetopia/ui/common/auto_complete_field.dart';
-import 'package:sheetopia/ui/common/heading.dart';
+import 'package:sheetopia/ui/common/add_field_button.dart';
+import 'package:sheetopia/ui/common/field_section.dart';
 import 'package:sheetopia/ui/common/match_type_selector.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/common/tag_selector.dart';
+import 'package:sheetopia/ui/common/text_filter_field.dart';
+import 'package:sheetopia/ui/common/visible_fields.dart';
+import 'package:sheetopia/ui/practice/exercise_field.dart';
 import 'package:sheetopia/ui/practice/practice_routines_viewmodel.dart';
 
 class RoutinesFilterDialog extends StatefulWidget {
@@ -36,38 +39,74 @@ class RoutinesFilterDialog extends StatefulWidget {
 
 class _RoutinesFilterDialogState extends State<RoutinesFilterDialog> {
   late final PracticeRoutinesViewModel _viewModel = widget._viewModel;
-  late final TextEditingController _instrumentController =
-      TextEditingController(text: _viewModel.filterInstrument);
-  final FocusNode _instrumentFocus = FocusNode();
-  late final TextEditingController _sourceController = TextEditingController(
-    text: _viewModel.filterSource,
-  );
-  final FocusNode _sourceFocus = FocusNode();
+  late final VisibleFields<ExerciseField> _fields = VisibleFields(
+    ExerciseField.routineFilterOptional,
+  )..showWhere(_isFiltered);
+  ExerciseField? _addedField;
 
-  @override
-  void initState() {
-    super.initState();
-    _viewModel.addListener(_onFiltersChanged);
+  bool _isFiltered(ExerciseField field) =>
+      field == ExerciseField.source && _viewModel.filterSource.isNotEmpty;
+
+  void _addField(ExerciseField field) {
+    setState(() {
+      _addedField = field;
+      _fields.show(field);
+    });
   }
 
-  @override
-  void dispose() {
-    _viewModel.removeListener(_onFiltersChanged);
-    _instrumentController.dispose();
-    _instrumentFocus.dispose();
-    _sourceController.dispose();
-    _sourceFocus.dispose();
-    super.dispose();
+  void _removeField(ExerciseField field) {
+    setState(() => _fields.remove(field));
+    if (field == ExerciseField.source) _viewModel.filterSource = "";
   }
 
-  void _onFiltersChanged() {
-    if (_viewModel.filterInstrument.isEmpty &&
-        _instrumentController.text.isNotEmpty) {
-      _instrumentController.clear();
-    }
-    if (_viewModel.filterSource.isEmpty && _sourceController.text.isNotEmpty) {
-      _sourceController.clear();
-    }
+  List<Widget> _mainSections() {
+    return [
+      FieldSection(
+        title: "Instrument",
+        child: TextFilterField(
+          value: _viewModel.filterInstrument,
+          getOptions: (filter) => _viewModel.getInstruments(filter: filter),
+          onChanged: (value) => _viewModel.filterInstrument = value,
+        ),
+      ),
+      FieldSection(
+        title: "Tags",
+        badges: true,
+        trailing: [
+          if (_viewModel.filterTags.isNotEmpty)
+            MatchTypeSelector(
+              value: _viewModel.tagMatch,
+              onChanged: (v) => _viewModel.tagMatch = v,
+            ),
+        ],
+        child: TagSelector(
+          tags: _viewModel.filterTags,
+          type: TagType.exercise,
+          enableCreateTagFromSearch: false,
+          dialogTitle: "Select tags",
+          addBtnText: "Select",
+          onAdd: _viewModel.addFilterTags,
+          onRemove: _viewModel.removeFilterTag,
+          onSynced: _viewModel.setFilterTags,
+        ),
+      ),
+    ];
+  }
+
+  Widget _filterCard(ExerciseField field) {
+    return FieldSection(
+      title: field.label,
+      trailing: [RemoveFieldButton(onPressed: () => _removeField(field))],
+      child: switch (field) {
+        ExerciseField.source => TextFilterField(
+          value: _viewModel.filterSource,
+          autofocus: _addedField == field,
+          getOptions: (filter) => _viewModel.getSources(filter: filter),
+          onChanged: (value) => _viewModel.filterSource = value,
+        ),
+        _ => const SizedBox(),
+      },
+    );
   }
 
   @override
@@ -93,90 +132,37 @@ class _RoutinesFilterDialogState extends State<RoutinesFilterDialog> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: AutoCompleteField(
-                    controller: _instrumentController,
-                    focusNode: _instrumentFocus,
-                    getOptions: (filter) =>
-                        _viewModel.getInstruments(filter: filter),
-                    onChanged: (value) =>
-                        _viewModel.filterInstrument = value.trim(),
-                    onSelected: (option) =>
-                        _viewModel.filterInstrument = option.trim(),
-                    decoration: InputDecoration(
-                      label: const Text("Instrument"),
-                      border: const OutlineInputBorder(),
-                      suffixIcon: _viewModel.filterInstrument.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _instrumentController.clear();
-                                _viewModel.filterInstrument = "";
-                                _instrumentFocus.unfocus();
-                              },
-                            )
-                          : null,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: AutoCompleteField(
-                    controller: _sourceController,
-                    focusNode: _sourceFocus,
-                    getOptions: (filter) =>
-                        _viewModel.getSources(filter: filter),
-                    onChanged: (value) =>
-                        _viewModel.filterSource = value.trim(),
-                    onSelected: (option) =>
-                        _viewModel.filterSource = option.trim(),
-                    decoration: InputDecoration(
-                      label: const Text("Source"),
-                      border: const OutlineInputBorder(),
-                      suffixIcon: _viewModel.filterSource.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _sourceController.clear();
-                                _viewModel.filterSource = "";
-                                _sourceFocus.unfocus();
-                              },
-                            )
-                          : null,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 12, bottom: 4),
-                  child: Row(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    spacing: 12,
                     children: [
-                      const Expanded(child: Heading(text: "Tags")),
-                      if (_viewModel.filterTags.isNotEmpty)
-                        MatchTypeSelector(
-                          value: _viewModel.tagMatch,
-                          onChanged: (v) => _viewModel.tagMatch = v,
+                      ..._mainSections(),
+                      for (final field in _fields.visible) _filterCard(field),
+                      if (_fields.hidden.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            top: FieldSection.headingInset,
+                          ),
+                          child: AddFieldButton(
+                            label: "Add filter",
+                            fields: _fields.hidden,
+                            onSelected: _addField,
+                          ),
                         ),
                     ],
                   ),
                 ),
-                TagSelector(
-                  tags: _viewModel.filterTags,
-                  type: TagType.exercise,
-                  enableCreateTagFromSearch: false,
-                  dialogTitle: "Select tags",
-                  addBtnText: "Select",
-                  onAdd: _viewModel.addFilterTags,
-                  onRemove: _viewModel.removeFilterTag,
-                  onSynced: _viewModel.setFilterTags,
-                ),
-                const SizedBox(height: 4),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   spacing: 8,
                   children: [
                     OutlinedButton.icon(
                       onPressed: _viewModel.hasFilters
-                          ? _viewModel.clearFilters
+                          ? () {
+                              _viewModel.clearFilters();
+                              setState(_fields.clear);
+                            }
                           : null,
                       icon: const Icon(Icons.filter_alt_off_outlined),
                       label: const Text("Clear"),

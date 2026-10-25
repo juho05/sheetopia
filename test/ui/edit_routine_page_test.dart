@@ -16,9 +16,11 @@ import 'package:go_router/go_router.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
@@ -142,6 +144,11 @@ void main() {
       MultiProvider(
         providers: [
           Provider<PracticeRepository>.value(value: repo),
+          Provider<SettingsRepository>.value(
+            value: SettingsRepository(
+              keyValueRepository: KeyValueRepository(database: db),
+            ),
+          ),
           // the exercise picker offers creating an exercise from a score
           Provider<ScoresRepository>.value(value: scoresRepo),
         ],

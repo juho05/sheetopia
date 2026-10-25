@@ -9,7 +9,9 @@
 import 'dart:math';
 
 import 'package:material_ui/material_ui.dart';
+import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
+import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/ui/home/score_grid_cell.dart';
 
 class SliverScoreGrid extends StatelessWidget {
@@ -55,38 +57,49 @@ class SliverScoreGrid extends StatelessWidget {
       ((crossAxisExtent - _gap) / (ScoreGridCell.width + _gap)).floor(),
       1,
     );
-    return SliverFixedExtentList.builder(
-      itemExtent: ScoreGridCell.height + _gap,
-      itemCount: (scores.length / columns).ceil(),
-      itemBuilder: (context, index) {
-        final count = min(columns, scores.length - index * columns);
-        return Padding(
-          padding: const EdgeInsets.only(left: _gap, right: _gap, bottom: _gap),
-          child: Row(
-            mainAxisAlignment: columns == 1
-                ? MainAxisAlignment.center
-                : MainAxisAlignment.start,
-            spacing: _gap,
-            children: List.generate(count, (i) {
-              i += columns * index;
-              return ScoreGridCell(
-                score: scores[i],
-                selecting: selectionMode,
-                onScoreToggle: (score) {
-                  if (selected.contains(score.id)) {
-                    onScoreDeselected?.call(score);
-                  } else {
-                    onScoreSelected?.call(score);
-                  }
-                },
-                onScoreSelectionStart: onScoreSelected,
-                onScoreRangeSelect: onScoreRangeSelect,
-                selected: selected.contains(scores[i].id),
-              );
-            }),
-          ),
-        );
-      },
+    final appearance = context.read<SettingsRepository>().appearanceSettings;
+    return ListenableBuilder(
+      listenable: appearance,
+      builder: (context, _) => SliverFixedExtentList.builder(
+        itemExtent: ScoreGridCell.height + _gap,
+        itemCount: (scores.length / columns).ceil(),
+        itemBuilder: (context, index) {
+          final count = min(columns, scores.length - index * columns);
+          return Padding(
+            padding: const EdgeInsets.only(
+              left: _gap,
+              right: _gap,
+              bottom: _gap,
+            ),
+            child: Row(
+              mainAxisAlignment: columns == 1
+                  ? MainAxisAlignment.center
+                  : MainAxisAlignment.start,
+              spacing: _gap,
+              children: List.generate(count, (i) {
+                i += columns * index;
+                return ScoreGridCell(
+                  score: scores[i],
+                  subtitle: appearance.cardSubtitle,
+                  badges: appearance.cardBadges,
+                  showDifficulty: appearance.cardDifficulty,
+                  selecting: selectionMode,
+                  onScoreToggle: (score) {
+                    if (selected.contains(score.id)) {
+                      onScoreDeselected?.call(score);
+                    } else {
+                      onScoreSelected?.call(score);
+                    }
+                  },
+                  onScoreSelectionStart: onScoreSelected,
+                  onScoreRangeSelect: onScoreRangeSelect,
+                  selected: selected.contains(scores[i].id),
+                );
+              }),
+            ),
+          );
+        },
+      ),
     );
   }
 }

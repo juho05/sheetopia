@@ -9,14 +9,12 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/ui/common/bulk_edit/bulk_edit_metadata_dialog.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/menu_button.dart';
+import 'package:sheetopia/ui/common/score_field.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_menu_viewmodel.dart';
-import 'package:sheetopia/ui/edit_score/auto_complete_input_dialog.dart';
-import 'package:sheetopia/ui/edit_score/source_input_dialog.dart';
-import 'package:sheetopia/ui/common/bulk_edit/bulk_edit_tags_dialog.dart';
-import 'package:sheetopia/ui/common/bulk_edit/bulk_edit_values_dialog.dart';
 import 'package:sheetopia/ui/setlists/select_setlist_dialog.dart';
 
 class BulkEditMenu extends StatefulWidget {
@@ -68,89 +66,80 @@ class _BulkEditMenuState extends State<BulkEditMenu> {
     Toast.show("Deleted $deleted ${deleted == 1 ? "score" : "scores"}");
   }
 
+  Future<void> _editMetadata() async {
+    final count = widget.selectedScoreIds.length;
+    final edit = await BulkEditMetadataDialog.show(
+      context,
+      title: "Edit metadata of $count ${count == 1 ? "score" : "scores"}",
+      fields: [
+        BulkMetadataField(
+          ScoreField.composer,
+          BulkInputKind.text,
+          getOptions: (filter, _) => _viewModel.getComposers(filter: filter),
+        ),
+        BulkMetadataField(
+          ScoreField.arranger,
+          BulkInputKind.text,
+          getOptions: (filter, _) => _viewModel.getArrangers(filter: filter),
+        ),
+        BulkMetadataField(
+          ScoreField.source,
+          BulkInputKind.source,
+          getOptions: (filter, _) => _viewModel.getSources(filter: filter),
+        ),
+        const BulkMetadataField(
+          ScoreField.difficulty,
+          BulkInputKind.difficulty,
+        ),
+        BulkMetadataField(
+          ScoreField.instruments,
+          BulkInputKind.valueList,
+          valueLabel: "Instrument",
+          getOptions: (filter, exclude) =>
+              _viewModel.getInstruments(filter: filter, exclude: exclude),
+        ),
+        BulkMetadataField(
+          ScoreField.genres,
+          BulkInputKind.valueList,
+          valueLabel: "Genre",
+          getOptions: (filter, exclude) =>
+              _viewModel.getGenres(filter: filter, exclude: exclude),
+        ),
+        const BulkMetadataField(ScoreField.tags, BulkInputKind.tags),
+      ],
+    );
+    if (edit == null) return;
+    switch (edit) {
+      case BulkTextEdit(field: ScoreField.arranger, :final value):
+        await _viewModel.editArranger(value);
+      case BulkTextEdit(:final value):
+        await _viewModel.editComposer(value);
+      case BulkSourceEdit(:final source, :final sourceLink):
+        await _viewModel.editSource(source, sourceLink);
+      case BulkDifficultyEdit(:final difficulty):
+        await _viewModel.editDifficulty(difficulty);
+      case BulkValuesEdit(field: ScoreField.genres, :final add, :final remove):
+        await _viewModel.editGenres(add, remove);
+      case BulkValuesEdit(:final add, :final remove):
+        await _viewModel.editInstruments(add, remove);
+      case BulkTagsEdit(:final addIds, :final removeIds):
+        await _viewModel.editTags(addIds.toSet(), removeIds.toSet());
+      case BulkCategoryEdit():
+        return;
+    }
+    Toast.show(
+      "Successfully updated ${edit.field.label.toLowerCase()} of selected scores",
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MenuButton(
       options: [
         ContextMenuOption(
-          title: "Edit composer",
-          icon: Symbols.artist,
-          onSelected: () async {
-            final composer = await AutoCompleteInputDialog.show(
-              context,
-              title: "Bulk edit composer",
-              inputLabel: "Composer",
-              submitBtnText: "Update",
-              enableClear: true,
-              getOptions: (filter) => _viewModel.getComposers(filter: filter),
-            );
-            if (composer == null) return;
-            await _viewModel.editComposer(composer);
-            Toast.show("Successfully updated composer of selected scores");
-          },
-        ),
-        ContextMenuOption(
-          title: "Edit source",
-          icon: Symbols.link,
-          onSelected: () async {
-            final result = await SourceInputDialog.show(
-              context,
-              title: "Bulk edit source",
-              submitBtnText: "Update",
-              enableClear: true,
-              getOptions: (filter) => _viewModel.getSources(filter: filter),
-            );
-            if (result == null) return;
-            await _viewModel.editSource(result.source, result.sourceLink);
-            Toast.show("Successfully updated source of selected scores");
-          },
-        ),
-        ContextMenuOption(
-          title: "Edit instruments",
-          icon: Symbols.piano,
-          onSelected: () async {
-            final result = await BulkEditValuesDialog.show(
-              context,
-              title: "Bulk edit instruments",
-              valuesLabel: "instruments",
-              inputLabel: "Instrument",
-              getOptions: (filter, exclude) =>
-                  _viewModel.getInstruments(filter: filter, exclude: exclude),
-            );
-            if (result == null) return;
-            await _viewModel.editInstruments(result.add, result.remove);
-            Toast.show("Successfully updated instruments of selected scores");
-          },
-        ),
-        ContextMenuOption(
-          title: "Edit genres",
-          icon: Symbols.genres,
-          onSelected: () async {
-            final result = await BulkEditValuesDialog.show(
-              context,
-              title: "Bulk edit genres",
-              valuesLabel: "genres",
-              inputLabel: "Genre",
-              getOptions: (filter, exclude) =>
-                  _viewModel.getGenres(filter: filter, exclude: exclude),
-            );
-            if (result == null) return;
-            await _viewModel.editGenres(result.add, result.remove);
-            Toast.show("Successfully updated genres of selected scores");
-          },
-        ),
-        ContextMenuOption(
-          title: "Edit tags",
-          icon: Symbols.label,
-          onSelected: () async {
-            final result = await BulkEditTagsDialog.show(context);
-            if (result == null) return;
-            await _viewModel.editTags(
-              result.addIds.toSet(),
-              result.removeIds.toSet(),
-            );
-            Toast.show("Successfully updated tags of selected scores");
-          },
+          title: "Edit metadata",
+          icon: Symbols.edit_note,
+          onSelected: _editMetadata,
         ),
         ContextMenuOption(
           title: "Add to setlist",

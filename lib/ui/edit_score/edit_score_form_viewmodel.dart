@@ -11,9 +11,12 @@ import 'dart:collection';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:reactive_forms/reactive_forms.dart';
+import 'package:sheetopia/data/repositories/scores/difficulty.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
+import 'package:sheetopia/ui/common/score_field.dart';
+import 'package:sheetopia/ui/common/visible_fields.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_viewmodel.dart';
 
 class EditScoreFormViewModel extends ChangeNotifier {
@@ -47,10 +50,27 @@ class EditScoreFormViewModel extends ChangeNotifier {
 
   String? get sourceLink => _sourceLink;
 
+  Difficulty? _difficulty;
+
+  Difficulty? get difficulty => _difficulty;
+
+  final VisibleFields<ScoreField> _fields = VisibleFields(
+    ScoreField.formOptional,
+  );
+
+  bool isVisible(ScoreField field) => _fields.contains(field);
+
+  bool get hasArranger => (form.control(formArranger).value ?? "").isNotEmpty;
+
+  bool get hasNotes => (form.control(formNotes).value ?? "").isNotEmpty;
+
+  Iterable<ScoreField> get hiddenFields => _fields.hidden;
+
   final FormGroup form;
 
   static const String formTitle = "title";
   static const String formComposer = "composer";
+  static const String formArranger = "arranger";
   static const String formNotes = "notes";
 
   StreamSubscription? _valueSub;
@@ -68,6 +88,9 @@ class EditScoreFormViewModel extends ChangeNotifier {
          ),
          formComposer: FormControl<String>(
            value: editScoreViewModel.score!.composer,
+         ),
+         formArranger: FormControl<String>(
+           value: editScoreViewModel.score!.arranger,
          ),
          formNotes: FormControl<String>(value: editScoreViewModel.score!.notes),
        }) {
@@ -89,7 +112,7 @@ class EditScoreFormViewModel extends ChangeNotifier {
   Future<void> removeInstrument(String instrument) async {
     if (!_instruments.remove(instrument)) return;
     notifyListeners();
-    await _repo.removeScoreInstrument(score.id, instrument);
+    await _repo.removeScoreInstruments(score.id, [instrument]);
   }
 
   Future<void> addGenre(String genre) async {
@@ -101,7 +124,15 @@ class EditScoreFormViewModel extends ChangeNotifier {
   Future<void> removeGenre(String genre) async {
     if (!_genres.remove(genre)) return;
     notifyListeners();
-    await _repo.removeScoreGenre(score.id, genre);
+    await _repo.removeScoreGenres(score.id, [genre]);
+  }
+
+  Future<void> _clearGenres() async {
+    if (_genres.isEmpty) return;
+    final genres = List.of(_genres);
+    _genres.clear();
+    notifyListeners();
+    await _repo.removeScoreGenres(score.id, genres);
   }
 
   Future<void> setSource(String source, String sourceLink) async {
@@ -113,6 +144,48 @@ class EditScoreFormViewModel extends ChangeNotifier {
       source: source,
       sourceLink: sourceLink,
     );
+  }
+
+  void showField(ScoreField field) {
+    if (!_fields.show(field)) return;
+    notifyListeners();
+  }
+
+  Future<void> removeField(ScoreField field) async {
+    _fields.remove(field);
+    switch (field) {
+      case ScoreField.arranger:
+        form.control(formArranger).value = "";
+      case ScoreField.source:
+        await setSource("", "");
+      case ScoreField.difficulty:
+        await setDifficulty(null);
+      case ScoreField.genres:
+        await _clearGenres();
+      case ScoreField.notes:
+        form.control(formNotes).value = "";
+      case ScoreField.composer || ScoreField.instruments || ScoreField.tags:
+        break;
+    }
+    notifyListeners();
+  }
+
+  bool _isFilled(ScoreField field) => switch (field) {
+    ScoreField.arranger => hasArranger,
+    ScoreField.source => _source != null,
+    ScoreField.difficulty => _difficulty != null,
+    ScoreField.genres => _genres.isNotEmpty,
+    ScoreField.notes => hasNotes,
+    _ => false,
+  };
+
+  void _showFilledFields() => _fields.showWhere(_isFilled);
+
+  Future<void> setDifficulty(Difficulty? difficulty) async {
+    if (_difficulty == difficulty) return;
+    _difficulty = difficulty;
+    notifyListeners();
+    await _repo.updateScoreDifficulty(score.id, difficulty);
   }
 
   Future<void> addTags(Iterable<Tag> tags) async {
@@ -154,6 +227,16 @@ class EditScoreFormViewModel extends ChangeNotifier {
         .take(10);
   }
 
+  List<String>? _arrangers;
+
+  Future<Iterable<String>> getArrangers({String filter = ""}) async {
+    _arrangers ??= await _repo.getArrangers();
+    filter = filter.toLowerCase();
+    return _arrangers!
+        .where((element) => element.toLowerCase().contains(filter))
+        .take(10);
+  }
+
   List<String>? _sources;
 
   Future<Iterable<String>> getSources({String filter = ""}) async {
@@ -178,6 +261,8 @@ class EditScoreFormViewModel extends ChangeNotifier {
       _tags = SplayTreeSet.of(score.tags, _byName);
       _source = _score.source;
       _sourceLink = _score.sourceLink;
+      _difficulty = _score.difficulty;
+      _showFilledFields();
       notifyListeners();
       return;
     }
@@ -187,18 +272,23 @@ class EditScoreFormViewModel extends ChangeNotifier {
 
   Future<void> _loadScore() async {
     _composers = null;
+    _arrangers = null;
     _sources = null;
     _score = _editScoreViewModel.score!;
     _source = _score.source;
     _sourceLink = _score.sourceLink;
+    _difficulty = _score.difficulty;
     form.updateValue({
       formTitle: _score.title,
       formComposer: _score.composer ?? "",
+      formArranger: _score.arranger ?? "",
       formNotes: _score.notes ?? "",
     });
     _instruments = SplayTreeSet.of(score.instruments);
     _genres = SplayTreeSet.of(score.genres);
     _tags = SplayTreeSet.of(score.tags, _byName);
+    _fields.clear();
+    _showFilledFields();
 
     notifyListeners();
   }
@@ -219,6 +309,7 @@ class EditScoreFormViewModel extends ChangeNotifier {
       _score.id,
       title: values[formTitle].trim(),
       composer: (values[formComposer] ?? "").trim(),
+      arranger: (values[formArranger] ?? "").trim(),
       notes: (values[formNotes] ?? "").trim(),
     );
   }

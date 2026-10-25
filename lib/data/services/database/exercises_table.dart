@@ -26,6 +26,7 @@ class ExercisesTable extends Table {
   late final source = text().nullable()();
   late final sourceLink = text().nullable()();
   late final instrument = text().nullable()();
+  late final difficulty = integer().nullable()();
   late final targetBpm = integer().nullable()();
 
   late final progressResetAt = dateTime().nullable()();

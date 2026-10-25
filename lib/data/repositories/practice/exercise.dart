@@ -7,6 +7,7 @@
  */
 
 import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
+import 'package:sheetopia/data/repositories/scores/difficulty.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 
 class Exercise {
@@ -15,6 +16,7 @@ class Exercise {
   final String? description;
   final ExerciseCategory? category;
   final String? instrument;
+  final Difficulty? difficulty;
   final List<Tag> tags;
   final String? source;
   final String? sourceLink;
@@ -24,6 +26,7 @@ class Exercise {
     required this.name,
     required this.category,
     required this.instrument,
+    this.difficulty,
     required this.tags,
     required this.description,
     this.source,

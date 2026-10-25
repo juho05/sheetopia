@@ -9,7 +9,9 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
+import 'package:sheetopia/data/repositories/settings/appearance.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
+import 'package:sheetopia/ui/common/difficulty.dart';
 import 'package:sheetopia/ui/common/optional_tooltip.dart';
 import 'package:sheetopia/ui/common/selection/selection_check_badge.dart';
 import 'package:sheetopia/ui/common/selection/selection_gestures.dart';
@@ -29,6 +31,9 @@ class ScoreGridCell extends StatelessWidget {
   final void Function(Score score)? onScoreSelectionStart;
   final void Function(Score score)? onScoreRangeSelect;
   final bool selected;
+  final CardSubtitle subtitle;
+  final CardBadges badges;
+  final bool showDifficulty;
 
   const ScoreGridCell({
     super.key,
@@ -38,6 +43,9 @@ class ScoreGridCell extends StatelessWidget {
     this.onScoreSelectionStart,
     this.onScoreRangeSelect,
     this.selected = false,
+    this.subtitle = CardSubtitle.composer,
+    this.badges = CardBadges.instruments,
+    this.showDifficulty = false,
   });
 
   @override
@@ -79,6 +87,17 @@ class ScoreGridCell extends StatelessWidget {
                   ),
                 ),
               );
+              final subtitleText = scoreSubtitle(score, subtitle);
+              final subtitleStyle = theme.textTheme.bodyMedium!.copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w300,
+                fontStyle: FontStyle.italic,
+              );
+              final badgeNames = switch (badges) {
+                CardBadges.instruments => score.instruments,
+                CardBadges.genres => score.genres,
+                CardBadges.none => null,
+              };
               final widget = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 spacing: 4,
@@ -100,27 +119,34 @@ class ScoreGridCell extends StatelessWidget {
                       spacing: 4,
                       children: [
                         title,
-                        OptionalTooltip(
-                          message: score.composer,
-                          child: Text(
-                            score.composer ?? "No composer",
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium!.copyWith(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w300,
-                              fontStyle: FontStyle.italic,
+                        Row(
+                          spacing: 4,
+                          children: [
+                            Expanded(
+                              child: OptionalTooltip(
+                                message: subtitleText,
+                                child: Text(
+                                  subtitleText ??
+                                      scoreSubtitlePlaceholder(subtitle),
+                                  overflow: TextOverflow.ellipsis,
+                                  style: subtitleStyle,
+                                ),
+                              ),
+                            ),
+                            if (showDifficulty && score.difficulty != null)
+                              DifficultyIcon(difficulty: score.difficulty!),
+                          ],
+                        ),
+                        if (badgeNames != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: _BadgeStrip(
+                              badges: [
+                                for (final name in badgeNames)
+                                  CommonBadge(name: name, tooltip: false),
+                              ],
                             ),
                           ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: _BadgeStrip(
-                            badges: [
-                              for (final instrument in score.instruments)
-                                CommonBadge(name: instrument, tooltip: false),
-                            ],
-                          ),
-                        ),
                         if (score.tags.isNotEmpty) const Divider(),
                         _BadgeStrip(
                           badges: [
@@ -183,6 +209,24 @@ class ScoreGridCell extends StatelessWidget {
     return Surface.tile(context, child: cell);
   }
 }
+
+String? scoreSubtitle(Score score, CardSubtitle subtitle) {
+  final composer = score.composer;
+  final arranger = score.arranger;
+  return switch (subtitle) {
+    CardSubtitle.composer => composer,
+    CardSubtitle.arranger => arranger,
+    CardSubtitle.composerAndArranger => switch ((composer, arranger)) {
+      (null, null) => null,
+      (final c?, null) => c,
+      (null, final a?) => "arr. $a",
+      (final c?, final a?) => "$c, arr. $a",
+    },
+  };
+}
+
+String scoreSubtitlePlaceholder(CardSubtitle subtitle) =>
+    subtitle == CardSubtitle.arranger ? "No arranger" : "No composer";
 
 class _BadgeStrip extends StatelessWidget {
   final List<Widget> badges;

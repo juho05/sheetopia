@@ -16,6 +16,12 @@ class AppearanceViewModel extends ChangeNotifier {
 
   ThemeMode get mode => _mode;
 
+  CardSubtitle get cardSubtitle => _settings.cardSubtitle;
+
+  CardBadges get cardBadges => _settings.cardBadges;
+
+  bool get cardDifficulty => _settings.cardDifficulty;
+
   AppearanceViewModel({required this._settings}) {
     _settings.addListener(_onSettingsChanged);
     _onSettingsChanged();
@@ -28,6 +34,18 @@ class AppearanceViewModel extends ChangeNotifier {
 
   void updateMode(ThemeMode mode) {
     _settings.themeMode = mode;
+  }
+
+  void updateCardSubtitle(CardSubtitle value) {
+    _settings.cardSubtitle = value;
+  }
+
+  void updateCardBadges(CardBadges value) {
+    _settings.cardBadges = value;
+  }
+
+  void updateCardDifficulty(bool value) {
+    _settings.cardDifficulty = value;
   }
 
   @override

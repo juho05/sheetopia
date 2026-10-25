@@ -17,11 +17,14 @@ import 'package:material_ui/material_ui.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
+import 'package:sheetopia/data/repositories/scores/difficulty.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/file_picker.dart';
+import 'package:sheetopia/ui/common/visible_fields.dart';
+import 'package:sheetopia/ui/practice/exercise_field.dart';
 import 'package:sheetopia/utils/category_sync.dart';
 
 class ExerciseScoreEntry {
@@ -67,6 +70,18 @@ class EditExerciseViewModel extends ChangeNotifier {
   String? _sourceLink;
 
   String? get sourceLink => _sourceLink;
+
+  Difficulty? _difficulty;
+
+  Difficulty? get difficulty => _difficulty;
+
+  final VisibleFields<ExerciseField> _fields = VisibleFields(
+    ExerciseField.formOptional,
+  );
+
+  bool isVisible(ExerciseField field) => _fields.contains(field);
+
+  Iterable<ExerciseField> get hiddenFields => _fields.hidden;
 
   final FormGroup form;
 
@@ -140,6 +155,43 @@ class EditExerciseViewModel extends ChangeNotifier {
     notifyListeners();
     if (_exerciseId == null) return;
     await _repo.updateExerciseCategory(_exerciseId, category?.id);
+  }
+
+  void showField(ExerciseField field) {
+    if (!_fields.show(field)) return;
+    notifyListeners();
+  }
+
+  Future<void> removeField(ExerciseField field) async {
+    _fields.remove(field);
+    switch (field) {
+      case ExerciseField.source:
+        await setSource("", "");
+      case ExerciseField.difficulty:
+        await setDifficulty(null);
+      case ExerciseField.category ||
+          ExerciseField.instrument ||
+          ExerciseField.description ||
+          ExerciseField.tags:
+        break;
+    }
+    notifyListeners();
+  }
+
+  bool _isFilled(ExerciseField field) => switch (field) {
+    ExerciseField.source => _source != null,
+    ExerciseField.difficulty => _difficulty != null,
+    _ => false,
+  };
+
+  void _showFilledFields() => _fields.showWhere(_isFilled);
+
+  Future<void> setDifficulty(Difficulty? difficulty) async {
+    if (_difficulty == difficulty) return;
+    _difficulty = difficulty;
+    notifyListeners();
+    if (_exerciseId == null) return;
+    await _repo.updateExerciseDifficulty(_exerciseId, difficulty);
   }
 
   Future<void> setSource(String source, String sourceLink) async {
@@ -381,6 +433,7 @@ class EditExerciseViewModel extends ChangeNotifier {
         tagIds: _tags.map((t) => t.id),
         scoreIds: _scoreEntries.map((e) => e.score.id),
         categoryId: _category?.id,
+        difficulty: _difficulty,
       );
       if (!hasNext) return true;
 
@@ -399,6 +452,8 @@ class EditExerciseViewModel extends ChangeNotifier {
     _category = null;
     _source = null;
     _sourceLink = null;
+    _difficulty = null;
+    _fields.clear();
     _scoreEntries.clear();
     form.reset();
     notifyListeners();
@@ -443,12 +498,14 @@ class EditExerciseViewModel extends ChangeNotifier {
       _category = exercise.category;
       _source = exercise.source;
       _sourceLink = exercise.sourceLink;
+      _difficulty = exercise.difficulty;
       _tags = SplayTreeSet.of(exercise.tags, _byName);
       form.updateValue({
         formName: exercise.name,
         formDescription: exercise.description,
         formInstrument: exercise.instrument ?? "",
       }, emitEvent: false);
+      _showFilledFields();
       _scoreEntries = _toEntries(await _repo.getExerciseScores(_exerciseId));
     }
     _loading = false;

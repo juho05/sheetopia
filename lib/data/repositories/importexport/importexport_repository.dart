@@ -225,11 +225,13 @@ class ImportExportRepository extends ChangeNotifier {
                       fileUpdatedAt: s.fileUpdatedAt,
                       metadata: ScoreMetadataModel(
                         composer: s.composer,
+                        arranger: s.arranger ?? "",
                         source: s.source,
                         sourceLink: s.sourceLink,
                         genres: s.genres,
                         instruments: s.instruments,
                         notes: s.notes,
+                        difficulty: s.difficulty?.level ?? 0,
                         annotations: s.annotations == null
                             ? {}
                             : jsonDecode(s.annotations!)
@@ -322,6 +324,7 @@ class ImportExportRepository extends ChangeNotifier {
                     source: e.source ?? "",
                     sourceLink: e.sourceLink ?? "",
                     instrument: e.instrument ?? "",
+                    difficulty: e.difficulty ?? 0,
                     targetBpm: e.targetBpm ?? 0,
                     progressResetAt: e.progressResetAt?.toRFC3339() ?? "",
                   ),
@@ -644,6 +647,7 @@ class ImportExportRepository extends ChangeNotifier {
             source: optionalStringValue(e.metadata.source),
             sourceLink: optionalStringValue(e.metadata.sourceLink),
             instrument: optionalStringValue(e.metadata.instrument),
+            difficulty: optionalIntValue(e.metadata.difficulty),
             targetBpm: optionalIntValue(e.metadata.targetBpm),
             progressResetAt: optionalDateTimeValue(e.metadata.progressResetAt),
             updatedAt: Value(e.updatedAt.toUtc()),
@@ -663,6 +667,9 @@ class ImportExportRepository extends ChangeNotifier {
                   : null,
               instrument: e.metadata.instrument != null
                   ? excluded.instrument
+                  : null,
+              difficulty: e.metadata.difficulty != null
+                  ? excluded.difficulty
                   : null,
               targetBpm: e.metadata.targetBpm != null
                   ? excluded.targetBpm
@@ -913,12 +920,15 @@ class ImportExportRepository extends ChangeNotifier {
               searchText: ScoresRepository.generateSearchText([
                 s.title,
                 s.metadata.composer,
+                s.metadata.arranger,
               ]),
               title: s.title,
               composer: optionalStringValue(s.metadata.composer),
+              arranger: optionalStringValue(s.metadata.arranger),
               source: optionalStringValue(s.metadata.source),
               sourceLink: optionalStringValue(s.metadata.sourceLink),
               notes: optionalStringValue(s.metadata.notes),
+              difficulty: optionalIntValue(s.metadata.difficulty),
               annotations: _annotationsColumnValue(s.metadata.annotations),
               metadataUploaded: const Value(false),
               metadataUpdatedAt: Value(s.metadataUpdatedAt.toUtc()),
@@ -953,6 +963,9 @@ class ImportExportRepository extends ChangeNotifier {
                   composer: metadataChanged
                       ? optionalStringValue(s.metadata.composer)
                       : const Value.absent(),
+                  arranger: metadataChanged
+                      ? optionalStringValue(s.metadata.arranger)
+                      : const Value.absent(),
                   source: metadataChanged
                       ? optionalStringValue(s.metadata.source)
                       : const Value.absent(),
@@ -962,6 +975,9 @@ class ImportExportRepository extends ChangeNotifier {
                   notes: metadataChanged
                       ? optionalStringValue(s.metadata.notes)
                       : const Value.absent(),
+                  difficulty: metadataChanged
+                      ? optionalIntValue(s.metadata.difficulty)
+                      : const Value.absent(),
                   annotations: metadataChanged
                       ? _annotationsColumnValue(s.metadata.annotations)
                       : const Value.absent(),
@@ -969,7 +985,8 @@ class ImportExportRepository extends ChangeNotifier {
                       ? Value(
                           ScoresRepository.generateSearchText([
                             s.title,
-                            s.metadata.composer,
+                            s.metadata.composer ?? score.composer,
+                            s.metadata.arranger ?? score.arranger,
                           ]),
                         )
                       : const Value.absent(),

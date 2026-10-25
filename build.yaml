@@ -1,5 +1,9 @@
 targets:
   $default:
+    sources:
+      exclude:
+        - tool/test/runs/**
+        - tool/screenshots/out/**
     builders:
       drift_dev:
         options:

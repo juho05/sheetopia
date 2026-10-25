@@ -10,14 +10,12 @@ import 'package:material_ui/material_ui.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
-import 'package:sheetopia/ui/common/bulk_edit/bulk_edit_tags_dialog.dart';
+import 'package:sheetopia/ui/common/bulk_edit/bulk_edit_metadata_dialog.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
 import 'package:sheetopia/ui/common/menu_button.dart';
 import 'package:sheetopia/ui/common/toast.dart';
-import 'package:sheetopia/ui/edit_score/auto_complete_input_dialog.dart';
-import 'package:sheetopia/ui/edit_score/source_input_dialog.dart';
 import 'package:sheetopia/ui/practice/bulk_edit/exercises_bulk_edit_menu_viewmodel.dart';
-import 'package:sheetopia/ui/practice/category_selector.dart';
+import 'package:sheetopia/ui/practice/exercise_field.dart';
 import 'package:sheetopia/ui/practice/select_routine_dialog.dart';
 
 class ExercisesBulkEditMenu extends StatefulWidget {
@@ -68,73 +66,62 @@ class _ExercisesBulkEditMenuState extends State<ExercisesBulkEditMenu> {
     Toast.show("Deleted $deleted ${deleted == 1 ? "exercise" : "exercises"}");
   }
 
+  Future<void> _editMetadata() async {
+    final count = _viewModel.selectedCount;
+    final edit = await BulkEditMetadataDialog.show(
+      context,
+      title: "Edit metadata of $count ${count == 1 ? "exercise" : "exercises"}",
+      fields: [
+        const BulkMetadataField(ExerciseField.category, BulkInputKind.category),
+        BulkMetadataField(
+          ExerciseField.instrument,
+          BulkInputKind.text,
+          getOptions: (filter, _) => _viewModel.getInstruments(filter: filter),
+        ),
+        const BulkMetadataField(
+          ExerciseField.difficulty,
+          BulkInputKind.difficulty,
+        ),
+        BulkMetadataField(
+          ExerciseField.source,
+          BulkInputKind.source,
+          getOptions: (filter, _) => _viewModel.getSources(filter: filter),
+        ),
+        const BulkMetadataField(
+          ExerciseField.tags,
+          BulkInputKind.tags,
+          tagType: TagType.exercise,
+        ),
+      ],
+    );
+    if (edit == null) return;
+    switch (edit) {
+      case BulkCategoryEdit(:final category):
+        await _viewModel.editCategory(category?.id);
+      case BulkTextEdit(:final value):
+        await _viewModel.editInstrument(value);
+      case BulkSourceEdit(:final source, :final sourceLink):
+        await _viewModel.editSource(source, sourceLink);
+      case BulkTagsEdit(:final addIds, :final removeIds):
+        await _viewModel.editTags(addIds.toSet(), removeIds.toSet());
+      case BulkDifficultyEdit(:final difficulty):
+        await _viewModel.editDifficulty(difficulty);
+      case BulkValuesEdit():
+        return;
+    }
+    Toast.show(
+      "Successfully updated ${edit.field.label.toLowerCase()} of selected exercises",
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MenuButton(
       options: [
         ContextMenuOption(
-          title: "Edit category",
-          icon: Symbols.category,
-          onSelected: () async {
-            final choice = await SelectCategoryDialog.show(
-              context,
-              selected: null,
-              emptyLabel: "No category",
-              allowCreate: true,
-            );
-            if (choice == null) return;
-            await _viewModel.editCategory(choice.category?.id);
-            Toast.show("Successfully updated category of selected exercises");
-          },
-        ),
-        ContextMenuOption(
-          title: "Edit instrument",
-          icon: Symbols.piano,
-          onSelected: () async {
-            final instrument = await AutoCompleteInputDialog.show(
-              context,
-              title: "Bulk edit instrument",
-              inputLabel: "Instrument",
-              submitBtnText: "Update",
-              enableClear: true,
-              getOptions: (filter) => _viewModel.getInstruments(filter: filter),
-            );
-            if (instrument == null) return;
-            await _viewModel.editInstrument(instrument);
-            Toast.show("Successfully updated instrument of selected exercises");
-          },
-        ),
-        ContextMenuOption(
-          title: "Edit source",
-          icon: Symbols.link,
-          onSelected: () async {
-            final result = await SourceInputDialog.show(
-              context,
-              title: "Bulk edit source",
-              submitBtnText: "Update",
-              enableClear: true,
-              getOptions: (filter) => _viewModel.getSources(filter: filter),
-            );
-            if (result == null) return;
-            await _viewModel.editSource(result.source, result.sourceLink);
-            Toast.show("Successfully updated source of selected exercises");
-          },
-        ),
-        ContextMenuOption(
-          title: "Edit tags",
-          icon: Symbols.label,
-          onSelected: () async {
-            final result = await BulkEditTagsDialog.show(
-              context,
-              type: TagType.exercise,
-            );
-            if (result == null) return;
-            await _viewModel.editTags(
-              result.addIds.toSet(),
-              result.removeIds.toSet(),
-            );
-            Toast.show("Successfully updated tags of selected exercises");
-          },
+          title: "Edit metadata",
+          icon: Symbols.edit_note,
+          onSelected: _editMetadata,
         ),
         ContextMenuOption(
           title: "Add to routine",

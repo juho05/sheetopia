@@ -563,7 +563,12 @@ void main() {
     expect(tag.type, TagType.score);
   });
 
-  ScoreModel remoteScore({ScoreType? type, String id = scoreId}) {
+  ScoreModel remoteScore({
+    ScoreType? type,
+    String id = scoreId,
+    String? arranger = "",
+    int? difficulty = 0,
+  }) {
     return ScoreModel(
       id: id,
       title: "Title",
@@ -574,15 +579,54 @@ void main() {
       type: type,
       metadata: ScoreMetadataModel(
         composer: "",
+        arranger: arranger,
         source: "",
         sourceLink: "",
         notes: "",
+        difficulty: difficulty,
         instruments: const [],
         genres: const [],
         annotations: const {},
       ),
     );
   }
+
+  test("a downloaded score applies arranger and difficulty", () async {
+    await createScore();
+    service.scores = [remoteScore(arranger: "Busoni", difficulty: 5)];
+
+    await syncAndWait();
+
+    final score = await db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .getSingle();
+    expect(score.arranger, "Busoni");
+    expect(score.difficulty, 5);
+    expect(score.searchText, " title busoni ");
+  });
+
+  test(
+    "a score from a client without arranger and difficulty keeps them",
+    () async {
+      await createScore();
+      await db.managers.scoresTable
+          .filter((f) => f.id(scoreId))
+          .update(
+            (o) =>
+                o(arranger: const Value("Busoni"), difficulty: const Value(2)),
+          );
+      service.scores = [remoteScore(arranger: null, difficulty: null)];
+
+      await syncAndWait();
+
+      final score = await db.managers.scoresTable
+          .filter((f) => f.id(scoreId))
+          .getSingle();
+      expect(score.arranger, "Busoni");
+      expect(score.difficulty, 2);
+      expect(score.searchText, " title busoni ");
+    },
+  );
 
   test("a downloaded score without a type keeps the local one", () async {
     await createScore(type: ScoreType.exercise, ownedByExercise: true);

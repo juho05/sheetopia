@@ -20,6 +20,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
+import 'package:sheetopia/data/repositories/scores/difficulty.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
@@ -191,9 +192,11 @@ class ScoresRepository {
       id: score.id,
       title: score.title,
       composer: score.composer,
+      arranger: score.arranger,
       source: score.source,
       sourceLink: score.sourceLink,
       notes: score.notes,
+      difficulty: Difficulty.fromLevel(score.difficulty),
       annotations: score.annotations,
       genres: genres,
       instruments: instruments,
@@ -313,7 +316,9 @@ class ScoresRepository {
     JoinedSelectStatement q,
     Iterable<String> searchFields,
     String composer,
+    String arranger,
     String source,
+    Iterable<Difficulty> difficulties,
     ScoreType? type,
   ) {
     for (final s in searchFields) {
@@ -325,6 +330,14 @@ class ScoresRepository {
     if (composer.isNotEmpty) {
       q.where(_db.scoresTable.composer.equals(composer));
     }
+    if (arranger.isNotEmpty) {
+      q.where(_db.scoresTable.arranger.equals(arranger));
+    }
+    if (difficulties.isNotEmpty) {
+      q.where(
+        _db.scoresTable.difficulty.isIn(difficulties.map((d) => d.level)),
+      );
+    }
     if (source.isNotEmpty) {
       q.where(_db.scoresTable.source.equals(source));
     }
@@ -333,7 +346,9 @@ class ScoresRepository {
   Future<int> countScores({
     String filter = "",
     String composer = "",
+    String arranger = "",
     String source = "",
+    Iterable<Difficulty> difficulties = const [],
     ScoreType? type,
     Iterable<String> instruments = const [],
     Iterable<String> genres = const [],
@@ -357,7 +372,15 @@ class ScoresRepository {
           ),
         );
     q.addColumns([countExpr]);
-    _applyScoreFilters(q, searchFields, composer, source, type);
+    _applyScoreFilters(
+      q,
+      searchFields,
+      composer,
+      arranger,
+      source,
+      difficulties,
+      type,
+    );
     final row = await q.getSingle();
     return row.read(countExpr) ?? 0;
   }
@@ -365,7 +388,9 @@ class ScoresRepository {
   Future<List<String>> getScoreIds({
     String filter = "",
     String composer = "",
+    String arranger = "",
     String source = "",
+    Iterable<Difficulty> difficulties = const [],
     ScoreType? type,
     Iterable<String> instruments = const [],
     Iterable<String> genres = const [],
@@ -388,7 +413,15 @@ class ScoresRepository {
           ),
         );
     q.addColumns([_db.scoresTable.id]);
-    _applyScoreFilters(q, searchFields, composer, source, type);
+    _applyScoreFilters(
+      q,
+      searchFields,
+      composer,
+      arranger,
+      source,
+      difficulties,
+      type,
+    );
     q.orderBy([
       ...searchFields
           .take(3)
@@ -412,7 +445,9 @@ class ScoresRepository {
     int offset = 0,
     String filter = "",
     String composer = "",
+    String arranger = "",
     String source = "",
+    Iterable<Difficulty> difficulties = const [],
     ScoreType? type,
     Iterable<String> instruments = const [],
     Iterable<String> genres = const [],
@@ -435,7 +470,15 @@ class ScoresRepository {
             tagMatch: tagMatch,
           ),
         );
-    _applyScoreFilters(q, searchFields, composer, source, type);
+    _applyScoreFilters(
+      q,
+      searchFields,
+      composer,
+      arranger,
+      source,
+      difficulties,
+      type,
+    );
     q.orderBy([
       ...searchFields
           .take(3)
@@ -558,6 +601,7 @@ class ScoresRepository {
     String scoreId, {
     required String title,
     required String composer,
+    required String arranger,
     required String notes,
   }) async {
     await _db.transaction(() async {
@@ -569,8 +613,13 @@ class ScoresRepository {
               composer: composer.isNotEmpty
                   ? Value(composer)
                   : const Value(null),
+              arranger: arranger.isNotEmpty
+                  ? Value(arranger)
+                  : const Value(null),
               notes: notes.isNotEmpty ? Value(notes) : const Value(null),
-              searchText: Value(generateSearchText([title, composer])),
+              searchText: Value(
+                generateSearchText([title, composer, arranger]),
+              ),
               metadataUpdatedAt: Value(DateTime.now().toUtc()),
               metadataUploaded: const Value(false),
             ),
@@ -593,18 +642,20 @@ class ScoresRepository {
   Future<void> updateScoreTitle(String scoreId, String title) async {
     await _db.transaction(() async {
       final query = _db.selectOnly(_db.scoresTable)
-        ..addColumns([_db.scoresTable.composer])
+        ..addColumns([_db.scoresTable.composer, _db.scoresTable.arranger])
         ..where(_db.scoresTable.id.equals(scoreId));
-      final composer = await query
-          .map((r) => r.read(_db.scoresTable.composer))
-          .getSingleOrNull();
+      final row = await query.getSingleOrNull();
+      final composer = row?.read(_db.scoresTable.composer);
+      final arranger = row?.read(_db.scoresTable.arranger);
 
       await _db.managers.scoresTable
           .filter((f) => f.id(scoreId))
           .update(
             (o) => o(
               title: Value(title),
-              searchText: Value(generateSearchText([title, composer])),
+              searchText: Value(
+                generateSearchText([title, composer, arranger]),
+              ),
               metadataUpdatedAt: Value(DateTime.now().toUtc()),
               metadataUploaded: const Value(false),
             ),
@@ -637,6 +688,33 @@ class ScoresRepository {
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
+  Future<void> updateScoreDifficulty(
+    String scoreId,
+    Difficulty? difficulty,
+  ) async {
+    await bulkEditScoreDifficulty([scoreId], difficulty);
+  }
+
+  Future<void> bulkEditScoreDifficulty(
+    Iterable<String> scoreIds,
+    Difficulty? difficulty,
+  ) async {
+    if (scoreIds.isEmpty) return;
+    await _db.transaction(() async {
+      await _db.managers.scoresTable
+          .filter((f) => f.id.isIn(scoreIds))
+          .update(
+            (o) => o(
+              difficulty: Value(difficulty?.level),
+              metadataUpdatedAt: Value(DateTime.now().toUtc()),
+              metadataUploaded: const Value(false),
+            ),
+          );
+      await updateScoreStatus(scoreIds);
+    });
+    _updatedScoreIds.add((changed: scoreIds.toSet(), remoteTriggered: false));
+  }
+
   Future<void> bulkEditScoreSource(
     Iterable<String> scoreIds,
     String source,
@@ -665,35 +743,65 @@ class ScoresRepository {
     Iterable<String> scoreIds,
     String composer,
   ) async {
+    await _bulkEditSearchableFields(scoreIds, composer: composer);
+  }
+
+  Future<void> bulkEditScoreArranger(
+    Iterable<String> scoreIds,
+    String arranger,
+  ) async {
+    await _bulkEditSearchableFields(scoreIds, arranger: arranger);
+  }
+
+  // null keeps the current value, "" clears it
+  Future<void> _bulkEditSearchableFields(
+    Iterable<String> scoreIds, {
+    String? composer,
+    String? arranger,
+  }) async {
     if (scoreIds.isEmpty) return;
     await _db.transaction(() async {
-      final query = _db.selectOnly(_db.scoresTable)
-        ..addColumns([_db.scoresTable.id, _db.scoresTable.title])
-        ..where(_db.scoresTable.id.isIn(scoreIds));
-      final scores = await query
-          .map(
-            (r) => (
-              id: r.read(_db.scoresTable.id)!,
-              title: r.read(_db.scoresTable.title)!,
+      await _db.managers.scoresTable
+          .filter((f) => f.id.isIn(scoreIds))
+          .update(
+            (o) => o(
+              composer: composer == null
+                  ? const Value.absent()
+                  : Value(composer.isNotEmpty ? composer : null),
+              arranger: arranger == null
+                  ? const Value.absent()
+                  : Value(arranger.isNotEmpty ? arranger : null),
+              metadataUpdatedAt: Value(DateTime.now().toUtc()),
+              metadataUploaded: const Value(false),
             ),
-          )
-          .get();
+          );
 
-      final now = DateTime.now().toUtc();
-      for (final score in scores) {
-        await _db.managers.scoresTable
-            .filter((f) => f.id(score.id))
-            .update(
-              (o) => o(
-                composer: composer.isNotEmpty
-                    ? Value(composer)
-                    : const Value(null),
-                searchText: Value(generateSearchText([score.title, composer])),
-                metadataUpdatedAt: Value(now),
-                metadataUploaded: const Value(false),
+      final query = _db.selectOnly(_db.scoresTable)
+        ..addColumns([
+          _db.scoresTable.id,
+          _db.scoresTable.title,
+          _db.scoresTable.composer,
+          _db.scoresTable.arranger,
+        ])
+        ..where(_db.scoresTable.id.isIn(scoreIds));
+      final rows = await query.get();
+      await _db.batch((batch) {
+        for (final r in rows) {
+          batch.update(
+            _db.scoresTable,
+            ScoresTableCompanion(
+              searchText: Value(
+                generateSearchText([
+                  r.read(_db.scoresTable.title),
+                  r.read(_db.scoresTable.composer),
+                  r.read(_db.scoresTable.arranger),
+                ]),
               ),
-            );
-      }
+            ),
+            where: (t) => t.id.equals(r.read(_db.scoresTable.id)!),
+          );
+        }
+      });
       await updateScoreStatus(scoreIds);
     });
     _updatedScoreIds.add((changed: scoreIds.toSet(), remoteTriggered: false));
@@ -881,10 +989,13 @@ class ScoresRepository {
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
-  Future<void> removeScoreInstrument(String scoreId, String instrument) async {
+  Future<void> removeScoreInstruments(
+    String scoreId,
+    Iterable<String> instruments,
+  ) async {
     await _db.transaction(() async {
       await _db.managers.instrumentsTable
-          .filter((f) => f.score.id(scoreId) & f.instrument(instrument))
+          .filter((f) => f.score.id(scoreId) & f.instrument.isIn(instruments))
           .delete();
       await _db.managers.scoresTable
           .filter((f) => f.id(scoreId))
@@ -918,10 +1029,13 @@ class ScoresRepository {
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
   }
 
-  Future<void> removeScoreGenre(String scoreId, String genre) async {
+  Future<void> removeScoreGenres(
+    String scoreId,
+    Iterable<String> genres,
+  ) async {
     await _db.transaction(() async {
       await _db.managers.genresTable
-          .filter((f) => f.score.id(scoreId) & f.genre(genre))
+          .filter((f) => f.score.id(scoreId) & f.genre.isIn(genres))
           .delete();
       await _db.managers.scoresTable
           .filter((f) => f.id(scoreId))
@@ -1107,9 +1221,11 @@ class ScoresRepository {
             id: id,
             title: title,
             composer: null,
+            arranger: null,
             source: null,
             sourceLink: null,
             notes: null,
+            difficulty: null,
             annotations: null,
             genres: const [],
             instruments: const [],
@@ -1254,6 +1370,28 @@ class ScoresRepository {
       query.limit(size, offset: offset);
     }
     return await query.map((r) => r.read(_db.scoresTable.composer)!).get();
+  }
+
+  Future<List<String>> getArrangers({
+    String filter = "",
+    int? size,
+    int offset = 0,
+  }) async {
+    final query = _db.selectOnly(_db.scoresTable, distinct: true)
+      ..addColumns([_db.scoresTable.arranger]);
+    if (filter.isEmpty) {
+      query.where(_db.scoresTable.arranger.isNotNull());
+    } else {
+      query.where(
+        _db.scoresTable.arranger.isNotNull() &
+            _db.scoresTable.arranger.contains(filter),
+      );
+    }
+    query.orderBy([OrderingTerm.asc(_db.scoresTable.arranger.lower())]);
+    if (size != null) {
+      query.limit(size, offset: offset);
+    }
+    return await query.map((r) => r.read(_db.scoresTable.arranger)!).get();
   }
 
   Future<List<String>> getSources({

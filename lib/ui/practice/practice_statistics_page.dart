@@ -12,7 +12,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/practice/practice_statistics.dart';
-import 'package:sheetopia/ui/common/heading.dart';
+import 'package:sheetopia/ui/common/section_card.dart';
 import 'package:sheetopia/ui/common/surface.dart';
 import 'package:sheetopia/ui/practice/duration_bar_chart.dart';
 import 'package:sheetopia/ui/practice/exercise_duration_bar.dart';
@@ -184,7 +184,7 @@ class _PracticeStatisticsPageState extends State<PracticeStatisticsPage> {
     final empty = _viewModel.total == Duration.zero;
     final weekdays = _viewModel.timeFrame == StatisticsTimeFrame.week
         ? null
-        : _Card(
+        : SectionCard(
             title: "Weekdays",
             child: DurationBarChart(
               height: 140,
@@ -192,7 +192,7 @@ class _PracticeStatisticsPageState extends State<PracticeStatisticsPage> {
               labels: _weekdayLabels(),
             ),
           );
-    final hours = _Card(
+    final hours = SectionCard(
       title: "Time of day",
       child: DurationBarChart(
         height: 140,
@@ -244,7 +244,7 @@ class _PracticeStatisticsPageState extends State<PracticeStatisticsPage> {
         ],
       ),
       const SizedBox(height: _spacing),
-      _Card(
+      SectionCard(
         title: "Top exercises",
         onTap: () => context.go("/practice/statistics/exercises"),
         child: empty
@@ -285,7 +285,7 @@ class _PracticeStatisticsPageState extends State<PracticeStatisticsPage> {
     final valueStyle = theme.textTheme.headlineSmall?.copyWith(
       fontWeight: FontWeight.w500,
     );
-    return _Card(
+    return SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 12,
@@ -389,56 +389,6 @@ class _PracticeStatisticsPageState extends State<PracticeStatisticsPage> {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  final String? title;
-  final Widget child;
-
-  /// Adds an arrow next to the title.
-  final void Function()? onTap;
-
-  const _Card({this.title, this.onTap, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final title = this.title;
-    final theme = Theme.of(context);
-    return Material(
-      color: Surface.raisedOf(context),
-      borderRadius: const BorderRadius.all(Radius.circular(16)),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Surface.tile(
-            context,
-            child: title == null
-                ? child
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    spacing: 12,
-                    children: [
-                      Row(
-                        spacing: 12,
-                        children: [
-                          Expanded(child: Heading(text: title)),
-                          if (onTap != null)
-                            Icon(
-                              Symbols.chevron_right,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                        ],
-                      ),
-                      child,
-                    ],
-                  ),
-          ),
-        ),
       ),
     );
   }

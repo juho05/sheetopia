@@ -1,0 +1,115 @@
+/*
+ * Copyright 2025-2026 Julian Hofmann (+ Sheetopia contributors).
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+import 'package:drift/drift.dart' hide isNull, isNotNull;
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/scores/difficulty.dart';
+import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/thumbnail_service.dart';
+import 'package:sheetopia/ui/common/difficulty.dart';
+import 'package:sheetopia/ui/edit_score/edit_score_form.dart';
+import 'package:sheetopia/ui/edit_score/edit_score_viewmodel.dart';
+
+void main() {
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+
+  late Database db;
+  late ScoresRepository repo;
+
+  setUp(() async {
+    db = Database(NativeDatabase.memory());
+    repo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
+    await db.managers.scoresTable.create(
+      (o) => o(
+        id: "a",
+        title: "Title",
+        searchText: " title ",
+        fileType: FileType.pdf,
+        fileDownloaded: false,
+      ),
+    );
+  });
+
+  tearDown(() async {
+    await db.close();
+  });
+
+  Future<void> settle(WidgetTester tester) async {
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+  }
+
+  Future<void> pumpForm(WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<ScoresRepository>.value(value: repo),
+          ChangeNotifierProvider(
+            create: (context) =>
+                EditScoreViewModel(repo: repo, scoreId: "a", isImport: false),
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Consumer<EditScoreViewModel>(
+              builder: (context, viewModel, _) => viewModel.score == null
+                  ? const SizedBox()
+                  : const EditScoreForm(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await settle(tester);
+  }
+
+  testWidgets("empty optional fields are hidden until added", (tester) async {
+    await pumpForm(tester);
+
+    expect(find.text("Composer"), findsOneWidget);
+    expect(find.text("Instruments"), findsOneWidget);
+    expect(find.text("Tags"), findsOneWidget);
+    expect(find.text("Arranger"), findsNothing);
+    expect(find.byType(DifficultyDropdown), findsNothing);
+    expect(find.text("Genres"), findsNothing);
+
+    await tester.tap(find.text("Add field"));
+    await settle(tester);
+    await tester.tap(find.text("Difficulty"));
+    await settle(tester);
+
+    expect(find.byType(DifficultyDropdown), findsOneWidget);
+    expect(find.text("Difficulty"), findsOneWidget);
+  });
+
+  testWidgets("filled optional fields are shown and can be removed", (
+    tester,
+  ) async {
+    await repo.updateScoreDifficulty("a", Difficulty.easy);
+    await pumpForm(tester);
+
+    expect(find.byType(DifficultyDropdown), findsOneWidget);
+
+    await tester.tap(find.byTooltip("Remove field"));
+    await settle(tester);
+    await tester.tap(find.text("Yes"));
+    await settle(tester);
+
+    expect(find.byType(DifficultyDropdown), findsNothing);
+    expect((await repo.getScore("a"))!.difficulty, isNull);
+  });
+}

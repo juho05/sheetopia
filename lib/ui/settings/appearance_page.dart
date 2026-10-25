@@ -8,7 +8,9 @@
 
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/data/repositories/settings/appearance.dart';
 import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
+import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/settings/appearance_viewmodel.dart';
 
 class AppearancePage extends StatelessWidget {
@@ -26,7 +28,7 @@ class AppearancePage extends StatelessWidget {
           body: SafeArea(
             child: Consumer<AppearanceViewModel>(
               builder: (context, viewModel, _) {
-                return Padding(
+                return SingleChildScrollView(
                   padding: const EdgeInsets.all(8),
                   child: Column(
                     spacing: 10,
@@ -50,6 +52,49 @@ class AppearancePage extends StatelessWidget {
                             value: mode,
                           );
                         }).toList(),
+                      ),
+                      const Heading(
+                        text: "Library cards",
+                        padding: EdgeInsets.only(top: 8),
+                      ),
+                      DropdownMenu<CardSubtitle>(
+                        onSelected: (value) {
+                          if (value == null) return;
+                          viewModel.updateCardSubtitle(value);
+                        },
+                        expandedInsets: EdgeInsets.zero,
+                        requestFocusOnTap: false,
+                        enableSearch: false,
+                        initialSelection: viewModel.cardSubtitle,
+                        label: const Text("Subtitle"),
+                        dropdownMenuEntries: [
+                          for (final value in CardSubtitle.values)
+                            DropdownMenuEntry(value: value, label: value.label),
+                        ],
+                      ),
+                      DropdownMenu<CardBadges>(
+                        onSelected: (value) {
+                          if (value == null) return;
+                          viewModel.updateCardBadges(value);
+                        },
+                        expandedInsets: EdgeInsets.zero,
+                        requestFocusOnTap: false,
+                        enableSearch: false,
+                        initialSelection: viewModel.cardBadges,
+                        label: const Text("Badges"),
+                        dropdownMenuEntries: [
+                          for (final value in CardBadges.values)
+                            DropdownMenuEntry(value: value, label: value.label),
+                        ],
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text("Show difficulty"),
+                        subtitle: const Text(
+                          "On library cards and exercise lists",
+                        ),
+                        value: viewModel.cardDifficulty,
+                        onChanged: viewModel.updateCardDifficulty,
                       ),
                     ],
                   ),

@@ -121,9 +121,11 @@ void main() {
         id: scoreId,
         title: "Prelude",
         composer: const Value("Bach"),
+        arranger: const Value("Busoni"),
+        difficulty: const Value(4),
         source: const Value("IMSLP"),
         sourceLink: const Value("https://imslp.org"),
-        searchText: " prelude bach ",
+        searchText: " prelude bach busoni ",
         fileDownloaded: true,
         fileType: FileType.pdf,
         lastOpened: Value(contentTime),
@@ -310,6 +312,9 @@ void main() {
         .getSingle();
     expect(score.title, "Prelude");
     expect(score.composer, "Bach");
+    expect(score.arranger, "Busoni");
+    expect(score.difficulty, 4);
+    expect(score.searchText, " prelude bach busoni ");
     expect(score.source, "IMSLP");
     expect(score.sourceLink, "https://imslp.org");
     expect(score.metadataUpdatedAt, contentTime);
@@ -467,6 +472,7 @@ void main() {
       scoreId,
       title: "Prelude in C",
       composer: "Bach",
+      arranger: "",
       notes: "",
     );
     await scoresRepo.updateScoreSource(

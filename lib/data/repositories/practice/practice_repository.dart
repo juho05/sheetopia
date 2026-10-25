@@ -15,6 +15,7 @@ import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
 import 'package:sheetopia/data/repositories/practice/practice_progress.dart';
 import 'package:sheetopia/data/repositories/practice/practice_record.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
+import 'package:sheetopia/data/repositories/scores/difficulty.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
@@ -155,9 +156,15 @@ class PracticeRepository {
     String? categoryId,
     String instrument,
     String source,
+    Iterable<Difficulty> difficulties,
   ) {
     for (final word in searchWords) {
       q.where(_db.exercisesTable.name.contains(word));
+    }
+    if (difficulties.isNotEmpty) {
+      q.where(
+        _db.exercisesTable.difficulty.isIn(difficulties.map((d) => d.level)),
+      );
     }
     if (categoryId != null) {
       q.where(_db.exercisesTable.category.equals(categoryId));
@@ -185,6 +192,7 @@ class PracticeRepository {
     String? categoryId,
     String instrument = "",
     String source = "",
+    Iterable<Difficulty> difficulties = const [],
     Iterable<String> tagIds = const [],
     FilterMatchType tagMatch = FilterMatchType.all,
   }) async {
@@ -199,6 +207,7 @@ class PracticeRepository {
       categoryId,
       instrument,
       source,
+      difficulties,
     );
     return (await q.getSingle()).read(countExpr) ?? 0;
   }
@@ -208,6 +217,7 @@ class PracticeRepository {
     String? categoryId,
     String instrument = "",
     String source = "",
+    Iterable<Difficulty> difficulties = const [],
     Iterable<String> tagIds = const [],
     FilterMatchType tagMatch = FilterMatchType.all,
   }) async {
@@ -221,6 +231,7 @@ class PracticeRepository {
       categoryId,
       instrument,
       source,
+      difficulties,
     );
     q.orderBy(_exerciseOrdering);
     final rows = await q.get();
@@ -234,6 +245,7 @@ class PracticeRepository {
     String? categoryId,
     String instrument = "",
     String source = "",
+    Iterable<Difficulty> difficulties = const [],
     Iterable<String> tagIds = const [],
     FilterMatchType tagMatch = FilterMatchType.all,
   }) async {
@@ -246,6 +258,7 @@ class PracticeRepository {
       categoryId,
       instrument,
       source,
+      difficulties,
     );
     q.orderBy(_exerciseOrdering);
     q.limit(size, offset: offset);
@@ -268,6 +281,7 @@ class PracticeRepository {
               ? null
               : ExerciseCategory(id: category.id, name: category.name),
           instrument: exercise.instrument,
+          difficulty: Difficulty.fromLevel(exercise.difficulty),
           tags: tags[exercise.id] ?? const [],
           description: exercise.description,
           source: exercise.source,
@@ -435,6 +449,7 @@ class PracticeRepository {
           ? null
           : ExerciseCategory(id: category.id, name: category.name),
       instrument: exercise.instrument,
+      difficulty: Difficulty.fromLevel(exercise.difficulty),
       tags: await _getExerciseTags(exercise.id),
       description: exercise.description,
       source: exercise.source,
@@ -503,6 +518,7 @@ class PracticeRepository {
     required Iterable<String> tagIds,
     Iterable<String> scoreIds = const [],
     String? categoryId,
+    Difficulty? difficulty,
   }) async {
     final exerciseId = _db.newId();
     await _db.transaction(() async {
@@ -521,6 +537,7 @@ class PracticeRepository {
           sourceLink: source.isNotEmpty && sourceLink.isNotEmpty
               ? Value(sourceLink)
               : const Value(null),
+          difficulty: Value(difficulty?.level),
           updatedAt: Value(DateTime.now().toUtc()),
         ),
       );
@@ -620,6 +637,30 @@ class PracticeRepository {
         .update(
           (o) => o(
             category: Value(categoryId),
+            updatedAt: Value(DateTime.now().toUtc()),
+            uploaded: const Value(false),
+          ),
+        );
+    _updatedExerciseIds.add((changed: exerciseIds.toSet(), needsUpload: true));
+  }
+
+  Future<void> updateExerciseDifficulty(
+    String exerciseId,
+    Difficulty? difficulty,
+  ) async {
+    await bulkUpdateExerciseDifficulty([exerciseId], difficulty);
+  }
+
+  Future<void> bulkUpdateExerciseDifficulty(
+    Iterable<String> exerciseIds,
+    Difficulty? difficulty,
+  ) async {
+    if (exerciseIds.isEmpty) return;
+    await _db.managers.exercisesTable
+        .filter((f) => f.id.isIn(exerciseIds))
+        .update(
+          (o) => o(
+            difficulty: Value(difficulty?.level),
             updatedAt: Value(DateTime.now().toUtc()),
             uploaded: const Value(false),
           ),
@@ -1180,6 +1221,7 @@ class PracticeRepository {
               ? null
               : ExerciseCategory(id: category.id, name: category.name),
           instrument: exercise.instrument,
+          difficulty: Difficulty.fromLevel(exercise.difficulty),
           tags: tags[exercise.id] ?? const [],
           description: exercise.description,
           source: exercise.source,

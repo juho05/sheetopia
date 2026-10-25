@@ -337,11 +337,13 @@ void main() {
     String? description = "",
     String? instrument = "",
     int? targetBpm = 0,
+    int? difficulty = 0,
   }) => ExerciseMetadataModel(
     description: description,
     source: "",
     sourceLink: "",
     instrument: instrument,
+    difficulty: difficulty,
     targetBpm: targetBpm,
     progressResetAt: "",
   );
@@ -1165,5 +1167,44 @@ void main() {
         .filter((f) => f.id(exerciseId))
         .getSingle();
     expect(exercise.progressResetAt, isNull);
+  });
+
+  Future<int?> syncedDifficulty({
+    required int local,
+    required int? remote,
+  }) async {
+    await db.managers.exercisesTable.create(
+      (o) => o(
+        id: exerciseId,
+        name: "C major",
+        difficulty: Value(local),
+        updatedAt: Value(contentTime),
+        uploaded: const Value(true),
+      ),
+    );
+    service.exercises = [
+      ExerciseModel(
+        id: exerciseId,
+        name: "C major",
+        categoryId: null,
+        tagIds: const [],
+        scoreIds: const [],
+        metadata: metadata(difficulty: remote),
+        updatedAt: remoteTime,
+      ),
+    ];
+    await syncAndWait();
+    return (await db.managers.exercisesTable
+            .filter((f) => f.id(exerciseId))
+            .getSingle())
+        .difficulty;
+  }
+
+  test("a remote exercise difficulty is applied", () async {
+    expect(await syncedDifficulty(local: 2, remote: 5), 5);
+  });
+
+  test("a remote exercise without a difficulty keeps the local one", () async {
+    expect(await syncedDifficulty(local: 2, remote: null), 2);
   });
 }

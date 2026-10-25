@@ -6,6 +6,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'package:sheetopia/data/repositories/scores/difficulty.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 
@@ -33,6 +34,14 @@ class BulkEditMenuViewModel {
     await _repo.bulkEditScoreComposer(_selectedScores, composer);
   }
 
+  Future<void> editArranger(String arranger) async {
+    await _repo.bulkEditScoreArranger(_selectedScores, arranger);
+  }
+
+  Future<void> editDifficulty(Difficulty? difficulty) async {
+    await _repo.bulkEditScoreDifficulty(_selectedScores, difficulty);
+  }
+
   Future<void> editSource(String source, String sourceLink) async {
     await _repo.bulkEditScoreSource(_selectedScores, source, sourceLink);
   }
@@ -50,6 +59,10 @@ class BulkEditMenuViewModel {
 
   Future<Iterable<String>> getComposers({String filter = ""}) async {
     return await _repo.getComposers(filter: filter, size: 10);
+  }
+
+  Future<Iterable<String>> getArrangers({String filter = ""}) async {
+    return await _repo.getArrangers(filter: filter, size: 10);
   }
 
   Future<Iterable<String>> getSources({String filter = ""}) async {

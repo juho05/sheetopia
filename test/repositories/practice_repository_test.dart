@@ -15,6 +15,7 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
+import 'package:sheetopia/data/repositories/scores/difficulty.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
@@ -207,6 +208,33 @@ void main() {
     expect(exercise.sourceLink, "https://example.com");
     expect(exercise.category, isNull);
     expect(exercise.tags.map((t) => t.id), [tagId]);
+  });
+
+  test("exercises are filtered by any of the selected difficulties", () async {
+    Future<String> create(String name, Difficulty? difficulty) =>
+        repo.createExercise(
+          name: name,
+          description: "",
+          instrument: "",
+          source: "",
+          sourceLink: "",
+          tagIds: const [],
+          difficulty: difficulty,
+        );
+    final easy = await create("Easy", Difficulty.easy);
+    final hard = await create("Hard", null);
+    await create("None", null);
+    await repo.bulkUpdateExerciseDifficulty([hard], Difficulty.veryHard);
+
+    expect((await repo.getExercise(easy))!.difficulty, Difficulty.easy);
+    expect(
+      (await repo.getExercises(
+        size: 10,
+        difficulties: [Difficulty.easy, Difficulty.veryHard],
+      )).map((e) => e.name),
+      unorderedEquals(["Easy", "Hard"]),
+    );
+    expect(await repo.countExercises(difficulties: [Difficulty.easy]), 1);
   });
 
   test("empty values are stored as null", () async {

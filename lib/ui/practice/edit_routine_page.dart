@@ -6,7 +6,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'package:dotted_border/dotted_border.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +16,7 @@ import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/ui/common/buttons.dart';
 import 'package:sheetopia/ui/common/centered_scroll_view.dart';
+import 'package:sheetopia/ui/common/dashed_placeholder.dart';
 import 'package:sheetopia/ui/common/optional_tooltip.dart';
 import 'package:sheetopia/ui/common/reactive_text_field.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
@@ -363,31 +363,15 @@ class _AddExercisesPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return DottedBorder(
-      options: RoundedRectDottedBorderOptions(
-        radius: const Radius.circular(16),
-        padding: const EdgeInsets.all(1),
-        dashPattern: const [6, 6],
-        strokeWidth: 2,
-        color: theme.colorScheme.onSurface.withAlpha(160),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480, minHeight: 40),
-            child: loading
-                ? const Center(child: CircularProgressIndicator.adaptive())
-                : Button(
-                    onPressed: onAdd,
-                    icon: Symbols.add,
-                    darkTonal: true,
-                    child: const Text("Add exercises"),
-                  ),
-          ),
-        ),
-      ),
+    return DashedPlaceholder(
+      child: loading
+          ? const Center(child: CircularProgressIndicator.adaptive())
+          : Button(
+              onPressed: onAdd,
+              icon: Symbols.add,
+              darkTonal: true,
+              child: const Text("Add exercises"),
+            ),
     );
   }
 }

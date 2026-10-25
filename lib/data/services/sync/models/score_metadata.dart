@@ -16,18 +16,22 @@ part 'score_metadata.g.dart';
 @JsonSerializable()
 class ScoreMetadataModel {
   final String? composer;
+  final String? arranger;
   final String? source;
   final String? sourceLink;
   final String? notes;
+  final int? difficulty;
   final List<String>? instruments;
   final List<String>? genres;
   final Map<String, dynamic>? annotations;
 
   ScoreMetadataModel({
     required this.composer,
+    required this.arranger,
     required this.source,
     required this.sourceLink,
     required this.notes,
+    required this.difficulty,
     required this.instruments,
     required this.genres,
     required this.annotations,

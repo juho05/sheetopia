@@ -14,18 +14,22 @@ import 'package:reactive_forms/reactive_forms.dart' hide ReactiveTextField;
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/routing/router.dart';
+import 'package:sheetopia/ui/common/add_field_button.dart';
 import 'package:sheetopia/ui/common/auto_complete_field.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/confirmation.dart';
+import 'package:sheetopia/ui/common/difficulty.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/optional_tooltip.dart';
 import 'package:sheetopia/ui/common/reactive_text_field.dart';
+import 'package:sheetopia/ui/common/section_card.dart';
 import 'package:sheetopia/ui/common/select_tags_list.dart';
 import 'package:sheetopia/ui/common/tag_selector.dart';
 import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/edit_score/source_input_dialog.dart';
 import 'package:sheetopia/ui/practice/category_selector.dart';
 import 'package:sheetopia/ui/practice/edit_exercise_viewmodel.dart';
+import 'package:sheetopia/ui/practice/exercise_field.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class EditExerciseForm extends StatefulWidget {
@@ -50,6 +54,148 @@ class _EditExerciseFormState extends State<EditExerciseForm> {
     super.dispose();
   }
 
+  Widget _mainCard(EditExerciseViewModel viewModel) {
+    return SectionCard(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ReactiveTextField<String>(
+            formControlName: EditExerciseViewModel.formName,
+            focusNode: _titleFocus,
+            onTapOutside: (event) => _titleFocus.unfocus(),
+            decoration: const InputDecoration(
+              label: Text("Title"),
+              border: OutlineInputBorder(),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: CategorySelector(
+              category: viewModel.category,
+              emptyLabel: "No category",
+              allowCreate: true,
+              onChanged: viewModel.setCategory,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: ReactiveTextField<String>(
+              formControlName: EditExerciseViewModel.formDescription,
+              focusNode: _descriptionFocus,
+              onTapOutside: (event) => _descriptionFocus.unfocus(),
+              maxLines: 8,
+              minLines: 3,
+              decoration: const InputDecoration(
+                label: Text("Description"),
+                border: OutlineInputBorder(),
+                floatingLabelBehavior: FloatingLabelBehavior.always,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: AutoCompleteField(
+              controller: _instrumentController,
+              focusNode: _instrumentFocus,
+              getOptions: (filter) => viewModel.getInstruments(filter: filter),
+              onSelected: (option) =>
+                  viewModel.form
+                          .control(EditExerciseViewModel.formInstrument)
+                          .value =
+                      option,
+              fieldBuilder: (context, controller, focusNode) =>
+                  ReactiveTextField(
+                    onTapOutside: (event) => focusNode.unfocus(),
+                    formControlName: EditExerciseViewModel.formInstrument,
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: const InputDecoration(
+                      label: Text("Instrument"),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.only(top: 12, bottom: 4),
+            child: Heading(text: "Tags"),
+          ),
+          TagSelector(
+            tags: viewModel.tags,
+            type: TagType.exercise,
+            onAdd: viewModel.addTags,
+            onRemove: viewModel.removeTag,
+            onSynced: viewModel.setTags,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _fieldInput(EditExerciseViewModel viewModel, ExerciseField field) {
+    switch (field) {
+      case ExerciseField.source:
+        return _SourceRow(viewModel: viewModel);
+      case ExerciseField.difficulty:
+        return DifficultyDropdown(
+          value: viewModel.difficulty,
+          label: null,
+          onChanged: viewModel.setDifficulty,
+        );
+      case ExerciseField.category ||
+          ExerciseField.instrument ||
+          ExerciseField.description ||
+          ExerciseField.tags:
+        return const SizedBox();
+    }
+  }
+
+  Future<void> _addField(
+    EditExerciseViewModel viewModel,
+    ExerciseField field,
+  ) async {
+    switch (field) {
+      case ExerciseField.source:
+        final result = await SourceInputDialog.show(
+          context,
+          title: "Add source",
+          submitBtnText: "Save",
+          getOptions: (filter) => viewModel.getSources(filter: filter),
+        );
+        if (result == null) return;
+        viewModel.showField(field);
+        await viewModel.setSource(result.source, result.sourceLink);
+      case ExerciseField.difficulty ||
+          ExerciseField.category ||
+          ExerciseField.instrument ||
+          ExerciseField.description ||
+          ExerciseField.tags:
+        viewModel.showField(field);
+    }
+  }
+
+  Future<void> _removeField(
+    EditExerciseViewModel viewModel,
+    ExerciseField field,
+  ) async {
+    final message = switch (field) {
+      ExerciseField.source when viewModel.source != null =>
+        "Remove the source from this exercise?",
+      ExerciseField.difficulty when viewModel.difficulty != null =>
+        "Remove the difficulty from this exercise?",
+      _ => null,
+    };
+    if (message != null) {
+      final confirmation = await ConfirmationDialog.showCancel(
+        context,
+        message: message,
+      );
+      if (confirmation != true) return;
+    }
+    await viewModel.removeField(field);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<EditExerciseViewModel>(
@@ -62,83 +208,30 @@ class _EditExerciseFormState extends State<EditExerciseForm> {
                 child: ListView(
                   padding: const EdgeInsets.all(8),
                   children: [
-                    ReactiveTextField<String>(
-                      formControlName: EditExerciseViewModel.formName,
-                      focusNode: _titleFocus,
-                      onTapOutside: (event) => _titleFocus.unfocus(),
-                      decoration: const InputDecoration(
-                        label: Text("Title"),
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: CategorySelector(
-                        category: viewModel.category,
-                        emptyLabel: "No category",
-                        allowCreate: true,
-                        onChanged: viewModel.setCategory,
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 18, bottom: 4),
-                      child: ReactiveTextField<String>(
-                        formControlName: EditExerciseViewModel.formDescription,
-                        focusNode: _descriptionFocus,
-                        onTapOutside: (event) => _descriptionFocus.unfocus(),
-                        maxLines: 8,
-                        minLines: 3,
-                        decoration: const InputDecoration(
-                          label: Text("Description"),
-                          border: OutlineInputBorder(),
-                          floatingLabelBehavior: FloatingLabelBehavior.always,
+                    _mainCard(viewModel),
+                    for (final field in ExerciseField.formOptional)
+                      if (viewModel.isVisible(field))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: SectionCard(
+                            title: field.label,
+                            padding: const EdgeInsets.all(12),
+                            trailing: [
+                              RemoveFieldButton(
+                                onPressed: () => _removeField(viewModel, field),
+                              ),
+                            ],
+                            child: _fieldInput(viewModel, field),
+                          ),
+                        ),
+                    if (viewModel.hiddenFields.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: AddFieldButton(
+                          fields: viewModel.hiddenFields,
+                          onSelected: (field) => _addField(viewModel, field),
                         ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: AutoCompleteField(
-                        controller: _instrumentController,
-                        focusNode: _instrumentFocus,
-                        getOptions: (filter) =>
-                            viewModel.getInstruments(filter: filter),
-                        onSelected: (option) =>
-                            viewModel
-                                    .form
-                                    .controls[EditExerciseViewModel
-                                        .formInstrument]!
-                                    .value =
-                                option,
-                        fieldBuilder: (context, controller, focusNode) =>
-                            ReactiveTextField(
-                              onTapOutside: (event) => focusNode.unfocus(),
-                              formControlName:
-                                  EditExerciseViewModel.formInstrument,
-                              controller: controller,
-                              focusNode: focusNode,
-                              decoration: const InputDecoration(
-                                label: Text("Instrument"),
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                      ),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.only(top: 12, bottom: 4),
-                      child: Heading(text: "Source"),
-                    ),
-                    _SourceRow(viewModel: viewModel),
-                    const Padding(
-                      padding: EdgeInsets.only(top: 12, bottom: 4),
-                      child: Heading(text: "Tags"),
-                    ),
-                    TagSelector(
-                      tags: viewModel.tags,
-                      type: TagType.exercise,
-                      onAdd: viewModel.addTags,
-                      onRemove: viewModel.removeTag,
-                      onSynced: viewModel.setTags,
-                    ),
                   ],
                 ),
               ),

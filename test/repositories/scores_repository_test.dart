@@ -18,6 +18,7 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/logger/log_repository.dart';
+import 'package:sheetopia/data/repositories/scores/difficulty.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
@@ -182,6 +183,47 @@ void main() {
 
     expect((await repo.getScore("a"))!.composer, null);
     expect((await repo.getScore("b"))!.composer, "Georg Friedrich Händel");
+  });
+
+  test("bulk editing the arranger keeps the composer searchable", () async {
+    await insertScore("a");
+    await insertScore("b");
+    await repo.bulkEditScoreComposer(["a", "b"], "Bach");
+
+    await repo.bulkEditScoreArranger(["a"], "Busoni");
+
+    final a = (await repo.getScore("a"))!;
+    expect(a.composer, "Bach");
+    expect(a.arranger, "Busoni");
+    expect((await repo.getScore("b"))!.arranger, null);
+    expect(await repo.getScoreIds(filter: "busoni"), ["a"]);
+    expect(await repo.getScoreIds(filter: "bach"), unorderedEquals(["a", "b"]));
+    expect(await repo.getScoreIds(arranger: "Busoni"), ["a"]);
+    expect(await repo.getArrangers(), ["Busoni"]);
+
+    await repo.bulkEditScoreArranger(["a"], "");
+
+    expect((await repo.getScore("a"))!.arranger, null);
+    expect(await repo.getScoreIds(filter: "busoni"), isEmpty);
+  });
+
+  test("scores are filtered by any of the selected difficulties", () async {
+    await insertScore("a");
+    await insertScore("b");
+    await insertScore("c");
+    await repo.updateScoreDifficulty("a", Difficulty.easy);
+    await repo.bulkEditScoreDifficulty(["b", "c"], Difficulty.veryHard);
+    await repo.updateScoreDifficulty("c", null);
+
+    expect((await repo.getScore("a"))!.difficulty, Difficulty.easy);
+    expect((await repo.getScore("c"))!.difficulty, null);
+    expect(
+      await repo.getScoreIds(
+        difficulties: [Difficulty.easy, Difficulty.veryHard],
+      ),
+      unorderedEquals(["a", "b"]),
+    );
+    expect(await repo.countScores(difficulties: [Difficulty.veryHard]), 1);
   });
 
   test("bulk editing the source only touches the selected scores", () async {
@@ -373,21 +415,31 @@ void main() {
     expect(await db.managers.deletedScoresTable.get(), isEmpty);
   });
 
-  test("renaming a score keeps its composer in the search text", () async {
-    await insertScore("a", type: ScoreType.exercise);
-    await repo.updateScore("a", title: "Title a", composer: "Bach", notes: "");
+  test(
+    "renaming a score keeps its composer and arranger in the search text",
+    () async {
+      await insertScore("a", type: ScoreType.exercise);
+      await repo.updateScore(
+        "a",
+        title: "Title a",
+        composer: "Bach",
+        arranger: "Busoni",
+        notes: "",
+      );
 
-    await repo.updateScoreTitle("a", "Etude");
+      await repo.updateScoreTitle("a", "Etude");
 
-    final row = await db.managers.scoresTable
-        .filter((f) => f.id("a"))
-        .getSingle();
-    expect(row.title, "Etude");
-    expect(row.composer, "Bach");
-    expect(row.searchText, " etude bach ");
-    expect(row.metadataUploaded, isFalse);
-    expect(await repo.getScoreIds(filter: "etude"), ["a"]);
-  });
+      final row = await db.managers.scoresTable
+          .filter((f) => f.id("a"))
+          .getSingle();
+      expect(row.title, "Etude");
+      expect(row.composer, "Bach");
+      expect(row.arranger, "Busoni");
+      expect(row.searchText, " etude bach busoni ");
+      expect(row.metadataUploaded, isFalse);
+      expect(await repo.getScoreIds(filter: "etude"), ["a"]);
+    },
+  );
 
   test("an unknown score type is stored and read back unchanged", () async {
     await insertScore("future", type: ScoreType.byName("from-the-future"));

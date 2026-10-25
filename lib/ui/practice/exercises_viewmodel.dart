@@ -13,6 +13,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
 import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
+import 'package:sheetopia/data/repositories/scores/difficulty.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
@@ -88,6 +89,7 @@ class ExercisesViewModel extends ChangeNotifier {
             categoryId: _filterCategory?.id,
             instrument: _filterInstrument,
             source: _filterSource,
+            difficulties: _filterDifficulties,
             tagIds: _filterTags.map((t) => t.id),
             tagMatch: _tagMatch,
           )
@@ -144,6 +146,26 @@ class ExercisesViewModel extends ChangeNotifier {
     _reset();
   }
 
+  final Set<Difficulty> _filterDifficulties = {};
+
+  Set<Difficulty> get filterDifficulties => _filterDifficulties;
+
+  void toggleFilterDifficulty(Difficulty difficulty, bool selected) {
+    final changed = selected
+        ? _filterDifficulties.add(difficulty)
+        : _filterDifficulties.remove(difficulty);
+    if (!changed) return;
+    notifyListeners();
+    _reset();
+  }
+
+  void clearFilterDifficulties() {
+    if (_filterDifficulties.isEmpty) return;
+    _filterDifficulties.clear();
+    notifyListeners();
+    _reset();
+  }
+
   final SplayTreeSet<Tag> _filterTags = SplayTreeSet(
     (a, b) => a.name.compareTo(b.name),
   );
@@ -165,6 +187,7 @@ class ExercisesViewModel extends ChangeNotifier {
       _filterCategory != null ||
       _filterInstrument.isNotEmpty ||
       _filterSource.isNotEmpty ||
+      _filterDifficulties.isNotEmpty ||
       _filterTags.isNotEmpty;
 
   bool get isFiltered => _filterSearch.isNotEmpty || hasFilters;
@@ -194,6 +217,7 @@ class ExercisesViewModel extends ChangeNotifier {
     _filterCategory = null;
     _filterInstrument = "";
     _filterSource = "";
+    _filterDifficulties.clear();
     _filterTags.clear();
     _tagMatch = FilterMatchType.all;
     notifyListeners();
@@ -206,6 +230,7 @@ class ExercisesViewModel extends ChangeNotifier {
       categoryId: _filterCategory?.id,
       instrument: _filterInstrument,
       source: _filterSource,
+      difficulties: _filterDifficulties,
       tagIds: _filterTags.map((t) => t.id),
       tagMatch: _tagMatch,
     );
@@ -284,6 +309,7 @@ class ExercisesViewModel extends ChangeNotifier {
       categoryId: _filterCategory?.id,
       instrument: _filterInstrument,
       source: _filterSource,
+      difficulties: _filterDifficulties,
       tagIds: _filterTags.map((t) => t.id),
       tagMatch: _tagMatch,
     );

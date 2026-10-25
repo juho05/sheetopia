@@ -38,6 +38,28 @@ class $ScoresTableTable extends ScoresTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _arrangerMeta = const VerificationMeta(
+    'arranger',
+  );
+  @override
+  late final GeneratedColumn<String> arranger = GeneratedColumn<String>(
+    'arranger',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _difficultyMeta = const VerificationMeta(
+    'difficulty',
+  );
+  @override
+  late final GeneratedColumn<int> difficulty = GeneratedColumn<int>(
+    'difficulty',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _sourceMeta = const VerificationMeta('source');
   @override
   late final GeneratedColumn<String> source = GeneratedColumn<String>(
@@ -245,6 +267,8 @@ class $ScoresTableTable extends ScoresTable
     id,
     title,
     composer,
+    arranger,
+    difficulty,
     source,
     sourceLink,
     notes,
@@ -292,6 +316,18 @@ class $ScoresTableTable extends ScoresTable
       context.handle(
         _composerMeta,
         composer.isAcceptableOrUnknown(data['composer']!, _composerMeta),
+      );
+    }
+    if (data.containsKey('arranger')) {
+      context.handle(
+        _arrangerMeta,
+        arranger.isAcceptableOrUnknown(data['arranger']!, _arrangerMeta),
+      );
+    }
+    if (data.containsKey('difficulty')) {
+      context.handle(
+        _difficultyMeta,
+        difficulty.isAcceptableOrUnknown(data['difficulty']!, _difficultyMeta),
       );
     }
     if (data.containsKey('source')) {
@@ -421,6 +457,14 @@ class $ScoresTableTable extends ScoresTable
         DriftSqlType.string,
         data['${effectivePrefix}composer'],
       ),
+      arranger: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}arranger'],
+      ),
+      difficulty: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}difficulty'],
+      ),
       source: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}source'],
@@ -515,6 +559,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
   final String id;
   final String title;
   final String? composer;
+  final String? arranger;
+  final int? difficulty;
   final String? source;
   final String? sourceLink;
   final String? notes;
@@ -536,6 +582,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     required this.id,
     required this.title,
     this.composer,
+    this.arranger,
+    this.difficulty,
     this.source,
     this.sourceLink,
     this.notes,
@@ -561,6 +609,12 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     map['title'] = Variable<String>(title);
     if (!nullToAbsent || composer != null) {
       map['composer'] = Variable<String>(composer);
+    }
+    if (!nullToAbsent || arranger != null) {
+      map['arranger'] = Variable<String>(arranger);
+    }
+    if (!nullToAbsent || difficulty != null) {
+      map['difficulty'] = Variable<int>(difficulty);
     }
     if (!nullToAbsent || source != null) {
       map['source'] = Variable<String>(source);
@@ -610,6 +664,12 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       composer: composer == null && nullToAbsent
           ? const Value.absent()
           : Value(composer),
+      arranger: arranger == null && nullToAbsent
+          ? const Value.absent()
+          : Value(arranger),
+      difficulty: difficulty == null && nullToAbsent
+          ? const Value.absent()
+          : Value(difficulty),
       source: source == null && nullToAbsent
           ? const Value.absent()
           : Value(source),
@@ -648,6 +708,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       id: serializer.fromJson<String>(json['id']),
       title: serializer.fromJson<String>(json['title']),
       composer: serializer.fromJson<String?>(json['composer']),
+      arranger: serializer.fromJson<String?>(json['arranger']),
+      difficulty: serializer.fromJson<int?>(json['difficulty']),
       source: serializer.fromJson<String?>(json['source']),
       sourceLink: serializer.fromJson<String?>(json['sourceLink']),
       notes: serializer.fromJson<String?>(json['notes']),
@@ -682,6 +744,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       'id': serializer.toJson<String>(id),
       'title': serializer.toJson<String>(title),
       'composer': serializer.toJson<String?>(composer),
+      'arranger': serializer.toJson<String?>(arranger),
+      'difficulty': serializer.toJson<int?>(difficulty),
       'source': serializer.toJson<String?>(source),
       'sourceLink': serializer.toJson<String?>(sourceLink),
       'notes': serializer.toJson<String?>(notes),
@@ -712,6 +776,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     String? id,
     String? title,
     Value<String?> composer = const Value.absent(),
+    Value<String?> arranger = const Value.absent(),
+    Value<int?> difficulty = const Value.absent(),
     Value<String?> source = const Value.absent(),
     Value<String?> sourceLink = const Value.absent(),
     Value<String?> notes = const Value.absent(),
@@ -733,6 +799,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     id: id ?? this.id,
     title: title ?? this.title,
     composer: composer.present ? composer.value : this.composer,
+    arranger: arranger.present ? arranger.value : this.arranger,
+    difficulty: difficulty.present ? difficulty.value : this.difficulty,
     source: source.present ? source.value : this.source,
     sourceLink: sourceLink.present ? sourceLink.value : this.sourceLink,
     notes: notes.present ? notes.value : this.notes,
@@ -757,6 +825,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('composer: $composer, ')
+          ..write('arranger: $arranger, ')
+          ..write('difficulty: $difficulty, ')
           ..write('source: $source, ')
           ..write('sourceLink: $sourceLink, ')
           ..write('notes: $notes, ')
@@ -779,10 +849,12 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     title,
     composer,
+    arranger,
+    difficulty,
     source,
     sourceLink,
     notes,
@@ -800,7 +872,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     fileType,
     annotations,
     type,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -808,6 +880,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           other.id == this.id &&
           other.title == this.title &&
           other.composer == this.composer &&
+          other.arranger == this.arranger &&
+          other.difficulty == this.difficulty &&
           other.source == this.source &&
           other.sourceLink == this.sourceLink &&
           other.notes == this.notes &&
@@ -831,6 +905,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
   final Value<String> id;
   final Value<String> title;
   final Value<String?> composer;
+  final Value<String?> arranger;
+  final Value<int?> difficulty;
   final Value<String?> source;
   final Value<String?> sourceLink;
   final Value<String?> notes;
@@ -852,6 +928,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.id = const Value.absent(),
     this.title = const Value.absent(),
     this.composer = const Value.absent(),
+    this.arranger = const Value.absent(),
+    this.difficulty = const Value.absent(),
     this.source = const Value.absent(),
     this.sourceLink = const Value.absent(),
     this.notes = const Value.absent(),
@@ -874,6 +952,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     required String id,
     required String title,
     this.composer = const Value.absent(),
+    this.arranger = const Value.absent(),
+    this.difficulty = const Value.absent(),
     this.source = const Value.absent(),
     this.sourceLink = const Value.absent(),
     this.notes = const Value.absent(),
@@ -900,6 +980,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Expression<String>? id,
     Expression<String>? title,
     Expression<String>? composer,
+    Expression<String>? arranger,
+    Expression<int>? difficulty,
     Expression<String>? source,
     Expression<String>? sourceLink,
     Expression<String>? notes,
@@ -922,6 +1004,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       if (id != null) 'id': id,
       if (title != null) 'title': title,
       if (composer != null) 'composer': composer,
+      if (arranger != null) 'arranger': arranger,
+      if (difficulty != null) 'difficulty': difficulty,
       if (source != null) 'source': source,
       if (sourceLink != null) 'source_link': sourceLink,
       if (notes != null) 'notes': notes,
@@ -946,6 +1030,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Value<String>? id,
     Value<String>? title,
     Value<String?>? composer,
+    Value<String?>? arranger,
+    Value<int?>? difficulty,
     Value<String?>? source,
     Value<String?>? sourceLink,
     Value<String?>? notes,
@@ -968,6 +1054,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       id: id ?? this.id,
       title: title ?? this.title,
       composer: composer ?? this.composer,
+      arranger: arranger ?? this.arranger,
+      difficulty: difficulty ?? this.difficulty,
       source: source ?? this.source,
       sourceLink: sourceLink ?? this.sourceLink,
       notes: notes ?? this.notes,
@@ -999,6 +1087,12 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     }
     if (composer.present) {
       map['composer'] = Variable<String>(composer.value);
+    }
+    if (arranger.present) {
+      map['arranger'] = Variable<String>(arranger.value);
+    }
+    if (difficulty.present) {
+      map['difficulty'] = Variable<int>(difficulty.value);
     }
     if (source.present) {
       map['source'] = Variable<String>(source.value);
@@ -1066,6 +1160,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('composer: $composer, ')
+          ..write('arranger: $arranger, ')
+          ..write('difficulty: $difficulty, ')
           ..write('source: $source, ')
           ..write('sourceLink: $sourceLink, ')
           ..write('notes: $notes, ')
@@ -4705,6 +4801,17 @@ class $ExercisesTableTable extends ExercisesTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _difficultyMeta = const VerificationMeta(
+    'difficulty',
+  );
+  @override
+  late final GeneratedColumn<int> difficulty = GeneratedColumn<int>(
+    'difficulty',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _targetBpmMeta = const VerificationMeta(
     'targetBpm',
   );
@@ -4775,6 +4882,7 @@ class $ExercisesTableTable extends ExercisesTable
     source,
     sourceLink,
     instrument,
+    difficulty,
     targetBpm,
     progressResetAt,
     updatedAt,
@@ -4837,6 +4945,12 @@ class $ExercisesTableTable extends ExercisesTable
       context.handle(
         _instrumentMeta,
         instrument.isAcceptableOrUnknown(data['instrument']!, _instrumentMeta),
+      );
+    }
+    if (data.containsKey('difficulty')) {
+      context.handle(
+        _difficultyMeta,
+        difficulty.isAcceptableOrUnknown(data['difficulty']!, _difficultyMeta),
       );
     }
     if (data.containsKey('target_bpm')) {
@@ -4909,6 +5023,10 @@ class $ExercisesTableTable extends ExercisesTable
         DriftSqlType.string,
         data['${effectivePrefix}instrument'],
       ),
+      difficulty: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}difficulty'],
+      ),
       targetBpm: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}target_bpm'],
@@ -4947,6 +5065,7 @@ class ExercisesTableData extends DataClass
   final String? source;
   final String? sourceLink;
   final String? instrument;
+  final int? difficulty;
   final int? targetBpm;
   final DateTime? progressResetAt;
   final DateTime updatedAt;
@@ -4960,6 +5079,7 @@ class ExercisesTableData extends DataClass
     this.source,
     this.sourceLink,
     this.instrument,
+    this.difficulty,
     this.targetBpm,
     this.progressResetAt,
     required this.updatedAt,
@@ -4985,6 +5105,9 @@ class ExercisesTableData extends DataClass
     }
     if (!nullToAbsent || instrument != null) {
       map['instrument'] = Variable<String>(instrument);
+    }
+    if (!nullToAbsent || difficulty != null) {
+      map['difficulty'] = Variable<int>(difficulty);
     }
     if (!nullToAbsent || targetBpm != null) {
       map['target_bpm'] = Variable<int>(targetBpm);
@@ -5019,6 +5142,9 @@ class ExercisesTableData extends DataClass
       instrument: instrument == null && nullToAbsent
           ? const Value.absent()
           : Value(instrument),
+      difficulty: difficulty == null && nullToAbsent
+          ? const Value.absent()
+          : Value(difficulty),
       targetBpm: targetBpm == null && nullToAbsent
           ? const Value.absent()
           : Value(targetBpm),
@@ -5046,6 +5172,7 @@ class ExercisesTableData extends DataClass
       source: serializer.fromJson<String?>(json['source']),
       sourceLink: serializer.fromJson<String?>(json['sourceLink']),
       instrument: serializer.fromJson<String?>(json['instrument']),
+      difficulty: serializer.fromJson<int?>(json['difficulty']),
       targetBpm: serializer.fromJson<int?>(json['targetBpm']),
       progressResetAt: serializer.fromJson<DateTime?>(json['progressResetAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -5064,6 +5191,7 @@ class ExercisesTableData extends DataClass
       'source': serializer.toJson<String?>(source),
       'sourceLink': serializer.toJson<String?>(sourceLink),
       'instrument': serializer.toJson<String?>(instrument),
+      'difficulty': serializer.toJson<int?>(difficulty),
       'targetBpm': serializer.toJson<int?>(targetBpm),
       'progressResetAt': serializer.toJson<DateTime?>(progressResetAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -5080,6 +5208,7 @@ class ExercisesTableData extends DataClass
     Value<String?> source = const Value.absent(),
     Value<String?> sourceLink = const Value.absent(),
     Value<String?> instrument = const Value.absent(),
+    Value<int?> difficulty = const Value.absent(),
     Value<int?> targetBpm = const Value.absent(),
     Value<DateTime?> progressResetAt = const Value.absent(),
     DateTime? updatedAt,
@@ -5093,6 +5222,7 @@ class ExercisesTableData extends DataClass
     source: source.present ? source.value : this.source,
     sourceLink: sourceLink.present ? sourceLink.value : this.sourceLink,
     instrument: instrument.present ? instrument.value : this.instrument,
+    difficulty: difficulty.present ? difficulty.value : this.difficulty,
     targetBpm: targetBpm.present ? targetBpm.value : this.targetBpm,
     progressResetAt: progressResetAt.present
         ? progressResetAt.value
@@ -5116,6 +5246,9 @@ class ExercisesTableData extends DataClass
       instrument: data.instrument.present
           ? data.instrument.value
           : this.instrument,
+      difficulty: data.difficulty.present
+          ? data.difficulty.value
+          : this.difficulty,
       targetBpm: data.targetBpm.present ? data.targetBpm.value : this.targetBpm,
       progressResetAt: data.progressResetAt.present
           ? data.progressResetAt.value
@@ -5136,6 +5269,7 @@ class ExercisesTableData extends DataClass
           ..write('source: $source, ')
           ..write('sourceLink: $sourceLink, ')
           ..write('instrument: $instrument, ')
+          ..write('difficulty: $difficulty, ')
           ..write('targetBpm: $targetBpm, ')
           ..write('progressResetAt: $progressResetAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -5154,6 +5288,7 @@ class ExercisesTableData extends DataClass
     source,
     sourceLink,
     instrument,
+    difficulty,
     targetBpm,
     progressResetAt,
     updatedAt,
@@ -5171,6 +5306,7 @@ class ExercisesTableData extends DataClass
           other.source == this.source &&
           other.sourceLink == this.sourceLink &&
           other.instrument == this.instrument &&
+          other.difficulty == this.difficulty &&
           other.targetBpm == this.targetBpm &&
           other.progressResetAt == this.progressResetAt &&
           other.updatedAt == this.updatedAt &&
@@ -5186,6 +5322,7 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
   final Value<String?> source;
   final Value<String?> sourceLink;
   final Value<String?> instrument;
+  final Value<int?> difficulty;
   final Value<int?> targetBpm;
   final Value<DateTime?> progressResetAt;
   final Value<DateTime> updatedAt;
@@ -5200,6 +5337,7 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
     this.source = const Value.absent(),
     this.sourceLink = const Value.absent(),
     this.instrument = const Value.absent(),
+    this.difficulty = const Value.absent(),
     this.targetBpm = const Value.absent(),
     this.progressResetAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -5215,6 +5353,7 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
     this.source = const Value.absent(),
     this.sourceLink = const Value.absent(),
     this.instrument = const Value.absent(),
+    this.difficulty = const Value.absent(),
     this.targetBpm = const Value.absent(),
     this.progressResetAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -5231,6 +5370,7 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
     Expression<String>? source,
     Expression<String>? sourceLink,
     Expression<String>? instrument,
+    Expression<int>? difficulty,
     Expression<int>? targetBpm,
     Expression<DateTime>? progressResetAt,
     Expression<DateTime>? updatedAt,
@@ -5246,6 +5386,7 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
       if (source != null) 'source': source,
       if (sourceLink != null) 'source_link': sourceLink,
       if (instrument != null) 'instrument': instrument,
+      if (difficulty != null) 'difficulty': difficulty,
       if (targetBpm != null) 'target_bpm': targetBpm,
       if (progressResetAt != null) 'progress_reset_at': progressResetAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -5263,6 +5404,7 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
     Value<String?>? source,
     Value<String?>? sourceLink,
     Value<String?>? instrument,
+    Value<int?>? difficulty,
     Value<int?>? targetBpm,
     Value<DateTime?>? progressResetAt,
     Value<DateTime>? updatedAt,
@@ -5278,6 +5420,7 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
       source: source ?? this.source,
       sourceLink: sourceLink ?? this.sourceLink,
       instrument: instrument ?? this.instrument,
+      difficulty: difficulty ?? this.difficulty,
       targetBpm: targetBpm ?? this.targetBpm,
       progressResetAt: progressResetAt ?? this.progressResetAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -5311,6 +5454,9 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
     if (instrument.present) {
       map['instrument'] = Variable<String>(instrument.value);
     }
+    if (difficulty.present) {
+      map['difficulty'] = Variable<int>(difficulty.value);
+    }
     if (targetBpm.present) {
       map['target_bpm'] = Variable<int>(targetBpm.value);
     }
@@ -5342,6 +5488,7 @@ class ExercisesTableCompanion extends UpdateCompanion<ExercisesTableData> {
           ..write('source: $source, ')
           ..write('sourceLink: $sourceLink, ')
           ..write('instrument: $instrument, ')
+          ..write('difficulty: $difficulty, ')
           ..write('targetBpm: $targetBpm, ')
           ..write('progressResetAt: $progressResetAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -8693,6 +8840,8 @@ typedef $$ScoresTableTableCreateCompanionBuilder =
       required String id,
       required String title,
       Value<String?> composer,
+      Value<String?> arranger,
+      Value<int?> difficulty,
       Value<String?> source,
       Value<String?> sourceLink,
       Value<String?> notes,
@@ -8716,6 +8865,8 @@ typedef $$ScoresTableTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> title,
       Value<String?> composer,
+      Value<String?> arranger,
+      Value<int?> difficulty,
       Value<String?> source,
       Value<String?> sourceLink,
       Value<String?> notes,
@@ -8817,6 +8968,16 @@ class $$ScoresTableTableFilterComposer
 
   ColumnFilters<String> get composer => $composableBuilder(
     column: $table.composer,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get arranger => $composableBuilder(
+    column: $table.arranger,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get difficulty => $composableBuilder(
+    column: $table.difficulty,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9008,6 +9169,16 @@ class $$ScoresTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get arranger => $composableBuilder(
+    column: $table.arranger,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get difficulty => $composableBuilder(
+    column: $table.difficulty,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get source => $composableBuilder(
     column: $table.source,
     builder: (column) => ColumnOrderings(column),
@@ -9111,6 +9282,14 @@ class $$ScoresTableTableAnnotationComposer
 
   GeneratedColumn<String> get composer =>
       $composableBuilder(column: $table.composer, builder: (column) => column);
+
+  GeneratedColumn<String> get arranger =>
+      $composableBuilder(column: $table.arranger, builder: (column) => column);
+
+  GeneratedColumn<int> get difficulty => $composableBuilder(
+    column: $table.difficulty,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get source =>
       $composableBuilder(column: $table.source, builder: (column) => column);
@@ -9296,6 +9475,8 @@ class $$ScoresTableTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String?> composer = const Value.absent(),
+                Value<String?> arranger = const Value.absent(),
+                Value<int?> difficulty = const Value.absent(),
                 Value<String?> source = const Value.absent(),
                 Value<String?> sourceLink = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
@@ -9317,6 +9498,8 @@ class $$ScoresTableTableTableManager
                 id: id,
                 title: title,
                 composer: composer,
+                arranger: arranger,
+                difficulty: difficulty,
                 source: source,
                 sourceLink: sourceLink,
                 notes: notes,
@@ -9340,6 +9523,8 @@ class $$ScoresTableTableTableManager
                 required String id,
                 required String title,
                 Value<String?> composer = const Value.absent(),
+                Value<String?> arranger = const Value.absent(),
+                Value<int?> difficulty = const Value.absent(),
                 Value<String?> source = const Value.absent(),
                 Value<String?> sourceLink = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
@@ -9361,6 +9546,8 @@ class $$ScoresTableTableTableManager
                 id: id,
                 title: title,
                 composer: composer,
+                arranger: arranger,
+                difficulty: difficulty,
                 source: source,
                 sourceLink: sourceLink,
                 notes: notes,
@@ -12719,6 +12906,7 @@ typedef $$ExercisesTableTableCreateCompanionBuilder =
       Value<String?> source,
       Value<String?> sourceLink,
       Value<String?> instrument,
+      Value<int?> difficulty,
       Value<int?> targetBpm,
       Value<DateTime?> progressResetAt,
       Value<DateTime> updatedAt,
@@ -12735,6 +12923,7 @@ typedef $$ExercisesTableTableUpdateCompanionBuilder =
       Value<String?> source,
       Value<String?> sourceLink,
       Value<String?> instrument,
+      Value<int?> difficulty,
       Value<int?> targetBpm,
       Value<DateTime?> progressResetAt,
       Value<DateTime> updatedAt,
@@ -12878,6 +13067,11 @@ class $$ExercisesTableTableFilterComposer
 
   ColumnFilters<String> get instrument => $composableBuilder(
     column: $table.instrument,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get difficulty => $composableBuilder(
+    column: $table.difficulty,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13049,6 +13243,11 @@ class $$ExercisesTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get difficulty => $composableBuilder(
+    column: $table.difficulty,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get targetBpm => $composableBuilder(
     column: $table.targetBpm,
     builder: (column) => ColumnOrderings(column),
@@ -13129,6 +13328,11 @@ class $$ExercisesTableTableAnnotationComposer
 
   GeneratedColumn<String> get instrument => $composableBuilder(
     column: $table.instrument,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get difficulty => $composableBuilder(
+    column: $table.difficulty,
     builder: (column) => column,
   );
 
@@ -13295,6 +13499,7 @@ class $$ExercisesTableTableTableManager
                 Value<String?> source = const Value.absent(),
                 Value<String?> sourceLink = const Value.absent(),
                 Value<String?> instrument = const Value.absent(),
+                Value<int?> difficulty = const Value.absent(),
                 Value<int?> targetBpm = const Value.absent(),
                 Value<DateTime?> progressResetAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -13309,6 +13514,7 @@ class $$ExercisesTableTableTableManager
                 source: source,
                 sourceLink: sourceLink,
                 instrument: instrument,
+                difficulty: difficulty,
                 targetBpm: targetBpm,
                 progressResetAt: progressResetAt,
                 updatedAt: updatedAt,
@@ -13325,6 +13531,7 @@ class $$ExercisesTableTableTableManager
                 Value<String?> source = const Value.absent(),
                 Value<String?> sourceLink = const Value.absent(),
                 Value<String?> instrument = const Value.absent(),
+                Value<int?> difficulty = const Value.absent(),
                 Value<int?> targetBpm = const Value.absent(),
                 Value<DateTime?> progressResetAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -13339,6 +13546,7 @@ class $$ExercisesTableTableTableManager
                 source: source,
                 sourceLink: sourceLink,
                 instrument: instrument,
+                difficulty: difficulty,
                 targetBpm: targetBpm,
                 progressResetAt: progressResetAt,
                 updatedAt: updatedAt,

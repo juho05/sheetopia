@@ -20,6 +20,7 @@ class ExerciseMetadataModel {
   final String? sourceLink;
   final String? instrument;
   final int? targetBpm;
+  final int? difficulty;
 
   // RFC 3339
   final String? progressResetAt;
@@ -30,6 +31,7 @@ class ExerciseMetadataModel {
     required this.sourceLink,
     required this.instrument,
     required this.targetBpm,
+    required this.difficulty,
     required this.progressResetAt,
   });
 

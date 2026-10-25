@@ -8,6 +8,7 @@
 
 import 'dart:io';
 
+import 'package:sheetopia/data/repositories/scores/difficulty.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 
@@ -15,9 +16,11 @@ class Score {
   final String id;
   final String title;
   final String? composer;
+  final String? arranger;
   final String? source;
   final String? sourceLink;
   final String? notes;
+  final Difficulty? difficulty;
   final String? annotations;
 
   final List<String> genres;
@@ -36,9 +39,11 @@ class Score {
     required this.id,
     required this.title,
     required this.composer,
+    required this.arranger,
     required this.source,
     required this.sourceLink,
     required this.notes,
+    required this.difficulty,
     required this.annotations,
     required this.genres,
     required this.instruments,
@@ -56,9 +61,11 @@ class Score {
     id: id,
     title: title ?? this.title,
     composer: composer,
+    arranger: arranger,
     source: source,
     sourceLink: sourceLink,
     notes: notes,
+    difficulty: difficulty,
     annotations: annotations,
     genres: genres,
     instruments: instruments,
