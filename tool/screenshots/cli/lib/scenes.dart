@@ -97,8 +97,12 @@ final scenes = <Scene>[
   }),
   Scene('practice_tab', (c) async {
     final items = await c.d.findAll(text: 'Practice');
-    // The navigation rail or bar, not a tag of a score.
-    final nav = items.where((i) => i.x < 80 || i.y > c.size[1] - 100).firstOrNull;
+    // Score tags are called Practice too, the navigation item lines up with
+    // Setlists in the bar or rail.
+    final setlists = (await c.d.find(text: 'Setlists')).center;
+    final nav = items
+        .where((i) => (i.center[0] - setlists[0]).abs() < 2 || (i.center[1] - setlists[1]).abs() < 2)
+        .firstOrNull;
     if (nav == null) throw ToolException('no Practice navigation item');
     await c.d.tapAt(nav.center);
     await c.d.settle();

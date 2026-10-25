@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
 import '../driver.dart';
+import '../images.dart';
 import '../stage.dart';
 import '../target.dart';
 import '../util.dart';
@@ -81,15 +84,68 @@ abstract class _DesktopTarget extends Target {
 }
 
 class MacosTarget extends _DesktopTarget {
+  String? _appDir;
+  String? _logDir;
+
   @override
   String get id => 'macos';
+
+  @override
+  Future<AppDriver> start(Stage stage, FormFactor formFactor, String logDir) async {
+    _appDir = p.join(stage.dir, 'build', 'macos');
+    _logDir = logDir;
+    return super.start(stage, formFactor, logDir);
+  }
+
+  /// The window as macOS composites it. Impeller's offscreen render
+  /// (renderPng) loses antialiasing on macOS: noisy images, coloured fringes.
+  @override
+  Future<Uint8List> capture(AppDriver driver, FormFactor formFactor) async {
+    final file = p.join(_logDir!, 'macos-capture.png');
+    final window = await _windowId();
+    final result = await Process.run('screencapture', ['-x', '-o', '-l', '$window', file]);
+    if (result.exitCode != 0 || !File(file).existsSync()) {
+      throw ToolException('screencapture failed: ${'${result.stdout}${result.stderr}'.trim()}. '
+          'The terminal needs the Screen Recording permission (System Settings > Privacy & Security).');
+    }
+    final image = decode(File(file).readAsBytesSync());
+    File(file).deleteSync();
+    if (image.width != formFactor.width || image.height < formFactor.height) {
+      throw ToolException('captured the window at ${image.width}x${image.height}, '
+          'expected ${formFactor.width} wide and at least ${formFactor.height} high');
+    }
+    // Below the title bar. The window's rounded bottom corners are transparent.
+    final content = img.copyCrop(image, x: 0, y: image.height - formFactor.height, width: formFactor.width, height: formFactor.height);
+    return encode(fillCorners(content));
+  }
+
+  /// The largest window of the staged build, never an installed Sheetopia.
+  Future<int> _windowId() async {
+    final json = await run('osascript', [
+      '-l', 'JavaScript', '-e',
+      'ObjC.import("CoreGraphics"); JSON.stringify(ObjC.deepUnwrap(ObjC.castRefToObject('
+          r'$.CGWindowListCopyWindowInfo($.kCGWindowListOptionAll, 0))).filter(w => w.kCGWindowLayer == 0)'
+          '.map(w => [w.kCGWindowNumber, w.kCGWindowOwnerPID, w.kCGWindowBounds.Width * w.kCGWindowBounds.Height]))',
+    ]);
+    final windows = (jsonDecode(json) as List).cast<List>();
+    final ours = <List>[];
+    for (final w in windows) {
+      final command = await run('ps', ['-o', 'comm=', '-p', '${w[1]}'], check: false);
+      if (p.isWithin(_appDir!, command)) ours.add(w);
+    }
+    if (ours.isEmpty) throw ToolException('no window of the app built in $_appDir');
+    ours.sort((a, b) => (b[2] as num).compareTo(a[2] as num));
+    return ours.first[0] as int;
+  }
 
   // Mac App Store: 16:10, 1280x800, 1440x900, 2560x1600 or 2880x1800.
   @override
   List<FormFactor> get formFactors => const [FormFactor('macos', 'Mac App Store', 2880, 1800)];
 
   @override
-  List<(int, int)> get _layouts => const [(1440, 900), (1280, 800)];
+  // screencapture takes the backing pixels, so only 1440x900 on a Retina
+  // screen gives 2880x1800 (the window may extend below the screen, see stage.dart).
+  List<(int, int)> get _layouts => const [(1440, 900)];
 
   @override
   List<String> get _dataDirs {

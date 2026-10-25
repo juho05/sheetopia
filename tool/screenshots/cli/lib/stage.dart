@@ -52,6 +52,12 @@ class Stage {
     );
     _patch(dir, 'macos/Runner/Configs/AppInfo.xcconfig', RegExp(r'^PRODUCT_BUNDLE_IDENTIFIER = .*$', multiLine: true),
         'PRODUCT_BUNDLE_IDENTIFIER = $macosBundleId');
+    // macOS keeps windows within the visible screen. 1440x900 content plus
+    // the title bar is taller than a 1470x956 MacBook screen without the menu
+    // bar; screencapture also gets the part below the screen edge.
+    _patch(dir, 'macos/Runner/MainFlutterWindow.swift', RegExp(r'^class MainFlutterWindow: NSWindow \{$', multiLine: true),
+        'class MainFlutterWindow: NSWindow {\n'
+        '  override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }\n');
 
     // Gradle reads the release signing config of every build. Profile builds
     // are signed with the debug key, the real keystore stays out of the stage.

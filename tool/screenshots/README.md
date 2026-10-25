@@ -28,11 +28,12 @@ Only those this host can build are offered.
 | Form factor         | Size      | Capture                                                    |
 |---------------------|-----------|------------------------------------------------------------|
 | `linux`             | 2440x1496 | README, spectacle in a headless KWin at scale 2            |
-| `macos`             | 2880x1800 | Mac App Store, rendered by the app                         |
+| `macos`             | 2880x1800 | Mac App Store, `screencapture` of the window, title bar cropped |
 | `android-phone`     | 1080x2160 | Google Play, throwaway emulator, demo mode status bar      |
 | `android-tablet-7`  | 1200x1920 | same emulator, display size and density overridden, app reinstalled |
 | `android-tablet-10` | 1600x2560 | same                                                       |
-| `ios-iphone-6.9`    | 1320x2868 | App Store, throwaway simulator, status bar override        |
+| `ios-iphone-6.3`    | 1206x2622 | App Store, throwaway simulator, status bar override        |
+| `ios-iphone-duo`    | 1398x2034 | same, outer display, needs Xcode 27.1                      |
 | `ios-ipad-13`       | 2064x2752 | same                                                       |
 
 Play allows at most 2:1, so phones are 18:9 instead of their real 20:9. A new store slot is a `FormFactor` in `cli/lib/targets/`.
@@ -49,7 +50,8 @@ Play allows at most 2:1, so phones are 18:9 instead of their real 20:9. A new st
 4. Starts the app with fresh data, imports the library, plays each scene and captures it.
 
 Requirements: Linux needs `kwin_wayland`, `kscreen-doctor`, `spectacle` and `dbus-daemon`, Android an SDK with
-emulator, cmdline-tools and a non Play Store system image for the host CPU (adb root sets the time zone), iOS Xcode. All need `lilypond` for the demo library.
+emulator, cmdline-tools and a non Play Store system image for the host CPU (adb root sets the time zone), iOS Xcode,
+macOS the Screen Recording permission for the terminal (the window may be covered, not minimized; no cursor). All need `lilypond` for the demo library.
 
 ## Scenes
 

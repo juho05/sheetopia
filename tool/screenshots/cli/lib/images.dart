@@ -50,4 +50,24 @@ img.Image opaque(img.Image image) {
   return out;
 }
 
+/// Fills transparent pixels at the start and end of each row with the row's
+/// first and last opaque colour, for the rounded corners of a window capture.
+img.Image fillCorners(img.Image image) {
+  final max = image.maxChannelValue;
+  for (var y = 0; y < image.height; y++) {
+    for (final xs in [
+      Iterable<int>.generate(image.width),
+      Iterable<int>.generate(image.width, (i) => image.width - 1 - i),
+    ]) {
+      final edge = xs.firstWhere((x) => image.getPixel(x, y).a == max, orElse: () => -1);
+      if (edge <= 0 || edge == image.width - 1) continue;
+      final fill = image.getPixel(edge, y);
+      for (final x in xs.takeWhile((x) => x != edge)) {
+        image.setPixelRgba(x, y, fill.r, fill.g, fill.b, max);
+      }
+    }
+  }
+  return image;
+}
+
 Uint8List encode(img.Image image) => img.encodePng(image, level: 9);

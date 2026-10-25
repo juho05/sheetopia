@@ -60,6 +60,9 @@ class AppDriver {
       printCommunication: false,
       logCommunicationToFile: false,
     ).timeout(const Duration(seconds: 60));
+    // The VM service is up before main() reaches runApp(), and every e2e
+    // action needs the root widget. The first frame only comes after it.
+    await driver.waitUntilFirstFrameRasterized().timeout(const Duration(minutes: 2));
     return AppDriver._(driver, url);
   }
 

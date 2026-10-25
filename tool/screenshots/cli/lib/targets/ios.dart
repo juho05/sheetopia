@@ -15,16 +15,19 @@ class IosTarget extends Target {
   @override
   String get id => 'ios';
 
-  // App Store Connect: 6.9" iPhone 1320x2868, 13" iPad 2064x2752.
+  // App Store Connect: iPhone with Dynamic Island (medium display) 1206x2622,
+  // iPhone Duo outer display 1398x2034, 13" iPad 2064x2752.
   @override
   List<FormFactor> get formFactors => const [
-    FormFactor('ios-iphone-6.9', 'App Store iPhone 6.9"', 1320, 2868),
+    FormFactor('ios-iphone-6.3', 'App Store iPhone 6.3"', 1206, 2622),
+    FormFactor('ios-iphone-duo', 'App Store iPhone Duo', 1398, 2034),
     FormFactor('ios-ipad-13', 'App Store iPad 13"', 2064, 2752),
   ];
 
   // Newest first, any of them has the required resolution.
   static const _deviceTypes = {
-    'ios-iphone-6.9': ['iPhone 17 Pro Max', 'iPhone 16 Pro Max', 'iPhone Air', 'iPhone 16 Plus'],
+    'ios-iphone-6.3': ['iPhone 18 Pro', 'iPhone 17 Pro', 'iPhone 17', 'iPhone 16 Pro'],
+    'ios-iphone-duo': ['iPhone Duo'],
     'ios-ipad-13': ['iPad Pro 13-inch (M5)', 'iPad Pro 13-inch (M4)', 'iPad Air 13-inch (M3)', 'iPad Air 13-inch (M2)'],
   };
 
@@ -58,16 +61,28 @@ class IosTarget extends Target {
         .toList();
     if (runtimes.isEmpty) throw ToolException('no iOS simulator runtime installed');
     runtimes.sort((a, b) => _compareVersions(b['version'] as String, a['version'] as String));
-    final runtime = runtimes.first;
-    final supported = ((runtime['supportedDeviceTypes'] as List?) ?? const []).cast<Map>().map((t) => t['name'] as String).toSet();
     final allTypes = ((await _simctl(['devicetypes']))['devicetypes'] as List).cast<Map>();
-    final type = _deviceTypes[formFactor.id]!
-        .where((name) => supported.isEmpty || supported.contains(name))
+    final candidates = _deviceTypes[formFactor.id]!
         .map((name) => allTypes.where((t) => t['name'] == name).firstOrNull)
         .nonNulls
-        .firstOrNull;
-    if (type == null) {
-      throw ToolException('none of ${_deviceTypes[formFactor.id]!.join(', ')} available for ${runtime['name']}');
+        .toList();
+    // Newest runtime that supports any candidate. Some runtimes only support
+    // a single device (iOS 27.1 is iPhone Duo only), so this differs per form factor.
+    Map? runtime;
+    Map? type;
+    for (final r in runtimes) {
+      final supported = ((r['supportedDeviceTypes'] as List?) ?? const []).cast<Map>().map((t) => t['name'] as String).toSet();
+      type = candidates.where((t) => supported.isEmpty || supported.contains(t['name'])).firstOrNull;
+      if (type != null) {
+        runtime = r;
+        break;
+      }
+    }
+    if (runtime == null || type == null) {
+      final minRuntimes = candidates.map((t) => '${t['name']} needs iOS ${t['minRuntimeVersionString']}');
+      throw ToolException('none of ${_deviceTypes[formFactor.id]!.join(', ')} available for '
+          '${runtimes.map((r) => r['name']).join(', ')}'
+          '${minRuntimes.isEmpty ? '' : ' (${minRuntimes.join(', ')}; install with `xcodebuild -downloadPlatform iOS`)'}');
     }
 
     log('creating a ${type['name']} simulator (${runtime['name']})');
