@@ -54,7 +54,7 @@ class _SetlistsBulkEditMenuState extends State<SetlistsBulkEditMenu> {
         ContextMenuOption(
           title: "Delete",
           icon: Symbols.delete,
-          onSelected: _delete,
+          onSelected: (_) => _delete(),
         ),
       ],
     );

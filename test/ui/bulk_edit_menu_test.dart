@@ -21,7 +21,6 @@ import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
-import 'package:sheetopia/ui/common/difficulty.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/home/bulk_edit/bulk_edit_menu.dart';
@@ -226,6 +225,27 @@ void main() {
     expect((await repo.getScore("b"))!.arranger, isNull);
   });
 
+  testWidgets("the metadata dialog sets the part of of the selection", (
+    tester,
+  ) async {
+    await insertScore("a");
+    await insertScore("b");
+    selected = ["a"];
+    await pumpMenu(tester);
+
+    await pickField(tester, "Part of");
+    await tester.enterText(
+      find.widgetWithText(TextField, "Part of").last,
+      "Kinderszenen",
+    );
+    await settle(tester);
+    await tester.tap(find.text("Update"));
+    await settle(tester);
+
+    expect((await repo.getScore("a"))!.partOf, "Kinderszenen");
+    expect((await repo.getScore("b"))!.partOf, isNull);
+  });
+
   testWidgets("an empty value clears the field", (tester) async {
     await insertScore("a");
     await repo.bulkEditScoreComposer(["a"], "Bach");
@@ -246,9 +266,7 @@ void main() {
     await pumpMenu(tester);
 
     await pickField(tester, "Difficulty");
-    await tester.tap(find.byType(DifficultyDropdown));
-    await settle(tester);
-    await tester.tap(find.text("Hard").last);
+    await tester.tap(find.byTooltip("Hard"));
     await settle(tester);
     await tester.tap(find.text("Update"));
     await settle(tester);

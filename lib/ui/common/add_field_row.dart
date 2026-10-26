@@ -6,18 +6,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 import 'package:material_ui/material_ui.dart';
-import 'package:sheetopia/ui/common/buttons.dart';
 import 'package:sheetopia/ui/common/choice_dialog.dart';
-import 'package:sheetopia/ui/common/dashed_placeholder.dart';
 import 'package:sheetopia/ui/common/rounded_tile_icon.dart';
 import 'package:sheetopia/ui/common/metadata_field.dart';
 
-class AddFieldButton<T extends MetadataField> extends StatelessWidget {
+class AddFieldRow<T extends MetadataField> extends StatelessWidget {
   final String label;
   final Iterable<T> fields;
   final void Function(T field) onSelected;
 
-  const AddFieldButton({
+  const AddFieldRow({
     super.key,
     this.label = "Add field",
     required this.fields,
@@ -42,30 +40,27 @@ class AddFieldButton<T extends MetadataField> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DashedPlaceholder(
-      padding: const EdgeInsets.all(12),
-      child: Button(
-        onPressed: () => _choose(context),
-        icon: Icons.add,
-        darkTonal: true,
-        child: Text(label),
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.primary;
+    return InkWell(
+      onTap: () => _choose(context),
+      borderRadius: const BorderRadius.all(Radius.circular(8)),
+      child: SizedBox(
+        height: 48,
+        child: Row(
+          spacing: 12,
+          children: [
+            Icon(Icons.add, size: 20, color: color),
+            Text(
+              label,
+              style: theme.textTheme.bodyMedium!.copyWith(
+                color: color,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
-    );
-  }
-}
-
-class RemoveFieldButton extends StatelessWidget {
-  final void Function() onPressed;
-
-  const RemoveFieldButton({super.key, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      icon: const Icon(Icons.close),
-      iconSize: 20,
-      tooltip: "Remove field",
-      onPressed: onPressed,
     );
   }
 }

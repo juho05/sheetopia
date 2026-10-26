@@ -5,11 +5,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-import 'package:material_ui/material_ui.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/scores/difficulty.dart';
-import 'package:sheetopia/ui/common/choice_dialog.dart';
-import 'package:sheetopia/ui/common/common_badge.dart';
 
 Color difficultyColor(BuildContext context, Difficulty difficulty) {
   final dark = Theme.of(context).brightness == Brightness.dark;
@@ -73,107 +71,78 @@ class DifficultyText extends StatelessWidget {
   }
 }
 
-class DifficultyBadge extends StatelessWidget {
-  final Difficulty difficulty;
-  final void Function()? onRemove;
+class DifficultySelector extends StatelessWidget {
+  final Set<Difficulty?> selected;
+  final List<Difficulty?> options;
+  final void Function(Difficulty? difficulty) onPressed;
+  final bool showLabel;
 
-  const DifficultyBadge({super.key, required this.difficulty, this.onRemove});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = difficultyColor(context, difficulty);
-    return CommonBadge(
-      name: difficulty.label,
-      color: color,
-      foreground: Theme.of(context).brightness == Brightness.dark
-          ? Colors.black
-          : Colors.white,
-      trailingIcon: difficultyIcon(difficulty),
-      tooltip: false,
-      onRemove: onRemove,
-    );
-  }
-}
-
-class DifficultyDropdown extends StatelessWidget {
-  final Difficulty? value;
-  final void Function(Difficulty? difficulty) onChanged;
-  final String? label;
-
-  const DifficultyDropdown({
+  DifficultySelector({
     super.key,
-    required this.value,
-    required this.onChanged,
-    this.label = "Difficulty",
-  });
+    required Difficulty? value,
+    required void Function(Difficulty? difficulty) onChanged,
+  }) : selected = {?value},
+       options = Difficulty.values,
+       onPressed = ((d) => onChanged(d == value ? null : d)),
+       showLabel = true;
+
+  DifficultySelector.multi({
+    super.key,
+    required Set<Difficulty?> values,
+    required void Function(Difficulty? difficulty, bool selected) onToggle,
+    bool includeNone = false,
+  }) : selected = values,
+       options = [if (includeNone) null, ...Difficulty.values],
+       onPressed = ((d) => onToggle(d, !values.contains(d))),
+       showLabel = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return DropdownMenu<Difficulty?>(
-      // the menu keeps its own selection, rebuild it when the value changes
-      key: ValueKey(value),
-      initialSelection: value,
-      onSelected: onChanged,
-      expandedInsets: EdgeInsets.zero,
-      requestFocusOnTap: false,
-      enableSearch: false,
-      label: label == null ? null : Text(label!),
-      hintText: "Not set",
-      leadingIcon: value == null
-          ? null
-          : Icon(
-              difficultyIcon(value!),
-              color: difficultyColor(context, value!),
+    final muted = theme.colorScheme.onSurfaceVariant;
+    final labelStyle = theme.textTheme.bodyMedium!;
+    return Row(
+      spacing: 4,
+      children: [
+        for (final d in options)
+          IconButton(
+            icon: Icon(
+              d == null ? Symbols.signal_cellular_off : difficultyIcon(d),
             ),
-      textStyle: value == null
-          ? null
-          : theme.textTheme.bodyLarge!.copyWith(
-              color: difficultyColor(context, value!),
-              fontWeight: FontWeight.w500,
+            iconSize: 22,
+            isSelected: selected.contains(d),
+            visualDensity: VisualDensity.compact,
+            tooltip: d?.label ?? "No difficulty",
+            color: muted.withAlpha(120),
+            selectedIcon: Icon(
+              d == null ? Symbols.signal_cellular_off : difficultyIcon(d),
+              color: d == null ? muted : difficultyColor(context, d),
             ),
-      dropdownMenuEntries: [
-        DropdownMenuEntry(
-          value: null,
-          label: "Not set",
-          leadingIcon: const SizedBox.square(dimension: 24),
-          labelWidget: Text(
-            "Not set",
-            style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+            style: IconButton.styleFrom(
+              backgroundColor: selected.contains(d)
+                  ? (d == null ? muted : difficultyColor(context, d)).withAlpha(
+                      40,
+                    )
+                  : null,
+            ),
+            onPressed: () => onPressed(d),
           ),
-        ),
-        for (final d in Difficulty.values)
-          DropdownMenuEntry(
-            value: d,
-            label: d.label,
-            leadingIcon: DifficultyIcon(
-              difficulty: d,
-              size: 24,
-              tooltip: false,
-            ),
-            labelWidget: DifficultyText(difficulty: d),
+        if (showLabel) ...[
+          const SizedBox(width: 4),
+          Flexible(
+            child: selected.isEmpty
+                ? Text(
+                    "Not set",
+                    overflow: TextOverflow.ellipsis,
+                    style: labelStyle.copyWith(color: muted),
+                  )
+                : DifficultyText(
+                    difficulty: selected.single!,
+                    style: labelStyle,
+                  ),
           ),
+        ],
       ],
     );
   }
-}
-
-Future<Difficulty?> showDifficultyPicker(
-  BuildContext context, {
-  required String title,
-  Iterable<Difficulty> exclude = const [],
-}) {
-  return ChoiceDialog.show<Difficulty>(
-    context,
-    title: title,
-    options: [
-      for (final d in Difficulty.values)
-        if (!exclude.contains(d))
-          ChoiceOption(
-            value: d,
-            title: d.label,
-            leading: DifficultyIcon(difficulty: d, size: 24, tooltip: false),
-          ),
-    ],
-  );
 }

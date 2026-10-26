@@ -120,6 +120,7 @@ class SetlistsRepository {
       title: score.title,
       composer: score.composer,
       arranger: score.arranger,
+      partOf: score.partOf,
       source: score.source,
       sourceLink: score.sourceLink,
       difficulty: Difficulty.fromLevel(score.difficulty),

@@ -226,6 +226,7 @@ class ImportExportRepository extends ChangeNotifier {
                       metadata: ScoreMetadataModel(
                         composer: s.composer,
                         arranger: s.arranger ?? "",
+                        partOf: s.partOf ?? "",
                         source: s.source,
                         sourceLink: s.sourceLink,
                         genres: s.genres,
@@ -921,10 +922,12 @@ class ImportExportRepository extends ChangeNotifier {
                 s.title,
                 s.metadata.composer,
                 s.metadata.arranger,
+                s.metadata.partOf,
               ]),
               title: s.title,
               composer: optionalStringValue(s.metadata.composer),
               arranger: optionalStringValue(s.metadata.arranger),
+              partOf: optionalStringValue(s.metadata.partOf),
               source: optionalStringValue(s.metadata.source),
               sourceLink: optionalStringValue(s.metadata.sourceLink),
               notes: optionalStringValue(s.metadata.notes),
@@ -966,6 +969,9 @@ class ImportExportRepository extends ChangeNotifier {
                   arranger: metadataChanged
                       ? optionalStringValue(s.metadata.arranger)
                       : const Value.absent(),
+                  partOf: metadataChanged
+                      ? optionalStringValue(s.metadata.partOf)
+                      : const Value.absent(),
                   source: metadataChanged
                       ? optionalStringValue(s.metadata.source)
                       : const Value.absent(),
@@ -987,6 +993,7 @@ class ImportExportRepository extends ChangeNotifier {
                             s.title,
                             s.metadata.composer ?? score.composer,
                             s.metadata.arranger ?? score.arranger,
+                            s.metadata.partOf ?? score.partOf,
                           ]),
                         )
                       : const Value.absent(),

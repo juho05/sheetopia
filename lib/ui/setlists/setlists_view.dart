@@ -309,12 +309,12 @@ class _SetlistTile extends StatelessWidget {
                 ContextMenuOption(
                   icon: Icons.edit,
                   title: "Rename",
-                  onSelected: onRename,
+                  onSelected: (_) => onRename(),
                 ),
                 ContextMenuOption(
                   icon: Icons.delete,
                   title: "Delete",
-                  onSelected: onDelete,
+                  onSelected: (_) => onDelete(),
                 ),
               ],
             ),

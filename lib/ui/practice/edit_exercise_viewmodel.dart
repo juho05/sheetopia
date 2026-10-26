@@ -23,7 +23,7 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/file_picker.dart';
-import 'package:sheetopia/ui/common/visible_fields.dart';
+import 'package:sheetopia/ui/common/metadata_form_viewmodel.dart';
 import 'package:sheetopia/ui/practice/exercise_field.dart';
 import 'package:sheetopia/utils/category_sync.dart';
 
@@ -37,7 +37,8 @@ class ExerciseScoreEntry {
       ExerciseScoreEntry(id: id, score: score);
 }
 
-class EditExerciseViewModel extends ChangeNotifier {
+class EditExerciseViewModel extends ChangeNotifier
+    with MetadataFormViewModel<ExerciseField> {
   final PracticeRepository _repo;
 
   final ScoresRepository _scoresRepo;
@@ -52,46 +53,25 @@ class EditExerciseViewModel extends ChangeNotifier {
 
   bool get loading => _loading;
 
-  static int _byName(Tag a, Tag b) =>
-      a.name.toLowerCase().compareTo(b.name.toLowerCase());
-
-  SplayTreeSet<Tag> _tags = SplayTreeSet(_byName);
-
-  Iterable<Tag> get tags => _tags;
-
   ExerciseCategory? _category;
 
   ExerciseCategory? get category => _category;
 
-  String? _source;
+  @override
+  List<ExerciseField> get optionalFields => ExerciseField.formOptional;
 
-  String? get source => _source;
-
-  String? _sourceLink;
-
-  String? get sourceLink => _sourceLink;
-
-  Difficulty? _difficulty;
-
-  Difficulty? get difficulty => _difficulty;
-
-  final VisibleFields<ExerciseField> _fields = VisibleFields(
-    ExerciseField.formOptional,
-  );
-
-  bool isVisible(ExerciseField field) => _fields.contains(field);
-
-  Iterable<ExerciseField> get hiddenFields => _fields.hidden;
-
+  @override
   final FormGroup form;
 
   static const String formName = "name";
   static const String formDescription = "description";
   static const String formInstrument = "instrument";
+  static const String formSource = MetadataFormViewModel.formSource;
 
-  String get name => _formValue(formName);
+  String get name => formValue(formName);
 
-  StreamSubscription? _valueSub;
+  late final instrumentOptions = CachedOptions(_repo.getInstruments);
+  late final sourceOptions = CachedOptions(_repo.getSources);
 
   late final CategorySync _categorySync;
 
@@ -127,6 +107,7 @@ class EditExerciseViewModel extends ChangeNotifier {
          formName: FormControl<String>(validators: [Validators.required]),
          formDescription: FormControl<String>(),
          formInstrument: FormControl<String>(),
+         formSource: FormControl<String>(),
        }) {
     _categorySync = CategorySync(
       repo: _repo,
@@ -142,12 +123,7 @@ class EditExerciseViewModel extends ChangeNotifier {
     } else {
       load = _load();
     }
-    load.then((_) {
-      _valueSub = form.valueChanges.listen((_) {
-        if (form.invalid) return;
-        _onValuesChanged();
-      });
-    });
+    load.then((_) => listenToValues());
   }
 
   Future<void> setCategory(ExerciseCategory? category) async {
@@ -157,13 +133,8 @@ class EditExerciseViewModel extends ChangeNotifier {
     await _repo.updateExerciseCategory(_exerciseId, category?.id);
   }
 
-  void showField(ExerciseField field) {
-    if (!_fields.show(field)) return;
-    notifyListeners();
-  }
-
-  Future<void> removeField(ExerciseField field) async {
-    _fields.remove(field);
+  @override
+  Future<void> clearField(ExerciseField field) async {
     switch (field) {
       case ExerciseField.source:
         await setSource("", "");
@@ -175,36 +146,45 @@ class EditExerciseViewModel extends ChangeNotifier {
           ExerciseField.tags:
         break;
     }
-    notifyListeners();
   }
 
-  bool _isFilled(ExerciseField field) => switch (field) {
-    ExerciseField.source => _source != null,
-    ExerciseField.difficulty => _difficulty != null,
+  @override
+  bool isFilled(ExerciseField field) => switch (field) {
+    ExerciseField.source => hasSource,
+    ExerciseField.difficulty => difficulty != null,
     _ => false,
   };
 
-  void _showFilledFields() => _fields.showWhere(_isFilled);
+  @override
+  bool get canPersist => _exerciseId != null;
 
-  Future<void> setDifficulty(Difficulty? difficulty) async {
-    if (_difficulty == difficulty) return;
-    _difficulty = difficulty;
-    notifyListeners();
-    if (_exerciseId == null) return;
-    await _repo.updateExerciseDifficulty(_exerciseId, difficulty);
-  }
+  @override
+  Future<void> persistValues() => _repo.updateExercise(
+    _exerciseId!,
+    name: name,
+    description: formValue(formDescription),
+    instrument: formValue(formInstrument),
+  );
 
-  Future<void> setSource(String source, String sourceLink) async {
-    _source = source.isNotEmpty ? source : null;
-    _sourceLink = _source != null && sourceLink.isNotEmpty ? sourceLink : null;
-    notifyListeners();
-    if (_exerciseId == null) return;
-    await _repo.updateExerciseSource(
-      _exerciseId,
-      source: source,
-      sourceLink: sourceLink,
-    );
-  }
+  @override
+  Future<void> persistSource(String source, String sourceLink) =>
+      _repo.updateExerciseSource(
+        _exerciseId!,
+        source: source,
+        sourceLink: sourceLink,
+      );
+
+  @override
+  Future<void> persistDifficulty(Difficulty? difficulty) =>
+      _repo.updateExerciseDifficulty(_exerciseId!, difficulty);
+
+  @override
+  Future<void> persistAddTags(Iterable<Tag> tags) =>
+      _repo.addExerciseTags(_exerciseId!, tags.map((t) => t.id));
+
+  @override
+  Future<void> persistRemoveTag(Tag tag) =>
+      _repo.removeExerciseTag(_exerciseId!, tag.id);
 
   Future<void> linkScoreIds(Iterable<String> scoreIds) async {
     if (scoreIds.isEmpty) return;
@@ -319,7 +299,7 @@ class EditExerciseViewModel extends ChangeNotifier {
     notifyListeners();
     _scoreTitleDebounce[scoreId]?.cancel();
     _scoreTitleDebounce[scoreId] = Timer(
-      _valuesDebounceDuration,
+      MetadataFormViewModel.valuesDebounceDuration,
       () => _saveScoreTitle(scoreId),
     );
   }
@@ -377,45 +357,6 @@ class EditExerciseViewModel extends ChangeNotifier {
       .map((s) => ExerciseScoreEntry(id: _nextEntryId++, score: s))
       .toList();
 
-  Future<void> addTags(Iterable<Tag> tags) async {
-    _tags.addAll(tags);
-    notifyListeners();
-    if (_exerciseId == null) return;
-    await _repo.addExerciseTags(_exerciseId, tags.map((t) => t.id));
-  }
-
-  Future<void> removeTag(Tag tag) async {
-    _tags.remove(tag);
-    notifyListeners();
-    if (_exerciseId == null) return;
-    await _repo.removeExerciseTag(_exerciseId, tag.id);
-  }
-
-  void setTags(Iterable<Tag> tags) {
-    _tags = SplayTreeSet.of(tags, _byName);
-    notifyListeners();
-  }
-
-  List<String>? _instruments;
-
-  Future<Iterable<String>> getInstruments({String filter = ""}) async {
-    _instruments ??= await _repo.getInstruments();
-    filter = filter.toLowerCase();
-    return _instruments!
-        .where((element) => element.toLowerCase().contains(filter))
-        .take(10);
-  }
-
-  List<String>? _sources;
-
-  Future<Iterable<String>> getSources({String filter = ""}) async {
-    _sources ??= await _repo.getSources();
-    filter = filter.toLowerCase();
-    return _sources!
-        .where((element) => element.toLowerCase().contains(filter))
-        .take(10);
-  }
-
   Future<bool> create() async {
     if (form.invalid) {
       throw StateError("Only call create when the form is valid!");
@@ -426,14 +367,14 @@ class EditExerciseViewModel extends ChangeNotifier {
       _created = !hasNext;
       await _repo.createExercise(
         name: name,
-        description: _formValue(formDescription),
-        instrument: _formValue(formInstrument),
-        source: _source ?? "",
-        sourceLink: _sourceLink ?? "",
-        tagIds: _tags.map((t) => t.id),
+        description: formValue(formDescription),
+        instrument: formValue(formInstrument),
+        source: formValue(formSource),
+        sourceLink: hasSource ? sourceLink ?? "" : "",
+        tagIds: tags.map((t) => t.id),
         scoreIds: _scoreEntries.map((e) => e.score.id),
         categoryId: _category?.id,
-        difficulty: _difficulty,
+        difficulty: difficulty,
       );
       if (!hasNext) return true;
 
@@ -448,12 +389,8 @@ class EditExerciseViewModel extends ChangeNotifier {
 
   void _reset() {
     _nextEntryId = 0;
-    _tags.clear();
+    resetMetadata();
     _category = null;
-    _source = null;
-    _sourceLink = null;
-    _difficulty = null;
-    _fields.clear();
     _scoreEntries.clear();
     form.reset();
     notifyListeners();
@@ -461,8 +398,7 @@ class EditExerciseViewModel extends ChangeNotifier {
 
   Future<void> delete() async {
     if (_exerciseId == null) return;
-    _valuesDebounce?.cancel();
-    _valuesDebounce = null;
+    cancelSave();
     for (final timer in _scoreTitleDebounce.values) {
       timer.cancel();
     }
@@ -490,22 +426,24 @@ class EditExerciseViewModel extends ChangeNotifier {
 
   Future<void> _load() async {
     if (_exerciseId == null) return;
-    _instruments = null;
-    _sources = null;
+    instrumentOptions.reset();
+    sourceOptions.reset();
     final exercise = await _repo.getExercise(_exerciseId);
     // TODO properly handle exercise == null
     if (exercise != null) {
       _category = exercise.category;
-      _source = exercise.source;
-      _sourceLink = exercise.sourceLink;
-      _difficulty = exercise.difficulty;
-      _tags = SplayTreeSet.of(exercise.tags, _byName);
       form.updateValue({
         formName: exercise.name,
         formDescription: exercise.description,
         formInstrument: exercise.instrument ?? "",
+        formSource: exercise.source ?? "",
       }, emitEvent: false);
-      _showFilledFields();
+      loadMetadata(
+        tags: exercise.tags,
+        source: exercise.source,
+        sourceLink: exercise.sourceLink,
+        difficulty: exercise.difficulty,
+      );
       _scoreEntries = _toEntries(await _repo.getExerciseScores(_exerciseId));
     }
     _loading = false;
@@ -513,30 +451,7 @@ class EditExerciseViewModel extends ChangeNotifier {
     _categorySync.sync();
   }
 
-  Timer? _valuesDebounce;
   final Map<String, Timer> _scoreTitleDebounce = {};
-  static const _valuesDebounceDuration = Duration(milliseconds: 250);
-
-  void _onValuesChanged() {
-    if (_exerciseId == null) return;
-    _valuesDebounce?.cancel();
-    _valuesDebounce = Timer(_valuesDebounceDuration, _saveValues);
-  }
-
-  Future<void> _saveValues() async {
-    if (_valuesDebounce == null) return;
-    _valuesDebounce!.cancel();
-    _valuesDebounce = null;
-    await _repo.updateExercise(
-      _exerciseId!,
-      name: name,
-      description: _formValue(formDescription),
-      instrument: _formValue(formInstrument),
-    );
-  }
-
-  String _formValue(String control) =>
-      (form.control(control).value as String? ?? "").trim();
 
   Future<void> _discardImports() async {
     for (final timer in _scoreTitleDebounce.values) {
@@ -549,13 +464,11 @@ class EditExerciseViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
-    _saveValues();
     if (_exerciseId == null && !_created) {
       _discardImports();
     } else {
       _saveScoreTitles();
     }
-    _valueSub?.cancel();
     _categorySync.dispose();
     super.dispose();
   }

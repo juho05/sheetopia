@@ -8,6 +8,8 @@
 
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/ui/common/delete_menu_option.dart';
+import 'package:sheetopia/ui/common/menu_button.dart';
 import 'package:sheetopia/ui/common/two_pane_page.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_form.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_preview.dart';
@@ -41,6 +43,18 @@ class EditScorePage extends StatelessWidget {
                           ? const Text("Import scores")
                           : const Text("Import score"))
                     : const Text("Edit score"),
+                actions: [
+                  if (!viewModel.isImport && viewModel.score != null)
+                    MenuButton(
+                      options: [
+                        DeleteMenuOption(
+                          itemType: "score",
+                          name: viewModel.score!.title,
+                          onDelete: viewModel.delete,
+                        ),
+                      ],
+                    ),
+                ],
               ),
               primaryLabel: "Metadata",
               secondaryLabel: "File",

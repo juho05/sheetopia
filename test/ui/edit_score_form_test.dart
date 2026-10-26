@@ -84,7 +84,7 @@ void main() {
     expect(find.text("Instruments"), findsOneWidget);
     expect(find.text("Tags"), findsOneWidget);
     expect(find.text("Arranger"), findsNothing);
-    expect(find.byType(DifficultyDropdown), findsNothing);
+    expect(find.byType(DifficultySelector), findsNothing);
     expect(find.text("Genres"), findsNothing);
 
     await tester.tap(find.text("Add field"));
@@ -92,8 +92,45 @@ void main() {
     await tester.tap(find.text("Difficulty"));
     await settle(tester);
 
-    expect(find.byType(DifficultyDropdown), findsOneWidget);
+    expect(find.byType(DifficultySelector), findsOneWidget);
     expect(find.text("Difficulty"), findsOneWidget);
+    expect(find.byTooltip("No difficulty"), findsNothing);
+  });
+
+  testWidgets("an added empty field stays until it is removed", (tester) async {
+    await pumpForm(tester);
+
+    await tester.tap(find.text("Add field"));
+    await settle(tester);
+    await tester.tap(find.text("Arranger"));
+    await settle(tester);
+    FocusManager.instance.primaryFocus?.unfocus();
+    await settle(tester);
+
+    expect(find.text("Arranger"), findsOneWidget);
+
+    await tester.tap(find.byTooltip("Remove field"));
+    await settle(tester);
+
+    expect(find.text("Arranger"), findsNothing);
+  });
+
+  testWidgets("tapping the selected difficulty clears it", (tester) async {
+    await pumpForm(tester);
+
+    await tester.tap(find.text("Add field"));
+    await settle(tester);
+    await tester.tap(find.text("Difficulty"));
+    await settle(tester);
+    await tester.tap(find.byTooltip("Hard"));
+    await settle(tester);
+
+    expect((await repo.getScore("a"))!.difficulty, Difficulty.hard);
+
+    await tester.tap(find.byTooltip("Hard"));
+    await settle(tester);
+
+    expect((await repo.getScore("a"))!.difficulty, isNull);
   });
 
   testWidgets("filled optional fields are shown and can be removed", (
@@ -102,14 +139,23 @@ void main() {
     await repo.updateScoreDifficulty("a", Difficulty.easy);
     await pumpForm(tester);
 
-    expect(find.byType(DifficultyDropdown), findsOneWidget);
-
+    expect(find.byType(DifficultySelector), findsOneWidget);
     await tester.tap(find.byTooltip("Remove field"));
     await settle(tester);
     await tester.tap(find.text("Yes"));
     await settle(tester);
 
-    expect(find.byType(DifficultyDropdown), findsNothing);
+    expect(find.byType(DifficultySelector), findsNothing);
     expect((await repo.getScore("a"))!.difficulty, isNull);
+  });
+
+  testWidgets("the source is edited in place", (tester) async {
+    await repo.updateScoreSource("a", source: "IMSLP", sourceLink: "");
+    await pumpForm(tester);
+
+    await tester.enterText(find.widgetWithText(TextField, "IMSLP"), "Henle");
+    await settle(tester);
+
+    expect((await repo.getScore("a"))!.source, "Henle");
   });
 }

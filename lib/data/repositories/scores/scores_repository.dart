@@ -193,6 +193,7 @@ class ScoresRepository {
       title: score.title,
       composer: score.composer,
       arranger: score.arranger,
+      partOf: score.partOf,
       source: score.source,
       sourceLink: score.sourceLink,
       notes: score.notes,
@@ -317,8 +318,9 @@ class ScoresRepository {
     Iterable<String> searchFields,
     String composer,
     String arranger,
+    String partOf,
     String source,
-    Iterable<Difficulty> difficulties,
+    Iterable<Difficulty?> difficulties,
     ScoreType? type,
   ) {
     for (final s in searchFields) {
@@ -333,9 +335,16 @@ class ScoresRepository {
     if (arranger.isNotEmpty) {
       q.where(_db.scoresTable.arranger.equals(arranger));
     }
+    if (partOf.isNotEmpty) {
+      q.where(_db.scoresTable.partOf.equals(partOf));
+    }
     if (difficulties.isNotEmpty) {
+      final levels = difficulties.nonNulls.map((d) => d.level);
       q.where(
-        _db.scoresTable.difficulty.isIn(difficulties.map((d) => d.level)),
+        difficulties.contains(null)
+            ? _db.scoresTable.difficulty.isNull() |
+                  _db.scoresTable.difficulty.isIn(levels)
+            : _db.scoresTable.difficulty.isIn(levels),
       );
     }
     if (source.isNotEmpty) {
@@ -347,8 +356,9 @@ class ScoresRepository {
     String filter = "",
     String composer = "",
     String arranger = "",
+    String partOf = "",
     String source = "",
-    Iterable<Difficulty> difficulties = const [],
+    Iterable<Difficulty?> difficulties = const [],
     ScoreType? type,
     Iterable<String> instruments = const [],
     Iterable<String> genres = const [],
@@ -377,6 +387,7 @@ class ScoresRepository {
       searchFields,
       composer,
       arranger,
+      partOf,
       source,
       difficulties,
       type,
@@ -389,8 +400,9 @@ class ScoresRepository {
     String filter = "",
     String composer = "",
     String arranger = "",
+    String partOf = "",
     String source = "",
-    Iterable<Difficulty> difficulties = const [],
+    Iterable<Difficulty?> difficulties = const [],
     ScoreType? type,
     Iterable<String> instruments = const [],
     Iterable<String> genres = const [],
@@ -418,6 +430,7 @@ class ScoresRepository {
       searchFields,
       composer,
       arranger,
+      partOf,
       source,
       difficulties,
       type,
@@ -446,8 +459,9 @@ class ScoresRepository {
     String filter = "",
     String composer = "",
     String arranger = "",
+    String partOf = "",
     String source = "",
-    Iterable<Difficulty> difficulties = const [],
+    Iterable<Difficulty?> difficulties = const [],
     ScoreType? type,
     Iterable<String> instruments = const [],
     Iterable<String> genres = const [],
@@ -475,6 +489,7 @@ class ScoresRepository {
       searchFields,
       composer,
       arranger,
+      partOf,
       source,
       difficulties,
       type,
@@ -602,6 +617,7 @@ class ScoresRepository {
     required String title,
     required String composer,
     required String arranger,
+    required String partOf,
     required String notes,
   }) async {
     await _db.transaction(() async {
@@ -616,9 +632,10 @@ class ScoresRepository {
               arranger: arranger.isNotEmpty
                   ? Value(arranger)
                   : const Value(null),
+              partOf: partOf.isNotEmpty ? Value(partOf) : const Value(null),
               notes: notes.isNotEmpty ? Value(notes) : const Value(null),
               searchText: Value(
-                generateSearchText([title, composer, arranger]),
+                generateSearchText([title, composer, arranger, partOf]),
               ),
               metadataUpdatedAt: Value(DateTime.now().toUtc()),
               metadataUploaded: const Value(false),
@@ -642,11 +659,16 @@ class ScoresRepository {
   Future<void> updateScoreTitle(String scoreId, String title) async {
     await _db.transaction(() async {
       final query = _db.selectOnly(_db.scoresTable)
-        ..addColumns([_db.scoresTable.composer, _db.scoresTable.arranger])
+        ..addColumns([
+          _db.scoresTable.composer,
+          _db.scoresTable.arranger,
+          _db.scoresTable.partOf,
+        ])
         ..where(_db.scoresTable.id.equals(scoreId));
       final row = await query.getSingleOrNull();
       final composer = row?.read(_db.scoresTable.composer);
       final arranger = row?.read(_db.scoresTable.arranger);
+      final partOf = row?.read(_db.scoresTable.partOf);
 
       await _db.managers.scoresTable
           .filter((f) => f.id(scoreId))
@@ -654,7 +676,7 @@ class ScoresRepository {
             (o) => o(
               title: Value(title),
               searchText: Value(
-                generateSearchText([title, composer, arranger]),
+                generateSearchText([title, composer, arranger, partOf]),
               ),
               metadataUpdatedAt: Value(DateTime.now().toUtc()),
               metadataUploaded: const Value(false),
@@ -753,11 +775,19 @@ class ScoresRepository {
     await _bulkEditSearchableFields(scoreIds, arranger: arranger);
   }
 
+  Future<void> bulkEditScorePartOf(
+    Iterable<String> scoreIds,
+    String partOf,
+  ) async {
+    await _bulkEditSearchableFields(scoreIds, partOf: partOf);
+  }
+
   // null keeps the current value, "" clears it
   Future<void> _bulkEditSearchableFields(
     Iterable<String> scoreIds, {
     String? composer,
     String? arranger,
+    String? partOf,
   }) async {
     if (scoreIds.isEmpty) return;
     await _db.transaction(() async {
@@ -771,6 +801,9 @@ class ScoresRepository {
               arranger: arranger == null
                   ? const Value.absent()
                   : Value(arranger.isNotEmpty ? arranger : null),
+              partOf: partOf == null
+                  ? const Value.absent()
+                  : Value(partOf.isNotEmpty ? partOf : null),
               metadataUpdatedAt: Value(DateTime.now().toUtc()),
               metadataUploaded: const Value(false),
             ),
@@ -782,6 +815,7 @@ class ScoresRepository {
           _db.scoresTable.title,
           _db.scoresTable.composer,
           _db.scoresTable.arranger,
+          _db.scoresTable.partOf,
         ])
         ..where(_db.scoresTable.id.isIn(scoreIds));
       final rows = await query.get();
@@ -795,6 +829,7 @@ class ScoresRepository {
                   r.read(_db.scoresTable.title),
                   r.read(_db.scoresTable.composer),
                   r.read(_db.scoresTable.arranger),
+                  r.read(_db.scoresTable.partOf),
                 ]),
               ),
             ),
@@ -1222,6 +1257,7 @@ class ScoresRepository {
             title: title,
             composer: null,
             arranger: null,
+            partOf: null,
             source: null,
             sourceLink: null,
             notes: null,
@@ -1392,6 +1428,28 @@ class ScoresRepository {
       query.limit(size, offset: offset);
     }
     return await query.map((r) => r.read(_db.scoresTable.arranger)!).get();
+  }
+
+  Future<List<String>> getPartOfs({
+    String filter = "",
+    int? size,
+    int offset = 0,
+  }) async {
+    final query = _db.selectOnly(_db.scoresTable, distinct: true)
+      ..addColumns([_db.scoresTable.partOf]);
+    if (filter.isEmpty) {
+      query.where(_db.scoresTable.partOf.isNotNull());
+    } else {
+      query.where(
+        _db.scoresTable.partOf.isNotNull() &
+            _db.scoresTable.partOf.contains(filter),
+      );
+    }
+    query.orderBy([OrderingTerm.asc(_db.scoresTable.partOf.lower())]);
+    if (size != null) {
+      query.limit(size, offset: offset);
+    }
+    return await query.map((r) => r.read(_db.scoresTable.partOf)!).get();
   }
 
   Future<List<String>> getSources({

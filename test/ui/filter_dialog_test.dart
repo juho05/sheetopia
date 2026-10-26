@@ -86,17 +86,22 @@ void main() {
   });
 
   testWidgets(
-    "a difficulty filter is added as a badge and removed with the field",
+    "a difficulty filter is selected by icon and removed with the field",
     (tester) async {
       await openDialog(tester);
 
       await addFilter(tester, "Difficulty");
-      await tester.tap(find.text("Easy"));
+      await tester.tap(find.byTooltip("Easy"));
+      await tester.tap(find.byTooltip("Hard"));
+      await tester.tap(find.byTooltip("No difficulty"));
       await settle(tester);
 
-      expect(viewModel.filterDifficulties, {Difficulty.easy});
-      expect(find.byType(DifficultyBadge), findsOneWidget);
-
+      expect(viewModel.filterDifficulties, {
+        Difficulty.easy,
+        Difficulty.hard,
+        null,
+      });
+      expect(find.byType(DifficultySelector), findsOneWidget);
       await tester.tap(find.byTooltip("Remove field"));
       await settle(tester);
 

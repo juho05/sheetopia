@@ -6,10 +6,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:reactive_forms/reactive_forms.dart' hide ReactiveTextField;
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
@@ -17,10 +17,11 @@ import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/ui/common/buttons.dart';
 import 'package:sheetopia/ui/common/centered_scroll_view.dart';
 import 'package:sheetopia/ui/common/dashed_placeholder.dart';
+import 'package:sheetopia/ui/common/delete_menu_option.dart';
+import 'package:sheetopia/ui/common/menu_button.dart';
 import 'package:sheetopia/ui/common/optional_tooltip.dart';
 import 'package:sheetopia/ui/common/reactive_text_field.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
-import 'package:sheetopia/ui/common/toast.dart';
 import 'package:sheetopia/ui/practice/delete_routine_dialog.dart';
 import 'package:sheetopia/ui/practice/edit_routine_viewmodel.dart';
 import 'package:sheetopia/ui/practice/exercise_score_selector.dart';
@@ -49,6 +50,21 @@ class EditRoutinePage extends StatelessWidget {
                 title: Text(
                   viewModel.isCreate ? "Create routine" : "Edit routine",
                 ),
+                actions: [
+                  if (!viewModel.isCreate &&
+                      !viewModel.loading &&
+                      !viewModel.missing)
+                    MenuButton(
+                      options: [
+                        DeleteMenuOption(
+                          itemType: "routine",
+                          name: viewModel.name,
+                          onDelete: viewModel.delete,
+                          confirm: confirmDeleteRoutine,
+                        ),
+                      ],
+                    ),
+                ],
               ),
               body: SafeArea(child: _buildBody(context, viewModel)),
             );
@@ -188,20 +204,19 @@ class _EditRoutineFormState extends State<_EditRoutineForm> {
               ],
             ),
           ),
-          ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: EditRoutinePage._maxWidth,
-            ),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: viewModel.isCreate
-                    ? _CreateButton(viewModel: viewModel)
-                    : _DeleteButton(viewModel: viewModel),
+          if (viewModel.isCreate)
+            ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: EditRoutinePage._maxWidth,
+              ),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: _CreateButton(viewModel: viewModel),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -394,33 +409,6 @@ class _CreateButton extends StatelessWidget {
             : null,
         child: const Text("Create"),
       ),
-    );
-  }
-}
-
-class _DeleteButton extends StatelessWidget {
-  final EditRoutineViewModel viewModel;
-
-  const _DeleteButton({required this.viewModel});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return FilledButton.icon(
-      onPressed: () async {
-        final name = viewModel.name;
-        if (!await confirmDeleteRoutine(context, name)) return;
-        await viewModel.delete();
-        Toast.show("Successfully deleted routine '$name'!");
-        if (!context.mounted) return;
-        context.pop();
-      },
-      style: FilledButton.styleFrom(
-        backgroundColor: theme.colorScheme.errorContainer,
-        foregroundColor: theme.colorScheme.onErrorContainer,
-      ),
-      icon: const Icon(Icons.delete_outline),
-      label: const Text("Delete"),
     );
   }
 }

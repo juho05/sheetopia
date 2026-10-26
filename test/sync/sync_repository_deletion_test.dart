@@ -567,6 +567,7 @@ void main() {
     ScoreType? type,
     String id = scoreId,
     String? arranger = "",
+    String? partOf = "",
     int? difficulty = 0,
   }) {
     return ScoreModel(
@@ -580,6 +581,7 @@ void main() {
       metadata: ScoreMetadataModel(
         composer: "",
         arranger: arranger,
+        partOf: partOf,
         source: "",
         sourceLink: "",
         notes: "",
@@ -591,9 +593,11 @@ void main() {
     );
   }
 
-  test("a downloaded score applies arranger and difficulty", () async {
+  test("a downloaded score applies arranger, part of and difficulty", () async {
     await createScore();
-    service.scores = [remoteScore(arranger: "Busoni", difficulty: 5)];
+    service.scores = [
+      remoteScore(arranger: "Busoni", partOf: "Partita", difficulty: 5),
+    ];
 
     await syncAndWait();
 
@@ -601,21 +605,27 @@ void main() {
         .filter((f) => f.id(scoreId))
         .getSingle();
     expect(score.arranger, "Busoni");
+    expect(score.partOf, "Partita");
     expect(score.difficulty, 5);
-    expect(score.searchText, " title busoni ");
+    expect(score.searchText, " title busoni partita ");
   });
 
   test(
-    "a score from a client without arranger and difficulty keeps them",
+    "a score from a client without arranger, part of and difficulty keeps them",
     () async {
       await createScore();
       await db.managers.scoresTable
           .filter((f) => f.id(scoreId))
           .update(
-            (o) =>
-                o(arranger: const Value("Busoni"), difficulty: const Value(2)),
+            (o) => o(
+              arranger: const Value("Busoni"),
+              partOf: const Value("Partita"),
+              difficulty: const Value(2),
+            ),
           );
-      service.scores = [remoteScore(arranger: null, difficulty: null)];
+      service.scores = [
+        remoteScore(arranger: null, partOf: null, difficulty: null),
+      ];
 
       await syncAndWait();
 
@@ -623,8 +633,9 @@ void main() {
           .filter((f) => f.id(scoreId))
           .getSingle();
       expect(score.arranger, "Busoni");
+      expect(score.partOf, "Partita");
       expect(score.difficulty, 2);
-      expect(score.searchText, " title busoni ");
+      expect(score.searchText, " title busoni partita ");
     },
   );
 

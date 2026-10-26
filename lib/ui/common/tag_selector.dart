@@ -10,7 +10,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
-import 'package:sheetopia/ui/common/select_tags_list.dart';
+import 'package:sheetopia/ui/common/metadata_row.dart';
 import 'package:sheetopia/ui/common/tag_badge.dart';
 import 'package:sheetopia/ui/edit_score/add_tags_dialog.dart';
 import 'package:sheetopia/utils/tag_sync.dart';
@@ -21,7 +21,6 @@ class TagSelector extends StatefulWidget {
   final bool enableCreateTagFromSearch;
   final String dialogTitle;
   final String addBtnText;
-  final String addLabel;
 
   final void Function(List<Tag> tags) onAdd;
   final void Function(Tag tag) onRemove;
@@ -40,7 +39,6 @@ class TagSelector extends StatefulWidget {
     this.enableCreateTagFromSearch = true,
     this.dialogTitle = "Add tags",
     this.addBtnText = "Add",
-    this.addLabel = "Add",
   });
 
   @override
@@ -85,11 +83,11 @@ class _TagSelectorState extends State<TagSelector> {
 
   @override
   Widget build(BuildContext context) {
-    return SelectTagsList(
-      tags: widget.tags.map(
+    return MetadataChips(
+      chips: widget.tags.map(
         (t) => TagBadge(tag: t, onRemove: () => widget.onRemove(t)),
       ),
-      addLabel: widget.addLabel,
+      addTooltip: widget.dialogTitle,
       onAdd: _add,
     );
   }

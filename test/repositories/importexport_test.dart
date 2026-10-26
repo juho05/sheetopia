@@ -473,6 +473,7 @@ void main() {
       title: "Prelude in C",
       composer: "Bach",
       arranger: "",
+      partOf: "",
       notes: "",
     );
     await scoresRepo.updateScoreSource(

@@ -506,18 +506,18 @@ class _RoutineTile extends StatelessWidget {
                 ContextMenuOption(
                   icon: Symbols.edit,
                   title: "Edit",
-                  onSelected: () =>
+                  onSelected: (_) =>
                       context.go("/practice/routines/${routine.id}/edit"),
                 ),
                 ContextMenuOption(
                   icon: Symbols.content_copy,
                   title: "Duplicate",
-                  onSelected: onDuplicate,
+                  onSelected: (_) => onDuplicate(),
                 ),
                 ContextMenuOption(
                   icon: Symbols.delete,
                   title: "Delete",
-                  onSelected: onDelete,
+                  onSelected: (_) => onDelete(),
                 ),
               ],
             ),

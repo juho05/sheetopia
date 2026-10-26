@@ -55,7 +55,12 @@ class EditScoreViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool _deleted = false;
+
+  bool get deleted => _deleted;
+
   Future<void> delete() async {
+    _deleted = true;
     await _repo.deleteScore(score!.id);
   }
 

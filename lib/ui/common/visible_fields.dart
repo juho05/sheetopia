@@ -7,23 +7,21 @@
  */
 import 'package:sheetopia/ui/common/metadata_field.dart';
 
-/// The optional fields a form or filter dialog currently shows.
 class VisibleFields<T extends MetadataField> {
   final Iterable<T> optional;
+  final bool Function(T field) isFilled;
   final Set<T> _visible = {};
 
-  VisibleFields(this.optional);
+  VisibleFields(this.optional, {required this.isFilled});
 
-  bool contains(T field) => _visible.contains(field);
+  bool isVisible(T field) =>
+      !optional.contains(field) || _visible.contains(field) || isFilled(field);
 
-  Iterable<T> get visible => optional.where(_visible.contains);
-
-  Iterable<T> get hidden => optional.where((f) => !_visible.contains(f));
+  Iterable<T> get hidden => optional.where((f) => !isVisible(f));
 
   bool show(T field) => _visible.add(field);
 
-  void showWhere(bool Function(T field) test) =>
-      _visible.addAll(optional.where(test));
+  void showFilled() => _visible.addAll(optional.where(isFilled));
 
   bool remove(T field) => _visible.remove(field);
 

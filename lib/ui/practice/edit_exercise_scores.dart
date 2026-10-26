@@ -427,18 +427,18 @@ class _ScoreFileMenu extends StatelessWidget {
             ContextMenuOption(
               icon: Icons.share,
               title: "Share",
-              onSelected: () => _share(context),
+              onSelected: (_) => _share(context),
             ),
           if (!Platform.isIOS)
             ContextMenuOption(
               icon: Icons.save_alt,
               title: "Export",
-              onSelected: _export,
+              onSelected: (_) => _export(),
             ),
           ContextMenuOption(
             icon: Icons.edit,
             title: "Change file",
-            onSelected: _changeFile,
+            onSelected: (_) => _changeFile(),
           ),
         ],
       ),

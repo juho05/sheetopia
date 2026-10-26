@@ -97,28 +97,26 @@ void main() {
     await pumpForm(tester, id);
 
     expect(find.text("Source"), findsOneWidget);
-
     await tester.tap(find.byTooltip("Remove field"));
     await settle(tester);
     await tester.tap(find.text("Yes"));
     await settle(tester);
 
     expect(find.text("Source"), findsNothing);
+    expect((await repo.getExercise(id))!.source, isNull);
   });
 
   testWidgets("a difficulty is added and saved", (tester) async {
     final id = await createExercise();
     await pumpForm(tester, id);
 
-    expect(find.byType(DifficultyDropdown), findsNothing);
+    expect(find.byType(DifficultySelector), findsNothing);
 
     await tester.tap(find.text("Add field"));
     await settle(tester);
     await tester.tap(find.text("Difficulty"));
     await settle(tester);
-    await tester.tap(find.byType(DifficultyDropdown));
-    await settle(tester);
-    await tester.tap(find.text("Hard").last);
+    await tester.tap(find.byTooltip("Hard"));
     await settle(tester);
 
     expect((await repo.getExercise(id))!.difficulty, Difficulty.hard);

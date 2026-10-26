@@ -11,6 +11,7 @@ ScoreMetadataModel _$ScoreMetadataModelFromJson(Map<String, dynamic> json) =>
       final val = ScoreMetadataModel(
         composer: $checkedConvert('composer', (v) => v as String?),
         arranger: $checkedConvert('arranger', (v) => v as String?),
+        partOf: $checkedConvert('partOf', (v) => v as String?),
         source: $checkedConvert('source', (v) => v as String?),
         sourceLink: $checkedConvert('sourceLink', (v) => v as String?),
         notes: $checkedConvert('notes', (v) => v as String?),
@@ -35,6 +36,7 @@ Map<String, dynamic> _$ScoreMetadataModelToJson(ScoreMetadataModel instance) =>
     <String, dynamic>{
       'composer': instance.composer,
       'arranger': instance.arranger,
+      'partOf': instance.partOf,
       'source': instance.source,
       'sourceLink': instance.sourceLink,
       'notes': instance.notes,

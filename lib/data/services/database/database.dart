@@ -220,6 +220,7 @@ class Database extends _$Database {
             from17To18: (m, schema) async {
               await m.addColumn(schema.scores, schema.scores.arranger);
               await m.addColumn(schema.scores, schema.scores.difficulty);
+              await m.addColumn(schema.scores, schema.scores.partOf);
               await m.addColumn(schema.exercises, schema.exercises.difficulty);
             },
           ),

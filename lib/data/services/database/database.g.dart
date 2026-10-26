@@ -49,6 +49,15 @@ class $ScoresTableTable extends ScoresTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _partOfMeta = const VerificationMeta('partOf');
+  @override
+  late final GeneratedColumn<String> partOf = GeneratedColumn<String>(
+    'part_of',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _difficultyMeta = const VerificationMeta(
     'difficulty',
   );
@@ -268,6 +277,7 @@ class $ScoresTableTable extends ScoresTable
     title,
     composer,
     arranger,
+    partOf,
     difficulty,
     source,
     sourceLink,
@@ -322,6 +332,12 @@ class $ScoresTableTable extends ScoresTable
       context.handle(
         _arrangerMeta,
         arranger.isAcceptableOrUnknown(data['arranger']!, _arrangerMeta),
+      );
+    }
+    if (data.containsKey('part_of')) {
+      context.handle(
+        _partOfMeta,
+        partOf.isAcceptableOrUnknown(data['part_of']!, _partOfMeta),
       );
     }
     if (data.containsKey('difficulty')) {
@@ -461,6 +477,10 @@ class $ScoresTableTable extends ScoresTable
         DriftSqlType.string,
         data['${effectivePrefix}arranger'],
       ),
+      partOf: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}part_of'],
+      ),
       difficulty: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}difficulty'],
@@ -560,6 +580,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
   final String title;
   final String? composer;
   final String? arranger;
+  final String? partOf;
   final int? difficulty;
   final String? source;
   final String? sourceLink;
@@ -583,6 +604,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     required this.title,
     this.composer,
     this.arranger,
+    this.partOf,
     this.difficulty,
     this.source,
     this.sourceLink,
@@ -612,6 +634,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     }
     if (!nullToAbsent || arranger != null) {
       map['arranger'] = Variable<String>(arranger);
+    }
+    if (!nullToAbsent || partOf != null) {
+      map['part_of'] = Variable<String>(partOf);
     }
     if (!nullToAbsent || difficulty != null) {
       map['difficulty'] = Variable<int>(difficulty);
@@ -667,6 +692,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       arranger: arranger == null && nullToAbsent
           ? const Value.absent()
           : Value(arranger),
+      partOf: partOf == null && nullToAbsent
+          ? const Value.absent()
+          : Value(partOf),
       difficulty: difficulty == null && nullToAbsent
           ? const Value.absent()
           : Value(difficulty),
@@ -709,6 +737,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       title: serializer.fromJson<String>(json['title']),
       composer: serializer.fromJson<String?>(json['composer']),
       arranger: serializer.fromJson<String?>(json['arranger']),
+      partOf: serializer.fromJson<String?>(json['partOf']),
       difficulty: serializer.fromJson<int?>(json['difficulty']),
       source: serializer.fromJson<String?>(json['source']),
       sourceLink: serializer.fromJson<String?>(json['sourceLink']),
@@ -745,6 +774,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       'title': serializer.toJson<String>(title),
       'composer': serializer.toJson<String?>(composer),
       'arranger': serializer.toJson<String?>(arranger),
+      'partOf': serializer.toJson<String?>(partOf),
       'difficulty': serializer.toJson<int?>(difficulty),
       'source': serializer.toJson<String?>(source),
       'sourceLink': serializer.toJson<String?>(sourceLink),
@@ -777,6 +807,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     String? title,
     Value<String?> composer = const Value.absent(),
     Value<String?> arranger = const Value.absent(),
+    Value<String?> partOf = const Value.absent(),
     Value<int?> difficulty = const Value.absent(),
     Value<String?> source = const Value.absent(),
     Value<String?> sourceLink = const Value.absent(),
@@ -800,6 +831,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     title: title ?? this.title,
     composer: composer.present ? composer.value : this.composer,
     arranger: arranger.present ? arranger.value : this.arranger,
+    partOf: partOf.present ? partOf.value : this.partOf,
     difficulty: difficulty.present ? difficulty.value : this.difficulty,
     source: source.present ? source.value : this.source,
     sourceLink: sourceLink.present ? sourceLink.value : this.sourceLink,
@@ -826,6 +858,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           ..write('title: $title, ')
           ..write('composer: $composer, ')
           ..write('arranger: $arranger, ')
+          ..write('partOf: $partOf, ')
           ..write('difficulty: $difficulty, ')
           ..write('source: $source, ')
           ..write('sourceLink: $sourceLink, ')
@@ -854,6 +887,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     title,
     composer,
     arranger,
+    partOf,
     difficulty,
     source,
     sourceLink,
@@ -881,6 +915,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           other.title == this.title &&
           other.composer == this.composer &&
           other.arranger == this.arranger &&
+          other.partOf == this.partOf &&
           other.difficulty == this.difficulty &&
           other.source == this.source &&
           other.sourceLink == this.sourceLink &&
@@ -906,6 +941,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
   final Value<String> title;
   final Value<String?> composer;
   final Value<String?> arranger;
+  final Value<String?> partOf;
   final Value<int?> difficulty;
   final Value<String?> source;
   final Value<String?> sourceLink;
@@ -929,6 +965,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.title = const Value.absent(),
     this.composer = const Value.absent(),
     this.arranger = const Value.absent(),
+    this.partOf = const Value.absent(),
     this.difficulty = const Value.absent(),
     this.source = const Value.absent(),
     this.sourceLink = const Value.absent(),
@@ -953,6 +990,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     required String title,
     this.composer = const Value.absent(),
     this.arranger = const Value.absent(),
+    this.partOf = const Value.absent(),
     this.difficulty = const Value.absent(),
     this.source = const Value.absent(),
     this.sourceLink = const Value.absent(),
@@ -981,6 +1019,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Expression<String>? title,
     Expression<String>? composer,
     Expression<String>? arranger,
+    Expression<String>? partOf,
     Expression<int>? difficulty,
     Expression<String>? source,
     Expression<String>? sourceLink,
@@ -1005,6 +1044,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       if (title != null) 'title': title,
       if (composer != null) 'composer': composer,
       if (arranger != null) 'arranger': arranger,
+      if (partOf != null) 'part_of': partOf,
       if (difficulty != null) 'difficulty': difficulty,
       if (source != null) 'source': source,
       if (sourceLink != null) 'source_link': sourceLink,
@@ -1031,6 +1071,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Value<String>? title,
     Value<String?>? composer,
     Value<String?>? arranger,
+    Value<String?>? partOf,
     Value<int?>? difficulty,
     Value<String?>? source,
     Value<String?>? sourceLink,
@@ -1055,6 +1096,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       title: title ?? this.title,
       composer: composer ?? this.composer,
       arranger: arranger ?? this.arranger,
+      partOf: partOf ?? this.partOf,
       difficulty: difficulty ?? this.difficulty,
       source: source ?? this.source,
       sourceLink: sourceLink ?? this.sourceLink,
@@ -1090,6 +1132,9 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     }
     if (arranger.present) {
       map['arranger'] = Variable<String>(arranger.value);
+    }
+    if (partOf.present) {
+      map['part_of'] = Variable<String>(partOf.value);
     }
     if (difficulty.present) {
       map['difficulty'] = Variable<int>(difficulty.value);
@@ -1161,6 +1206,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
           ..write('title: $title, ')
           ..write('composer: $composer, ')
           ..write('arranger: $arranger, ')
+          ..write('partOf: $partOf, ')
           ..write('difficulty: $difficulty, ')
           ..write('source: $source, ')
           ..write('sourceLink: $sourceLink, ')
@@ -8841,6 +8887,7 @@ typedef $$ScoresTableTableCreateCompanionBuilder =
       required String title,
       Value<String?> composer,
       Value<String?> arranger,
+      Value<String?> partOf,
       Value<int?> difficulty,
       Value<String?> source,
       Value<String?> sourceLink,
@@ -8866,6 +8913,7 @@ typedef $$ScoresTableTableUpdateCompanionBuilder =
       Value<String> title,
       Value<String?> composer,
       Value<String?> arranger,
+      Value<String?> partOf,
       Value<int?> difficulty,
       Value<String?> source,
       Value<String?> sourceLink,
@@ -8973,6 +9021,11 @@ class $$ScoresTableTableFilterComposer
 
   ColumnFilters<String> get arranger => $composableBuilder(
     column: $table.arranger,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get partOf => $composableBuilder(
+    column: $table.partOf,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9174,6 +9227,11 @@ class $$ScoresTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get partOf => $composableBuilder(
+    column: $table.partOf,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get difficulty => $composableBuilder(
     column: $table.difficulty,
     builder: (column) => ColumnOrderings(column),
@@ -9285,6 +9343,9 @@ class $$ScoresTableTableAnnotationComposer
 
   GeneratedColumn<String> get arranger =>
       $composableBuilder(column: $table.arranger, builder: (column) => column);
+
+  GeneratedColumn<String> get partOf =>
+      $composableBuilder(column: $table.partOf, builder: (column) => column);
 
   GeneratedColumn<int> get difficulty => $composableBuilder(
     column: $table.difficulty,
@@ -9476,6 +9537,7 @@ class $$ScoresTableTableTableManager
                 Value<String> title = const Value.absent(),
                 Value<String?> composer = const Value.absent(),
                 Value<String?> arranger = const Value.absent(),
+                Value<String?> partOf = const Value.absent(),
                 Value<int?> difficulty = const Value.absent(),
                 Value<String?> source = const Value.absent(),
                 Value<String?> sourceLink = const Value.absent(),
@@ -9499,6 +9561,7 @@ class $$ScoresTableTableTableManager
                 title: title,
                 composer: composer,
                 arranger: arranger,
+                partOf: partOf,
                 difficulty: difficulty,
                 source: source,
                 sourceLink: sourceLink,
@@ -9524,6 +9587,7 @@ class $$ScoresTableTableTableManager
                 required String title,
                 Value<String?> composer = const Value.absent(),
                 Value<String?> arranger = const Value.absent(),
+                Value<String?> partOf = const Value.absent(),
                 Value<int?> difficulty = const Value.absent(),
                 Value<String?> source = const Value.absent(),
                 Value<String?> sourceLink = const Value.absent(),
@@ -9547,6 +9611,7 @@ class $$ScoresTableTableTableManager
                 title: title,
                 composer: composer,
                 arranger: arranger,
+                partOf: partOf,
                 difficulty: difficulty,
                 source: source,
                 sourceLink: sourceLink,

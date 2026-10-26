@@ -420,12 +420,12 @@ class _ExerciseTile extends StatelessWidget {
                 ContextMenuOption(
                   icon: Symbols.playlist_add,
                   title: "Add to routine",
-                  onSelected: onAddToRoutine,
+                  onSelected: (_) => onAddToRoutine(),
                 ),
                 ContextMenuOption(
                   icon: Symbols.delete,
                   title: "Delete",
-                  onSelected: onDelete,
+                  onSelected: (_) => onDelete(),
                 ),
               ],
             ),

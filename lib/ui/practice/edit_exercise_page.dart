@@ -6,9 +6,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
+import 'package:sheetopia/ui/common/delete_menu_option.dart';
+import 'package:sheetopia/ui/common/menu_button.dart';
 import 'package:sheetopia/ui/common/two_pane_page.dart';
 import 'package:sheetopia/ui/practice/edit_exercise_form.dart';
 import 'package:sheetopia/ui/practice/edit_exercise_scores.dart';
@@ -53,6 +55,16 @@ class EditExercisePage extends StatelessWidget {
                         icon: const Icon(Icons.play_arrow),
                         label: const Text("Play"),
                       ),
+                    ),
+                  if (!viewModel.isCreate)
+                    MenuButton(
+                      options: [
+                        DeleteMenuOption(
+                          itemType: "exercise",
+                          name: viewModel.name,
+                          onDelete: viewModel.delete,
+                        ),
+                      ],
                     ),
                 ],
               ),

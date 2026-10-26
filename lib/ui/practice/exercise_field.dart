@@ -13,7 +13,7 @@ enum ExerciseField implements MetadataField {
   category("Category", Symbols.category),
   instrument("Instrument", Symbols.piano),
   difficulty("Difficulty", Symbols.signal_cellular_alt),
-  source("Source", Symbols.link),
+  source("Source", Symbols.book_2),
   description("Description", Symbols.notes),
   tags("Tags", Symbols.label);
 

@@ -7,6 +7,7 @@
  */
 import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/ui/common/auto_complete_field.dart';
+import 'package:sheetopia/ui/common/metadata_row.dart';
 
 /// A free text filter with suggestions and a clear button.
 class TextFilterField extends StatefulWidget {
@@ -61,9 +62,9 @@ class _TextFilterFieldState extends State<TextFilterField> {
       getOptions: widget.getOptions,
       onChanged: _onChanged,
       onSelected: _onChanged,
-      decoration: InputDecoration(
+      decoration: metadataInputDecoration(
+        context,
         hintText: widget.hintText,
-        border: const OutlineInputBorder(),
         suffixIcon: widget.value.isNotEmpty
             ? IconButton(
                 icon: const Icon(Icons.clear),

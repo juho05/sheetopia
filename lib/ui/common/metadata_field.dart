@@ -7,8 +7,8 @@
  */
 import 'package:material_ui/material_ui.dart';
 
-/// A metadata field that forms and dialogs list by name and icon.
 abstract interface class MetadataField {
   String get label;
+
   IconData get icon;
 }

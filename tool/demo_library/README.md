@@ -34,7 +34,8 @@ Re-importing updates existing items instead of duplicating them.
 setlists, and 6 scores carrying handwritten-looking annotations. Two scores are multi-page so page turning can be shown.
 
 Practice: 6 exercise-only scores (scales, arpeggios, cadences, chromatic scale, violin bowing), 4 of them annotated, 14 exercises in 4
-categories with 4 exercise tags, 5 routines, and 14 months of practice records. Today the *Daily piano* routine is done
+categories with 4 exercise tags (all but the two reading exercises with a difficulty), 5 routines, and 14 months of
+practice records. Today the *Daily piano* routine is done
 up to its fourth exercise.
 
 The history is shaped for the statistics page: practice grows over the months, weekends are busier and move to the late

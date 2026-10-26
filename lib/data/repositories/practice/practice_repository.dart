@@ -156,14 +156,18 @@ class PracticeRepository {
     String? categoryId,
     String instrument,
     String source,
-    Iterable<Difficulty> difficulties,
+    Iterable<Difficulty?> difficulties,
   ) {
     for (final word in searchWords) {
       q.where(_db.exercisesTable.name.contains(word));
     }
     if (difficulties.isNotEmpty) {
+      final levels = difficulties.nonNulls.map((d) => d.level);
       q.where(
-        _db.exercisesTable.difficulty.isIn(difficulties.map((d) => d.level)),
+        difficulties.contains(null)
+            ? _db.exercisesTable.difficulty.isNull() |
+                  _db.exercisesTable.difficulty.isIn(levels)
+            : _db.exercisesTable.difficulty.isIn(levels),
       );
     }
     if (categoryId != null) {
@@ -192,7 +196,7 @@ class PracticeRepository {
     String? categoryId,
     String instrument = "",
     String source = "",
-    Iterable<Difficulty> difficulties = const [],
+    Iterable<Difficulty?> difficulties = const [],
     Iterable<String> tagIds = const [],
     FilterMatchType tagMatch = FilterMatchType.all,
   }) async {
@@ -217,7 +221,7 @@ class PracticeRepository {
     String? categoryId,
     String instrument = "",
     String source = "",
-    Iterable<Difficulty> difficulties = const [],
+    Iterable<Difficulty?> difficulties = const [],
     Iterable<String> tagIds = const [],
     FilterMatchType tagMatch = FilterMatchType.all,
   }) async {
@@ -245,7 +249,7 @@ class PracticeRepository {
     String? categoryId,
     String instrument = "",
     String source = "",
-    Iterable<Difficulty> difficulties = const [],
+    Iterable<Difficulty?> difficulties = const [],
     Iterable<String> tagIds = const [],
     FilterMatchType tagMatch = FilterMatchType.all,
   }) async {

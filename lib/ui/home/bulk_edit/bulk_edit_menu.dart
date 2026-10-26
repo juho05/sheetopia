@@ -83,6 +83,11 @@ class _BulkEditMenuState extends State<BulkEditMenu> {
           getOptions: (filter, _) => _viewModel.getArrangers(filter: filter),
         ),
         BulkMetadataField(
+          ScoreField.partOf,
+          BulkInputKind.text,
+          getOptions: (filter, _) => _viewModel.getPartOfs(filter: filter),
+        ),
+        BulkMetadataField(
           ScoreField.source,
           BulkInputKind.source,
           getOptions: (filter, _) => _viewModel.getSources(filter: filter),
@@ -112,6 +117,8 @@ class _BulkEditMenuState extends State<BulkEditMenu> {
     switch (edit) {
       case BulkTextEdit(field: ScoreField.arranger, :final value):
         await _viewModel.editArranger(value);
+      case BulkTextEdit(field: ScoreField.partOf, :final value):
+        await _viewModel.editPartOf(value);
       case BulkTextEdit(:final value):
         await _viewModel.editComposer(value);
       case BulkSourceEdit(:final source, :final sourceLink):
@@ -128,7 +135,9 @@ class _BulkEditMenuState extends State<BulkEditMenu> {
         return;
     }
     Toast.show(
-      "Successfully updated ${edit.field.label.toLowerCase()} of selected scores",
+      edit.field == ScoreField.partOf
+          ? 'Successfully updated "Part of" for selected scores'
+          : "Successfully updated ${edit.field.label.toLowerCase()} of selected scores",
     );
   }
 
@@ -139,12 +148,12 @@ class _BulkEditMenuState extends State<BulkEditMenu> {
         ContextMenuOption(
           title: "Edit metadata",
           icon: Symbols.edit_note,
-          onSelected: _editMetadata,
+          onSelected: (_) => _editMetadata(),
         ),
         ContextMenuOption(
           title: "Add to setlist",
           icon: Icons.playlist_add,
-          onSelected: () async {
+          onSelected: (_) async {
             final setlist = await SelectSetlistDialog.show(
               context,
               title: "Add to setlist",
@@ -160,7 +169,7 @@ class _BulkEditMenuState extends State<BulkEditMenu> {
         ContextMenuOption(
           title: "Delete",
           icon: Symbols.delete,
-          onSelected: _delete,
+          onSelected: (_) => _delete(),
         ),
       ],
     );

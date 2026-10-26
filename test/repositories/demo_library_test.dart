@@ -166,6 +166,14 @@ void main() {
       (sum, e) => sum + (e["tagIds"] as List).length,
     );
     expect(await db.managers.exerciseTagsTable.count(), exerciseTags);
+    final imported = await db.managers.exercisesTable.get();
+    expect(
+      imported.where((e) => e.difficulty != null),
+      hasLength(
+        exercises.where((e) => e["metadata"]["difficulty"] != 0).length,
+      ),
+    );
+    expect(imported.where((e) => e.sourceLink != null), isNotEmpty);
 
     final entries = archived(
       "practice_routines.json",

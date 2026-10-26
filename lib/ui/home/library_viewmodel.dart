@@ -10,15 +10,14 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:material_ui/material_ui.dart';
-import 'package:sheetopia/data/repositories/scores/difficulty.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
-import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/ui/common/filter_viewmodel.dart';
 import 'package:sheetopia/utils/tag_sync.dart';
 
-class LibraryViewModel extends ChangeNotifier {
+class LibraryViewModel extends ChangeNotifier with FilterViewModel {
   static const int _pageSize = 100;
 
   final ScoresRepository _repo;
@@ -41,46 +40,28 @@ class LibraryViewModel extends ChangeNotifier {
 
   int? get totalCount => _totalCount;
 
-  bool get isFiltered => _filterSearch.isNotEmpty || hasFilters;
-
-  bool get hasFilters =>
-      _filterComposer.isNotEmpty ||
-      _filterArranger.isNotEmpty ||
-      _filterSource.isNotEmpty ||
-      _filterDifficulties.isNotEmpty ||
-      _filterInstruments.isNotEmpty ||
-      _filterGenres.isNotEmpty ||
-      _filterTags.isNotEmpty;
-
   Future<void> _refreshCounts() async {
     final total = await _repo.countScores(type: ScoreType.score);
     final result = isFiltered
         ? await _repo.countScores(
-            filter: _filterSearch,
+            filter: filterSearch,
             type: ScoreType.score,
             instruments: _filterInstruments,
             genres: _filterGenres,
             composer: _filterComposer,
             arranger: _filterArranger,
-            source: _filterSource,
-            difficulties: _filterDifficulties,
-            tagIds: _filterTags.map((t) => t.id),
+            partOf: _filterPartOf,
+            source: filterSource,
+            difficulties: filterDifficulties,
+            tagIds: filterTags.map((t) => t.id),
             genreMatch: _genreMatch,
             instrumentMatch: _instrumentMatch,
-            tagMatch: _tagMatch,
+            tagMatch: tagMatch,
           )
         : total;
     _totalCount = total;
     _resultCount = result;
     notifyListeners();
-  }
-
-  String _filterSearch = "";
-
-  set filterSearch(String filter) {
-    if (_filterSearch == filter) return;
-    _filterSearch = filter;
-    _reset();
   }
 
   String _filterComposer = "";
@@ -105,42 +86,16 @@ class LibraryViewModel extends ChangeNotifier {
     _reset();
   }
 
-  String _filterSource = "";
+  String _filterPartOf = "";
 
-  String get filterSource => _filterSource;
+  String get filterPartOf => _filterPartOf;
 
-  set filterSource(String source) {
-    if (_filterSource == source) return;
-    _filterSource = source;
+  set filterPartOf(String partOf) {
+    if (_filterPartOf == partOf) return;
+    _filterPartOf = partOf;
     notifyListeners();
     _reset();
   }
-
-  final Set<Difficulty> _filterDifficulties = {};
-
-  Set<Difficulty> get filterDifficulties => _filterDifficulties;
-
-  void toggleFilterDifficulty(Difficulty difficulty, bool selected) {
-    final changed = selected
-        ? _filterDifficulties.add(difficulty)
-        : _filterDifficulties.remove(difficulty);
-    if (!changed) return;
-    notifyListeners();
-    _reset();
-  }
-
-  void clearFilterDifficulties() {
-    if (_filterDifficulties.isEmpty) return;
-    _filterDifficulties.clear();
-    notifyListeners();
-    _reset();
-  }
-
-  final SplayTreeSet<Tag> _filterTags = SplayTreeSet(
-    (a, b) => a.name.compareTo(b.name),
-  );
-
-  Iterable<Tag> get filterTags => _filterTags;
 
   final SplayTreeSet<String> _filterInstruments = SplayTreeSet();
 
@@ -172,17 +127,6 @@ class LibraryViewModel extends ChangeNotifier {
     _reset();
   }
 
-  FilterMatchType _tagMatch = FilterMatchType.all;
-
-  FilterMatchType get tagMatch => _tagMatch;
-
-  set tagMatch(FilterMatchType value) {
-    if (_tagMatch == value) return;
-    _tagMatch = value;
-    notifyListeners();
-    _reset();
-  }
-
   StreamSubscription? _updatedScoresSub;
   StreamSubscription? _lastOpenedSub;
   late final TagSync _tagSync;
@@ -192,7 +136,7 @@ class LibraryViewModel extends ChangeNotifier {
     _lastOpenedSub = _repo.lastOpenedChanged.listen((_) => _refresh());
     _tagSync = TagSync(
       repo: _repo,
-      currentTags: () => _filterTags,
+      currentTags: () => filterTags,
       onChanged: setFilterTags,
     );
     _refreshCounts();
@@ -250,35 +194,37 @@ class LibraryViewModel extends ChangeNotifier {
     return await _repo.getScores(
       size: size,
       offset: offset,
-      filter: _filterSearch,
+      filter: filterSearch,
       type: ScoreType.score,
       instruments: _filterInstruments,
       genres: _filterGenres,
       composer: _filterComposer,
       arranger: _filterArranger,
-      source: _filterSource,
-      difficulties: _filterDifficulties,
-      tagIds: _filterTags.map((t) => t.id),
+      partOf: _filterPartOf,
+      source: filterSource,
+      difficulties: filterDifficulties,
+      tagIds: filterTags.map((t) => t.id),
       genreMatch: _genreMatch,
       instrumentMatch: _instrumentMatch,
-      tagMatch: _tagMatch,
+      tagMatch: tagMatch,
     );
   }
 
   Future<List<String>> getFilteredScoreIds() async {
     return await _repo.getScoreIds(
-      filter: _filterSearch,
+      filter: filterSearch,
       type: ScoreType.score,
       instruments: _filterInstruments,
       genres: _filterGenres,
       composer: _filterComposer,
       arranger: _filterArranger,
-      source: _filterSource,
-      difficulties: _filterDifficulties,
-      tagIds: _filterTags.map((t) => t.id),
+      partOf: _filterPartOf,
+      source: filterSource,
+      difficulties: filterDifficulties,
+      tagIds: filterTags.map((t) => t.id),
       genreMatch: _genreMatch,
       instrumentMatch: _instrumentMatch,
-      tagMatch: _tagMatch,
+      tagMatch: tagMatch,
     );
   }
 
@@ -296,26 +242,6 @@ class LibraryViewModel extends ChangeNotifier {
       await loadNextPage();
       _refreshCounts();
     });
-  }
-
-  void addFilterTags(Iterable<Tag> tags) {
-    _filterTags.addAll(tags);
-    notifyListeners();
-    _reset();
-  }
-
-  void removeFilterTag(Tag tag) {
-    _filterTags.remove(tag);
-    notifyListeners();
-    _reset();
-  }
-
-  void setFilterTags(Iterable<Tag> tags) {
-    _filterTags
-      ..clear()
-      ..addAll(tags);
-    notifyListeners();
-    _reset();
   }
 
   void addFilterInstrument(String instrument) {
@@ -373,23 +299,34 @@ class LibraryViewModel extends ChangeNotifier {
     return await _repo.getArrangers(filter: filter, size: 10);
   }
 
+  Future<Iterable<String>> getPartOfs({String filter = ""}) async {
+    return await _repo.getPartOfs(filter: filter, size: 10);
+  }
+
   Future<Iterable<String>> getSources({String filter = ""}) async {
     return await _repo.getSources(filter: filter, size: 10);
   }
 
-  void clearFilters() {
-    _filterTags.clear();
+  @override
+  void refilter() => _reset();
+
+  @override
+  bool get hasOwnFilters =>
+      _filterComposer.isNotEmpty ||
+      _filterArranger.isNotEmpty ||
+      _filterPartOf.isNotEmpty ||
+      _filterInstruments.isNotEmpty ||
+      _filterGenres.isNotEmpty;
+
+  @override
+  void clearOwnFilters() {
     _filterComposer = "";
     _filterArranger = "";
-    _filterSource = "";
-    _filterDifficulties.clear();
+    _filterPartOf = "";
     _filterGenres.clear();
     _filterInstruments.clear();
     _genreMatch = FilterMatchType.any;
     _instrumentMatch = FilterMatchType.exact;
-    _tagMatch = FilterMatchType.all;
-    notifyListeners();
-    _reset();
   }
 
   bool _disposed = false;

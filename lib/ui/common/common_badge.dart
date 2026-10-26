@@ -32,7 +32,7 @@ class CommonBadge extends StatelessWidget {
     this.tooltip = true,
     this.onTap,
     this.onRemove,
-  });
+  }) : assert(onTap == null || onRemove == null);
 
   @override
   Widget build(BuildContext context) {
@@ -50,33 +50,46 @@ class CommonBadge extends StatelessWidget {
           .copyWith(color: foregroundColor),
       overflow: TextOverflow.ellipsis,
     );
+    final iconSize = compact ? 12.0 : 14.0;
+    final onRemove = this.onRemove;
     Widget widget = Padding(
       padding: compact
-          ? const EdgeInsets.symmetric(vertical: 2, horizontal: 8)
-          : const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-      child: trailingIcon == null
+          ? EdgeInsets.fromLTRB(8, 2, onRemove == null ? 8 : 2, 2)
+          : EdgeInsets.fromLTRB(12, 6, onRemove == null ? 12 : 4, 6),
+      child: trailingIcon == null && onRemove == null
           ? label
           : Row(
               mainAxisSize: MainAxisSize.min,
               spacing: 4,
               children: [
                 Flexible(child: label),
-                Icon(
-                  trailingIcon,
-                  size: compact ? 12 : 14,
-                  color: foregroundColor,
-                ),
+                if (trailingIcon != null)
+                  Icon(trailingIcon, size: iconSize, color: foregroundColor),
+                if (onRemove != null)
+                  Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: Icon(
+                      Icons.close,
+                      size: iconSize,
+                      color: foregroundColor,
+                    ),
+                  ),
               ],
             ),
     );
     final backgroundColor = color ?? Surface.badgeOf(context);
     final borderRadius = BorderRadius.all(Radius.circular(compact ? 10 : 14));
 
-    if (onTap != null) {
+    final onPressed = onTap ?? onRemove;
+    if (onPressed != null) {
       widget = Material(
         borderRadius: borderRadius,
         color: backgroundColor,
-        child: InkWell(borderRadius: borderRadius, onTap: onTap, child: widget),
+        child: InkWell(
+          borderRadius: borderRadius,
+          onTap: onPressed,
+          child: widget,
+        ),
       );
     } else {
       widget = DecoratedBox(
@@ -85,30 +98,6 @@ class CommonBadge extends StatelessWidget {
           borderRadius: borderRadius,
         ),
         child: widget,
-      );
-    }
-
-    if (onRemove != null) {
-      widget = Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 9, top: 7),
-            child: widget,
-          ),
-          SizedBox.square(
-            dimension: 22,
-            child: IconButton(
-              onPressed: onRemove,
-              icon: const Icon(Icons.remove),
-              iconSize: 15,
-              color: theme.colorScheme.onErrorContainer,
-              style: IconButton.styleFrom(
-                backgroundColor: theme.colorScheme.errorContainer,
-              ),
-              padding: const EdgeInsets.all(0),
-            ),
-          ),
-        ],
       );
     }
 

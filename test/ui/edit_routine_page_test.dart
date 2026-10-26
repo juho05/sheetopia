@@ -218,7 +218,7 @@ void main() {
     expect(find.text("Chromatic"), findsOneWidget);
     expect(find.text("20"), findsOneWidget);
     expect(find.text("1 exercise • 20min"), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, "Delete"), findsOneWidget);
+    expect(find.byIcon(Icons.more_vert), findsOneWidget);
   });
 
   testWidgets("editing an entry updates the routine", (tester) async {
@@ -362,7 +362,9 @@ void main() {
     );
 
     await pumpPage(tester, routineId: routineId);
-    await tester.tap(find.widgetWithText(FilledButton, "Delete"));
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text("Delete"));
     await tester.pumpAndSettle();
 
     expect(find.text("Delete routine?"), findsOneWidget);
@@ -375,7 +377,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(await repo.getRoutine(routineId), isNotNull);
 
-    await tester.tap(find.widgetWithText(FilledButton, "Delete"));
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text("Delete"));
     await tester.pumpAndSettle();
     await tester.tap(find.text("Yes"));
     await tester.pumpAndSettle();

@@ -207,6 +207,24 @@ void main() {
     expect(await repo.getScoreIds(filter: "busoni"), isEmpty);
   });
 
+  test("bulk editing part of makes it searchable and filterable", () async {
+    await insertScore("a");
+    await insertScore("b");
+
+    await repo.bulkEditScorePartOf(["a"], "Kinderszenen");
+
+    expect((await repo.getScore("a"))!.partOf, "Kinderszenen");
+    expect((await repo.getScore("b"))!.partOf, null);
+    expect(await repo.getScoreIds(filter: "kinderszenen"), ["a"]);
+    expect(await repo.getScoreIds(partOf: "Kinderszenen"), ["a"]);
+    expect(await repo.getPartOfs(), ["Kinderszenen"]);
+
+    await repo.bulkEditScorePartOf(["a"], "");
+
+    expect((await repo.getScore("a"))!.partOf, null);
+    expect(await repo.getScoreIds(filter: "kinderszenen"), isEmpty);
+  });
+
   test("scores are filtered by any of the selected difficulties", () async {
     await insertScore("a");
     await insertScore("b");
@@ -224,6 +242,11 @@ void main() {
       unorderedEquals(["a", "b"]),
     );
     expect(await repo.countScores(difficulties: [Difficulty.veryHard]), 1);
+    expect(await repo.getScoreIds(difficulties: [null]), ["c"]);
+    expect(
+      await repo.getScoreIds(difficulties: [null, Difficulty.easy]),
+      unorderedEquals(["a", "c"]),
+    );
   });
 
   test("bulk editing the source only touches the selected scores", () async {
@@ -416,7 +439,7 @@ void main() {
   });
 
   test(
-    "renaming a score keeps its composer and arranger in the search text",
+    "renaming a score keeps its composer, arranger and part of in the search text",
     () async {
       await insertScore("a", type: ScoreType.exercise);
       await repo.updateScore(
@@ -424,6 +447,7 @@ void main() {
         title: "Title a",
         composer: "Bach",
         arranger: "Busoni",
+        partOf: "Partita",
         notes: "",
       );
 
@@ -435,7 +459,8 @@ void main() {
       expect(row.title, "Etude");
       expect(row.composer, "Bach");
       expect(row.arranger, "Busoni");
-      expect(row.searchText, " etude bach busoni ");
+      expect(row.partOf, "Partita");
+      expect(row.searchText, " etude bach busoni partita ");
       expect(row.metadataUploaded, isFalse);
       expect(await repo.getScoreIds(filter: "etude"), ["a"]);
     },

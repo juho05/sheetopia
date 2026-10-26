@@ -6140,6 +6140,7 @@ final class Schema18 extends i0.VersionedSchema {
         _column_2,
         _column_72,
         _column_73,
+        _column_74,
         _column_42,
         _column_43,
         _column_3,
@@ -6332,7 +6333,7 @@ final class Schema18 extends i0.VersionedSchema {
         _column_42,
         _column_43,
         _column_47,
-        _column_73,
+        _column_74,
         _column_48,
         _column_69,
         _column_16,
@@ -6529,6 +6530,8 @@ class Shape41 extends i0.VersionedTable {
       columnsByName['composer']! as i1.GeneratedColumn<String>;
   i1.GeneratedColumn<String> get arranger =>
       columnsByName['arranger']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get partOf =>
+      columnsByName['part_of']! as i1.GeneratedColumn<String>;
   i1.GeneratedColumn<int> get difficulty =>
       columnsByName['difficulty']! as i1.GeneratedColumn<int>;
   i1.GeneratedColumn<String> get source =>
@@ -6575,7 +6578,15 @@ i1.GeneratedColumn<String> _column_72(String aliasedName) =>
       type: i1.DriftSqlType.string,
       $customConstraints: 'NULL',
     );
-i1.GeneratedColumn<int> _column_73(String aliasedName) =>
+i1.GeneratedColumn<String> _column_73(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'part_of',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<int> _column_74(String aliasedName) =>
     i1.GeneratedColumn<int>(
       'difficulty',
       aliasedName,

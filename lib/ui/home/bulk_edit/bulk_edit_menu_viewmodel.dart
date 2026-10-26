@@ -38,6 +38,10 @@ class BulkEditMenuViewModel {
     await _repo.bulkEditScoreArranger(_selectedScores, arranger);
   }
 
+  Future<void> editPartOf(String partOf) async {
+    await _repo.bulkEditScorePartOf(_selectedScores, partOf);
+  }
+
   Future<void> editDifficulty(Difficulty? difficulty) async {
     await _repo.bulkEditScoreDifficulty(_selectedScores, difficulty);
   }
@@ -63,6 +67,10 @@ class BulkEditMenuViewModel {
 
   Future<Iterable<String>> getArrangers({String filter = ""}) async {
     return await _repo.getArrangers(filter: filter, size: 10);
+  }
+
+  Future<Iterable<String>> getPartOfs({String filter = ""}) async {
+    return await _repo.getPartOfs(filter: filter, size: 10);
   }
 
   Future<Iterable<String>> getSources({String filter = ""}) async {

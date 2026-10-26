@@ -12,7 +12,8 @@ import 'package:sheetopia/ui/common/metadata_field.dart';
 enum ScoreField implements MetadataField {
   composer("Composer", Symbols.artist),
   arranger("Arranger", Symbols.queue_music),
-  source("Source", Symbols.link),
+  partOf("Part of", Symbols.stacks),
+  source("Source", Symbols.book_2),
   difficulty("Difficulty", Symbols.signal_cellular_alt),
   instruments("Instruments", Symbols.piano),
   genres("Genres", Symbols.genres),
@@ -27,8 +28,15 @@ enum ScoreField implements MetadataField {
   const ScoreField(this.label, this.icon);
 
   /// only shown in the edit form when they have a value or were added
-  static const formOptional = [arranger, difficulty, source, genres, notes];
+  static const formOptional = [
+    arranger,
+    partOf,
+    difficulty,
+    source,
+    genres,
+    notes,
+  ];
 
   /// only shown in the filter dialog when they are active or were added
-  static const filterOptional = [arranger, difficulty, source, genres];
+  static const filterOptional = [arranger, partOf, difficulty, source, genres];
 }

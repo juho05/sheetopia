@@ -60,12 +60,12 @@ class _RoutinesBulkEditMenuState extends State<RoutinesBulkEditMenu> {
         ContextMenuOption(
           title: "Duplicate",
           icon: Symbols.content_copy,
-          onSelected: _duplicate,
+          onSelected: (_) => _duplicate(),
         ),
         ContextMenuOption(
           title: "Delete",
           icon: Symbols.delete,
-          onSelected: _delete,
+          onSelected: (_) => _delete(),
         ),
       ],
     );

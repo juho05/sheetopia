@@ -13,16 +13,14 @@ import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/practice/exercise.dart';
 import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
-import 'package:sheetopia/data/repositories/scores/difficulty.dart';
-import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
-import 'package:sheetopia/data/repositories/scores/tag.dart';
+import 'package:sheetopia/ui/common/filter_viewmodel.dart';
 import 'package:sheetopia/utils/category_sync.dart';
 import 'package:sheetopia/utils/tag_sync.dart';
 
 typedef ExerciseGroup = ({ExerciseCategory? category, List<Exercise> exercise});
 
-class ExercisesViewModel extends ChangeNotifier {
+class ExercisesViewModel extends ChangeNotifier with FilterViewModel {
   static const int _pageSize = 100;
 
   final PracticeRepository _repo;
@@ -70,7 +68,7 @@ class ExercisesViewModel extends ChangeNotifier {
     _updatedCategoriesSub = _repo.updatedCategoryIds.listen((_) => _refresh());
     _tagSync = TagSync(
       repo: scoresRepo,
-      currentTags: () => _filterTags,
+      currentTags: () => filterTags,
       onChanged: setFilterTags,
     );
     _categorySync = CategorySync(
@@ -85,26 +83,18 @@ class ExercisesViewModel extends ChangeNotifier {
     final total = await _repo.countExercises();
     final result = isFiltered
         ? await _repo.countExercises(
-            filter: _filterSearch,
+            filter: filterSearch,
             categoryId: _filterCategory?.id,
             instrument: _filterInstrument,
-            source: _filterSource,
-            difficulties: _filterDifficulties,
-            tagIds: _filterTags.map((t) => t.id),
-            tagMatch: _tagMatch,
+            source: filterSource,
+            difficulties: filterDifficulties,
+            tagIds: filterTags.map((t) => t.id),
+            tagMatch: tagMatch,
           )
         : total;
     _totalCount = total;
     _resultCount = result;
     notifyListeners();
-  }
-
-  String _filterSearch = "";
-
-  set filterSearch(String filter) {
-    if (_filterSearch == filter) return;
-    _filterSearch = filter;
-    _reset();
   }
 
   ExerciseCategory? _filterCategory;
@@ -135,104 +125,28 @@ class ExercisesViewModel extends ChangeNotifier {
     _reset();
   }
 
-  String _filterSource = "";
+  @override
+  void refilter() => _reset();
 
-  String get filterSource => _filterSource;
+  @override
+  bool get hasOwnFilters =>
+      _filterCategory != null || _filterInstrument.isNotEmpty;
 
-  set filterSource(String source) {
-    if (_filterSource == source) return;
-    _filterSource = source;
-    notifyListeners();
-    _reset();
-  }
-
-  final Set<Difficulty> _filterDifficulties = {};
-
-  Set<Difficulty> get filterDifficulties => _filterDifficulties;
-
-  void toggleFilterDifficulty(Difficulty difficulty, bool selected) {
-    final changed = selected
-        ? _filterDifficulties.add(difficulty)
-        : _filterDifficulties.remove(difficulty);
-    if (!changed) return;
-    notifyListeners();
-    _reset();
-  }
-
-  void clearFilterDifficulties() {
-    if (_filterDifficulties.isEmpty) return;
-    _filterDifficulties.clear();
-    notifyListeners();
-    _reset();
-  }
-
-  final SplayTreeSet<Tag> _filterTags = SplayTreeSet(
-    (a, b) => a.name.compareTo(b.name),
-  );
-
-  Iterable<Tag> get filterTags => _filterTags;
-
-  FilterMatchType _tagMatch = FilterMatchType.all;
-
-  FilterMatchType get tagMatch => _tagMatch;
-
-  set tagMatch(FilterMatchType value) {
-    if (_tagMatch == value) return;
-    _tagMatch = value;
-    notifyListeners();
-    _reset();
-  }
-
-  bool get hasFilters =>
-      _filterCategory != null ||
-      _filterInstrument.isNotEmpty ||
-      _filterSource.isNotEmpty ||
-      _filterDifficulties.isNotEmpty ||
-      _filterTags.isNotEmpty;
-
-  bool get isFiltered => _filterSearch.isNotEmpty || hasFilters;
-
-  void addFilterTags(Iterable<Tag> tags) {
-    _filterTags.addAll(tags);
-    notifyListeners();
-    _reset();
-  }
-
-  void removeFilterTag(Tag tag) {
-    _filterTags.remove(tag);
-    notifyListeners();
-    _reset();
-  }
-
-  void setFilterTags(Iterable<Tag> tags) {
-    _filterTags
-      ..clear()
-      ..addAll(tags);
-    notifyListeners();
-    _reset();
-  }
-
-  void clearFilters() {
-    if (!hasFilters) return;
+  @override
+  void clearOwnFilters() {
     _filterCategory = null;
     _filterInstrument = "";
-    _filterSource = "";
-    _filterDifficulties.clear();
-    _filterTags.clear();
-    _tagMatch = FilterMatchType.all;
-    notifyListeners();
-    _reset();
   }
 
   Future<List<String>> getFilteredExerciseIds() async {
     return await _repo.getExerciseIds(
-      filter: _filterSearch,
+      filter: filterSearch,
       categoryId: _filterCategory?.id,
       instrument: _filterInstrument,
-      source: _filterSource,
-      difficulties: _filterDifficulties,
-      tagIds: _filterTags.map((t) => t.id),
-      tagMatch: _tagMatch,
+      source: filterSource,
+      difficulties: filterDifficulties,
+      tagIds: filterTags.map((t) => t.id),
+      tagMatch: tagMatch,
     );
   }
 
@@ -305,13 +219,13 @@ class ExercisesViewModel extends ChangeNotifier {
     return await _repo.getExercises(
       size: size,
       offset: offset,
-      filter: _filterSearch,
+      filter: filterSearch,
       categoryId: _filterCategory?.id,
       instrument: _filterInstrument,
-      source: _filterSource,
-      difficulties: _filterDifficulties,
-      tagIds: _filterTags.map((t) => t.id),
-      tagMatch: _tagMatch,
+      source: filterSource,
+      difficulties: filterDifficulties,
+      tagIds: filterTags.map((t) => t.id),
+      tagMatch: tagMatch,
     );
   }
 

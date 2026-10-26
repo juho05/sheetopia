@@ -14,9 +14,13 @@ import 'package:material_ui/material_ui.dart';
 class ContextMenuOption {
   final IconData? icon;
   final String title;
-  final void Function()? onSelected;
+  final void Function(BuildContext context)? onSelected;
 
-  ContextMenuOption({this.icon, required this.title, required this.onSelected});
+  const ContextMenuOption({
+    this.icon,
+    required this.title,
+    required this.onSelected,
+  });
 }
 
 class MenuButton extends StatelessWidget {
@@ -41,10 +45,7 @@ class MenuButton extends StatelessWidget {
       icon: icon,
       tooltip: tooltip,
       padding: padding,
-      onSelected: (option) {
-        if (option.onSelected == null) return;
-        option.onSelected!();
-      },
+      onSelected: (option) => option.onSelected?.call(context),
       menuPadding: const EdgeInsets.all(0),
       itemBuilder: (context) => options
           .map(

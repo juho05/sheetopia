@@ -13,12 +13,11 @@ import 'package:flutter/widgets.dart';
 import 'package:sheetopia/data/repositories/practice/practice_progress.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
-import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
-import 'package:sheetopia/data/repositories/scores/tag.dart';
+import 'package:sheetopia/ui/common/filter_viewmodel.dart';
 import 'package:sheetopia/utils/tag_sync.dart';
 
-class PracticeRoutinesViewModel extends ChangeNotifier {
+class PracticeRoutinesViewModel extends ChangeNotifier with FilterViewModel {
   static const int _pageSize = 100;
 
   final PracticeRepository _repo;
@@ -32,11 +31,11 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
 
   Future<List<String>> getFilteredRoutineIds() async {
     return await _repo.getRoutineIds(
-      filter: _filterSearch,
+      filter: filterSearch,
       instrument: _filterInstrument,
-      source: _filterSource,
-      tagIds: _filterTags.map((t) => t.id),
-      tagMatch: _tagMatch,
+      source: filterSource,
+      tagIds: filterTags.map((t) => t.id),
+      tagMatch: tagMatch,
     );
   }
 
@@ -87,7 +86,7 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
     );
     _tagSync = TagSync(
       repo: scoresRepo,
-      currentTags: () => _filterTags,
+      currentTags: () => filterTags,
       onChanged: setFilterTags,
     );
     _lifecycle = AppLifecycleListener(onStateChange: _onLifecycleChanged);
@@ -128,24 +127,16 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
     final total = await _repo.countRoutines();
     final result = isFiltered
         ? await _repo.countRoutines(
-            filter: _filterSearch,
+            filter: filterSearch,
             instrument: _filterInstrument,
-            source: _filterSource,
-            tagIds: _filterTags.map((t) => t.id),
-            tagMatch: _tagMatch,
+            source: filterSource,
+            tagIds: filterTags.map((t) => t.id),
+            tagMatch: tagMatch,
           )
         : total;
     _totalCount = total;
     _resultCount = result;
     notifyListeners();
-  }
-
-  String _filterSearch = "";
-
-  set filterSearch(String filter) {
-    if (_filterSearch == filter) return;
-    _filterSearch = filter;
-    _reset();
   }
 
   String _filterInstrument = "";
@@ -159,70 +150,14 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
     _reset();
   }
 
-  String _filterSource = "";
+  @override
+  void refilter() => _reset();
 
-  String get filterSource => _filterSource;
+  @override
+  bool get hasOwnFilters => _filterInstrument.isNotEmpty;
 
-  set filterSource(String source) {
-    if (_filterSource == source) return;
-    _filterSource = source;
-    notifyListeners();
-    _reset();
-  }
-
-  final SplayTreeSet<Tag> _filterTags = SplayTreeSet(
-    (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-  );
-
-  Iterable<Tag> get filterTags => _filterTags;
-
-  FilterMatchType _tagMatch = FilterMatchType.all;
-
-  FilterMatchType get tagMatch => _tagMatch;
-
-  set tagMatch(FilterMatchType value) {
-    if (_tagMatch == value) return;
-    _tagMatch = value;
-    notifyListeners();
-    _reset();
-  }
-
-  bool get hasFilters =>
-      _filterInstrument.isNotEmpty ||
-      _filterSource.isNotEmpty ||
-      _filterTags.isNotEmpty;
-
-  bool get isFiltered => _filterSearch.isNotEmpty || hasFilters;
-
-  void addFilterTags(Iterable<Tag> tags) {
-    _filterTags.addAll(tags);
-    notifyListeners();
-    _reset();
-  }
-
-  void removeFilterTag(Tag tag) {
-    _filterTags.remove(tag);
-    notifyListeners();
-    _reset();
-  }
-
-  void setFilterTags(Iterable<Tag> tags) {
-    _filterTags
-      ..clear()
-      ..addAll(tags);
-    notifyListeners();
-    _reset();
-  }
-
-  void clearFilters() {
-    if (!hasFilters) return;
-    _filterInstrument = "";
-    _filterSource = "";
-    _filterTags.clear();
-    _tagMatch = FilterMatchType.all;
-    notifyListeners();
-    _reset();
-  }
+  @override
+  void clearOwnFilters() => _filterInstrument = "";
 
   Future<void> duplicate(String routineId) => _repo.duplicateRoutine(routineId);
 
@@ -290,11 +225,11 @@ class PracticeRoutinesViewModel extends ChangeNotifier {
     return await _repo.getRoutines(
       size: size,
       offset: offset,
-      filter: _filterSearch,
+      filter: filterSearch,
       instrument: _filterInstrument,
-      source: _filterSource,
-      tagIds: _filterTags.map((t) => t.id),
-      tagMatch: _tagMatch,
+      source: filterSource,
+      tagIds: filterTags.map((t) => t.id),
+      tagMatch: tagMatch,
     );
   }
 

@@ -63,7 +63,7 @@ class _LogsPageState extends State<LogsPage> {
               options: [
                 ContextMenuOption(
                   title: "Save full log",
-                  onSelected: () async {
+                  onSelected: (_) async {
                     final result = await _viewModel.saveLog(filtered: false);
                     if (!context.mounted) return;
                     if (!result) {
@@ -75,7 +75,7 @@ class _LogsPageState extends State<LogsPage> {
                 ),
                 ContextMenuOption(
                   title: "Save filtered log",
-                  onSelected: () async {
+                  onSelected: (_) async {
                     final result = await _viewModel.saveLog(filtered: true);
                     if (!context.mounted) return;
                     if (!result) {
@@ -106,7 +106,7 @@ class _LogsPageState extends State<LogsPage> {
                   options: [
                     ContextMenuOption(
                       title: "Share full log",
-                      onSelected: () async {
+                      onSelected: (_) async {
                         final result = await _viewModel.shareLog(
                           filtered: false,
                           sharePositionOrigin: sharePositionOrigin(),
@@ -121,7 +121,7 @@ class _LogsPageState extends State<LogsPage> {
                     ),
                     ContextMenuOption(
                       title: "Share filtered log",
-                      onSelected: () async {
+                      onSelected: (_) async {
                         final result = await _viewModel.shareLog(
                           filtered: true,
                           sharePositionOrigin: sharePositionOrigin(),

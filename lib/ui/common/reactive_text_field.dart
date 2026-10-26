@@ -23,6 +23,7 @@ class ReactiveTextField<T> extends ReactiveFormField<T, String> {
     super.validationMessages,
     super.focusNode,
     InputDecoration decoration = const InputDecoration(),
+    TextStyle? style,
     bool obscureText = false,
     int? maxLines = 1,
     int? minLines,
@@ -43,6 +44,7 @@ class ReactiveTextField<T> extends ReactiveFormField<T, String> {
              decoration: effectiveDecoration.copyWith(
                errorText: state.errorText,
              ),
+             style: style,
              obscureText: obscureText,
              maxLines: maxLines,
              minLines: minLines,

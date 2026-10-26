@@ -17,6 +17,7 @@ part 'score_metadata.g.dart';
 class ScoreMetadataModel {
   final String? composer;
   final String? arranger;
+  final String? partOf;
   final String? source;
   final String? sourceLink;
   final String? notes;
@@ -28,6 +29,7 @@ class ScoreMetadataModel {
   ScoreMetadataModel({
     required this.composer,
     required this.arranger,
+    required this.partOf,
     required this.source,
     required this.sourceLink,
     required this.notes,

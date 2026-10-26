@@ -84,6 +84,7 @@ def score_model(entry, strokes, score_type, source="", tags=(), genres=()):
         "metadata": {
             "composer": entry.get("composer") or "",
             "arranger": "",
+            "partOf": "",
             "source": source,
             "sourceLink": "",
             "notes": entry.get("notes") or "",
@@ -158,8 +159,9 @@ def build_practice():
             "metadata": {
                 "description": e.get("description") or "",
                 "source": e.get("source") or "",
-                "sourceLink": "",
+                "sourceLink": e.get("source_link") or "",
                 "instrument": e.get("instrument") or "",
+                "difficulty": e.get("difficulty") or 0,
                 "targetBpm": e.get("bpm") or 0,
                 "progressResetAt": "",
             },

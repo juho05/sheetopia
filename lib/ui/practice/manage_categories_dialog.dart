@@ -111,12 +111,12 @@ class _ManageCategoriesDialogState extends State<ManageCategoriesDialog> {
             ContextMenuOption(
               icon: Symbols.edit,
               title: "Rename",
-              onSelected: () => _rename(entry),
+              onSelected: (_) => _rename(entry),
             ),
             ContextMenuOption(
               icon: Symbols.delete,
               title: "Delete",
-              onSelected: () => _delete(entry),
+              onSelected: (_) => _delete(entry),
             ),
           ],
         ),

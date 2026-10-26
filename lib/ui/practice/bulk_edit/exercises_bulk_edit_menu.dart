@@ -121,12 +121,12 @@ class _ExercisesBulkEditMenuState extends State<ExercisesBulkEditMenu> {
         ContextMenuOption(
           title: "Edit metadata",
           icon: Symbols.edit_note,
-          onSelected: _editMetadata,
+          onSelected: (_) => _editMetadata(),
         ),
         ContextMenuOption(
           title: "Add to routine",
           icon: Symbols.playlist_add,
-          onSelected: () async {
+          onSelected: (_) async {
             final routine = await SelectRoutineDialog.show(
               context,
               title: "Add to routine",
@@ -142,7 +142,7 @@ class _ExercisesBulkEditMenuState extends State<ExercisesBulkEditMenu> {
         ContextMenuOption(
           title: "Delete",
           icon: Symbols.delete,
-          onSelected: _delete,
+          onSelected: (_) => _delete(),
         ),
       ],
     );

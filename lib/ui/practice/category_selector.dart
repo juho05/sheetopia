@@ -8,13 +8,15 @@
 
 import 'dart:math';
 
-import 'package:material_ui/material_ui.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
+import 'package:sheetopia/ui/common/metadata_row.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
 import 'package:sheetopia/ui/common/search_input.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
+import 'package:sheetopia/ui/common/surface.dart';
 import 'package:sheetopia/ui/practice/category_name_dialog.dart';
 import 'package:sheetopia/ui/practice/category_selector_viewmodel.dart';
 
@@ -29,8 +31,10 @@ class CategorySelector extends StatelessWidget {
   final String? label;
   final bool allowCreate;
 
-  /// nothing is chosen yet, so the dialog highlights no option
-  final bool unchosen;
+  /// shown instead of [emptyLabel] while nothing is chosen yet
+  final String? hint;
+
+  final bool inline;
   final void Function(ExerciseCategory? category) onChanged;
 
   const CategorySelector({
@@ -40,13 +44,14 @@ class CategorySelector extends StatelessWidget {
     required this.onChanged,
     this.label = "Category",
     this.allowCreate = false,
-    this.unchosen = false,
+    this.hint,
+    this.inline = false,
   });
 
   Future<void> _select(BuildContext context) async {
     final choice = await SelectCategoryDialog.show(
       context,
-      selected: unchosen ? null : (category: category),
+      selected: category == null && hint != null ? null : (category: category),
       emptyLabel: emptyLabel,
       allowCreate: allowCreate,
     );
@@ -58,6 +63,48 @@ class CategorySelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final category = this.category;
+    final text = Text(
+      category?.name ?? hint ?? emptyLabel,
+      overflow: TextOverflow.ellipsis,
+      style: category == null
+          ? TextStyle(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontStyle: FontStyle.italic,
+            )
+          : null,
+    );
+    if (inline) {
+      return Material(
+        color: Surface.badgeOf(context),
+        borderRadius: BorderRadius.circular(8),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => _select(context),
+          child: Row(
+            children: [
+              Expanded(
+                child: InputDecorator(
+                  decoration: metadataInputDecoration(
+                    context,
+                  ).copyWith(filled: false),
+                  child: DefaultTextStyle.merge(
+                    style: theme.textTheme.bodyLarge,
+                    child: text,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Icon(
+                  Symbols.arrow_drop_down,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return InkWell(
       onTap: () => _select(context),
       borderRadius: BorderRadius.circular(4),
@@ -67,16 +114,7 @@ class CategorySelector extends StatelessWidget {
           border: const OutlineInputBorder(),
           suffixIcon: const Icon(Symbols.edit),
         ),
-        child: Text(
-          category?.name ?? emptyLabel,
-          overflow: TextOverflow.ellipsis,
-          style: category == null
-              ? TextStyle(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontStyle: FontStyle.italic,
-                )
-              : null,
-        ),
+        child: text,
       ),
     );
   }

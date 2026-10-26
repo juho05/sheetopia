@@ -360,12 +360,12 @@ class _RecordTile extends StatelessWidget {
                 ContextMenuOption(
                   icon: Symbols.edit,
                   title: "Edit",
-                  onSelected: onEdit,
+                  onSelected: (_) => onEdit(),
                 ),
                 ContextMenuOption(
                   icon: Symbols.delete,
                   title: "Delete",
-                  onSelected: onDelete,
+                  onSelected: (_) => onDelete(),
                 ),
               ],
             ),

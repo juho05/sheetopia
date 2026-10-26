@@ -16,13 +16,12 @@ import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/ui/common/auto_complete_field.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/difficulty.dart';
-import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/metadata_field.dart';
-import 'package:sheetopia/ui/common/select_tags_list.dart';
+import 'package:sheetopia/ui/common/metadata_row.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
+import 'package:sheetopia/ui/common/source_value.dart';
 import 'package:sheetopia/ui/common/tag_selector.dart';
 import 'package:sheetopia/ui/edit_score/auto_complete_input_dialog.dart';
-import 'package:sheetopia/ui/edit_score/source_input_dialog.dart';
 import 'package:sheetopia/ui/practice/category_selector.dart';
 
 typedef GetOptions =
@@ -36,7 +35,6 @@ class BulkMetadataField {
   final GetOptions? getOptions;
   final TagType tagType;
 
-  /// singular name of one value of a values field, e.g. "Genre"
   final String? valueLabel;
 
   const BulkMetadataField(
@@ -52,7 +50,6 @@ sealed class BulkMetadataEdit {
   MetadataField get field;
 }
 
-/// an empty value clears the field
 class BulkTextEdit extends BulkMetadataEdit {
   @override
   final MetadataField field;
@@ -131,8 +128,7 @@ class _BulkEditMetadataDialogState extends State<BulkEditMetadataDialog> {
 
   final _textController = TextEditingController();
   final _textFocus = FocusNode();
-  final _linkController = TextEditingController();
-  final _linkFocus = FocusNode();
+  String _link = "";
   Difficulty? _difficulty;
   bool _categoryChosen = false;
   ExerciseCategory? _category;
@@ -145,24 +141,16 @@ class _BulkEditMetadataDialogState extends State<BulkEditMetadataDialog> {
 
   String get _text => _textController.text.trim();
 
-  String get _link => _linkController.text.trim();
-
-  bool get _invalidLink =>
-      _link.isNotEmpty && SourceInputDialog.parseLink(_link) == null;
-
   @override
   void initState() {
     super.initState();
     _textController.addListener(_onChanged);
-    _linkController.addListener(_onChanged);
   }
 
   @override
   void dispose() {
     _textController.dispose();
     _textFocus.dispose();
-    _linkController.dispose();
-    _linkFocus.dispose();
     super.dispose();
   }
 
@@ -173,7 +161,7 @@ class _BulkEditMetadataDialogState extends State<BulkEditMetadataDialog> {
     setState(() {
       _field = field;
       _textController.clear();
-      _linkController.clear();
+      _link = "";
       _difficulty = null;
       _categoryChosen = false;
       _category = null;
@@ -190,20 +178,16 @@ class _BulkEditMetadataDialogState extends State<BulkEditMetadataDialog> {
     }
   }
 
-  /// null while the input can't be submitted
   BulkMetadataEdit? get _result {
     final field = _field;
     if (field == null) return null;
     return switch (field.kind) {
       BulkInputKind.text => BulkTextEdit(field.field, _text),
-      BulkInputKind.source =>
-        (_text.isEmpty && _link.isNotEmpty) || _invalidLink
-            ? null
-            : BulkSourceEdit(
-                field.field,
-                _text,
-                SourceInputDialog.parseLink(_link)?.toString() ?? "",
-              ),
+      BulkInputKind.source => BulkSourceEdit(
+        field.field,
+        _text,
+        _text.isEmpty ? "" : _link,
+      ),
       BulkInputKind.difficulty => BulkDifficultyEdit(field.field, _difficulty),
       BulkInputKind.valueList =>
         _addValues.isEmpty && _removeValues.isEmpty
@@ -245,7 +229,9 @@ class _BulkEditMetadataDialogState extends State<BulkEditMetadataDialog> {
   }
 
   Future<void> _pickValue(
+    // the set to add the picked value to
     SplayTreeSet<String> into,
+    // the set to remove the picked value from if it is in it
     SplayTreeSet<String> other,
   ) async {
     final field = _field!;
@@ -288,48 +274,42 @@ class _BulkEditMetadataDialogState extends State<BulkEditMetadataDialog> {
     );
   }
 
+  Widget _valueChips(
+    SplayTreeSet<String> values,
+    SplayTreeSet<String> other,
+    String addTooltip,
+  ) {
+    return MetadataChips(
+      chips: values.map(
+        (v) => CommonBadge(
+          name: v,
+          onRemove: () => setState(() => values.remove(v)),
+        ),
+      ),
+      addTooltip: addTooltip,
+      onAdd: () => _pickValue(values, other),
+    );
+  }
+
   List<Widget> _input() {
     final field = _field;
     if (field == null) return const [];
     final label = field.field.label;
     switch (field.kind) {
-      case BulkInputKind.text || BulkInputKind.source:
-        final source = field.kind == BulkInputKind.source;
+      case BulkInputKind.text:
+        return [_textField(field, label)];
+      case BulkInputKind.source:
         return [
-          AutoCompleteField(
-            key: ValueKey(field),
+          SourceValue(
             controller: _textController,
-            focusNode: _textFocus,
-            getOptions: (filter) =>
-                field.getOptions?.call(filter, const []) ??
-                Future.value(const []),
-            onSubmitted: (_) => _submitUnlessClearing(),
-            decoration: InputDecoration(
-              label: Text(label),
-              border: const OutlineInputBorder(),
-              errorText: source && _text.isEmpty && _link.isNotEmpty
-                  ? "Required"
-                  : null,
-            ),
+            link: _link.isEmpty ? null : _link,
+            onLinkChanged: (link) => setState(() => _link = link),
+            field: _textField(field, label),
           ),
-          if (source)
-            TextField(
-              controller: _linkController,
-              focusNode: _linkFocus,
-              keyboardType: TextInputType.url,
-              autocorrect: false,
-              onSubmitted: (_) => _submitUnlessClearing(),
-              onTapOutside: (event) => _linkFocus.unfocus(),
-              decoration: InputDecoration(
-                label: const Text("Link (optional)"),
-                border: const OutlineInputBorder(),
-                errorText: _invalidLink ? "Must be an http(s) link" : null,
-              ),
-            ),
         ];
       case BulkInputKind.difficulty:
         return [
-          DifficultyDropdown(
+          DifficultySelector(
             value: _difficulty,
             onChanged: (value) => setState(() => _difficulty = value),
           ),
@@ -338,9 +318,10 @@ class _BulkEditMetadataDialogState extends State<BulkEditMetadataDialog> {
         return [
           CategorySelector(
             category: _category,
-            emptyLabel: _categoryChosen ? "No category" : "Select a category",
+            emptyLabel: "No category",
+            hint: _categoryChosen ? null : "Select a category",
             allowCreate: true,
-            unchosen: !_categoryChosen,
+            inline: true,
             onChanged: (category) => setState(() {
               _categoryChosen = true;
               _category = category;
@@ -350,37 +331,43 @@ class _BulkEditMetadataDialogState extends State<BulkEditMetadataDialog> {
       case BulkInputKind.valueList:
         final lower = label.toLowerCase();
         return [
-          Heading(text: "Add $lower"),
-          SelectTagsList(
-            tags: _addValues.map(
-              (v) => CommonBadge(
-                name: v,
-                onRemove: () => setState(() => _addValues.remove(v)),
-              ),
-            ),
-            onAdd: () => _pickValue(_addValues, _removeValues),
+          MetadataRow(
+            icon: Icons.add,
+            label: "Add",
+            child: _valueChips(_addValues, _removeValues, "Add $lower"),
           ),
-          const SizedBox(height: 4),
-          Heading(text: "Remove $lower"),
-          SelectTagsList(
-            tags: _removeValues.map(
-              (v) => CommonBadge(
-                name: v,
-                onRemove: () => setState(() => _removeValues.remove(v)),
-              ),
-            ),
-            onAdd: () => _pickValue(_removeValues, _addValues),
+          MetadataRow(
+            icon: Icons.remove,
+            label: "Remove",
+            child: _valueChips(_removeValues, _addValues, "Remove $lower"),
           ),
         ];
       case BulkInputKind.tags:
         return [
-          const Heading(text: "Add tags"),
-          _tagSelector(field, _addTags, _removeTags, "Add tags"),
-          const SizedBox(height: 4),
-          const Heading(text: "Remove tags"),
-          _tagSelector(field, _removeTags, _addTags, "Remove tags"),
+          MetadataRow(
+            icon: Icons.add,
+            label: "Add",
+            child: _tagSelector(field, _addTags, _removeTags, "Add tags"),
+          ),
+          MetadataRow(
+            icon: Icons.remove,
+            label: "Remove",
+            child: _tagSelector(field, _removeTags, _addTags, "Remove tags"),
+          ),
         ];
     }
+  }
+
+  Widget _textField(BulkMetadataField field, String label) {
+    return AutoCompleteField(
+      key: ValueKey(field),
+      controller: _textController,
+      focusNode: _textFocus,
+      getOptions: (filter) =>
+          field.getOptions?.call(filter, const []) ?? Future.value(const []),
+      onSubmitted: (_) => _submitUnlessClearing(),
+      decoration: metadataInputDecoration(context, hintText: label),
+    );
   }
 
   @override
@@ -402,6 +389,7 @@ class _BulkEditMetadataDialogState extends State<BulkEditMetadataDialog> {
                 style: theme.textTheme.headlineSmall,
               ),
             ),
+            const SizedBox(height: 8),
             DropdownMenu<BulkMetadataField>(
               initialSelection: _field,
               onSelected: _selectField,
@@ -420,6 +408,7 @@ class _BulkEditMetadataDialogState extends State<BulkEditMetadataDialog> {
               ],
             ),
             ..._input(),
+            const SizedBox(height: 4),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               spacing: 8,

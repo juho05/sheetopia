@@ -6,7 +6,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import 'dart:async';
 import 'dart:collection';
 
 import 'package:material_ui/material_ui.dart';
@@ -15,24 +14,18 @@ import 'package:sheetopia/data/repositories/scores/difficulty.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
+import 'package:sheetopia/ui/common/metadata_form_viewmodel.dart';
 import 'package:sheetopia/ui/common/score_field.dart';
-import 'package:sheetopia/ui/common/visible_fields.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_viewmodel.dart';
 
-class EditScoreFormViewModel extends ChangeNotifier {
+class EditScoreFormViewModel extends ChangeNotifier
+    with MetadataFormViewModel<ScoreField> {
   final ScoresRepository _repo;
   final EditScoreViewModel _editScoreViewModel;
 
   Score _score;
 
   Score get score => _score;
-
-  static int _byName(Tag a, Tag b) =>
-      a.name.toLowerCase().compareTo(b.name.toLowerCase());
-
-  SplayTreeSet<Tag> _tags = SplayTreeSet(_byName);
-
-  Iterable<Tag> get tags => _tags;
 
   SplayTreeSet<String> _instruments = SplayTreeSet();
 
@@ -42,38 +35,23 @@ class EditScoreFormViewModel extends ChangeNotifier {
 
   Iterable<String> get genres => _genres;
 
-  String? _source;
+  @override
+  List<ScoreField> get optionalFields => ScoreField.formOptional;
 
-  String? get source => _source;
-
-  String? _sourceLink;
-
-  String? get sourceLink => _sourceLink;
-
-  Difficulty? _difficulty;
-
-  Difficulty? get difficulty => _difficulty;
-
-  final VisibleFields<ScoreField> _fields = VisibleFields(
-    ScoreField.formOptional,
-  );
-
-  bool isVisible(ScoreField field) => _fields.contains(field);
-
-  bool get hasArranger => (form.control(formArranger).value ?? "").isNotEmpty;
-
-  bool get hasNotes => (form.control(formNotes).value ?? "").isNotEmpty;
-
-  Iterable<ScoreField> get hiddenFields => _fields.hidden;
-
+  @override
   final FormGroup form;
 
   static const String formTitle = "title";
   static const String formComposer = "composer";
   static const String formArranger = "arranger";
+  static const String formPartOf = "partOf";
+  static const String formSource = MetadataFormViewModel.formSource;
   static const String formNotes = "notes";
 
-  StreamSubscription? _valueSub;
+  late final composerOptions = CachedOptions(_repo.getComposers);
+  late final arrangerOptions = CachedOptions(_repo.getArrangers);
+  late final partOfOptions = CachedOptions(_repo.getPartOfs);
+  late final sourceOptions = CachedOptions(_repo.getSources);
 
   EditScoreFormViewModel({
     required EditScoreViewModel editScoreViewModel,
@@ -92,13 +70,16 @@ class EditScoreFormViewModel extends ChangeNotifier {
          formArranger: FormControl<String>(
            value: editScoreViewModel.score!.arranger,
          ),
+         formPartOf: FormControl<String>(
+           value: editScoreViewModel.score!.partOf,
+         ),
+         formSource: FormControl<String>(
+           value: editScoreViewModel.score!.source,
+         ),
          formNotes: FormControl<String>(value: editScoreViewModel.score!.notes),
        }) {
     _loadScore().then((value) {
-      _valueSub = form.valueChanges.listen((_) {
-        if (form.invalid) return;
-        _onValuesChanged(form.value);
-      });
+      listenToValues();
       _editScoreViewModel.addListener(_onScoreChanged);
     });
   }
@@ -135,27 +116,13 @@ class EditScoreFormViewModel extends ChangeNotifier {
     await _repo.removeScoreGenres(score.id, genres);
   }
 
-  Future<void> setSource(String source, String sourceLink) async {
-    _source = source.isNotEmpty ? source : null;
-    _sourceLink = _source != null && sourceLink.isNotEmpty ? sourceLink : null;
-    notifyListeners();
-    await _repo.updateScoreSource(
-      score.id,
-      source: source,
-      sourceLink: sourceLink,
-    );
-  }
-
-  void showField(ScoreField field) {
-    if (!_fields.show(field)) return;
-    notifyListeners();
-  }
-
-  Future<void> removeField(ScoreField field) async {
-    _fields.remove(field);
+  @override
+  Future<void> clearField(ScoreField field) async {
     switch (field) {
       case ScoreField.arranger:
         form.control(formArranger).value = "";
+      case ScoreField.partOf:
+        form.control(formPartOf).value = "";
       case ScoreField.source:
         await setSource("", "");
       case ScoreField.difficulty:
@@ -167,43 +134,47 @@ class EditScoreFormViewModel extends ChangeNotifier {
       case ScoreField.composer || ScoreField.instruments || ScoreField.tags:
         break;
     }
-    notifyListeners();
   }
 
-  bool _isFilled(ScoreField field) => switch (field) {
-    ScoreField.arranger => hasArranger,
-    ScoreField.source => _source != null,
-    ScoreField.difficulty => _difficulty != null,
+  @override
+  bool isFilled(ScoreField field) => switch (field) {
+    ScoreField.arranger => formValue(formArranger).isNotEmpty,
+    ScoreField.partOf => formValue(formPartOf).isNotEmpty,
+    ScoreField.source => hasSource,
+    ScoreField.difficulty => difficulty != null,
     ScoreField.genres => _genres.isNotEmpty,
-    ScoreField.notes => hasNotes,
+    ScoreField.notes => formValue(formNotes).isNotEmpty,
     _ => false,
   };
 
-  void _showFilledFields() => _fields.showWhere(_isFilled);
+  @override
+  bool get canPersist => !_editScoreViewModel.deleted;
 
-  Future<void> setDifficulty(Difficulty? difficulty) async {
-    if (_difficulty == difficulty) return;
-    _difficulty = difficulty;
-    notifyListeners();
-    await _repo.updateScoreDifficulty(score.id, difficulty);
-  }
+  @override
+  Future<void> persistValues() => _repo.updateScore(
+    _score.id,
+    title: formValue(formTitle),
+    composer: formValue(formComposer),
+    arranger: formValue(formArranger),
+    partOf: formValue(formPartOf),
+    notes: formValue(formNotes),
+  );
 
-  Future<void> addTags(Iterable<Tag> tags) async {
-    _tags.addAll(tags);
-    notifyListeners();
-    await _repo.addScoreTags(score.id, tags.map((t) => t.id));
-  }
+  @override
+  Future<void> persistSource(String source, String sourceLink) =>
+      _repo.updateScoreSource(score.id, source: source, sourceLink: sourceLink);
 
-  Future<void> removeTag(Tag tag) async {
-    _tags.remove(tag);
-    notifyListeners();
-    await _repo.removeScoreTag(score.id, tag.id);
-  }
+  @override
+  Future<void> persistDifficulty(Difficulty? difficulty) =>
+      _repo.updateScoreDifficulty(score.id, difficulty);
 
-  void setTags(Iterable<Tag> tags) {
-    _tags = SplayTreeSet.of(tags, _byName);
-    notifyListeners();
-  }
+  @override
+  Future<void> persistAddTags(Iterable<Tag> tags) =>
+      _repo.addScoreTags(score.id, tags.map((t) => t.id));
+
+  @override
+  Future<void> persistRemoveTag(Tag tag) =>
+      _repo.removeScoreTag(score.id, tag.id);
 
   Future<Iterable<String>> getInstruments({String filter = ""}) async {
     return await _repo.getInstruments(
@@ -217,38 +188,8 @@ class EditScoreFormViewModel extends ChangeNotifier {
     return await _repo.getGenres(filter: filter, size: 10, exclude: genres);
   }
 
-  List<String>? _composers;
-
-  Future<Iterable<String>> getComposers({String filter = ""}) async {
-    _composers ??= await _repo.getComposers();
-    filter = filter.toLowerCase();
-    return _composers!
-        .where((element) => element.toLowerCase().contains(filter))
-        .take(10);
-  }
-
-  List<String>? _arrangers;
-
-  Future<Iterable<String>> getArrangers({String filter = ""}) async {
-    _arrangers ??= await _repo.getArrangers();
-    filter = filter.toLowerCase();
-    return _arrangers!
-        .where((element) => element.toLowerCase().contains(filter))
-        .take(10);
-  }
-
-  List<String>? _sources;
-
-  Future<Iterable<String>> getSources({String filter = ""}) async {
-    _sources ??= await _repo.getSources();
-    filter = filter.toLowerCase();
-    return _sources!
-        .where((element) => element.toLowerCase().contains(filter))
-        .take(10);
-  }
-
   Future<void> reloadScore() async {
-    await _saveValues(form.value);
+    await saveValues();
     await _loadScore();
   }
 
@@ -258,11 +199,12 @@ class EditScoreFormViewModel extends ChangeNotifier {
       _score = _editScoreViewModel.score!;
       // tags need to be updated because they might have been edited outside of
       // this view model, e.g. in the edit tags dialog
-      _tags = SplayTreeSet.of(score.tags, _byName);
-      _source = _score.source;
-      _sourceLink = _score.sourceLink;
-      _difficulty = _score.difficulty;
-      _showFilledFields();
+      syncMetadata(
+        tags: _score.tags,
+        source: _score.source,
+        sourceLink: _score.sourceLink,
+        difficulty: _score.difficulty,
+      );
       notifyListeners();
       return;
     }
@@ -271,54 +213,34 @@ class EditScoreFormViewModel extends ChangeNotifier {
   }
 
   Future<void> _loadScore() async {
-    _composers = null;
-    _arrangers = null;
-    _sources = null;
+    composerOptions.reset();
+    arrangerOptions.reset();
+    partOfOptions.reset();
+    sourceOptions.reset();
     _score = _editScoreViewModel.score!;
-    _source = _score.source;
-    _sourceLink = _score.sourceLink;
-    _difficulty = _score.difficulty;
     form.updateValue({
       formTitle: _score.title,
       formComposer: _score.composer ?? "",
       formArranger: _score.arranger ?? "",
+      formPartOf: _score.partOf ?? "",
+      formSource: _score.source ?? "",
       formNotes: _score.notes ?? "",
     });
     _instruments = SplayTreeSet.of(score.instruments);
     _genres = SplayTreeSet.of(score.genres);
-    _tags = SplayTreeSet.of(score.tags, _byName);
-    _fields.clear();
-    _showFilledFields();
+    loadMetadata(
+      tags: _score.tags,
+      source: _score.source,
+      sourceLink: _score.sourceLink,
+      difficulty: _score.difficulty,
+    );
 
     notifyListeners();
   }
 
-  Timer? _valuesDebounce;
-  static const _valuesDebounceDuration = Duration(milliseconds: 250);
-
-  Future<void> _onValuesChanged(Map<String, dynamic> values) async {
-    _valuesDebounce?.cancel();
-    _valuesDebounce = Timer(_valuesDebounceDuration, () => _saveValues(values));
-  }
-
-  Future<void> _saveValues(Map<String, dynamic> values) async {
-    if (_valuesDebounce == null) return;
-    _valuesDebounce!.cancel();
-    _valuesDebounce = null;
-    await _repo.updateScore(
-      _score.id,
-      title: values[formTitle].trim(),
-      composer: (values[formComposer] ?? "").trim(),
-      arranger: (values[formArranger] ?? "").trim(),
-      notes: (values[formNotes] ?? "").trim(),
-    );
-  }
-
   @override
   void dispose() {
-    _saveValues(form.value);
     _editScoreViewModel.removeListener(_onScoreChanged);
-    _valueSub?.cancel();
     super.dispose();
   }
 }

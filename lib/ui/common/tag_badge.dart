@@ -14,7 +14,6 @@ class TagBadge extends StatelessWidget {
   final Tag tag;
   final bool tooltip;
   final bool compact;
-  final void Function()? onTap;
   final void Function()? onRemove;
 
   const TagBadge({
@@ -22,7 +21,6 @@ class TagBadge extends StatelessWidget {
     required this.tag,
     this.tooltip = true,
     this.compact = false,
-    this.onTap,
     this.onRemove,
   });
 
@@ -33,7 +31,6 @@ class TagBadge extends StatelessWidget {
       color: tag.color,
       tooltip: tooltip,
       compact: compact,
-      onTap: onTap,
       onRemove: onRemove,
     );
   }

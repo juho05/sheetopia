@@ -218,6 +218,7 @@ void main() {
     );
     expect(rows, hasLength(2));
     expect(rows.every((row) => !row.selected), isTrue);
+    expect(rows.map((row) => row.title), contains("No category"));
   });
 
   testWidgets("the bulk menu adds the selection to a routine", (tester) async {

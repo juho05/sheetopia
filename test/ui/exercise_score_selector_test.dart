@@ -26,6 +26,7 @@ void main() {
     title: title,
     composer: null,
     arranger: null,
+    partOf: null,
     source: null,
     sourceLink: null,
     notes: null,

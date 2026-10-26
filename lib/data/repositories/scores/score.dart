@@ -17,6 +17,7 @@ class Score {
   final String title;
   final String? composer;
   final String? arranger;
+  final String? partOf;
   final String? source;
   final String? sourceLink;
   final String? notes;
@@ -40,6 +41,7 @@ class Score {
     required this.title,
     required this.composer,
     required this.arranger,
+    required this.partOf,
     required this.source,
     required this.sourceLink,
     required this.notes,
@@ -62,6 +64,7 @@ class Score {
     title: title ?? this.title,
     composer: composer,
     arranger: arranger,
+    partOf: partOf,
     source: source,
     sourceLink: sourceLink,
     notes: notes,

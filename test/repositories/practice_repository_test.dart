@@ -235,6 +235,13 @@ void main() {
       unorderedEquals(["Easy", "Hard"]),
     );
     expect(await repo.countExercises(difficulties: [Difficulty.easy]), 1);
+    expect(
+      (await repo.getExercises(
+        size: 10,
+        difficulties: [null, Difficulty.easy],
+      )).map((e) => e.name),
+      unorderedEquals(["Easy", "None"]),
+    );
   });
 
   test("empty values are stored as null", () async {
