@@ -49,6 +49,14 @@ class Scores extends Table with TableInfo<Scores, ScoresData> {
     requiredDuringInsert: false,
     $customConstraints: 'NULL',
   );
+  late final GeneratedColumn<String> musicalKey = GeneratedColumn<String>(
+    'musical_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
+  );
   late final GeneratedColumn<int> difficulty = GeneratedColumn<int>(
     'difficulty',
     aliasedName,
@@ -213,6 +221,7 @@ class Scores extends Table with TableInfo<Scores, ScoresData> {
     composer,
     arranger,
     partOf,
+    musicalKey,
     difficulty,
     source,
     sourceLink,
@@ -262,6 +271,10 @@ class Scores extends Table with TableInfo<Scores, ScoresData> {
       partOf: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}part_of'],
+      ),
+      musicalKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}musical_key'],
       ),
       difficulty: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -355,6 +368,7 @@ class ScoresData extends DataClass implements Insertable<ScoresData> {
   final String? composer;
   final String? arranger;
   final String? partOf;
+  final String? musicalKey;
   final int? difficulty;
   final String? source;
   final String? sourceLink;
@@ -379,6 +393,7 @@ class ScoresData extends DataClass implements Insertable<ScoresData> {
     this.composer,
     this.arranger,
     this.partOf,
+    this.musicalKey,
     this.difficulty,
     this.source,
     this.sourceLink,
@@ -411,6 +426,9 @@ class ScoresData extends DataClass implements Insertable<ScoresData> {
     }
     if (!nullToAbsent || partOf != null) {
       map['part_of'] = Variable<String>(partOf);
+    }
+    if (!nullToAbsent || musicalKey != null) {
+      map['musical_key'] = Variable<String>(musicalKey);
     }
     if (!nullToAbsent || difficulty != null) {
       map['difficulty'] = Variable<int>(difficulty);
@@ -457,6 +475,9 @@ class ScoresData extends DataClass implements Insertable<ScoresData> {
       partOf: partOf == null && nullToAbsent
           ? const Value.absent()
           : Value(partOf),
+      musicalKey: musicalKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(musicalKey),
       difficulty: difficulty == null && nullToAbsent
           ? const Value.absent()
           : Value(difficulty),
@@ -500,6 +521,7 @@ class ScoresData extends DataClass implements Insertable<ScoresData> {
       composer: serializer.fromJson<String?>(json['composer']),
       arranger: serializer.fromJson<String?>(json['arranger']),
       partOf: serializer.fromJson<String?>(json['partOf']),
+      musicalKey: serializer.fromJson<String?>(json['musicalKey']),
       difficulty: serializer.fromJson<int?>(json['difficulty']),
       source: serializer.fromJson<String?>(json['source']),
       sourceLink: serializer.fromJson<String?>(json['sourceLink']),
@@ -529,6 +551,7 @@ class ScoresData extends DataClass implements Insertable<ScoresData> {
       'composer': serializer.toJson<String?>(composer),
       'arranger': serializer.toJson<String?>(arranger),
       'partOf': serializer.toJson<String?>(partOf),
+      'musicalKey': serializer.toJson<String?>(musicalKey),
       'difficulty': serializer.toJson<int?>(difficulty),
       'source': serializer.toJson<String?>(source),
       'sourceLink': serializer.toJson<String?>(sourceLink),
@@ -556,6 +579,7 @@ class ScoresData extends DataClass implements Insertable<ScoresData> {
     Value<String?> composer = const Value.absent(),
     Value<String?> arranger = const Value.absent(),
     Value<String?> partOf = const Value.absent(),
+    Value<String?> musicalKey = const Value.absent(),
     Value<int?> difficulty = const Value.absent(),
     Value<String?> source = const Value.absent(),
     Value<String?> sourceLink = const Value.absent(),
@@ -580,6 +604,7 @@ class ScoresData extends DataClass implements Insertable<ScoresData> {
     composer: composer.present ? composer.value : this.composer,
     arranger: arranger.present ? arranger.value : this.arranger,
     partOf: partOf.present ? partOf.value : this.partOf,
+    musicalKey: musicalKey.present ? musicalKey.value : this.musicalKey,
     difficulty: difficulty.present ? difficulty.value : this.difficulty,
     source: source.present ? source.value : this.source,
     sourceLink: sourceLink.present ? sourceLink.value : this.sourceLink,
@@ -607,6 +632,7 @@ class ScoresData extends DataClass implements Insertable<ScoresData> {
           ..write('composer: $composer, ')
           ..write('arranger: $arranger, ')
           ..write('partOf: $partOf, ')
+          ..write('musicalKey: $musicalKey, ')
           ..write('difficulty: $difficulty, ')
           ..write('source: $source, ')
           ..write('sourceLink: $sourceLink, ')
@@ -636,6 +662,7 @@ class ScoresData extends DataClass implements Insertable<ScoresData> {
     composer,
     arranger,
     partOf,
+    musicalKey,
     difficulty,
     source,
     sourceLink,
@@ -664,6 +691,7 @@ class ScoresData extends DataClass implements Insertable<ScoresData> {
           other.composer == this.composer &&
           other.arranger == this.arranger &&
           other.partOf == this.partOf &&
+          other.musicalKey == this.musicalKey &&
           other.difficulty == this.difficulty &&
           other.source == this.source &&
           other.sourceLink == this.sourceLink &&
@@ -690,6 +718,7 @@ class ScoresCompanion extends UpdateCompanion<ScoresData> {
   final Value<String?> composer;
   final Value<String?> arranger;
   final Value<String?> partOf;
+  final Value<String?> musicalKey;
   final Value<int?> difficulty;
   final Value<String?> source;
   final Value<String?> sourceLink;
@@ -714,6 +743,7 @@ class ScoresCompanion extends UpdateCompanion<ScoresData> {
     this.composer = const Value.absent(),
     this.arranger = const Value.absent(),
     this.partOf = const Value.absent(),
+    this.musicalKey = const Value.absent(),
     this.difficulty = const Value.absent(),
     this.source = const Value.absent(),
     this.sourceLink = const Value.absent(),
@@ -739,6 +769,7 @@ class ScoresCompanion extends UpdateCompanion<ScoresData> {
     this.composer = const Value.absent(),
     this.arranger = const Value.absent(),
     this.partOf = const Value.absent(),
+    this.musicalKey = const Value.absent(),
     this.difficulty = const Value.absent(),
     this.source = const Value.absent(),
     this.sourceLink = const Value.absent(),
@@ -772,6 +803,7 @@ class ScoresCompanion extends UpdateCompanion<ScoresData> {
     Expression<String>? composer,
     Expression<String>? arranger,
     Expression<String>? partOf,
+    Expression<String>? musicalKey,
     Expression<int>? difficulty,
     Expression<String>? source,
     Expression<String>? sourceLink,
@@ -797,6 +829,7 @@ class ScoresCompanion extends UpdateCompanion<ScoresData> {
       if (composer != null) 'composer': composer,
       if (arranger != null) 'arranger': arranger,
       if (partOf != null) 'part_of': partOf,
+      if (musicalKey != null) 'musical_key': musicalKey,
       if (difficulty != null) 'difficulty': difficulty,
       if (source != null) 'source': source,
       if (sourceLink != null) 'source_link': sourceLink,
@@ -824,6 +857,7 @@ class ScoresCompanion extends UpdateCompanion<ScoresData> {
     Value<String?>? composer,
     Value<String?>? arranger,
     Value<String?>? partOf,
+    Value<String?>? musicalKey,
     Value<int?>? difficulty,
     Value<String?>? source,
     Value<String?>? sourceLink,
@@ -849,6 +883,7 @@ class ScoresCompanion extends UpdateCompanion<ScoresData> {
       composer: composer ?? this.composer,
       arranger: arranger ?? this.arranger,
       partOf: partOf ?? this.partOf,
+      musicalKey: musicalKey ?? this.musicalKey,
       difficulty: difficulty ?? this.difficulty,
       source: source ?? this.source,
       sourceLink: sourceLink ?? this.sourceLink,
@@ -887,6 +922,9 @@ class ScoresCompanion extends UpdateCompanion<ScoresData> {
     }
     if (partOf.present) {
       map['part_of'] = Variable<String>(partOf.value);
+    }
+    if (musicalKey.present) {
+      map['musical_key'] = Variable<String>(musicalKey.value);
     }
     if (difficulty.present) {
       map['difficulty'] = Variable<int>(difficulty.value);
@@ -953,6 +991,7 @@ class ScoresCompanion extends UpdateCompanion<ScoresData> {
           ..write('composer: $composer, ')
           ..write('arranger: $arranger, ')
           ..write('partOf: $partOf, ')
+          ..write('musicalKey: $musicalKey, ')
           ..write('difficulty: $difficulty, ')
           ..write('source: $source, ')
           ..write('sourceLink: $sourceLink, ')

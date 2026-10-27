@@ -18,6 +18,7 @@ class ScoreMetadataModel {
   final String? composer;
   final String? arranger;
   final String? partOf;
+  final String? musicalKey;
   final String? source;
   final String? sourceLink;
   final String? notes;
@@ -30,6 +31,7 @@ class ScoreMetadataModel {
     required this.composer,
     required this.arranger,
     required this.partOf,
+    required this.musicalKey,
     required this.source,
     required this.sourceLink,
     required this.notes,

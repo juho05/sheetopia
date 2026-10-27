@@ -568,6 +568,7 @@ void main() {
     String id = scoreId,
     String? arranger = "",
     String? partOf = "",
+    String? musicalKey = "",
     int? difficulty = 0,
   }) {
     return ScoreModel(
@@ -582,6 +583,7 @@ void main() {
         composer: "",
         arranger: arranger,
         partOf: partOf,
+        musicalKey: musicalKey,
         source: "",
         sourceLink: "",
         notes: "",
@@ -593,38 +595,17 @@ void main() {
     );
   }
 
-  test("a downloaded score applies arranger, part of and difficulty", () async {
-    await createScore();
-    service.scores = [
-      remoteScore(arranger: "Busoni", partOf: "Partita", difficulty: 5),
-    ];
-
-    await syncAndWait();
-
-    final score = await db.managers.scoresTable
-        .filter((f) => f.id(scoreId))
-        .getSingle();
-    expect(score.arranger, "Busoni");
-    expect(score.partOf, "Partita");
-    expect(score.difficulty, 5);
-    expect(score.searchText, " title busoni partita ");
-  });
-
   test(
-    "a score from a client without arranger, part of and difficulty keeps them",
+    "a downloaded score applies arranger, part of, key and difficulty",
     () async {
       await createScore();
-      await db.managers.scoresTable
-          .filter((f) => f.id(scoreId))
-          .update(
-            (o) => o(
-              arranger: const Value("Busoni"),
-              partOf: const Value("Partita"),
-              difficulty: const Value(2),
-            ),
-          );
       service.scores = [
-        remoteScore(arranger: null, partOf: null, difficulty: null),
+        remoteScore(
+          arranger: "Busoni",
+          partOf: "Partita",
+          musicalKey: "Dm",
+          difficulty: 5,
+        ),
       ];
 
       await syncAndWait();
@@ -634,6 +615,43 @@ void main() {
           .getSingle();
       expect(score.arranger, "Busoni");
       expect(score.partOf, "Partita");
+      expect(score.musicalKey, "Dm");
+      expect(score.difficulty, 5);
+      expect(score.searchText, " title busoni partita ");
+    },
+  );
+
+  test(
+    "a score from a client without arranger, part of, key and difficulty keeps them",
+    () async {
+      await createScore();
+      await db.managers.scoresTable
+          .filter((f) => f.id(scoreId))
+          .update(
+            (o) => o(
+              arranger: const Value("Busoni"),
+              partOf: const Value("Partita"),
+              musicalKey: const Value("Dm"),
+              difficulty: const Value(2),
+            ),
+          );
+      service.scores = [
+        remoteScore(
+          arranger: null,
+          partOf: null,
+          musicalKey: null,
+          difficulty: null,
+        ),
+      ];
+
+      await syncAndWait();
+
+      final score = await db.managers.scoresTable
+          .filter((f) => f.id(scoreId))
+          .getSingle();
+      expect(score.arranger, "Busoni");
+      expect(score.partOf, "Partita");
+      expect(score.musicalKey, "Dm");
       expect(score.difficulty, 2);
       expect(score.searchText, " title busoni partita ");
     },

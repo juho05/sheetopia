@@ -5,8 +5,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-import 'package:material_ui/material_ui.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/ui/common/heading.dart';
 import 'package:sheetopia/ui/common/surface.dart';
 
@@ -16,7 +16,6 @@ class SectionCard extends StatelessWidget {
   final EdgeInsets padding;
   final Widget child;
 
-  /// Adds an arrow next to the title.
   final void Function()? onTap;
 
   const SectionCard({
@@ -28,8 +27,6 @@ class SectionCard extends StatelessWidget {
     required this.child,
   });
 
-  /// gap between header buttons and the card corner, so the buttons keep a
-  /// full size touch target without making the header taller
   static const double _buttonInset = 4;
 
   @override

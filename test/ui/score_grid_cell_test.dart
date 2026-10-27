@@ -36,6 +36,7 @@ void main() {
       composer: "Composer",
       arranger: arranger,
       partOf: null,
+      musicalKey: null,
       source: "Source",
       sourceLink: "https://example.com",
       notes: null,

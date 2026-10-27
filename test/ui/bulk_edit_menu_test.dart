@@ -16,6 +16,7 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/difficulty.dart';
+import 'package:sheetopia/data/repositories/scores/musical_key.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
@@ -273,5 +274,34 @@ void main() {
 
     expect((await repo.getScore("a"))!.difficulty, Difficulty.hard);
     expect((await repo.getScore("b"))!.difficulty, Difficulty.hard);
+  });
+
+  testWidgets("the metadata dialog sets and clears the key", (tester) async {
+    await insertScore("a");
+    await insertScore("b");
+    selected = ["a", "b"];
+    await pumpMenu(tester);
+
+    await pickField(tester, "Key");
+    await tester.tap(find.byTooltip("Mode"));
+    await settle(tester);
+    await tester.tap(find.text("Minor").last);
+    await settle(tester);
+    await tester.tap(find.byTooltip("Tonic"));
+    await settle(tester);
+    await tester.tap(find.text("F\u266F/G\u266D").last);
+    await settle(tester);
+    await tester.tap(find.text("Update"));
+    await settle(tester);
+
+    const fSharpMinor = MusicalKey("F#", minor: true);
+    expect((await repo.getScore("a"))!.musicalKey, fSharpMinor);
+    expect((await repo.getScore("b"))!.musicalKey, fSharpMinor);
+
+    await pickField(tester, "Key");
+    await tester.tap(find.text("Clear"));
+    await settle(tester);
+
+    expect((await repo.getScore("a"))!.musicalKey, null);
   });
 }

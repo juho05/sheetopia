@@ -58,6 +58,17 @@ class $ScoresTableTable extends ScoresTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _musicalKeyMeta = const VerificationMeta(
+    'musicalKey',
+  );
+  @override
+  late final GeneratedColumn<String> musicalKey = GeneratedColumn<String>(
+    'musical_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _difficultyMeta = const VerificationMeta(
     'difficulty',
   );
@@ -278,6 +289,7 @@ class $ScoresTableTable extends ScoresTable
     composer,
     arranger,
     partOf,
+    musicalKey,
     difficulty,
     source,
     sourceLink,
@@ -338,6 +350,12 @@ class $ScoresTableTable extends ScoresTable
       context.handle(
         _partOfMeta,
         partOf.isAcceptableOrUnknown(data['part_of']!, _partOfMeta),
+      );
+    }
+    if (data.containsKey('musical_key')) {
+      context.handle(
+        _musicalKeyMeta,
+        musicalKey.isAcceptableOrUnknown(data['musical_key']!, _musicalKeyMeta),
       );
     }
     if (data.containsKey('difficulty')) {
@@ -481,6 +499,10 @@ class $ScoresTableTable extends ScoresTable
         DriftSqlType.string,
         data['${effectivePrefix}part_of'],
       ),
+      musicalKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}musical_key'],
+      ),
       difficulty: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}difficulty'],
@@ -581,6 +603,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
   final String? composer;
   final String? arranger;
   final String? partOf;
+  final String? musicalKey;
   final int? difficulty;
   final String? source;
   final String? sourceLink;
@@ -605,6 +628,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     this.composer,
     this.arranger,
     this.partOf,
+    this.musicalKey,
     this.difficulty,
     this.source,
     this.sourceLink,
@@ -637,6 +661,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     }
     if (!nullToAbsent || partOf != null) {
       map['part_of'] = Variable<String>(partOf);
+    }
+    if (!nullToAbsent || musicalKey != null) {
+      map['musical_key'] = Variable<String>(musicalKey);
     }
     if (!nullToAbsent || difficulty != null) {
       map['difficulty'] = Variable<int>(difficulty);
@@ -695,6 +722,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       partOf: partOf == null && nullToAbsent
           ? const Value.absent()
           : Value(partOf),
+      musicalKey: musicalKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(musicalKey),
       difficulty: difficulty == null && nullToAbsent
           ? const Value.absent()
           : Value(difficulty),
@@ -738,6 +768,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       composer: serializer.fromJson<String?>(json['composer']),
       arranger: serializer.fromJson<String?>(json['arranger']),
       partOf: serializer.fromJson<String?>(json['partOf']),
+      musicalKey: serializer.fromJson<String?>(json['musicalKey']),
       difficulty: serializer.fromJson<int?>(json['difficulty']),
       source: serializer.fromJson<String?>(json['source']),
       sourceLink: serializer.fromJson<String?>(json['sourceLink']),
@@ -775,6 +806,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       'composer': serializer.toJson<String?>(composer),
       'arranger': serializer.toJson<String?>(arranger),
       'partOf': serializer.toJson<String?>(partOf),
+      'musicalKey': serializer.toJson<String?>(musicalKey),
       'difficulty': serializer.toJson<int?>(difficulty),
       'source': serializer.toJson<String?>(source),
       'sourceLink': serializer.toJson<String?>(sourceLink),
@@ -808,6 +840,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     Value<String?> composer = const Value.absent(),
     Value<String?> arranger = const Value.absent(),
     Value<String?> partOf = const Value.absent(),
+    Value<String?> musicalKey = const Value.absent(),
     Value<int?> difficulty = const Value.absent(),
     Value<String?> source = const Value.absent(),
     Value<String?> sourceLink = const Value.absent(),
@@ -832,6 +865,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     composer: composer.present ? composer.value : this.composer,
     arranger: arranger.present ? arranger.value : this.arranger,
     partOf: partOf.present ? partOf.value : this.partOf,
+    musicalKey: musicalKey.present ? musicalKey.value : this.musicalKey,
     difficulty: difficulty.present ? difficulty.value : this.difficulty,
     source: source.present ? source.value : this.source,
     sourceLink: sourceLink.present ? sourceLink.value : this.sourceLink,
@@ -859,6 +893,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           ..write('composer: $composer, ')
           ..write('arranger: $arranger, ')
           ..write('partOf: $partOf, ')
+          ..write('musicalKey: $musicalKey, ')
           ..write('difficulty: $difficulty, ')
           ..write('source: $source, ')
           ..write('sourceLink: $sourceLink, ')
@@ -888,6 +923,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     composer,
     arranger,
     partOf,
+    musicalKey,
     difficulty,
     source,
     sourceLink,
@@ -916,6 +952,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           other.composer == this.composer &&
           other.arranger == this.arranger &&
           other.partOf == this.partOf &&
+          other.musicalKey == this.musicalKey &&
           other.difficulty == this.difficulty &&
           other.source == this.source &&
           other.sourceLink == this.sourceLink &&
@@ -942,6 +979,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
   final Value<String?> composer;
   final Value<String?> arranger;
   final Value<String?> partOf;
+  final Value<String?> musicalKey;
   final Value<int?> difficulty;
   final Value<String?> source;
   final Value<String?> sourceLink;
@@ -966,6 +1004,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.composer = const Value.absent(),
     this.arranger = const Value.absent(),
     this.partOf = const Value.absent(),
+    this.musicalKey = const Value.absent(),
     this.difficulty = const Value.absent(),
     this.source = const Value.absent(),
     this.sourceLink = const Value.absent(),
@@ -991,6 +1030,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.composer = const Value.absent(),
     this.arranger = const Value.absent(),
     this.partOf = const Value.absent(),
+    this.musicalKey = const Value.absent(),
     this.difficulty = const Value.absent(),
     this.source = const Value.absent(),
     this.sourceLink = const Value.absent(),
@@ -1020,6 +1060,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Expression<String>? composer,
     Expression<String>? arranger,
     Expression<String>? partOf,
+    Expression<String>? musicalKey,
     Expression<int>? difficulty,
     Expression<String>? source,
     Expression<String>? sourceLink,
@@ -1045,6 +1086,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       if (composer != null) 'composer': composer,
       if (arranger != null) 'arranger': arranger,
       if (partOf != null) 'part_of': partOf,
+      if (musicalKey != null) 'musical_key': musicalKey,
       if (difficulty != null) 'difficulty': difficulty,
       if (source != null) 'source': source,
       if (sourceLink != null) 'source_link': sourceLink,
@@ -1072,6 +1114,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Value<String?>? composer,
     Value<String?>? arranger,
     Value<String?>? partOf,
+    Value<String?>? musicalKey,
     Value<int?>? difficulty,
     Value<String?>? source,
     Value<String?>? sourceLink,
@@ -1097,6 +1140,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       composer: composer ?? this.composer,
       arranger: arranger ?? this.arranger,
       partOf: partOf ?? this.partOf,
+      musicalKey: musicalKey ?? this.musicalKey,
       difficulty: difficulty ?? this.difficulty,
       source: source ?? this.source,
       sourceLink: sourceLink ?? this.sourceLink,
@@ -1135,6 +1179,9 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     }
     if (partOf.present) {
       map['part_of'] = Variable<String>(partOf.value);
+    }
+    if (musicalKey.present) {
+      map['musical_key'] = Variable<String>(musicalKey.value);
     }
     if (difficulty.present) {
       map['difficulty'] = Variable<int>(difficulty.value);
@@ -1207,6 +1254,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
           ..write('composer: $composer, ')
           ..write('arranger: $arranger, ')
           ..write('partOf: $partOf, ')
+          ..write('musicalKey: $musicalKey, ')
           ..write('difficulty: $difficulty, ')
           ..write('source: $source, ')
           ..write('sourceLink: $sourceLink, ')
@@ -8888,6 +8936,7 @@ typedef $$ScoresTableTableCreateCompanionBuilder =
       Value<String?> composer,
       Value<String?> arranger,
       Value<String?> partOf,
+      Value<String?> musicalKey,
       Value<int?> difficulty,
       Value<String?> source,
       Value<String?> sourceLink,
@@ -8914,6 +8963,7 @@ typedef $$ScoresTableTableUpdateCompanionBuilder =
       Value<String?> composer,
       Value<String?> arranger,
       Value<String?> partOf,
+      Value<String?> musicalKey,
       Value<int?> difficulty,
       Value<String?> source,
       Value<String?> sourceLink,
@@ -9026,6 +9076,11 @@ class $$ScoresTableTableFilterComposer
 
   ColumnFilters<String> get partOf => $composableBuilder(
     column: $table.partOf,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get musicalKey => $composableBuilder(
+    column: $table.musicalKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9232,6 +9287,11 @@ class $$ScoresTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get musicalKey => $composableBuilder(
+    column: $table.musicalKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get difficulty => $composableBuilder(
     column: $table.difficulty,
     builder: (column) => ColumnOrderings(column),
@@ -9346,6 +9406,11 @@ class $$ScoresTableTableAnnotationComposer
 
   GeneratedColumn<String> get partOf =>
       $composableBuilder(column: $table.partOf, builder: (column) => column);
+
+  GeneratedColumn<String> get musicalKey => $composableBuilder(
+    column: $table.musicalKey,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get difficulty => $composableBuilder(
     column: $table.difficulty,
@@ -9538,6 +9603,7 @@ class $$ScoresTableTableTableManager
                 Value<String?> composer = const Value.absent(),
                 Value<String?> arranger = const Value.absent(),
                 Value<String?> partOf = const Value.absent(),
+                Value<String?> musicalKey = const Value.absent(),
                 Value<int?> difficulty = const Value.absent(),
                 Value<String?> source = const Value.absent(),
                 Value<String?> sourceLink = const Value.absent(),
@@ -9562,6 +9628,7 @@ class $$ScoresTableTableTableManager
                 composer: composer,
                 arranger: arranger,
                 partOf: partOf,
+                musicalKey: musicalKey,
                 difficulty: difficulty,
                 source: source,
                 sourceLink: sourceLink,
@@ -9588,6 +9655,7 @@ class $$ScoresTableTableTableManager
                 Value<String?> composer = const Value.absent(),
                 Value<String?> arranger = const Value.absent(),
                 Value<String?> partOf = const Value.absent(),
+                Value<String?> musicalKey = const Value.absent(),
                 Value<int?> difficulty = const Value.absent(),
                 Value<String?> source = const Value.absent(),
                 Value<String?> sourceLink = const Value.absent(),
@@ -9612,6 +9680,7 @@ class $$ScoresTableTableTableManager
                 composer: composer,
                 arranger: arranger,
                 partOf: partOf,
+                musicalKey: musicalKey,
                 difficulty: difficulty,
                 source: source,
                 sourceLink: sourceLink,

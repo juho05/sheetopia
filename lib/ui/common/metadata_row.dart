@@ -228,6 +228,8 @@ class MetadataChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const radius = Radius.circular(14);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Wrap(
@@ -240,22 +242,30 @@ class MetadataChips extends StatelessWidget {
             Tooltip(
               message: addTooltip,
               child: DottedBorder(
-                options: CircularDottedBorderOptions(
+                options: RoundedRectDottedBorderOptions(
+                  radius: radius,
                   padding: EdgeInsets.zero,
                   strokeWidth: 2,
                   dashPattern: const [8, 4],
                   color: Color.lerp(
                     Surface.badgeOf(context),
-                    Theme.of(context).colorScheme.onSurface,
+                    theme.colorScheme.onSurface,
                     0.15,
                   )!,
                 ),
                 child: InkWell(
                   onTap: onAdd,
-                  customBorder: const CircleBorder(),
-                  child: const Padding(
-                    padding: EdgeInsets.all(6),
-                    child: Icon(Icons.add, size: 16),
+                  borderRadius: const BorderRadius.all(radius),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 6, 12, 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: 4,
+                      children: [
+                        const Icon(Icons.add, size: 14),
+                        Text("Add", style: theme.textTheme.bodySmall),
+                      ],
+                    ),
                   ),
                 ),
               ),

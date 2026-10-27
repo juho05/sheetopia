@@ -66,6 +66,16 @@
             "dsl_features": []
           },
           {
+            "name": "musical_key",
+            "getter_name": "musicalKey",
+            "moor_type": "string",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
             "name": "difficulty",
             "getter_name": "difficulty",
             "moor_type": "int",
@@ -2086,7 +2096,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"scores\" (\"id\" TEXT NOT NULL, \"title\" TEXT NOT NULL, \"composer\" TEXT NULL, \"arranger\" TEXT NULL, \"part_of\" TEXT NULL, \"difficulty\" INTEGER NULL, \"source\" TEXT NULL, \"source_link\" TEXT NULL, \"notes\" TEXT NULL, \"search_text\" TEXT NOT NULL, \"status\" TEXT NOT NULL DEFAULT 'created', \"recent_time\" TEXT NOT NULL GENERATED ALWAYS AS (MAX(last_opened, metadata_updated_at, file_updated_at)) VIRTUAL, \"last_opened\" TEXT NOT NULL, \"metadata_updated_at\" TEXT NOT NULL, \"file_updated_at\" TEXT NOT NULL, \"inserted_at\" TEXT NOT NULL, \"written_at\" TEXT NULL, \"metadata_uploaded\" INTEGER NOT NULL DEFAULT 0 CHECK (\"metadata_uploaded\" IN (0, 1)), \"file_uploaded\" INTEGER NOT NULL DEFAULT 0 CHECK (\"file_uploaded\" IN (0, 1)), \"file_downloaded\" INTEGER NOT NULL CHECK (\"file_downloaded\" IN (0, 1)), \"file_type\" TEXT NOT NULL, \"annotations\" TEXT NULL, \"type\" TEXT NOT NULL DEFAULT 'score', PRIMARY KEY (\"id\"));"
+          "sql": "CREATE TABLE IF NOT EXISTS \"scores\" (\"id\" TEXT NOT NULL, \"title\" TEXT NOT NULL, \"composer\" TEXT NULL, \"arranger\" TEXT NULL, \"part_of\" TEXT NULL, \"musical_key\" TEXT NULL, \"difficulty\" INTEGER NULL, \"source\" TEXT NULL, \"source_link\" TEXT NULL, \"notes\" TEXT NULL, \"search_text\" TEXT NOT NULL, \"status\" TEXT NOT NULL DEFAULT 'created', \"recent_time\" TEXT NOT NULL GENERATED ALWAYS AS (MAX(last_opened, metadata_updated_at, file_updated_at)) VIRTUAL, \"last_opened\" TEXT NOT NULL, \"metadata_updated_at\" TEXT NOT NULL, \"file_updated_at\" TEXT NOT NULL, \"inserted_at\" TEXT NOT NULL, \"written_at\" TEXT NULL, \"metadata_uploaded\" INTEGER NOT NULL DEFAULT 0 CHECK (\"metadata_uploaded\" IN (0, 1)), \"file_uploaded\" INTEGER NOT NULL DEFAULT 0 CHECK (\"file_uploaded\" IN (0, 1)), \"file_downloaded\" INTEGER NOT NULL CHECK (\"file_downloaded\" IN (0, 1)), \"file_type\" TEXT NOT NULL, \"annotations\" TEXT NULL, \"type\" TEXT NOT NULL DEFAULT 'score', PRIMARY KEY (\"id\"));"
         }
       ]
     },

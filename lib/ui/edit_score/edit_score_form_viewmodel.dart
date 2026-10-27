@@ -11,6 +11,7 @@ import 'dart:collection';
 import 'package:material_ui/material_ui.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:sheetopia/data/repositories/scores/difficulty.dart';
+import 'package:sheetopia/data/repositories/scores/musical_key.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
@@ -34,6 +35,10 @@ class EditScoreFormViewModel extends ChangeNotifier
   SplayTreeSet<String> _genres = SplayTreeSet();
 
   Iterable<String> get genres => _genres;
+
+  MusicalKey? _musicalKey;
+
+  MusicalKey? get musicalKey => _musicalKey;
 
   @override
   List<ScoreField> get optionalFields => ScoreField.formOptional;
@@ -108,6 +113,14 @@ class EditScoreFormViewModel extends ChangeNotifier
     await _repo.removeScoreGenres(score.id, [genre]);
   }
 
+  Future<void> setMusicalKey(MusicalKey? musicalKey) async {
+    if (_musicalKey == musicalKey) return;
+    _musicalKey = musicalKey;
+    notifyListeners();
+    if (!canPersist) return;
+    await _repo.updateScoreMusicalKey(score.id, musicalKey);
+  }
+
   Future<void> _clearGenres() async {
     if (_genres.isEmpty) return;
     final genres = List.of(_genres);
@@ -123,6 +136,8 @@ class EditScoreFormViewModel extends ChangeNotifier
         form.control(formArranger).value = "";
       case ScoreField.partOf:
         form.control(formPartOf).value = "";
+      case ScoreField.musicalKey:
+        await setMusicalKey(null);
       case ScoreField.source:
         await setSource("", "");
       case ScoreField.difficulty:
@@ -140,6 +155,7 @@ class EditScoreFormViewModel extends ChangeNotifier
   bool isFilled(ScoreField field) => switch (field) {
     ScoreField.arranger => formValue(formArranger).isNotEmpty,
     ScoreField.partOf => formValue(formPartOf).isNotEmpty,
+    ScoreField.musicalKey => _musicalKey != null,
     ScoreField.source => hasSource,
     ScoreField.difficulty => difficulty != null,
     ScoreField.genres => _genres.isNotEmpty,
@@ -197,6 +213,7 @@ class EditScoreFormViewModel extends ChangeNotifier
     if (_editScoreViewModel.score == null) return;
     if (_editScoreViewModel.score!.id == _score.id) {
       _score = _editScoreViewModel.score!;
+      _musicalKey = _score.musicalKey;
       // tags need to be updated because they might have been edited outside of
       // this view model, e.g. in the edit tags dialog
       syncMetadata(
@@ -228,6 +245,7 @@ class EditScoreFormViewModel extends ChangeNotifier
     });
     _instruments = SplayTreeSet.of(score.instruments);
     _genres = SplayTreeSet.of(score.genres);
+    _musicalKey = score.musicalKey;
     loadMetadata(
       tags: _score.tags,
       source: _score.source,

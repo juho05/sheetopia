@@ -27,6 +27,7 @@ void main() {
     composer: null,
     arranger: null,
     partOf: null,
+    musicalKey: null,
     source: null,
     sourceLink: null,
     notes: null,

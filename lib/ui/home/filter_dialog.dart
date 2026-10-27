@@ -12,6 +12,7 @@ import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/match_type_selector.dart';
 import 'package:sheetopia/ui/common/metadata_filter_dialog.dart';
 import 'package:sheetopia/ui/common/metadata_row.dart';
+import 'package:sheetopia/ui/common/musical_key.dart';
 import 'package:sheetopia/ui/common/score_field.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/common/text_filter_field.dart';
@@ -38,6 +39,7 @@ class FilterDialog extends StatelessWidget {
   bool _isFiltered(ScoreField field) => switch (field) {
     ScoreField.arranger => _viewModel.filterArranger.isNotEmpty,
     ScoreField.partOf => _viewModel.filterPartOf.isNotEmpty,
+    ScoreField.musicalKey => _viewModel.filterMusicalKeys.isNotEmpty,
     ScoreField.source => _viewModel.filterSource.isNotEmpty,
     ScoreField.difficulty => _viewModel.filterDifficulties.isNotEmpty,
     ScoreField.genres => _viewModel.filterGenres.isNotEmpty,
@@ -50,6 +52,8 @@ class FilterDialog extends StatelessWidget {
         _viewModel.filterArranger = "";
       case ScoreField.partOf:
         _viewModel.filterPartOf = "";
+      case ScoreField.musicalKey:
+        _viewModel.clearFilterMusicalKeys();
       case ScoreField.source:
         _viewModel.filterSource = "";
       case ScoreField.difficulty:
@@ -74,6 +78,17 @@ class FilterDialog extends StatelessWidget {
     );
     if (genre == null) return false;
     _viewModel.addFilterGenre(genre);
+    return true;
+  }
+
+  Future<bool> _selectMusicalKey(BuildContext context) async {
+    final musicalKey = await MusicalKeyDialog.show(
+      context,
+      title: "Select key",
+      submitBtnText: "Select",
+    );
+    if (musicalKey == null) return false;
+    _viewModel.addFilterMusicalKey(musicalKey);
     return true;
   }
 
@@ -125,6 +140,16 @@ class FilterDialog extends StatelessWidget {
         autofocus: autofocus,
         getOptions: (filter) => _viewModel.getPartOfs(filter: filter),
         onChanged: (value) => _viewModel.filterPartOf = value,
+      ),
+      ScoreField.musicalKey => MetadataChips(
+        chips: _viewModel.filterMusicalKeys.map(
+          (k) => CommonBadge(
+            name: k.label,
+            onRemove: () => _viewModel.removeFilterMusicalKey(k),
+          ),
+        ),
+        addTooltip: "Select key",
+        onAdd: () => _selectMusicalKey(context),
       ),
       ScoreField.source => TextFilterField(
         value: _viewModel.filterSource,
@@ -178,8 +203,11 @@ class FilterDialog extends StatelessWidget {
       buildValue: (field, autofocus) =>
           _fieldValueWidget(context, field, autofocus),
       trailing: _trailing,
-      onAdd: (field) async =>
-          field != ScoreField.genres || await _selectGenre(context),
+      onAdd: (field) => switch (field) {
+        ScoreField.genres => _selectGenre(context),
+        ScoreField.musicalKey => _selectMusicalKey(context),
+        _ => Future.value(true),
+      },
       clearField: _clearField,
     );
   }

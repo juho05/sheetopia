@@ -12,6 +12,7 @@ import datetime as dt
 import json
 import os
 import random
+import re
 import shutil
 import subprocess
 import sys
@@ -72,7 +73,18 @@ def iso(moment):
     return moment.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 
-def score_model(entry, strokes, score_type, source="", tags=(), genres=()):
+def musical_key(source):
+    with open(os.path.join(LY_DIR, f"{source}.ly")) as f:
+        match = re.search(r"\\key ([a-g])(is|es|s)? \\(major|minor)", f.read())
+    if not match:
+        return ""
+    tonic, accidental, mode = match.groups()
+    sign = "#" if accidental == "is" else "b" if accidental else ""
+    return tonic.upper() + sign + ("m" if mode == "minor" else "")
+
+
+def score_model(entry, strokes, score_type, source="", tags=(), genres=(),
+                key=""):
     return {
         "id": ident("score", entry["source"]),
         "title": entry["title"],
@@ -85,6 +97,7 @@ def score_model(entry, strokes, score_type, source="", tags=(), genres=()):
             "composer": entry.get("composer") or "",
             "arranger": "",
             "partOf": "",
+            "musicalKey": key,
             "source": source,
             "sourceLink": "",
             "notes": entry.get("notes") or "",
@@ -120,6 +133,7 @@ def build_metadata():
             source=entry.get("published_in") or "",
             tags=entry["tags"],
             genres=entry["genres"],
+            key=musical_key(entry["source"]),
         ))
     for entry in library.EXERCISE_SCORES:
         marks = entry.get("annotations")

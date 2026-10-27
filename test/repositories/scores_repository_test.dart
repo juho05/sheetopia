@@ -19,6 +19,7 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/logger/log_repository.dart';
 import 'package:sheetopia/data/repositories/scores/difficulty.dart';
+import 'package:sheetopia/data/repositories/scores/musical_key.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
@@ -436,6 +437,60 @@ void main() {
 
     expect(await repo.getScore("arrived"), isNotNull);
     expect(await db.managers.deletedScoresTable.get(), isEmpty);
+  });
+
+  test("a key is stored, filterable and cleared", () async {
+    await insertScore("a");
+    await insertScore("b");
+    await insertScore("c");
+
+    await repo.bulkEditScoreMusicalKey([
+      "a",
+    ], const MusicalKey("F#", minor: true));
+    await repo.updateScoreMusicalKey("b", const MusicalKey("A#"));
+
+    expect(
+      (await repo.getScore("a"))!.musicalKey,
+      const MusicalKey("F#", minor: true),
+    );
+    expect(
+      (await repo.getScoreIds(
+        musicalKeys: [const MusicalKey("F#", minor: true)],
+      )),
+      ["a"],
+    );
+    expect(
+      (await repo.getScoreIds(
+        musicalKeys: [const MusicalKey("F#"), const MusicalKey("A#")],
+      )),
+      ["b"],
+    );
+
+    await repo.bulkEditScoreMusicalKey(["a", "b"], null);
+
+    expect((await repo.getScore("a"))!.musicalKey, null);
+    expect(
+      await repo.getScoreIds(musicalKeys: [const MusicalKey("A#")]),
+      isEmpty,
+    );
+  });
+
+  test("a flat spelling reads as its sharp pair and matches it", () async {
+    await insertScore("a");
+    await db.managers.scoresTable
+        .filter((f) => f.id("a"))
+        .update((o) => o(musicalKey: const Value("Dbm")));
+
+    expect(
+      (await repo.getScore("a"))!.musicalKey,
+      const MusicalKey("C#", minor: true),
+    );
+    expect(
+      await repo.getScoreIds(
+        musicalKeys: [const MusicalKey("C#", minor: true)],
+      ),
+      ["a"],
+    );
   });
 
   test(

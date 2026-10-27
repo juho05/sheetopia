@@ -15,10 +15,9 @@ class ExercisesBulkEditMenuViewModel {
   List<String> _selectedExercises;
 
   ExercisesBulkEditMenuViewModel({
-    required PracticeRepository repo,
+    required this._repo,
     required Iterable<String> selectedExercises,
-  }) : _repo = repo,
-       _selectedExercises = selectedExercises.toList();
+  }) : _selectedExercises = selectedExercises.toList();
 
   void updateSelectedExercises(Iterable<String> selectedExercises) {
     _selectedExercises = selectedExercises.toList();

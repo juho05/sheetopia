@@ -21,6 +21,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/scores/difficulty.dart';
+import 'package:sheetopia/data/repositories/scores/musical_key.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
@@ -194,6 +195,7 @@ class ScoresRepository {
       composer: score.composer,
       arranger: score.arranger,
       partOf: score.partOf,
+      musicalKey: MusicalKey.parse(score.musicalKey),
       source: score.source,
       sourceLink: score.sourceLink,
       notes: score.notes,
@@ -319,6 +321,7 @@ class ScoresRepository {
     String composer,
     String arranger,
     String partOf,
+    Iterable<MusicalKey> musicalKeys,
     String source,
     Iterable<Difficulty?> difficulties,
     ScoreType? type,
@@ -337,6 +340,11 @@ class ScoresRepository {
     }
     if (partOf.isNotEmpty) {
       q.where(_db.scoresTable.partOf.equals(partOf));
+    }
+    if (musicalKeys.isNotEmpty) {
+      q.where(
+        _db.scoresTable.musicalKey.isIn(musicalKeys.expand((k) => k.spellings)),
+      );
     }
     if (difficulties.isNotEmpty) {
       final levels = difficulties.nonNulls.map((d) => d.level);
@@ -357,6 +365,7 @@ class ScoresRepository {
     String composer = "",
     String arranger = "",
     String partOf = "",
+    Iterable<MusicalKey> musicalKeys = const [],
     String source = "",
     Iterable<Difficulty?> difficulties = const [],
     ScoreType? type,
@@ -388,6 +397,7 @@ class ScoresRepository {
       composer,
       arranger,
       partOf,
+      musicalKeys,
       source,
       difficulties,
       type,
@@ -401,6 +411,7 @@ class ScoresRepository {
     String composer = "",
     String arranger = "",
     String partOf = "",
+    Iterable<MusicalKey> musicalKeys = const [],
     String source = "",
     Iterable<Difficulty?> difficulties = const [],
     ScoreType? type,
@@ -431,6 +442,7 @@ class ScoresRepository {
       composer,
       arranger,
       partOf,
+      musicalKeys,
       source,
       difficulties,
       type,
@@ -460,6 +472,7 @@ class ScoresRepository {
     String composer = "",
     String arranger = "",
     String partOf = "",
+    Iterable<MusicalKey> musicalKeys = const [],
     String source = "",
     Iterable<Difficulty?> difficulties = const [],
     ScoreType? type,
@@ -490,6 +503,7 @@ class ScoresRepository {
       composer,
       arranger,
       partOf,
+      musicalKeys,
       source,
       difficulties,
       type,
@@ -728,6 +742,33 @@ class ScoresRepository {
           .update(
             (o) => o(
               difficulty: Value(difficulty?.level),
+              metadataUpdatedAt: Value(DateTime.now().toUtc()),
+              metadataUploaded: const Value(false),
+            ),
+          );
+      await updateScoreStatus(scoreIds);
+    });
+    _updatedScoreIds.add((changed: scoreIds.toSet(), remoteTriggered: false));
+  }
+
+  Future<void> updateScoreMusicalKey(
+    String scoreId,
+    MusicalKey? musicalKey,
+  ) async {
+    await bulkEditScoreMusicalKey([scoreId], musicalKey);
+  }
+
+  Future<void> bulkEditScoreMusicalKey(
+    Iterable<String> scoreIds,
+    MusicalKey? musicalKey,
+  ) async {
+    if (scoreIds.isEmpty) return;
+    await _db.transaction(() async {
+      await _db.managers.scoresTable
+          .filter((f) => f.id.isIn(scoreIds))
+          .update(
+            (o) => o(
+              musicalKey: Value(musicalKey?.name),
               metadataUpdatedAt: Value(DateTime.now().toUtc()),
               metadataUploaded: const Value(false),
             ),
@@ -1258,6 +1299,7 @@ class ScoresRepository {
             composer: null,
             arranger: null,
             partOf: null,
+            musicalKey: null,
             source: null,
             sourceLink: null,
             notes: null,

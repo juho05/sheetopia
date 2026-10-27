@@ -87,6 +87,10 @@ class _BulkEditMenuState extends State<BulkEditMenu> {
           BulkInputKind.text,
           getOptions: (filter, _) => _viewModel.getPartOfs(filter: filter),
         ),
+        const BulkMetadataField(
+          ScoreField.musicalKey,
+          BulkInputKind.musicalKey,
+        ),
         BulkMetadataField(
           ScoreField.source,
           BulkInputKind.source,
@@ -125,6 +129,8 @@ class _BulkEditMenuState extends State<BulkEditMenu> {
         await _viewModel.editSource(source, sourceLink);
       case BulkDifficultyEdit(:final difficulty):
         await _viewModel.editDifficulty(difficulty);
+      case BulkMusicalKeyEdit(:final musicalKey):
+        await _viewModel.editMusicalKey(musicalKey);
       case BulkValuesEdit(field: ScoreField.genres, :final add, :final remove):
         await _viewModel.editGenres(add, remove);
       case BulkValuesEdit(:final add, :final remove):

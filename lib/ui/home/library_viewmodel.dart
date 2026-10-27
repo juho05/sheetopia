@@ -11,6 +11,7 @@ import 'dart:collection';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
+import 'package:sheetopia/data/repositories/scores/musical_key.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
@@ -51,6 +52,7 @@ class LibraryViewModel extends ChangeNotifier with FilterViewModel {
             composer: _filterComposer,
             arranger: _filterArranger,
             partOf: _filterPartOf,
+            musicalKeys: _filterMusicalKeys,
             source: filterSource,
             difficulties: filterDifficulties,
             tagIds: filterTags.map((t) => t.id),
@@ -93,6 +95,29 @@ class LibraryViewModel extends ChangeNotifier with FilterViewModel {
   set filterPartOf(String partOf) {
     if (_filterPartOf == partOf) return;
     _filterPartOf = partOf;
+    notifyListeners();
+    _reset();
+  }
+
+  final SplayTreeSet<MusicalKey> _filterMusicalKeys = SplayTreeSet();
+
+  Iterable<MusicalKey> get filterMusicalKeys => _filterMusicalKeys;
+
+  void addFilterMusicalKey(MusicalKey musicalKey) {
+    if (!_filterMusicalKeys.add(musicalKey)) return;
+    notifyListeners();
+    _reset();
+  }
+
+  void removeFilterMusicalKey(MusicalKey musicalKey) {
+    if (!_filterMusicalKeys.remove(musicalKey)) return;
+    notifyListeners();
+    _reset();
+  }
+
+  void clearFilterMusicalKeys() {
+    if (_filterMusicalKeys.isEmpty) return;
+    _filterMusicalKeys.clear();
     notifyListeners();
     _reset();
   }
@@ -201,6 +226,7 @@ class LibraryViewModel extends ChangeNotifier with FilterViewModel {
       composer: _filterComposer,
       arranger: _filterArranger,
       partOf: _filterPartOf,
+      musicalKeys: _filterMusicalKeys,
       source: filterSource,
       difficulties: filterDifficulties,
       tagIds: filterTags.map((t) => t.id),
@@ -219,6 +245,7 @@ class LibraryViewModel extends ChangeNotifier with FilterViewModel {
       composer: _filterComposer,
       arranger: _filterArranger,
       partOf: _filterPartOf,
+      musicalKeys: _filterMusicalKeys,
       source: filterSource,
       difficulties: filterDifficulties,
       tagIds: filterTags.map((t) => t.id),
@@ -315,6 +342,7 @@ class LibraryViewModel extends ChangeNotifier with FilterViewModel {
       _filterComposer.isNotEmpty ||
       _filterArranger.isNotEmpty ||
       _filterPartOf.isNotEmpty ||
+      _filterMusicalKeys.isNotEmpty ||
       _filterInstruments.isNotEmpty ||
       _filterGenres.isNotEmpty;
 
@@ -323,6 +351,7 @@ class LibraryViewModel extends ChangeNotifier with FilterViewModel {
     _filterComposer = "";
     _filterArranger = "";
     _filterPartOf = "";
+    _filterMusicalKeys.clear();
     _filterGenres.clear();
     _filterInstruments.clear();
     _genreMatch = FilterMatchType.any;

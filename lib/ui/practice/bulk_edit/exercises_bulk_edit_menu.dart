@@ -106,7 +106,7 @@ class _ExercisesBulkEditMenuState extends State<ExercisesBulkEditMenu> {
         await _viewModel.editTags(addIds.toSet(), removeIds.toSet());
       case BulkDifficultyEdit(:final difficulty):
         await _viewModel.editDifficulty(difficulty);
-      case BulkValuesEdit():
+      case BulkValuesEdit() || BulkMusicalKeyEdit():
         return;
     }
     Toast.show(

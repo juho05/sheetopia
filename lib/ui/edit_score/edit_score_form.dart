@@ -12,6 +12,7 @@ import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/metadata_form.dart';
 import 'package:sheetopia/ui/common/metadata_row.dart';
+import 'package:sheetopia/ui/common/musical_key.dart';
 import 'package:sheetopia/ui/common/score_field.dart';
 import 'package:sheetopia/ui/edit_score/auto_complete_input_dialog.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_form_viewmodel.dart';
@@ -90,6 +91,11 @@ class EditScoreForm extends StatelessWidget {
           formControlName: EditScoreFormViewModel.formPartOf,
           focusNode: focusNode,
           getOptions: viewModel.partOfOptions.get,
+        );
+      case ScoreField.musicalKey:
+        return MusicalKeySelector(
+          value: viewModel.musicalKey,
+          onChanged: viewModel.setMusicalKey,
         );
       case ScoreField.instruments:
         return MetadataChips(

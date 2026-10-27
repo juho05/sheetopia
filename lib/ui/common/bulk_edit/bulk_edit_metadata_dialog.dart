@@ -11,6 +11,7 @@ import 'dart:collection';
 import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/practice/exercise_category.dart';
 import 'package:sheetopia/data/repositories/scores/difficulty.dart';
+import 'package:sheetopia/data/repositories/scores/musical_key.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/ui/common/auto_complete_field.dart';
@@ -18,6 +19,7 @@ import 'package:sheetopia/ui/common/common_badge.dart';
 import 'package:sheetopia/ui/common/difficulty.dart';
 import 'package:sheetopia/ui/common/metadata_field.dart';
 import 'package:sheetopia/ui/common/metadata_row.dart';
+import 'package:sheetopia/ui/common/musical_key.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/common/source_value.dart';
 import 'package:sheetopia/ui/common/tag_selector.dart';
@@ -27,7 +29,15 @@ import 'package:sheetopia/ui/practice/category_selector.dart';
 typedef GetOptions =
     Future<Iterable<String>> Function(String filter, Iterable<String> exclude);
 
-enum BulkInputKind { text, source, difficulty, valueList, tags, category }
+enum BulkInputKind {
+  text,
+  source,
+  difficulty,
+  musicalKey,
+  valueList,
+  tags,
+  category,
+}
 
 class BulkMetadataField {
   final MetadataField field;
@@ -73,6 +83,14 @@ class BulkDifficultyEdit extends BulkMetadataEdit {
   final Difficulty? difficulty;
 
   BulkDifficultyEdit(this.field, this.difficulty);
+}
+
+class BulkMusicalKeyEdit extends BulkMetadataEdit {
+  @override
+  final MetadataField field;
+  final MusicalKey? musicalKey;
+
+  BulkMusicalKeyEdit(this.field, this.musicalKey);
 }
 
 class BulkValuesEdit extends BulkMetadataEdit {
@@ -130,6 +148,7 @@ class _BulkEditMetadataDialogState extends State<BulkEditMetadataDialog> {
   final _textFocus = FocusNode();
   String _link = "";
   Difficulty? _difficulty;
+  MusicalKey? _musicalKey;
   bool _categoryChosen = false;
   ExerciseCategory? _category;
   final SplayTreeSet<String> _addValues = SplayTreeSet();
@@ -163,6 +182,7 @@ class _BulkEditMetadataDialogState extends State<BulkEditMetadataDialog> {
       _textController.clear();
       _link = "";
       _difficulty = null;
+      _musicalKey = null;
       _categoryChosen = false;
       _category = null;
       _addValues.clear();
@@ -189,6 +209,7 @@ class _BulkEditMetadataDialogState extends State<BulkEditMetadataDialog> {
         _text.isEmpty ? "" : _link,
       ),
       BulkInputKind.difficulty => BulkDifficultyEdit(field.field, _difficulty),
+      BulkInputKind.musicalKey => BulkMusicalKeyEdit(field.field, _musicalKey),
       BulkInputKind.valueList =>
         _addValues.isEmpty && _removeValues.isEmpty
             ? null
@@ -214,6 +235,7 @@ class _BulkEditMetadataDialogState extends State<BulkEditMetadataDialog> {
     BulkTextEdit(:final value) => value.isEmpty,
     BulkSourceEdit(:final source) => source.isEmpty,
     BulkDifficultyEdit(:final difficulty) => difficulty == null,
+    BulkMusicalKeyEdit(:final musicalKey) => musicalKey == null,
     BulkCategoryEdit(:final category) => category == null,
     _ => false,
   };
@@ -312,6 +334,13 @@ class _BulkEditMetadataDialogState extends State<BulkEditMetadataDialog> {
           DifficultySelector(
             value: _difficulty,
             onChanged: (value) => setState(() => _difficulty = value),
+          ),
+        ];
+      case BulkInputKind.musicalKey:
+        return [
+          MusicalKeySelector(
+            value: _musicalKey,
+            onChanged: (value) => setState(() => _musicalKey = value),
           ),
         ];
       case BulkInputKind.category:

@@ -7,6 +7,7 @@
  */
 
 import 'package:sheetopia/data/repositories/scores/difficulty.dart';
+import 'package:sheetopia/data/repositories/scores/musical_key.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 
@@ -44,6 +45,10 @@ class BulkEditMenuViewModel {
 
   Future<void> editDifficulty(Difficulty? difficulty) async {
     await _repo.bulkEditScoreDifficulty(_selectedScores, difficulty);
+  }
+
+  Future<void> editMusicalKey(MusicalKey? musicalKey) async {
+    await _repo.bulkEditScoreMusicalKey(_selectedScores, musicalKey);
   }
 
   Future<void> editSource(String source, String sourceLink) async {

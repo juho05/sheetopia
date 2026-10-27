@@ -60,6 +60,12 @@ Future<void> main() async {
     );
     yield LicenseEntryWithLineBreaks(["Roboto"], license);
   });
+  LicenseRegistry.addLicense(() async* {
+    final license = await rootBundle.loadString(
+      "assets/fonts/NotoSansSymbols_LICENSE.txt",
+    );
+    yield LicenseEntryWithLineBreaks(["Noto Sans Symbols"], license);
+  });
 
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
     await windowManager.ensureInitialized();
@@ -100,6 +106,9 @@ class _AppState extends State<App> {
   // platforms instead of falling back to the very slanted Apple system italic
   static const _fontFamily = "Roboto";
 
+  // only holds the music accidentals, which Roboto lacks
+  static const _fontFamilyFallback = ["NotoSansSymbols"];
+
   static ThemeData _theme(Brightness brightness) {
     final base = ThemeData.from(
       colorScheme: ColorScheme.fromSeed(
@@ -109,8 +118,14 @@ class _AppState extends State<App> {
     );
     return base.copyWith(
       pageTransitionsTheme: _pageTransitions,
-      textTheme: base.textTheme.apply(fontFamily: _fontFamily),
-      primaryTextTheme: base.primaryTextTheme.apply(fontFamily: _fontFamily),
+      textTheme: base.textTheme.apply(
+        fontFamily: _fontFamily,
+        fontFamilyFallback: _fontFamilyFallback,
+      ),
+      primaryTextTheme: base.primaryTextTheme.apply(
+        fontFamily: _fontFamily,
+        fontFamilyFallback: _fontFamilyFallback,
+      ),
     );
   }
 

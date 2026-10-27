@@ -32,6 +32,7 @@ class ScoresTable extends Table {
   late final composer = text().nullable()();
   late final arranger = text().nullable()();
   late final partOf = text().nullable()();
+  late final musicalKey = text().nullable()();
   late final difficulty = integer().nullable()();
   late final source = text().nullable()();
   late final sourceLink = text().nullable()();

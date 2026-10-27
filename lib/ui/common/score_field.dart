@@ -13,6 +13,7 @@ enum ScoreField implements MetadataField {
   composer("Composer", Symbols.artist),
   arranger("Arranger", Symbols.queue_music),
   partOf("Part of", Symbols.stacks),
+  musicalKey("Key", Symbols.music_note),
   source("Source", Symbols.book_2),
   difficulty("Difficulty", Symbols.signal_cellular_alt),
   instruments("Instruments", Symbols.piano),
@@ -31,6 +32,7 @@ enum ScoreField implements MetadataField {
   static const formOptional = [
     arranger,
     partOf,
+    musicalKey,
     difficulty,
     source,
     genres,
@@ -38,5 +40,12 @@ enum ScoreField implements MetadataField {
   ];
 
   /// only shown in the filter dialog when they are active or were added
-  static const filterOptional = [arranger, partOf, difficulty, source, genres];
+  static const filterOptional = [
+    arranger,
+    partOf,
+    musicalKey,
+    difficulty,
+    source,
+    genres,
+  ];
 }

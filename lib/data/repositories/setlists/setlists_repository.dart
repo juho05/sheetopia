@@ -9,6 +9,7 @@
 import 'package:drift/drift.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sheetopia/data/repositories/scores/difficulty.dart';
+import 'package:sheetopia/data/repositories/scores/musical_key.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlist.dart';
@@ -121,6 +122,7 @@ class SetlistsRepository {
       composer: score.composer,
       arranger: score.arranger,
       partOf: score.partOf,
+      musicalKey: MusicalKey.parse(score.musicalKey),
       source: score.source,
       sourceLink: score.sourceLink,
       difficulty: Difficulty.fromLevel(score.difficulty),

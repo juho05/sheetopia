@@ -227,6 +227,7 @@ class ImportExportRepository extends ChangeNotifier {
                         composer: s.composer,
                         arranger: s.arranger ?? "",
                         partOf: s.partOf ?? "",
+                        musicalKey: s.musicalKey?.name ?? "",
                         source: s.source,
                         sourceLink: s.sourceLink,
                         genres: s.genres,
@@ -928,6 +929,7 @@ class ImportExportRepository extends ChangeNotifier {
               composer: optionalStringValue(s.metadata.composer),
               arranger: optionalStringValue(s.metadata.arranger),
               partOf: optionalStringValue(s.metadata.partOf),
+              musicalKey: optionalStringValue(s.metadata.musicalKey),
               source: optionalStringValue(s.metadata.source),
               sourceLink: optionalStringValue(s.metadata.sourceLink),
               notes: optionalStringValue(s.metadata.notes),
@@ -971,6 +973,9 @@ class ImportExportRepository extends ChangeNotifier {
                       : const Value.absent(),
                   partOf: metadataChanged
                       ? optionalStringValue(s.metadata.partOf)
+                      : const Value.absent(),
+                  musicalKey: metadataChanged
+                      ? optionalStringValue(s.metadata.musicalKey)
                       : const Value.absent(),
                   source: metadataChanged
                       ? optionalStringValue(s.metadata.source)
