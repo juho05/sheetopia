@@ -9,7 +9,6 @@
 import 'dart:io';
 
 import 'package:diacritic/diacritic.dart';
-import 'package:file_picker/file_picker.dart' as fp;
 import 'package:file_selector/file_selector.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as path;
@@ -18,6 +17,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/utils/file_export.dart';
 import 'package:uuid/uuid.dart';
 
 String suggestedScoreFileName(Score score) {
@@ -120,13 +120,9 @@ String _saveExtension(FileType fileType) =>
 
 Future<bool> _exportScoreFileMobile(Score score) async {
   if (score.file == null) return false;
-  final bytes = await score.file!.readAsBytes();
-  final result = await fp.FilePicker.saveFile(
-    allowedExtensions: [_saveExtension(score.fileType)],
-    type: fp.FileType.custom,
-    dialogTitle: "Save score file",
+  return exportFileMobile(
+    path: score.file!.path,
     fileName: suggestedScoreFileName(score),
-    bytes: bytes,
+    mimeType: fileTypeToMimeType(score.fileType) ?? "application/octet-stream",
   );
-  return result != null;
 }

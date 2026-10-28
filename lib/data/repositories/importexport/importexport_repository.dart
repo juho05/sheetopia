@@ -13,7 +13,6 @@ import 'dart:ui';
 
 import 'package:archive/archive_io.dart';
 import 'package:drift/drift.dart';
-import 'package:file_picker/file_picker.dart' as fp;
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
@@ -40,6 +39,7 @@ import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/setlists.dart';
 import 'package:sheetopia/data/services/sync/models/tags.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
+import 'package:sheetopia/utils/file_export.dart';
 import 'package:sheetopia/utils/id_path.dart';
 
 enum ImportExportStatus { idle, importing, exporting }
@@ -421,13 +421,11 @@ class ImportExportRepository extends ChangeNotifier {
           await dir.delete(recursive: true);
 
           if (Platform.isAndroid) {
-            final result = await fp.FilePicker.saveFile(
+            return await exportFileMobile(
+              path: zipFile.path,
               fileName: fileName,
-              bytes: await zipFile.readAsBytes(),
               mimeType: "application/zip",
-              dialogTitle: "Export library",
             );
-            return result != null;
           }
 
           if (Platform.isIOS) {
