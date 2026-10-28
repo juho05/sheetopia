@@ -57,18 +57,22 @@ final scenes = <Scene>[
       await c.d.tapAt(button.center);
       await c.d.settle();
     }
-    await c.d.tap(text: 'Composer');
+    // The composer row is the only text field in the dialog.
+    final composer = (await c.d.describe()).where((i) => i.type == 'field').firstOrNull;
+    if (composer == null) throw ToolException('no composer field');
+    await c.d.tapAt(composer.center);
+    await c.d.settle();
     await c.d.type('Johann Sebastian Bach');
-    await c.d.tap(text: 'Source');
-    await c.d.type('Das Wohltemperierte Klavier I');
     await c.d.unfocus();
-    await c.d.tap(text: 'Add', index: 0);
+    await c.d.tap(tooltip: 'Select instrument');
     await c.d.type('Piano', submit: true);
-    await c.d.tap(text: 'Add', index: 1);
+    await c.d.tap(text: 'Add filter');
+    await c.d.tap(text: 'Difficulty');
+    await c.d.tap(tooltip: 'Easy');
+    await c.d.tap(tooltip: 'Medium');
+    await c.d.tap(text: 'Add filter');
+    await c.d.tap(text: 'Genres');
     await c.d.type('Baroque', submit: true);
-    await c.d.tap(text: 'Add', index: 2);
-    await c.d.tap(text: 'Recital');
-    await c.d.tap(text: 'Select');
     await c.d.unfocus();
   }, cleanup: (c) => c.d.tap(text: 'Clear')),
   Scene('edit_score', (c) async {

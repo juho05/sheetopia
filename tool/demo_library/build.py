@@ -96,7 +96,7 @@ def score_model(entry, strokes, score_type, source="", tags=(), genres=(),
         "metadata": {
             "composer": entry.get("composer") or "",
             "arranger": "",
-            "partOf": "",
+            "partOf": entry.get("part_of") or "",
             "musicalKey": key,
             "source": source,
             "sourceLink": "",
