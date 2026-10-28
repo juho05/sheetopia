@@ -261,6 +261,7 @@ Don't try to fix build failures in the repository. You may re-run a single faile
 
   final current = versions['current'];
   final next = versions['next'];
+  final plain = versions['plain'];
   final previous = versions['previous'];
   final perAgent = max(1, ((plan['run'] ?? const {})['tests_per_agent'] as num?)?.toInt() ?? 3);
 
@@ -280,6 +281,10 @@ Evidence screenshots go to $runDir/screenshots/$platform/ (the screen tools' sav
   final updateChecks = [
     for (final Json t in plan['update_checks'] ?? const [])
       if (isEnabled(t)) t,
+  ];
+  List<Json> upgradeMessageTests(String platform) => [
+    for (final Json t in plan['upgrade_messages'] ?? const [])
+      if (isEnabled(t) && (t['platforms'] ?? const ['linux']).contains(platform)) t,
   ];
 
   List<List<Json>> chunks(List<Json> tests) => [
@@ -320,6 +325,22 @@ Return environmentOk=false only if the environment or app can't be used at all. 
         _StepSpec('new-to-next-update', '$restored\n\nThe installed app is the release build v$current. Take a fresh baseline export, then update to the imaginary next release v$next with the in-app updater, following the update guide (new -> next).', [
           for (final t in updateChecks) {'id': '${t['id']}.next', 'test': t['test']},
         ], AgentKind.update),
+      if (enabled('upgrade_messages') && next != null && next.toString().isNotEmpty)
+        for (final t in upgradeMessageTests(platform))
+          if (t['plain_build'] != true)
+            _StepSpec(
+              t['id'].toString().replaceAll(RegExp('[^a-z0-9]+'), '-'),
+              '$restored\n\nThe installed app is the release build v$current. Run this upgrade messages scenario, upgrading to the imaginary next release v$next as the test says (the update guide has the procedure). Its test messages are in $runDir/upgrade-messages-next.json.',
+              [t],
+              AgentKind.update,
+            )
+          else if (plain != null && plain.toString().isNotEmpty)
+            _StepSpec(
+              t['id'].toString().replaceAll(RegExp('[^a-z0-9]+'), '-'),
+              '$restored\n\nThe installed app is the release build v$current. Run this upgrade messages scenario, upgrading to the imaginary plain release v$plain (no upgrade messages, assets in $runDir/releases/v$plain/) as the test says (the update guide has the procedure).',
+              [t],
+              AgentKind.update,
+            ),
     ];
 
     final results = <String, Json>{};
@@ -450,6 +471,7 @@ ${s.prompt}${s.tests.isEmpty ? '' : '\n\nTests (report every id exactly once):\n
   final testTexts = <String, String>{
     for (final Json t in [
       ...?plan['update_checks'],
+      ...?plan['upgrade_messages'],
       ...?plan['platform_features'],
       for (final Json area in plan['feature_suite'] ?? const []) ...?area['tests'],
     ])
@@ -760,7 +782,7 @@ pre { white-space: pre-wrap; margin: 0; font: inherit; }
 </head>
 <body>
 <h1>Sheetopia E2E run ${_esc(run['id'])}</h1>
-<div class="meta">host ${_esc(run['host'])} &middot; commit ${_esc(run['commit'])}${run['uncommittedChanges'] == true ? ' + uncommitted changes' : ''} &middot; versions previous ${_esc(versions['previous'] == '' ? '-' : versions['previous'])}, current ${_esc(versions['current'])}, next ${_esc(versions['next'] == '' ? '-' : versions['next'])} &middot; started ${_esc(run['startedAt'])}</div>
+<div class="meta">host ${_esc(run['host'])} &middot; commit ${_esc(run['commit'])}${run['uncommittedChanges'] == true ? ' + uncommitted changes' : ''} &middot; versions previous ${_esc(versions['previous'] == '' ? '-' : versions['previous'])}, current ${_esc(versions['current'])}, next ${_esc(versions['next'] == '' ? '-' : versions['next'])}, plain ${_esc((versions['plain'] ?? '') == '' ? '-' : versions['plain'])} &middot; started ${_esc(run['startedAt'])}</div>
 <div class="verdict ${(counts['fail'] ?? 0) > 0 ? 'fail' : (counts['blocked'] ?? 0) > 0 ? 'blocked' : 'pass'}">${_esc(verdict)}</div>
 <div class="muted">${[for (final s in ['pass', 'fail', 'blocked', 'skipped']) '${counts[s] ?? 0} $s'].join(' &middot; ')} &middot; ${issues.length} issues</div>
 ''');

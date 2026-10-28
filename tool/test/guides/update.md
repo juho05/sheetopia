@@ -15,6 +15,7 @@ Both run against a fake GitHub that only you control:
 S=tool/test/scripts
 URL=$($S/fake_github.sh start $RUN <platform> <tag>...)   # e.g. v0.7.0 v0.7.1
 $S/fake_github.sh serve $RUN <platform> <tag>...           # change what is served
+$S/fake_github.sh contents $RUN <platform> <tag> assets/upgrade_messages.json <file>|none
 $S/fake_github.sh requests $RUN <platform>                 # what the app fetched
 $S/fake_github.sh stop $RUN <platform>
 ```
@@ -23,6 +24,13 @@ Hand `$URL` to the app: macOS `macos_vm.sh launch $RUN --fake-github $URL`,
 Linux `linux_env.sh app $RUN --env SHEETOPIA_GITHUB_API_URL=$URL --env SHEETOPIA_GITHUB_WEB_URL=$URL`, Android `android.sh fake-github $RUN $URL` and restart the app.
 Releases older than the one supporting these variables ignore them and talk to
 the real GitHub; that's why `old_to_new_update` may be disabled in the plan.
+
+The server also answers the updater's request for the upgrade messages file
+at the target tag (`/contents/...?ref=<tag>` in `requests`), with
+`$RUN/contents/<tag>/assets/upgrade_messages.json` by default. `contents`
+replaces it for this platform (`none`: 404), `serve` resets it. The next
+release bundles and serves `$RUN/upgrade-messages-next.json`, the plain
+release (`versions.plain`, only for tests that use it) an empty file.
 
 ## Preparing the starting state
 
@@ -55,13 +63,16 @@ the real GitHub; that's why `old_to_new_update` may be disabled in the plan.
    Check now instead). Check its texts and buttons, then press Install.
    View opens the releases page and closes the dialog, Check now brings it
    back.
+   If the "Important Changes" dialog appears before the download, check it
+   (`update.upgrade_messages`) and press Yes.
 3. Watch the progress until the app restarts. Linux: Restart quits at once and
    the new version comes up about 10 s later (2 s delay plus the AppImage
    start). Click it once and poll the process list in one Bash loop before
    clicking again. On Android allow installing unknown apps and confirm the
    system installer; the installer ends the app, reopen it yourself.
-4. `requests` must show the tag list and the download of exactly the asset for
-   this platform and target version.
+4. `requests` must show the tag list, the upgrade messages file at the target
+   tag (not for a previous release without upgrade messages) and the download
+   of exactly the asset for this platform and target version.
 
 ## Verifying
 

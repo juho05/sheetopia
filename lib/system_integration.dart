@@ -17,4 +17,5 @@ const systemIntegrationConfig = SystemIntegrationConfig(
   desktopId: "de.julianh.sheetopia",
   desktopIconAsset: "assets/icon/sheetopia-circle.png",
   desktopCategories: ["Multimedia"],
+  upgradeMessagesAsset: "assets/upgrade_messages.json",
 );

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Usage: tool/test/scripts/stage.sh <run> <name> [--bump major|minor|patch]
+#                                   [--upgrade-messages <file>]
 #
 # Copies the working tree (tracked and untracked, not ignored files, so
 # uncommitted changes are included) to <run>/stage/<name> as a fresh one-commit
@@ -8,17 +9,29 @@
 # - build.local_packages from the plan are vendored into .e2e_packages/ and
 #   used via dependency_overrides (git refs can't see unpushed changes).
 # - --bump raises the version (and build number), for the imaginary next
-#   release.
+#   releases. Repeat it to bump more than once.
+# - --upgrade-messages replaces the bundled upgrade messages file. The staged
+#   file is also copied to <run>/contents/v<version>/, which the fake GitHub
+#   serves as the repository file at that tag.
 # - pubspec.lock is refreshed so `pub get --enforce-lockfile` passes.
 #
 # Prints the staged directory and its version.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
-RUN="$(run_dir "${1:?usage: stage.sh <run> <name> [--bump part]}")"
-NAME="${2:?usage: stage.sh <run> <name> [--bump part]}"
-BUMP=""
-if [ "${3:-}" = "--bump" ]; then BUMP="${4:?--bump needs major, minor or patch}"; fi
+RUN="$(run_dir "${1:?usage: stage.sh <run> <name> [--bump part] [--upgrade-messages file]}")"
+NAME="${2:?usage: stage.sh <run> <name> [--bump part] [--upgrade-messages file]}"
+shift 2
+BUMPS=()
+MESSAGES=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --bump) BUMPS+=("${2:?--bump needs major, minor or patch}"); shift 2 ;;
+    --upgrade-messages) MESSAGES="${2:?--upgrade-messages needs a file}"; shift 2 ;;
+    *) die "unknown argument $1" ;;
+  esac
+done
+UPGRADE_MESSAGES_PATH=assets/upgrade_messages.json
 export E2E_PLAN="$RUN/test-plan.yaml"
 
 DEST="$RUN/stage/$NAME"
@@ -38,6 +51,10 @@ copy_tree() { # copy_tree <git dir> <dest>
 log "staging working tree into $DEST"
 copy_tree "$REPO_DIR" "$DEST"
 rm -rf "$DEST/tool/test/runs"
+if [ -n "$MESSAGES" ]; then
+  log "bundling upgrade messages from $MESSAGES"
+  cp "$MESSAGES" "$DEST/$UPGRADE_MESSAGES_PATH"
+fi
 
 overrides=""
 while IFS=$'\t' read -r pkg path; do
@@ -66,15 +83,11 @@ VERSION_LINE="$(sed -n 's/^version: //p' "$DEST/pubspec.yaml")"
 VERSION="${VERSION_LINE%%+*}"
 BUILD=0
 [[ "$VERSION_LINE" == *+* ]] && BUILD="${VERSION_LINE#*+}"
-if [ -n "$BUMP" ]; then
-  IFS=. read -r major minor patch <<<"$VERSION"
-  case "$BUMP" in
-    major) VERSION="$((major + 1)).0.0" ;;
-    minor) VERSION="$major.$((minor + 1)).0" ;;
-    patch) VERSION="$major.$minor.$((patch + 1))" ;;
-    *) die "unknown bump $BUMP" ;;
-  esac
-  BUILD="$((BUILD + 1))"
+if [ ${#BUMPS[@]} -gt 0 ]; then
+  for bump in "${BUMPS[@]}"; do
+    VERSION="$(bump_version "$VERSION" "$bump")"
+    BUILD="$((BUILD + 1))"
+  done
   sed_i "s/^version: .*/version: $VERSION+$BUILD/" "$DEST/pubspec.yaml"
   log "bumped version to $VERSION+$BUILD"
 fi
@@ -84,6 +97,9 @@ log "refreshing pubspec.lock"
   die "flutter pub get failed in the staged tree, see $RUN/logs/stage-$NAME-pub.log"
 
 echo "$VERSION" >"$DEST/.e2e_version"
+rm -rf "$RUN/contents/v$VERSION"
+mkdir -p "$(dirname "$RUN/contents/v$VERSION/$UPGRADE_MESSAGES_PATH")"
+cp "$DEST/$UPGRADE_MESSAGES_PATH" "$RUN/contents/v$VERSION/$UPGRADE_MESSAGES_PATH"
 (
   cd "$DEST"
   git init -q -b e2e

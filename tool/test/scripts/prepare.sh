@@ -8,6 +8,11 @@
 #   fixtures/          test files (scripts/fixtures.sh)
 #   stage/current      the build under test (scripts/stage.sh)
 #   stage/next         the same with a bumped version (imaginary next release)
+#                      and the test upgrade messages
+#   upgrade-messages-next.json  those messages
+#   stage/plain        bumped once more, without upgrade messages, if an
+#                      upgrade_messages test of this host needs it
+#   contents/<tag>/    the repository files the fake GitHub serves per tag
 #   releases/<tag>/    previous release assets, if old_to_new_update is on
 # and prints run.json. Fails fast when prerequisites are missing.
 set -euo pipefail
@@ -46,9 +51,32 @@ python3 "$REPO_DIR/tool/demo_library/build.py" "${demo_args[@]}" >"$RUN/logs/dem
 "$E2E_SCRIPTS/stage.sh" "$RUN" current >&2
 CURRENT_VERSION="$(cat "$RUN/stage/current/.e2e_version")"
 NEXT_VERSION=""
-if plan enabled phases.new_to_next_update.enabled; then
-  "$E2E_SCRIPTS/stage.sh" "$RUN" next --bump "$(plan get build.next_version_bump)" >&2
+if plan enabled phases.new_to_next_update.enabled || plan enabled phases.upgrade_messages.enabled; then
+  # One shown entry with and one without title, the rest must never be shown:
+  # the current version, an invalid entry and a version after next.
+  next="$(bump_version "$CURRENT_VERSION" "$(plan get build.next_version_bump)")"
+  jq -n --arg current "$CURRENT_VERSION" --arg next "$next" --arg later "$(bump_version "$next" major)" '{messages: [
+    {version: $current, title: "E2E current", message: "Must not be shown: this is the version before the update."},
+    {version: $next, title: "E2E next", message: "Shown once when upgrading to v\($next).", unknownKey: true},
+    {version: $next, message: "Second message for v\($next), without a title."},
+    {version: $next, title: "E2E invalid", message: 42},
+    {version: $later, title: "E2E later", message: "Must not be shown: this version is after the update."}
+  ]}' >"$RUN/upgrade-messages-next.json"
+  "$E2E_SCRIPTS/stage.sh" "$RUN" next --bump "$(plan get build.next_version_bump)" \
+    --upgrade-messages "$RUN/upgrade-messages-next.json" >&2
   NEXT_VERSION="$(cat "$RUN/stage/next/.e2e_version")"
+fi
+
+PLAIN_VERSION=""
+if plan enabled phases.upgrade_messages.enabled &&
+  plan json | jq -e --arg host "$E2E_HOST" '.platforms as $p
+    | [.upgrade_messages[]? | select(.enabled != false and .plain_build == true) | (.platforms // ["linux"])[]]
+    | any(.[]; $p[.].enabled and $p[.].host == $host)' >/dev/null; then
+  echo '{"messages": []}' >"$RUN/upgrade-messages-plain.json"
+  bump="$(plan get build.next_version_bump)"
+  "$E2E_SCRIPTS/stage.sh" "$RUN" plain --bump "$bump" --bump "$bump" \
+    --upgrade-messages "$RUN/upgrade-messages-plain.json" >&2
+  PLAIN_VERSION="$(cat "$RUN/stage/plain/.e2e_version")"
 fi
 
 PREVIOUS_TAG=""
@@ -71,12 +99,12 @@ git -C "$REPO_DIR" diff --quiet HEAD || dirty=true
 jq -n \
   --arg id "$ID" --arg run "$RUN" --arg started "$STARTED" \
   --arg commit "$(git -C "$REPO_DIR" rev-parse --short HEAD)" --argjson dirty "$dirty" \
-  --arg current "$CURRENT_VERSION" --arg next "$NEXT_VERSION" --arg previous "$PREVIOUS_TAG" \
+  --arg current "$CURRENT_VERSION" --arg next "$NEXT_VERSION" --arg plain "$PLAIN_VERSION" --arg previous "$PREVIOUS_TAG" \
   --arg host "$E2E_HOST" --argjson platforms "$platforms" --argjson phases "$phases" \
   --argjson warnings "$(printf '%s\n' ${warnings[@]+"${warnings[@]}"} | jq -R . | jq -sc 'map(select(length > 0))')" \
   --arg packages "$(cat "$RUN/stage/current/.e2e_packages/VERSIONS" 2>/dev/null || true)" \
   '{id: $id, runDir: $run, startedAt: $started, commit: $commit, uncommittedChanges: $dirty,
-    versions: {previous: $previous, current: $current, next: $next},
+    versions: {previous: $previous, current: $current, next: $next, plain: $plain},
     localPackages: $packages, host: $host, platforms: $platforms, phases: $phases,
     warnings: $warnings}' >"$RUN/run.json"
 cat "$RUN/run.json"

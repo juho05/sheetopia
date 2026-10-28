@@ -3,11 +3,13 @@
 //   dart run bin/fake_github.dart --root <dir> [--port 8787] [--log <file>]
 //
 // Every subdirectory of `--root` is a release: its name is the tag (e.g.
-// `v0.8.0`) and its files are the release assets. The directory is read on
-// every request, so releases can be added or removed while the server runs.
+// `v0.8.0`) and its files are the release assets. Repository files at a tag
+// are read from `.contents/<tag>/<path>`. The directory is read on every
+// request, so releases can be added or removed while the server runs.
 //
 // Endpoints (owner and repo are ignored):
 //   GET /repos/<owner>/<repo>/tags                         tag list
+//   GET /repos/<owner>/<repo>/contents/<path>?ref=<tag>    raw repository file
 //   GET /<owner>/<repo>/releases/download/<tag>/<file>      release asset
 //   GET /<owner>/<repo>/releases                           HTML listing
 //   GET /_requests                                          logged requests
@@ -101,6 +103,21 @@ Future<int> _handle(HttpRequest request, Directory root, List<Map<String, Object
     return _sendJson(response, [
       for (final tag in slice) {'name': tag, 'commit': {'sha': '0' * 40, 'url': ''}},
     ]);
+  }
+
+  // /repos/<owner>/<repo>/contents/<path>?ref=<tag>
+  if (segments.length >= 5 && segments[0] == 'repos' && segments[3] == 'contents') {
+    final ref = request.uri.queryParameters['ref'] ?? '';
+    final path = segments.sublist(4);
+    if (ref.isEmpty || ref.contains('/') || ref.contains('..') || path.any((s) => s.contains('..') || s.contains('/'))) {
+      return _send(response, 400, 'bad path');
+    }
+    final file = File(p.joinAll([root.path, '.contents', ref, ...path]));
+    if (!file.existsSync()) return _send(response, 404, 'not found');
+    response.headers.contentType = ContentType('application', 'vnd.github.raw+json', charset: 'utf-8');
+    response.add(file.readAsBytesSync());
+    await response.close();
+    return 200;
   }
 
   // /<owner>/<repo>/releases/download/<tag>/<file>

@@ -15,6 +15,7 @@ questions. Preselect nothing, describe each option in one short line.
 1. **Update tests**
    - old→current: previous release updated to the build under test
    - current→next: build under test updated to an imaginary next version
+   - Upgrade messages: messages shown before installing and after upgrading
 2. **Tests**
    - Platform features: OS and plugin behaviour with real input
    - Feature suite: the app's own logic (Linux host only)
@@ -33,6 +34,7 @@ If old→current is selected, ask afterwards which release it starts from:
 |---|---|
 | old→current | `phases.old_to_new_update.enabled` |
 | current→next | `phases.new_to_next_update.enabled` |
+| Upgrade messages | `phases.upgrade_messages.enabled` |
 | Platform features | `phases.platform_features.enabled` |
 | Feature suite | `phases.feature_suite.enabled` |
 | Linux / Android / macOS / iOS | `platforms.<linux\|android\|macos\|ios>.enabled` |
@@ -52,6 +54,7 @@ timeout), e.g.
 ```sh
 tool/test/scripts/tool.sh e2e 2026-10-15_1400 \
   --set phases.old_to_new_update.enabled=false --set phases.new_to_next_update.enabled=true \
+  --set phases.upgrade_messages.enabled=true \
   --set phases.platform_features.enabled=true --set phases.feature_suite.enabled=true \
   --set platforms.linux.enabled=true --set platforms.android.enabled=true
 ```

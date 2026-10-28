@@ -9725,10 +9725,11 @@ class $$ScoresTableTableTableManager
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (genresTableRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           ScoresTableData,
                           $ScoresTableTable,
-                          GenresTableData
+                          GenresTableData,
+                          $GenresTableTable
                         >(
                           currentTable: table,
                           referencedTable: $$ScoresTableTableReferences
@@ -9739,17 +9740,16 @@ class $$ScoresTableTableTableManager
                                 table,
                                 p0,
                               ).genresTableRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.score == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'score',
                           typedResults: items,
                         ),
                       if (instrumentsTableRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           ScoresTableData,
                           $ScoresTableTable,
-                          InstrumentsTableData
+                          InstrumentsTableData,
+                          $InstrumentsTableTable
                         >(
                           currentTable: table,
                           referencedTable: $$ScoresTableTableReferences
@@ -9760,17 +9760,16 @@ class $$ScoresTableTableTableManager
                                 table,
                                 p0,
                               ).instrumentsTableRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.score == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'score',
                           typedResults: items,
                         ),
                       if (scoreTagsTableRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           ScoresTableData,
                           $ScoresTableTable,
-                          ScoreTagsTableData
+                          ScoreTagsTableData,
+                          $ScoreTagsTableTable
                         >(
                           currentTable: table,
                           referencedTable: $$ScoresTableTableReferences
@@ -9781,10 +9780,8 @@ class $$ScoresTableTableTableManager
                                 table,
                                 p0,
                               ).scoreTagsTableRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.score == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'score',
                           typedResults: items,
                         ),
                     ];
@@ -10731,10 +10728,11 @@ class $$TagsTableTableTableManager
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (scoreTagsTableRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           TagsTableData,
                           $TagsTableTable,
-                          ScoreTagsTableData
+                          ScoreTagsTableData,
+                          $ScoreTagsTableTable
                         >(
                           currentTable: table,
                           referencedTable: $$TagsTableTableReferences
@@ -10745,17 +10743,16 @@ class $$TagsTableTableTableManager
                                 table,
                                 p0,
                               ).scoreTagsTableRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.tag == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'tag',
                           typedResults: items,
                         ),
                       if (exerciseTagsTableRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           TagsTableData,
                           $TagsTableTable,
-                          ExerciseTagsTableData
+                          ExerciseTagsTableData,
+                          $ExerciseTagsTableTable
                         >(
                           currentTable: table,
                           referencedTable: $$TagsTableTableReferences
@@ -10766,10 +10763,8 @@ class $$TagsTableTableTableManager
                                 table,
                                 p0,
                               ).exerciseTagsTableRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.tag == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'tag',
                           typedResults: items,
                         ),
                     ];
@@ -12171,10 +12166,11 @@ class $$SetlistsTableTableTableManager
               getPrefetchedDataCallback: (items) async {
                 return [
                   if (setlistEntriesTableRefs)
-                    await $_getPrefetchedData<
+                    await $_getPrefetchedDataByColumns<
                       SetlistsTableData,
                       $SetlistsTableTable,
-                      SetlistEntriesTableData
+                      SetlistEntriesTableData,
+                      $SetlistEntriesTableTable
                     >(
                       currentTable: table,
                       referencedTable: $$SetlistsTableTableReferences
@@ -12185,8 +12181,8 @@ class $$SetlistsTableTableTableManager
                             table,
                             p0,
                           ).setlistEntriesTableRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.setlist == item.id),
+                      currentColumn: 'id',
+                      referencedColumn: 'setlist',
                       typedResults: items,
                     ),
                 ];
@@ -12991,10 +12987,11 @@ class $$ExerciseCategoriesTableTableTableManager
               getPrefetchedDataCallback: (items) async {
                 return [
                   if (exercisesTableRefs)
-                    await $_getPrefetchedData<
+                    await $_getPrefetchedDataByColumns<
                       ExerciseCategoriesTableData,
                       $ExerciseCategoriesTableTable,
-                      ExercisesTableData
+                      ExercisesTableData,
+                      $ExercisesTableTable
                     >(
                       currentTable: table,
                       referencedTable: $$ExerciseCategoriesTableTableReferences
@@ -13005,8 +13002,8 @@ class $$ExerciseCategoriesTableTableTableManager
                             table,
                             p0,
                           ).exercisesTableRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.category == item.id),
+                      currentColumn: 'id',
+                      referencedColumn: 'category',
                       typedResults: items,
                     ),
                 ];
@@ -13748,10 +13745,11 @@ class $$ExercisesTableTableTableManager
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (exerciseScoresTableRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           ExercisesTableData,
                           $ExercisesTableTable,
-                          ExerciseScoresTableData
+                          ExerciseScoresTableData,
+                          $ExerciseScoresTableTable
                         >(
                           currentTable: table,
                           referencedTable: $$ExercisesTableTableReferences
@@ -13762,17 +13760,16 @@ class $$ExercisesTableTableTableManager
                                 table,
                                 p0,
                               ).exerciseScoresTableRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.exercise == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'exercise',
                           typedResults: items,
                         ),
                       if (exerciseTagsTableRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           ExercisesTableData,
                           $ExercisesTableTable,
-                          ExerciseTagsTableData
+                          ExerciseTagsTableData,
+                          $ExerciseTagsTableTable
                         >(
                           currentTable: table,
                           referencedTable: $$ExercisesTableTableReferences
@@ -13783,17 +13780,16 @@ class $$ExercisesTableTableTableManager
                                 table,
                                 p0,
                               ).exerciseTagsTableRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.exercise == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'exercise',
                           typedResults: items,
                         ),
                       if (practiceRoutineEntriesTableRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           ExercisesTableData,
                           $ExercisesTableTable,
-                          PracticeRoutineEntriesTableData
+                          PracticeRoutineEntriesTableData,
+                          $PracticeRoutineEntriesTableTable
                         >(
                           currentTable: table,
                           referencedTable: $$ExercisesTableTableReferences
@@ -13804,10 +13800,8 @@ class $$ExercisesTableTableTableManager
                                 table,
                                 p0,
                               ).practiceRoutineEntriesTableRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.exercise == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'exercise',
                           typedResults: items,
                         ),
                     ];
@@ -14848,10 +14842,11 @@ class $$PracticeRoutinesTableTableTableManager
               getPrefetchedDataCallback: (items) async {
                 return [
                   if (practiceRoutineEntriesTableRefs)
-                    await $_getPrefetchedData<
+                    await $_getPrefetchedDataByColumns<
                       PracticeRoutinesTableData,
                       $PracticeRoutinesTableTable,
-                      PracticeRoutineEntriesTableData
+                      PracticeRoutineEntriesTableData,
+                      $PracticeRoutineEntriesTableTable
                     >(
                       currentTable: table,
                       referencedTable: $$PracticeRoutinesTableTableReferences
@@ -14862,8 +14857,8 @@ class $$PracticeRoutinesTableTableTableManager
                             table,
                             p0,
                           ).practiceRoutineEntriesTableRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.routine == item.id),
+                      currentColumn: 'id',
+                      referencedColumn: 'routine',
                       typedResults: items,
                     ),
                 ];

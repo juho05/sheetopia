@@ -267,7 +267,10 @@ GoRouter get goRouter {
           GoRoute(
             path: "installUpdate",
             builder: (context, state) => InstallUpdatePage(
-              autoUpdateRepository: AutoUpdateRepository.autoUpdatesSupported
+              autoUpdateRepository:
+                  AutoUpdateRepository.autoUpdatesSupported(
+                    systemIntegrationConfig,
+                  )
                   ? context.read()
                   : null,
             ),

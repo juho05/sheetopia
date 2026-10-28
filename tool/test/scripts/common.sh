@@ -82,6 +82,18 @@ clock_target() {
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 die() { log "error: $*"; exit 1; }
 
+# bump_version <x.y.z> major|minor|patch
+bump_version() {
+  local major minor patch
+  IFS=. read -r major minor patch <<<"$1"
+  case "$2" in
+    major) echo "$((major + 1)).0.0" ;;
+    minor) echo "$major.$((minor + 1)).0" ;;
+    patch) echo "$major.$minor.$((patch + 1))" ;;
+    *) die "unknown bump $2" ;;
+  esac
+}
+
 # Resolves a run directory from its id (or path) and fails if it doesn't exist.
 run_dir() {
   local id="${1:?run id required}"

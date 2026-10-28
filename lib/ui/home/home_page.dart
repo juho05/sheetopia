@@ -35,6 +35,7 @@ import 'package:sheetopia/ui/setlists/bulk_edit/setlists_bulk_edit_menu.dart';
 import 'package:sheetopia/ui/setlists/setlist_name_dialog.dart';
 import 'package:sheetopia/ui/setlists/setlists_view.dart';
 import 'package:sheetopia/ui/setlists/setlists_viewmodel.dart';
+import 'package:sheetopia/upgrade_messages.dart';
 import 'package:sheetopia/version_checker.dart';
 
 class HomePage extends StatefulWidget {
@@ -164,319 +165,344 @@ class _HomePageState extends State<HomePage> {
       theme.brightness == Brightness.light ? 220 : 43,
       theme.brightness == Brightness.light ? 228 : 48,
     );
-    return VersionChecker(
-      child: IntegrateAppImage(
-        child: ChangeNotifierProvider(
-          create: (context) => HomeViewModel(scoresRepo: context.read()),
-          builder: (context, _) {
-            return Consumer<HomeViewModel>(
-              builder: (context, viewModel, _) {
-                return DropArea(
-                  enabled: viewModel.tabIndex == 0 || viewModel.tabIndex == 2,
-                  onDrop: (files) async {
-                    try {
-                      if (viewModel.tabIndex == 0) {
-                        final ok = await viewModel.receiveScoreDrop(files);
-                        if (!context.mounted || !ok) {
-                          return;
-                        }
-                        context.go("/scores/import");
-                      } else if (viewModel.tabIndex == 2) {
-                        bool separate = false;
-                        if (files.length > 1) {
-                          final choice =
-                              await ImportExerciseScoresChoiceDialog.show(
-                                context,
-                              );
-                          if (choice == null) {
-                            await DesktopDrop.instance.clearReceivingCache();
+    return UpgradeMessages(
+      child: VersionChecker(
+        child: IntegrateAppImage(
+          child: ChangeNotifierProvider(
+            create: (context) => HomeViewModel(scoresRepo: context.read()),
+            builder: (context, _) {
+              return Consumer<HomeViewModel>(
+                builder: (context, viewModel, _) {
+                  return DropArea(
+                    enabled: viewModel.tabIndex == 0 || viewModel.tabIndex == 2,
+                    onDrop: (files) async {
+                      try {
+                        if (viewModel.tabIndex == 0) {
+                          final ok = await viewModel.receiveScoreDrop(files);
+                          if (!context.mounted || !ok) {
                             return;
                           }
-                          separate = choice == ImportExerciseScoresChoice.separate;
-                        }
-                        final ok = await viewModel.receiveExerciseDrop(files);
-                        if (!context.mounted || !ok) {
-                          return;
-                        }
+                          context.go("/scores/import");
+                        } else if (viewModel.tabIndex == 2) {
+                          bool separate = false;
+                          if (files.length > 1) {
+                            final choice =
+                                await ImportExerciseScoresChoiceDialog.show(
+                                  context,
+                                );
+                            if (choice == null) {
+                              await DesktopDrop.instance.clearReceivingCache();
+                              return;
+                            }
+                            separate =
+                                choice == ImportExerciseScoresChoice.separate;
+                          }
+                          final ok = await viewModel.receiveExerciseDrop(files);
+                          if (!context.mounted || !ok) {
+                            return;
+                          }
 
-                        context.go(
-                          "/practice/exercises/create?separate=$separate",
+                          context.go(
+                            "/practice/exercises/create?separate=$separate",
+                          );
+                        }
+                      } on InvalidFileTypeException catch (e, st) {
+                        Toast.exception(
+                          e,
+                          st: st,
+                          errorMsg: "Unsupported file type!",
+                        );
+                      } catch (e, st) {
+                        Toast.exception(
+                          e,
+                          st: st,
+                          errorMsg: "Failed to import scores!",
                         );
                       }
-                    } on InvalidFileTypeException catch (e, st) {
-                      Toast.exception(
-                        e,
-                        st: st,
-                        errorMsg: "Unsupported file type!",
-                      );
-                    } catch (e, st) {
-                      Toast.exception(
-                        e,
-                        st: st,
-                        errorMsg: "Failed to import scores!",
-                      );
-                    }
-                  },
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final rail =
-                          constraints.maxWidth >= constraints.maxHeight;
-                      return Stack(
-                        children: [
-                          Builder(
-                            builder: (context) {
-                              final library = viewModel.tabIndex == 0;
-                              final selecting = viewModel.selecting;
-                              final scoreSelection = viewModel.scoreSelection;
-                              final setlistSelection =
-                                  viewModel.setlistSelection;
-                              final routineSelection =
-                                  viewModel.routineSelection;
-                              final body = SafeArea(
-                                child: IndexedStack(
-                                  index: viewModel.tabIndex,
-                                  children: [
-                                    LibraryView(
-                                      viewModel: _libraryViewModel,
-                                      onScrollUp: () =>
-                                          viewModel.importButtonVisible.value =
-                                              true,
-                                      onScrollDown: () =>
-                                          viewModel.importButtonVisible.value =
-                                              false,
-                                      onScoreSelected: (score) =>
-                                          scoreSelection.select(score.id),
-                                      onScoreDeselected: (score) =>
-                                          scoreSelection.deselect(score.id),
-                                      onScoresSelected: (scoreIds) {
-                                        if (viewModel.tabIndex != 0) return;
-                                        scoreSelection.selectAll(scoreIds);
-                                      },
-                                      onClearSelection: scoreSelection.clear,
-                                      selectionMode: scoreSelection.isNotEmpty,
-                                      selected: scoreSelection.idSet,
-                                    ),
-                                    SetlistsView(
-                                      viewModel: _setlistsViewModel,
-                                      onSetlistSelected: (setlist) =>
-                                          setlistSelection.select(setlist.id),
-                                      onSetlistDeselected: (setlist) =>
-                                          setlistSelection.deselect(setlist.id),
-                                      onSetlistsSelected: (setlistIds) {
-                                        if (viewModel.tabIndex != 1) return;
-                                        setlistSelection.selectAll(setlistIds);
-                                      },
-                                      onClearSelection: setlistSelection.clear,
-                                      selectionMode:
-                                          setlistSelection.isNotEmpty,
-                                      selected: setlistSelection.idSet,
-                                    ),
-                                    PracticePage(
-                                      viewModel: _routinesViewModel,
-                                      onRoutineSelected: (routine) =>
-                                          routineSelection.select(routine.id),
-                                      onRoutineDeselected: (routine) =>
-                                          routineSelection.deselect(routine.id),
-                                      onRoutinesSelected: (routineIds) {
-                                        if (viewModel.tabIndex != 2) return;
-                                        routineSelection.selectAll(routineIds);
-                                      },
-                                      onClearSelection: routineSelection.clear,
-                                      selectionMode:
-                                          routineSelection.isNotEmpty,
-                                      selected: routineSelection.idSet,
-                                    ),
-                                  ],
-                                ),
-                              );
-                              final importing = library && viewModel.importing;
-                              return PopScope(
-                                canPop: !selecting && library,
-                                onPopInvokedWithResult: (didPop, _) {
-                                  if (didPop) return;
-                                  if (selecting) {
-                                    viewModel.selection?.clear();
-                                  } else {
-                                    viewModel.tabIndex = 0;
-                                  }
-                                },
-                                child: Scaffold(
-                                  appBar: AppBar(
-                                    centerTitle: false,
-                                    leading:
-                                        selecting && viewModel.selection != null
-                                        ? ClearSelectionButton(
-                                            onPressed:
-                                                viewModel.selection!.clear,
-                                          )
-                                        : null,
-                                    title: Text(
-                                      selecting
-                                          ? "${viewModel.selection?.length} selected"
-                                          : _tabs[viewModel.tabIndex].label,
-                                    ),
-                                    actions: selecting
-                                        ? _selectionActions(viewModel)
-                                        : [
-                                            const SyncIcon(),
-                                            const SizedBox(width: 4),
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                right: 8,
-                                              ),
-                                              child: IconButton(
-                                                onPressed: () {
-                                                  context.go("/settings");
-                                                },
-                                                icon: const Icon(
-                                                  Icons.settings,
+                    },
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final rail =
+                            constraints.maxWidth >= constraints.maxHeight;
+                        return Stack(
+                          children: [
+                            Builder(
+                              builder: (context) {
+                                final library = viewModel.tabIndex == 0;
+                                final selecting = viewModel.selecting;
+                                final scoreSelection = viewModel.scoreSelection;
+                                final setlistSelection =
+                                    viewModel.setlistSelection;
+                                final routineSelection =
+                                    viewModel.routineSelection;
+                                final body = SafeArea(
+                                  child: IndexedStack(
+                                    index: viewModel.tabIndex,
+                                    children: [
+                                      LibraryView(
+                                        viewModel: _libraryViewModel,
+                                        onScrollUp: () =>
+                                            viewModel
+                                                    .importButtonVisible
+                                                    .value =
+                                                true,
+                                        onScrollDown: () =>
+                                            viewModel
+                                                    .importButtonVisible
+                                                    .value =
+                                                false,
+                                        onScoreSelected: (score) =>
+                                            scoreSelection.select(score.id),
+                                        onScoreDeselected: (score) =>
+                                            scoreSelection.deselect(score.id),
+                                        onScoresSelected: (scoreIds) {
+                                          if (viewModel.tabIndex != 0) return;
+                                          scoreSelection.selectAll(scoreIds);
+                                        },
+                                        onClearSelection: scoreSelection.clear,
+                                        selectionMode:
+                                            scoreSelection.isNotEmpty,
+                                        selected: scoreSelection.idSet,
+                                      ),
+                                      SetlistsView(
+                                        viewModel: _setlistsViewModel,
+                                        onSetlistSelected: (setlist) =>
+                                            setlistSelection.select(setlist.id),
+                                        onSetlistDeselected: (setlist) =>
+                                            setlistSelection.deselect(
+                                              setlist.id,
+                                            ),
+                                        onSetlistsSelected: (setlistIds) {
+                                          if (viewModel.tabIndex != 1) return;
+                                          setlistSelection.selectAll(
+                                            setlistIds,
+                                          );
+                                        },
+                                        onClearSelection:
+                                            setlistSelection.clear,
+                                        selectionMode:
+                                            setlistSelection.isNotEmpty,
+                                        selected: setlistSelection.idSet,
+                                      ),
+                                      PracticePage(
+                                        viewModel: _routinesViewModel,
+                                        onRoutineSelected: (routine) =>
+                                            routineSelection.select(routine.id),
+                                        onRoutineDeselected: (routine) =>
+                                            routineSelection.deselect(
+                                              routine.id,
+                                            ),
+                                        onRoutinesSelected: (routineIds) {
+                                          if (viewModel.tabIndex != 2) return;
+                                          routineSelection.selectAll(
+                                            routineIds,
+                                          );
+                                        },
+                                        onClearSelection:
+                                            routineSelection.clear,
+                                        selectionMode:
+                                            routineSelection.isNotEmpty,
+                                        selected: routineSelection.idSet,
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                final importing =
+                                    library && viewModel.importing;
+                                return PopScope(
+                                  canPop: !selecting && library,
+                                  onPopInvokedWithResult: (didPop, _) {
+                                    if (didPop) return;
+                                    if (selecting) {
+                                      viewModel.selection?.clear();
+                                    } else {
+                                      viewModel.tabIndex = 0;
+                                    }
+                                  },
+                                  child: Scaffold(
+                                    appBar: AppBar(
+                                      centerTitle: false,
+                                      leading:
+                                          selecting &&
+                                              viewModel.selection != null
+                                          ? ClearSelectionButton(
+                                              onPressed:
+                                                  viewModel.selection!.clear,
+                                            )
+                                          : null,
+                                      title: Text(
+                                        selecting
+                                            ? "${viewModel.selection?.length} selected"
+                                            : _tabs[viewModel.tabIndex].label,
+                                      ),
+                                      actions: selecting
+                                          ? _selectionActions(viewModel)
+                                          : [
+                                              const SyncIcon(),
+                                              const SizedBox(width: 4),
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  right: 8,
+                                                ),
+                                                child: IconButton(
+                                                  onPressed: () {
+                                                    context.go("/settings");
+                                                  },
+                                                  icon: const Icon(
+                                                    Icons.settings,
+                                                  ),
                                                 ),
                                               ),
+                                            ],
+                                    ),
+                                    body: Row(
+                                      children: [
+                                        if (rail)
+                                          SafeArea(
+                                            child: NavigationRail(
+                                              selectedIndex: viewModel.tabIndex,
+                                              onDestinationSelected: (index) =>
+                                                  viewModel.tabIndex = index,
+                                              labelType:
+                                                  NavigationRailLabelType.all,
+                                              destinations: _tabs
+                                                  .map(
+                                                    (t) =>
+                                                        NavigationRailDestination(
+                                                          icon: Icon(t.icon),
+                                                          selectedIcon: Icon(
+                                                            t.icon,
+                                                            fill: 1,
+                                                            grade: 200,
+                                                          ),
+                                                          label: Text(t.label),
+                                                        ),
+                                                  )
+                                                  .toList(),
                                             ),
-                                          ],
-                                  ),
-                                  body: Row(
-                                    children: [
-                                      if (rail)
-                                        SafeArea(
-                                          child: NavigationRail(
+                                          ),
+                                        Expanded(child: body),
+                                      ],
+                                    ),
+                                    bottomNavigationBar: rail
+                                        ? null
+                                        : NavigationBar(
                                             selectedIndex: viewModel.tabIndex,
                                             onDestinationSelected: (index) =>
                                                 viewModel.tabIndex = index,
-                                            labelType:
-                                                NavigationRailLabelType.all,
                                             destinations: _tabs
                                                 .map(
-                                                  (t) =>
-                                                      NavigationRailDestination(
-                                                        icon: Icon(t.icon),
-                                                        selectedIcon: Icon(
-                                                          t.icon,
-                                                          fill: 1,
-                                                          grade: 200,
-                                                        ),
-                                                        label: Text(t.label),
-                                                      ),
+                                                  (t) => NavigationDestination(
+                                                    icon: Icon(t.icon),
+                                                    selectedIcon: Icon(
+                                                      t.icon,
+                                                      fill: 1,
+                                                      grade: 200,
+                                                    ),
+                                                    label: t.label,
+                                                  ),
                                                 )
                                                 .toList(),
                                           ),
-                                        ),
-                                      Expanded(child: body),
-                                    ],
-                                  ),
-                                  bottomNavigationBar: rail
-                                      ? null
-                                      : NavigationBar(
-                                          selectedIndex: viewModel.tabIndex,
-                                          onDestinationSelected: (index) =>
-                                              viewModel.tabIndex = index,
-                                          destinations: _tabs
-                                              .map(
-                                                (t) => NavigationDestination(
-                                                  icon: Icon(t.icon),
-                                                  selectedIcon: Icon(
-                                                    t.icon,
-                                                    fill: 1,
-                                                    grade: 200,
-                                                  ),
-                                                  label: t.label,
-                                                ),
-                                              )
-                                              .toList(),
-                                        ),
-                                  floatingActionButton: ValueListenableBuilder<bool>(
-                                    valueListenable:
-                                        viewModel.importButtonVisible,
-                                    builder:
-                                        (context, importButtonVisible, child) {
-                                          final fabVisible =
-                                              !library || importButtonVisible;
-                                          return AnimatedSlide(
-                                            duration: const Duration(
-                                              milliseconds: 200,
-                                            ),
-                                            offset: fabVisible
-                                                ? Offset.zero
-                                                : const Offset(0, 2),
-                                            child: AnimatedOpacity(
+                                    floatingActionButton: ValueListenableBuilder<bool>(
+                                      valueListenable:
+                                          viewModel.importButtonVisible,
+                                      builder:
+                                          (
+                                            context,
+                                            importButtonVisible,
+                                            child,
+                                          ) {
+                                            final fabVisible =
+                                                !library || importButtonVisible;
+                                            return AnimatedSlide(
                                               duration: const Duration(
                                                 milliseconds: 200,
                                               ),
-                                              opacity: fabVisible ? 1 : 0,
-                                              child: child,
-                                            ),
-                                          );
-                                        },
-                                    child: importing
-                                        ? FloatingActionButton(
-                                            onPressed: null,
-                                            backgroundColor: disabledColor,
-                                            tooltip: "Import score",
-                                            child: const Padding(
-                                              padding: EdgeInsets.all(16),
-                                              child:
-                                                  CircularProgressIndicator.adaptive(),
-                                            ),
-                                          )
-                                        : FabMenu(
-                                            tooltip:
-                                                switch (viewModel.tabIndex) {
-                                                  0 => "Import score",
-                                                  1 => "Create setlist",
-                                                  2 => "Create routine",
-                                                  _ => "",
-                                                },
-                                            icon: const Icon(Icons.add),
-                                            items: switch (viewModel.tabIndex) {
-                                              0 => [
-                                                if (Platform.isAndroid ||
-                                                    Platform.isIOS)
+                                              offset: fabVisible
+                                                  ? Offset.zero
+                                                  : const Offset(0, 2),
+                                              child: AnimatedOpacity(
+                                                duration: const Duration(
+                                                  milliseconds: 200,
+                                                ),
+                                                opacity: fabVisible ? 1 : 0,
+                                                child: child,
+                                              ),
+                                            );
+                                          },
+                                      child: importing
+                                          ? FloatingActionButton(
+                                              onPressed: null,
+                                              backgroundColor: disabledColor,
+                                              tooltip: "Import score",
+                                              child: const Padding(
+                                                padding: EdgeInsets.all(16),
+                                                child:
+                                                    CircularProgressIndicator.adaptive(),
+                                              ),
+                                            )
+                                          : FabMenu(
+                                              tooltip:
+                                                  switch (viewModel.tabIndex) {
+                                                    0 => "Import score",
+                                                    1 => "Create setlist",
+                                                    2 => "Create routine",
+                                                    _ => "",
+                                                  },
+                                              icon: const Icon(Icons.add),
+                                              items: switch (viewModel
+                                                  .tabIndex) {
+                                                0 => [
+                                                  if (Platform.isAndroid ||
+                                                      Platform.isIOS)
+                                                    FabMenuItem(
+                                                      icon: Icons
+                                                          .document_scanner,
+                                                      label: "Scan pages",
+                                                      onPressed: () =>
+                                                          _scanScore(context),
+                                                    ),
                                                   FabMenuItem(
-                                                    icon:
-                                                        Icons.document_scanner,
-                                                    label: "Scan pages",
+                                                    icon: Icons.file_open,
+                                                    label: "Import files",
                                                     onPressed: () =>
-                                                        _scanScore(context),
+                                                        _importScores(context),
                                                   ),
-                                                FabMenuItem(
-                                                  icon: Icons.file_open,
-                                                  label: "Import files",
-                                                  onPressed: () =>
-                                                      _importScores(context),
-                                                ),
-                                              ],
-                                              1 => [
-                                                FabMenuItem(
-                                                  label: "Create setlist",
-                                                  onPressed: () =>
-                                                      _createSetlist(context),
-                                                ),
-                                              ],
-                                              2 => [
-                                                FabMenuItem(
-                                                  label:
-                                                      "Create practice routine",
-                                                  onPressed: () => context.go(
-                                                    "/practice/routines/create",
+                                                ],
+                                                1 => [
+                                                  FabMenuItem(
+                                                    label: "Create setlist",
+                                                    onPressed: () =>
+                                                        _createSetlist(context),
                                                   ),
-                                                ),
-                                              ],
-                                              _ => [],
-                                            },
-                                          ),
+                                                ],
+                                                2 => [
+                                                  FabMenuItem(
+                                                    label:
+                                                        "Create practice routine",
+                                                    onPressed: () => context.go(
+                                                      "/practice/routines/create",
+                                                    ),
+                                                  ),
+                                                ],
+                                                _ => [],
+                                              },
+                                            ),
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                );
-              },
-            );
-          },
+                                );
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
     );

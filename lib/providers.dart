@@ -37,6 +37,10 @@ Future<List<SingleChildWidget>> createProviders({
   );
   await settings.load();
 
+  final autoUpdatesSupported = AutoUpdateRepository.autoUpdatesSupported(
+    systemIntegrationConfig,
+  );
+
   return [
     Provider.value(value: database),
     Provider.value(value: logRepository),
@@ -124,12 +128,24 @@ Future<List<SingleChildWidget>> createProviders({
             IntegrateAppImageViewModel(appImageRepository: context.read())
               ..check(),
       ),
-    if (AutoUpdateRepository.autoUpdatesSupported)
+    Provider(
+      create: (context) => UpgradeMessagesRepository(
+        config: systemIntegrationConfig,
+        keyValue: keyValue,
+        github: autoUpdatesSupported ? context.read() : null,
+      ),
+    ),
+    ChangeNotifierProvider(
+      create: (context) =>
+          UpgradeMessagesViewModel(repository: context.read())..check(),
+    ),
+    if (autoUpdatesSupported)
       ChangeNotifierProvider(
         create: (context) => AutoUpdateRepository(
           config: systemIntegrationConfig,
           versionRepository: context.read(),
           github: context.read(),
+          upgradeMessagesRepository: context.read(),
         ),
       ),
   ];

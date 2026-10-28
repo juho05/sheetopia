@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: tool/test/scripts/build.sh <run> [--stage current|next]... [--only <part>]...
+# Usage: tool/test/scripts/build.sh <run> [--stage current|next|plain]... [--only <part>]...
 #
 # Builds the staged trees of a run for the platforms of this host, using the
 # release workflow (.github/workflows/release.yml) through act where the
@@ -8,7 +8,7 @@
 #   Mac host
 #     macos    the signed .dmg job, act self-hosted on this Mac, signing with
 #              the Developer ID in the login keychain (keychains stay untouched)
-#     ios      a simulator build (the release .ipa can't run in a simulator)
+#     ios      simulator builds (the release .ipa can't run in a simulator)
 #   Linux host
 #     host     the ubuntu jobs natively in Docker: tests, Linux tar.gz and
 #              AppImage, Android APKs
@@ -36,7 +36,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 if [ ${#stages[@]} -eq 0 ]; then
-  for s in current next; do [ -d "$RUN/stage/$s" ] && stages+=("$s"); done
+  for s in current next plain; do [ -d "$RUN/stage/$s" ] && stages+=("$s"); done
 fi
 platform_on() {
   plan enabled "platforms.$1.enabled" && [ "$(plan get "platforms.$1.host")" = "$E2E_HOST" ]
@@ -223,15 +223,19 @@ fi
 # --- Mac host: iOS simulator build --------------------------------------------
 
 if want ios; then
-  log "flutter build ios --simulator (current)"
-  if (cd "$RUN/stage/current" && flutter build ios --simulator --debug) >"$RUN/logs/build-current-ios-sim.log" 2>&1; then
-    mkdir -p "$RUN/builds/current/ios"
-    rm -rf "$RUN/builds/current/ios/Runner.app"
-    cp -R "$RUN/stage/current/build/ios/iphonesimulator/Runner.app" "$RUN/builds/current/ios/"
-    note current ios-simulator ok
-  else
-    note current ios-simulator "FAILED (logs/build-current-ios-sim.log)"
-  fi
+  for stage in "${stages[@]}"; do
+    log "flutter build ios --simulator ($stage)"
+    # VERSION_CHECK=false like the release .ipa
+    if (cd "$RUN/stage/$stage" && flutter build ios --simulator --debug --dart-define=VERSION_CHECK=false) \
+      >"$RUN/logs/build-$stage-ios-sim.log" 2>&1; then
+      mkdir -p "$RUN/builds/$stage/ios"
+      rm -rf "$RUN/builds/$stage/ios/Runner.app"
+      cp -R "$RUN/stage/$stage/build/ios/iphonesimulator/Runner.app" "$RUN/builds/$stage/ios/"
+      note "$stage" ios-simulator ok
+    else
+      note "$stage" ios-simulator "FAILED (logs/build-$stage-ios-sim.log)"
+    fi
+  done
 fi
 
 for stage in "${stages[@]}"; do

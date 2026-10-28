@@ -82,6 +82,10 @@ phases:
   new_to_next_update:
     # Build under test → imaginary next version, through the in-app updater.
     enabled: true
+  upgrade_messages:
+    # The upgrade_messages scenarios, each updating the build under test to
+    # the imaginary next version, whose bundled file has test messages.
+    enabled: true
 
 demo_library:
   # The demo library is generated fresh for every run with
@@ -125,6 +129,20 @@ update_checks:
       All data survived: the library, setlists, practice routines, statistics
       and annotations look as before, the settings changed before the update
       are unchanged, and an export diffs clean against the baseline export.
+  - id: update.upgrade_messages
+    test: >-
+      If the target version's upgrade messages file served by the fake GitHub
+      has messages for versions after the installed one up to the target,
+      Install first shows the "Important Changes" dialog (adaptive: Cupertino
+      style on macOS) with a "Version <x>: <title>" (or "Version <x>") heading
+      and the text per message, oldest first, then "Do you want to continue
+      with the update?" with No and Yes. Yes continues. After the restart
+      the dialog does not appear again. If the installed version has no
+      upgrade messages support (old -> new from a release before it) or the
+      file has no such messages, nothing is shown before installing and the
+      bundled messages of the new version for versions after the old one, if
+      any, are shown once after the restart with a single OK button. The
+      served file is `$RUN/contents/<tag>/assets/upgrade_messages.json`.
   - id: update.no_dialog_when_current
     test: >-
       With the fake server serving only the installed version, "Check now" in
@@ -134,6 +152,67 @@ update_checks:
       Ignore suppresses that version (toast, no dialog on the next start);
       Remind later shows it again once a day has passed (move the clock or
       check the stored timestamp) and Check now always finds it.
+
+# Upgrade message scenarios. Each test gets its own agent, starts from the
+# restored starting state (build under test installed) and ends with the
+# build under test upgraded to the imaginary next version. The next version
+# bundles $RUN/upgrade-messages-next.json, which the fake GitHub also serves
+# at its tag unless a test says otherwise
+# (`fake_github.sh contents`, see the update guide). Of its entries exactly the
+# two for v<next> ("E2E next" and the one without title) may ever be shown,
+# never "E2E current", "E2E invalid" or "E2E later". `platforms` defaults to
+# [ linux ]: the messages are the app's logic, the update paths and dialog
+# styles are platform dependent. `plain_build: true` tests get the plain
+# build (versions.plain in run.json): bumped once more than next, with an
+# empty upgrade messages file. Only hosts that run such a test build it.
+upgrade_messages:
+  - id: upgrade_messages.decline
+    test: >-
+      Turn the Version Checking switch off and restart: no "New version
+      available" dialog. Check now, Install: the "Important Changes" dialog
+      appears anyway. No: nothing is downloaded (fake GitHub requests), the
+      app stays on the build under test, Install is enabled again. Install
+      again shows the dialog again, Yes updates. After the restart no
+      "Important Changes" dialog, nor after another restart. The
+      "Successfully updated" toast appears once although the switch is off
+      (log level Debug, the app log has its `Toast:` entry).
+  - id: upgrade_messages.startup
+    platforms: [ linux, android ]
+    test: >-
+      Version checking on. Linux: serve a file that isn't JSON at the next
+      tag; Android: serve no file (`contents ... none`). Install updates
+      without the "Important Changes" dialog (the request log has the
+      contents request with ref=v<next>). After the restart the dialog shows
+      the two v<next> messages and only an OK button, and isn't dismissed by
+      tapping outside. OK closes it; it does not appear after another
+      restart. The "Successfully updated" toast still appears.
+  - id: upgrade_messages.version_check_disabled
+    platforms: [ linux, macos, ios ]
+    test: >-
+      Version checking disabled outside the app, so no updater: Linux and
+      macOS first start the build under test with --env
+      SHEETOPIA_DISABLE_VERSION_CHECK=1 and the fake GitHub URLs (Settings
+      has no Version Checking entry, the fake GitHub gets no requests at
+      all), the iOS build has it disabled at build time. Upgrade by installing the next build directly (Linux: the next
+      AppImage into ~/Downloads; macOS: install-dmg; iOS: install
+      $RUN/builds/next/ios/Runner.app over the installed app) and start it
+      the same way: the "Important Changes" dialog (save a screenshot) shows
+      the two v<next> messages with only OK (Cupertino style on macOS and
+      iOS) and no "Successfully updated" toast appears (disabling version
+      checking outside the app disables it, unlike the Settings switch). The dialog does not appear after another restart, and the
+      fake GitHub still got no requests.
+  - id: upgrade_messages.none
+    plain_build: true
+    test: >-
+      No messages. The first start of a fresh install shows no "Important
+      Changes" dialog even though v<current> may have messages (remove the
+      app data of the installed build, start it, restart it, set the log
+      level to Debug again for the toast check), and restarts without an
+      upgrade show none either. Then serve v<current> and
+      v<plain> and update to v<plain> with the in-app updater: no dialog
+      before installing (the request log has the contents request with
+      ref=v<plain>, answered with the empty file), none after the restart,
+      the "Successfully updated" toast appears.
 
 # Platform dependent tests (see the rule at the top). Each runs on all listed
 # platforms: macOS in the VM, iOS in the simulator(s), Linux in the desktop

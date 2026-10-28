@@ -15,7 +15,7 @@ dependencies:
   flutter_system_integration:
     git:
       url: https://github.com/juho05/flutter_system_integration
-      ref: b617926f66a1141e2730d4b3ac528dc62ea2a9c6
+      ref: b461294075b732c4beea48221b0ba7453d980579
   dotted_border: ^3.1.0
   drift: ^2.32.0
   drift_flutter: ^0.3.0
@@ -127,6 +127,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon/sheetopia-circle.png
+    - assets/upgrade_messages.json
     - assets/fonts/Roboto_LICENSE.txt
     - assets/fonts/NotoSansSymbols_LICENSE.txt
   fonts:

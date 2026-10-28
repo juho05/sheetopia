@@ -17,8 +17,10 @@ Two machines share the plan and run it independently:
 
 1. **Prepare**: snapshot `test-plan.yaml`, generate the demo library fresh
    (`tool/demo_library/build.py --now <run start>`), create test fixtures,
-   stage the working tree twice (the build under test and an imaginary next
-   version with a bumped version number), download the previous release.
+   stage the working tree (the build under test, an imaginary next version
+   with a bumped version number and test upgrade messages and, if a test
+   needs it, a plain version bumped once more without upgrade messages),
+   download the previous release.
    Uncommitted changes are included; `build.local_packages` are vendored in.
 2. **Build**: `.github/workflows/release.yml` through act (under act the macOS
    job signs with the login keychain's identity without touching keychains,
@@ -32,9 +34,10 @@ Two machines share the plan and run it independently:
    release supports the GitHub URL override*) →
    platform features (real input and system UI) →
    feature suite (Linux only, driver build) →
-   new→next update. The state after setup is snapshotted and restored before
-   every later agent, each of which gets only `run.tests_per_agent` tests.
-   Teardown is scripted.
+   new→next update →
+   upgrade message scenarios (each one more new→next update). The state
+   after setup is snapshotted and restored before every later agent, each of
+   which gets only `run.tests_per_agent` tests. Teardown is scripted.
 4. **Report**: `runs/<id>/report.html` and `results.json`, generated from the
    result files.
 
@@ -67,7 +70,7 @@ Continue an unfinished run (keeps builds and finished steps):
 tool/test/scripts/tool.sh e2e 2026-10-14_1700 --resume
 ```
 
-A full run takes hours and spawns roughly 20 (Mac) to 45 (Linux) agents.
+A full run takes hours and spawns roughly 22 (Mac) to 50 (Linux) agents.
 
 ## Setting up a machine
 
@@ -93,6 +96,7 @@ A full run takes hours and spawns roughly 20 (Mac) to 45 (Linux) agents.
   platform is missing),
 - `feature_suite`: the app's own logic, once, on Linux,
 - `update_checks`: what both update tests verify,
+- `upgrade_messages`: upgrade message scenarios, one agent each,
 - `phases`, `platforms`: switch parts on and off.
 
 Tests are prose for the agents: what to do and what must be true afterwards.
