@@ -30,6 +30,18 @@ android {
         versionName = flutter.versionName
     }
 
+    splits {
+        abi {
+            isUniversalApk = true
+        }
+    }
+
+    packaging {
+        jniLibs {
+            excludes += "lib/x86/**"
+        }
+    }
+
     signingConfigs {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String

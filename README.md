@@ -90,8 +90,8 @@ Visit [sheetopia-sync](https://github.com/juho05/sheetopia-sync#setup) to instal
 
 ### Android
 
-1. Download the correct APK file for your architecture (usually `arm64v8`) from the *Assets* section of
-   the [latest release](https://github.com/juho05/sheetopia/releases/latest).
+1. Download `Sheetopia-x.x.x-android.apk` from the *Assets* section of the
+   [latest release](https://github.com/juho05/sheetopia/releases/latest).
 2. Open the downloaded file and allow your browser/file manager (depending on what you use to open the file) to install
    apps from unknown sources by clicking on *Settings* when prompted and enabling *Allow from this source*.
 3. Click on *Install* when asked whether you want to install Sheetopia (you might have to open the APK file again).

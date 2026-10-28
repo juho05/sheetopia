@@ -27,6 +27,7 @@ jobs:
       contents: write
     outputs:
       version: ${{ steps.get_version.outputs.version }}
+      build_number: ${{ steps.get_version.outputs.build_number }}
 
     steps:
       - uses: actions/checkout@v7
@@ -35,7 +36,13 @@ jobs:
         id: get_version
         run: |
           VERSION=$(sed -n 's/^version: \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/p' pubspec.yaml)
+          BUILD_NUMBER=$(sed -n 's/^version: [0-9.]*+\([0-9]*\).*/\1/p' pubspec.yaml)
+          if [ -z "$BUILD_NUMBER" ] || [ -z "$VERSION" ]; then
+            echo "::error::Failed to extract version and build number from pubspec.yaml"
+            exit 1
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
 
       - name: Create or update draft release
         if: ${{ !env.ACT }}
@@ -128,9 +135,24 @@ jobs:
         with:
           working-directory: ${{ env.APK_BUILD_DIR }}
 
-      - name: Build APK
+      - name: Build APKs
         working-directory: ${{ env.APK_BUILD_DIR }}
         run: flutter build apk --split-per-abi
+
+      - name: Verify APK version codes
+        working-directory: ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk
+        env:
+          BUILD_NUMBER: ${{ needs.build.outputs.build_number }}
+        run: |
+          AAPT2=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          for apk in app-armeabi-v7a-release.apk app-arm64-v8a-release.apk app-x86_64-release.apk app-release.apk; do
+            CODE=$("$AAPT2" dump badging "$apk" | sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p")
+            echo "$apk: versionCode $CODE"
+            if [ "$CODE" != "$BUILD_NUMBER" ]; then
+              echo "::error::$apk has versionCode $CODE, expected $BUILD_NUMBER"
+              exit 1
+            fi
+          done
 
       - name: Upload APK
         if: ${{ !env.ACT }}
@@ -141,6 +163,7 @@ jobs:
             ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
             ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
             ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk/app-x86_64-release.apk
+            ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk/app-release.apk
           retention-days: 2
 
       - name: Upload APK (act only)
@@ -152,6 +175,7 @@ jobs:
             ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
             ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
             ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk/app-x86_64-release.apk
+            ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk/app-release.apk
   build_linux_x86_64_AppImage:
     needs: build
     runs-on: ubuntu-22.04
@@ -539,6 +563,7 @@ jobs:
           cp android-apk-result/app-armeabi-v7a-release.apk uploads/Sheetopia-${{ needs.build.outputs.version }}-android-arm32v7.apk
           cp android-apk-result/app-arm64-v8a-release.apk uploads/Sheetopia-${{ needs.build.outputs.version }}-android-arm64v8.apk
           cp android-apk-result/app-x86_64-release.apk uploads/Sheetopia-${{ needs.build.outputs.version }}-android-x64.apk
+          cp android-apk-result/app-release.apk uploads/Sheetopia-${{ needs.build.outputs.version }}-android.apk
 
       # TAR.GZ (x86_64)
       - name: Download tar.gz file
@@ -612,9 +637,10 @@ jobs:
           VERSION: ${{ needs.build.outputs.version }}
         run: |
           for f in \
+            android.apk \
             android-arm64v8.apk \
-            android-arm32v7.apk \
             android-x64.apk \
+            android-arm32v7.apk \
             linux-x86-64.AppImage \
             linux-x86-64.AppImage.zsync \
             linux-x86-64.tar.gz \

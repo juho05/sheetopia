@@ -144,6 +144,7 @@ if want host; then
         cp "$a/app-arm64-v8a-release.apk" "$rel/Sheetopia-$v-android-arm64v8.apk"
         cp "$a/app-armeabi-v7a-release.apk" "$rel/Sheetopia-$v-android-arm32v7.apk"
         cp "$a/app-x86_64-release.apk" "$rel/Sheetopia-$v-android-x64.apk"
+        if [ -f "$a/app-release.apk" ]; then cp "$a/app-release.apk" "$rel/Sheetopia-$v-android.apk"; fi
       fi
     fi
   done
