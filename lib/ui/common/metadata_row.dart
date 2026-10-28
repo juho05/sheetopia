@@ -25,7 +25,7 @@ InputDecoration metadataInputDecoration(
     isDense: true,
     filled: filled,
     fillColor: Surface.badgeOf(context),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
     border: const OutlineInputBorder(borderRadius: radius),
     enabledBorder: const OutlineInputBorder(
       borderRadius: radius,

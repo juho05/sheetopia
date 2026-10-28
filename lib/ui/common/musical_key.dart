@@ -113,17 +113,18 @@ class _MenuBox<T> extends StatelessWidget {
     final style = theme.textTheme.bodyLarge!.copyWith(
       color: muted ? mutedColor : null,
     );
-    return PopupMenuButton<T>(
-      tooltip: tooltip,
-      initialValue: value,
-      onSelected: onSelected,
-      itemBuilder: (context) => [
-        for (final MapEntry(:key, :value) in options.entries)
-          PopupMenuItem(value: key, child: Text(value)),
-      ],
-      child: Material(
-        color: Surface.badgeOf(context),
-        borderRadius: BorderRadius.circular(8),
+    return Material(
+      color: Surface.badgeOf(context),
+      borderRadius: BorderRadius.circular(8),
+      clipBehavior: Clip.antiAlias,
+      child: PopupMenuButton<T>(
+        tooltip: tooltip,
+        initialValue: value,
+        onSelected: onSelected,
+        itemBuilder: (context) => [
+          for (final MapEntry(:key, :value) in options.entries)
+            PopupMenuItem(value: key, child: Text(value)),
+        ],
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
