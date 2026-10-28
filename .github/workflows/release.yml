@@ -154,6 +154,36 @@ jobs:
             fi
           done
 
+      - name: Verify APK signatures
+        if: ${{ !env.ACT }}
+        working-directory: ${{ env.APK_BUILD_DIR }}/build/app/outputs/flutter-apk
+        env:
+          EXPECTED_CERT_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$EXPECTED_CERT_SHA256" ]; then
+            echo "::error::ANDROID_SIGNING_CERT_SHA256 variable is not set"
+            exit 1
+          fi
+          EXPECTED=$(echo "$EXPECTED_CERT_SHA256" | tr -d ': ' | tr '[:upper:]' '[:lower:]')
+          echo "Expected signing certificate SHA-256: $EXPECTED"
+
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+
+          for apk in app-armeabi-v7a-release.apk app-arm64-v8a-release.apk app-x86_64-release.apk app-release.apk; do
+            echo "::group::Verifying $apk"
+            "$APKSIGNER" verify --verbose "$apk"
+            ACTUAL=$("$APKSIGNER" verify --print-certs "$apk" \
+              | grep -i 'SHA-256 digest' | head -n1 | awk '{print $NF}' | tr '[:upper:]' '[:lower:]')
+            echo "Signer certificate SHA-256: $ACTUAL"
+            if [ "$ACTUAL" != "$EXPECTED" ]; then
+              echo "::error::$apk is not signed with the expected certificate"
+              exit 1
+            fi
+            echo "::endgroup::"
+          done
+
       - name: Upload APK
         if: ${{ !env.ACT }}
         uses: actions/upload-artifact@v7
@@ -200,6 +230,9 @@ jobs:
         run: |
           scripts/appimage/build.sh "${{ needs.build.outputs.version }}" \
             "gh-releases-zsync|${{ github.repository_owner }}|${{ github.event.repository.name }}|latest|Sheetopia-*-linux-x86-64.AppImage.zsync"
+
+      - name: Check AppImage dependencies
+        run: scripts/appimage/check-deps.sh "Sheetopia-${{ needs.build.outputs.version }}-linux-x86-64.AppImage"
 
       - name: Upload AppImage file
         if: ${{ !env.ACT }}
@@ -430,9 +463,38 @@ jobs:
           echo "Attach staple"
           xcrun stapler staple Sheetopia.app
 
-          echo "Verify app"
-          codesign --verify --deep --strict --verbose=2 Sheetopia.app
-          spctl -a -t exec -vv Sheetopia.app
+      - name: Verify code signature
+        if: ${{ !env.ACT }}
+        env:
+          EXPECTED_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          APP_PATH="build/macos/Build/Products/Release/Sheetopia.app"
+
+          echo "Verifying code signature integrity..."
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+
+          echo "Checking signing certificate..."
+          if [ -z "$EXPECTED_TEAM_ID" ]; then
+            echo "::error::APPLE_TEAM_ID variable is not set"
+            exit 1
+          fi
+          INFO=$(codesign -dvv "$APP_PATH" 2>&1)
+          AUTHORITY=$(echo "$INFO" | grep '^Authority=' | head -n1 | cut -d= -f2-)
+          TEAM_ID=$(echo "$INFO" | grep '^TeamIdentifier=' | cut -d= -f2-)
+          echo "Signing authority: $AUTHORITY"
+          echo "Team identifier: $TEAM_ID"
+          case "$AUTHORITY" in
+            "Developer ID Application: "*) ;;
+            *) echo "::error::App bundle not signed with a Developer ID Application certificate: $AUTHORITY"; exit 1 ;;
+          esac
+          if [ "$TEAM_ID" != "$EXPECTED_TEAM_ID" ]; then
+            echo "::error::App bundle signed with unexpected team ID: $TEAM_ID (expected $EXPECTED_TEAM_ID)"
+            exit 1
+          fi
+
+          echo "Verifying notarization via Gatekeeper..."
+          spctl --assess --type execute --verbose=4 "$APP_PATH"
 
       - name: Create .dmg file
         run: |
@@ -517,6 +579,51 @@ jobs:
         run: flutter build ipa --dart-define=VERSION_CHECK=false --export-options-plist=./ios/ExportOptions.plist
       - name: Move .ipa to working directory
         run: mv build/ios/ipa/sheetopia.ipa ./Sheetopia.ipa
+
+      - name: Verify IPA signature
+        env:
+          EXPECTED_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+
+          EXPECTED_CERT=$(/usr/libexec/PlistBuddy -c "Print :signingCertificate" ios/ExportOptions.plist)
+          echo "Expected team ID: $EXPECTED_TEAM_ID"
+          echo "Expected certificate: $EXPECTED_CERT"
+          if [ -z "$EXPECTED_TEAM_ID" ]; then
+            echo "::error::APPLE_TEAM_ID variable is not set"
+            exit 1
+          fi
+          if [ -z "$EXPECTED_CERT" ]; then
+            echo "::error::signingCertificate is not set in ios/ExportOptions.plist"
+            exit 1
+          fi
+
+          rm -rf ipa_verify
+          unzip -q Sheetopia.ipa -d ipa_verify
+
+          for APP_PATH in ipa_verify/Payload/*.app ipa_verify/Payload/*.app/PlugIns/*.appex; do
+            echo "::group::Verifying $APP_PATH"
+            codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+
+            INFO=$(codesign -dvv "$APP_PATH" 2>&1)
+            echo "$INFO"
+            TEAM_ID=$(echo "$INFO" | grep '^TeamIdentifier=' | cut -d= -f2-)
+            AUTHORITY=$(echo "$INFO" | grep '^Authority=' | head -n1 | cut -d= -f2-)
+
+            if [ -z "$AUTHORITY" ]; then
+              echo "::error::$APP_PATH has no signing authority (not signed)"
+              exit 1
+            fi
+            if [ "$TEAM_ID" != "$EXPECTED_TEAM_ID" ]; then
+              echo "::error::$APP_PATH signed with unexpected team ID: $TEAM_ID (expected $EXPECTED_TEAM_ID)"
+              exit 1
+            fi
+            case "$AUTHORITY" in
+              "$EXPECTED_CERT"*) echo "Signed with the correct certificate: $AUTHORITY" ;;
+              *) echo "::error::$APP_PATH signed with unexpected certificate: $AUTHORITY (expected $EXPECTED_CERT)"; exit 1 ;;
+            esac
+            echo "::endgroup::"
+          done
 
       - name: Clean up keychain and provisioning profile
         if: ${{ always() }}
