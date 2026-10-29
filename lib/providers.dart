@@ -98,6 +98,7 @@ Future<List<SingleChildWidget>> createProviders({
         syncService: context.read(),
         thumbnailService: context.read(),
       ),
+      dispose: (context, repo) => repo.dispose(),
       // sync should start immediately
       lazy: false,
     ),

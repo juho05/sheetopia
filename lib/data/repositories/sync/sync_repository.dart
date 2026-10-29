@@ -36,10 +36,12 @@ import 'package:sheetopia/data/services/sync/sync_connection.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 
-enum SyncState { none, failure, partial, syncing, success }
+enum SyncState { none, offline, error, partial, syncing, success }
 
 class SyncRepository {
   static const _defaultSyncDelay = Duration(seconds: 30);
+
+  static const apiMajorVersion = 0;
 
   static const minAPIVersionSetlist = Version(major: 0, minor: 2);
 
@@ -64,6 +66,13 @@ class SyncRepository {
   final EncryptedStorage _encryptedStorage;
 
   final ValueNotifier<SyncState> state = ValueNotifier(SyncState.none);
+
+  final ValueNotifier<String?> error = ValueNotifier(null);
+
+  final ValueNotifier<ApiVersionMismatchException?> startupVersionMismatch =
+      ValueNotifier(null);
+
+  bool _startupSync = false;
 
   static const String _lastSyncKey = "last_sync";
 
@@ -93,6 +102,8 @@ class SyncRepository {
 
   AppLifecycleListener? _listener;
 
+  final List<StreamSubscription> _subscriptions = [];
+
   SyncRepository({
     required this._scoresRepo,
     required this._setlistsRepo,
@@ -110,19 +121,40 @@ class SyncRepository {
                ? EncryptedStorageLinux(keyValueRepo: keyValue)
                : EncryptedStorageSecureStorage()) {
     _load().then((value) {
-      _scoresRepo.locallyUpdatedScoreIds.listen((event) => requestSync());
-      _scoresRepo.locallyUpdatedTagIds.listen((event) => requestSync());
-      _setlistsRepo.locallyUpdatedSetlistIds.listen((event) => requestSync());
-      _practiceRepo.locallyUpdatedCategoryIds.listen((event) => requestSync());
-      _practiceRepo.locallyUpdatedExerciseIds.listen((event) => requestSync());
-      _practiceRepo.locallyUpdatedRoutineIds.listen((event) => requestSync());
-      _practiceRepo.locallyUpdatedRecordIds.listen((event) => requestSync());
+      if (_disposed) return;
+      _subscriptions.addAll([
+        _scoresRepo.locallyUpdatedScoreIds.listen((event) => requestSync()),
+        _scoresRepo.locallyUpdatedTagIds.listen((event) => requestSync()),
+        _setlistsRepo.locallyUpdatedSetlistIds.listen((event) => requestSync()),
+        _practiceRepo.locallyUpdatedCategoryIds.listen(
+          (event) => requestSync(),
+        ),
+        _practiceRepo.locallyUpdatedExerciseIds.listen(
+          (event) => requestSync(),
+        ),
+        _practiceRepo.locallyUpdatedRoutineIds.listen((event) => requestSync()),
+        _practiceRepo.locallyUpdatedRecordIds.listen((event) => requestSync()),
+      ]);
       _listener = AppLifecycleListener(
         onDetach: _disableSyncing,
         onPause: _disableSyncing,
         onResume: _enableSyncing,
       );
     });
+  }
+
+  bool _disposed = false;
+
+  void dispose() {
+    _disposed = true;
+    _syncTimer?.cancel();
+    _syncTimer = null;
+    _listener?.dispose();
+    _listener = null;
+    for (final subscription in _subscriptions) {
+      subscription.cancel();
+    }
+    _subscriptions.clear();
   }
 
   bool _syncingEnabled = true;
@@ -144,6 +176,7 @@ class SyncRepository {
   void _enableSyncing() {
     if (_syncingEnabled) return;
     _syncingEnabled = true;
+    if (signedIn) _startupSync = true;
     _sync();
   }
 
@@ -151,6 +184,7 @@ class SyncRepository {
     try {
       final info = await _service.getServerInfo(baseUri);
       if (info.server != "sheetopia-sync") return false;
+      _checkApiVersion(info.apiVersion);
       return true;
     } on InvalidResponseBody catch (_) {
       return false;
@@ -197,6 +231,7 @@ class SyncRepository {
     _con = null;
     _user = null;
     state.value = SyncState.none;
+    error.value = null;
 
     await _updateLastSync(null);
     await _keyValue.remove(_userKey);
@@ -237,14 +272,18 @@ class SyncRepository {
     _user = await _keyValue.loadString(_userKey);
 
     try {
+      _checkApiVersion(
+        (await _service.getServerInfo(_con!.baseUri)).apiVersion,
+      );
       _user = await _service.getUser(_con!);
     } on UnauthenticatedException catch (_) {
       await logout();
       return;
-    } on DioException catch (_) {
-      // server unreachable at the moment, use cached user value
+    } catch (_) {
+      // use cached user value, the startup sync reports the error
     }
 
+    _startupSync = true;
     _sync();
   }
 
@@ -268,7 +307,7 @@ class SyncRepository {
   Timer? _syncTimer;
 
   void _scheduleSync() {
-    if (!signedIn) return;
+    if (!signedIn || _disposed) return;
     _syncTimer?.cancel();
     _syncTimer = null;
     if (!_syncingEnabled) {
@@ -284,7 +323,7 @@ class SyncRepository {
   }
 
   Future<void> _sync() async {
-    if (!signedIn) return;
+    if (!signedIn || _disposed) return;
     if (state.value == SyncState.syncing) return;
     state.value = SyncState.syncing;
     _itemsFailed = false;
@@ -296,6 +335,7 @@ class SyncRepository {
 
       final serverInfo = await _service.getServerInfo(_con!.baseUri);
       final syncTime = serverInfo.time;
+      _checkApiVersion(serverInfo.apiVersion);
       final apiVersion = Version.parse(serverInfo.apiVersion);
       final sendWrittenAt = apiVersion >= minAPIVersionResurrect;
       final honourDeletedAt = apiVersion >= minAPIVersionDeletedAt;
@@ -359,18 +399,47 @@ class SyncRepository {
 
       await _updateLastSync(syncTime);
 
+      error.value = null;
       state.value = _itemsFailed ? SyncState.partial : SyncState.success;
       if (!_itemsFailed) {
         await _scoresRepo.deleteAbandonedScores();
       }
     } on UnauthenticatedException catch (_) {
       await logout();
+    } on ApiVersionMismatchException catch (e) {
+      if (signedIn) {
+        Log.warn("Sync failed", e: e);
+        error.value = e.message;
+        state.value = SyncState.error;
+        if (_startupSync) startupVersionMismatch.value = e;
+      }
+    } on DioException catch (e, st) {
+      if (signedIn) {
+        if (_isNetworkError(e)) {
+          Log.warn("Sync failed", e: e);
+          error.value =
+              "Could not reach the sync server. Check your internet "
+              "connection, syncing will resume automatically.";
+          state.value = SyncState.offline;
+        } else {
+          Log.error("Sync failed", e: e, st: st);
+          error.value = _serverErrorMessage;
+          state.value = SyncState.error;
+        }
+      }
     } catch (e, st) {
       if (signedIn) {
         Log.error("Sync failed", e: e, st: st);
-        state.value = SyncState.failure;
+        error.value = switch (e) {
+          StatusCodeException() || InvalidResponseBody() => _serverErrorMessage,
+          _ =>
+            "Something went wrong while syncing. If this keeps happening, "
+                "check the logs in the settings.",
+        };
+        state.value = SyncState.error;
       }
     } finally {
+      _startupSync = false;
       _scoresRepo.remoteChangedTags(_changedTags);
       _scoresRepo.remoteChangedScores(_changedScores);
       _setlistsRepo.remoteChangedSetlists(_changedSetlists);
@@ -388,6 +457,29 @@ class SyncRepository {
       _scheduleSync();
     }
   }
+
+  static const _serverErrorMessage =
+      "The sync server is not working correctly. Try again later or check "
+      "the server.";
+
+  void _checkApiVersion(String apiVersion) {
+    final major = Version.parse(apiVersion).major;
+    if (major != apiMajorVersion) {
+      throw ApiVersionMismatchException(
+        apiVersion,
+        serverNewer: major > apiMajorVersion,
+      );
+    }
+  }
+
+  static bool _isNetworkError(DioException e) => switch (e.type) {
+    DioExceptionType.connectionTimeout ||
+    DioExceptionType.sendTimeout ||
+    DioExceptionType.receiveTimeout ||
+    DioExceptionType.connectionError => true,
+    DioExceptionType.unknown => e.error is SocketException,
+    _ => false,
+  };
 
   Future<void> _uploadDeletedTags() async {
     final startTime = DateTime.now();

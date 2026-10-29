@@ -186,7 +186,8 @@ class _StatusView extends StatelessWidget {
                       child: Text(
                         switch (viewModel.state) {
                           SyncState.none => "not syncing",
-                          SyncState.failure => "last sync failed",
+                          SyncState.offline => "server unreachable",
+                          SyncState.error => "last sync failed",
                           SyncState.partial => "some items failed to sync",
                           SyncState.syncing => "syncing",
                           SyncState.success => "waiting for next sync",
@@ -199,6 +200,14 @@ class _StatusView extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (viewModel.syncError != null)
+                  Text(
+                    viewModel.syncError!,
+                    style: theme.textTheme.bodyMedium!.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                    softWrap: true,
+                  ),
                 Row(
                   children: [
                     SizedBox(

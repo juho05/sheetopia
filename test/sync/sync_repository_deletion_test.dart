@@ -6,10 +6,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -25,6 +27,7 @@ import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
+import 'package:sheetopia/data/services/sync/exceptions.dart';
 import 'package:sheetopia/data/services/sync/models/exercise_categories.dart';
 import 'package:sheetopia/data/services/sync/models/exercises.dart';
 import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
@@ -88,6 +91,8 @@ class _FakeSyncService extends SyncService {
 
   final deletedOnServer = <String>[];
 
+  bool userEndpointMissing = false;
+
   @override
   Future<ServerInfoModel> getServerInfo(Uri baseUri) async => ServerInfoModel(
     server: "sheetopia-sync",
@@ -104,7 +109,10 @@ class _FakeSyncService extends SyncService {
   }) async => SyncConnection(baseUri: baseUri, authKey: "key");
 
   @override
-  Future<String> getUser(SyncConnection con) async => "alice";
+  Future<String> getUser(SyncConnection con) async {
+    if (userEndpointMissing) throw const NotFoundException();
+    return "alice";
+  }
 
   @override
   Future<List<RemotelyDeleted>> getDeletedScores(
@@ -275,6 +283,7 @@ void main() {
   late PracticeRepository practiceRepo;
   late _FakeSyncService service;
   late SyncRepository repo;
+  late _InMemoryEncryptedStorage encryptedStorage;
 
   const scoreId = "score-1";
   const tagId = "tag-1";
@@ -353,6 +362,34 @@ void main() {
     );
   }
 
+  SyncRepository createRepo() => SyncRepository(
+    scoresRepo: scoresRepo,
+    setlistsRepo: setlistsRepo,
+    practiceRepo: practiceRepo,
+    keyValue: KeyValueRepository(database: db),
+    db: db,
+    syncService: service,
+    thumbnailService: ThumbnailService(),
+    encryptedStorage: encryptedStorage,
+  );
+
+  Future<void> syncNowAndWait() async {
+    var started = false;
+    final done = Completer<void>();
+    void listener() {
+      if (repo.state.value == SyncState.syncing) {
+        started = true;
+      } else if (started && !done.isCompleted) {
+        done.complete();
+      }
+    }
+
+    repo.state.addListener(listener);
+    await repo.syncNow();
+    await done.future;
+    repo.state.removeListener(listener);
+  }
+
   // login kicks off a sync without awaiting it
   Future<void> syncAndWait() async {
     await repo.login(
@@ -377,20 +414,13 @@ void main() {
     setlistsRepo = SetlistsRepository(db: db, scoresRepo: scoresRepo);
     practiceRepo = PracticeRepository(db: db, scoresRepo: scoresRepo);
     service = _FakeSyncService();
-    repo = SyncRepository(
-      scoresRepo: scoresRepo,
-      setlistsRepo: setlistsRepo,
-      practiceRepo: practiceRepo,
-      keyValue: KeyValueRepository(database: db),
-      db: db,
-      syncService: service,
-      thumbnailService: ThumbnailService(),
-      encryptedStorage: _InMemoryEncryptedStorage(),
-    );
+    encryptedStorage = _InMemoryEncryptedStorage();
+    repo = createRepo();
   });
 
   tearDown(() async {
     await repo.logout();
+    repo.dispose();
     await db.close();
     await tempDir.delete(recursive: true);
   });
@@ -778,5 +808,92 @@ void main() {
       0,
     );
     expect(service.uploadedSetlists, isEmpty);
+  });
+
+  test("a server with a different major API version is rejected", () async {
+    service.apiVersion = "1.0.0";
+
+    await expectLater(
+      repo.isSheetopiaUri(Uri.parse("https://example.invalid")),
+      throwsA(
+        isA<ApiVersionMismatchException>().having(
+          (e) => e.serverNewer,
+          "serverNewer",
+          true,
+        ),
+      ),
+    );
+    expect(repo.signedIn, false);
+  });
+
+  test("sync errors when the server major API version changes", () async {
+    await syncAndWait();
+
+    service.apiVersion = "1.0.0";
+    await repo.syncNow();
+    while (repo.state.value != SyncState.error) {
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+    }
+
+    expect(repo.error.value, contains("Update the app"));
+    expect(repo.startupVersionMismatch.value, isNull);
+    expect(repo.signedIn, true);
+  });
+
+  test("a major API version mismatch on startup is reported", () async {
+    await syncAndWait();
+    repo.dispose();
+
+    service.apiVersion = "1.0.0";
+    service.userEndpointMissing = true;
+    repo = createRepo();
+    while (repo.startupVersionMismatch.value == null) {
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+    }
+
+    expect(repo.state.value, SyncState.error);
+    expect(repo.startupVersionMismatch.value!.serverApiVersion, "1.0.0");
+    expect(repo.signedIn, true);
+  });
+
+  test("a major API version mismatch after a resume is reported", () async {
+    await syncAndWait();
+
+    service.apiVersion = "1.0.0";
+    for (final state in [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+      AppLifecycleState.hidden,
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed,
+    ]) {
+      TestWidgetsFlutterBinding.instance.handleAppLifecycleStateChanged(state);
+    }
+    while (repo.startupVersionMismatch.value == null) {
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+    }
+
+    expect(repo.state.value, SyncState.error);
+  });
+
+  test("the sync error is kept until a sync succeeds", () async {
+    await syncAndWait();
+
+    service.apiVersion = "1.0.0";
+    await syncNowAndWait();
+    expect(repo.error.value, isNotNull);
+
+    final errors = <String?>[];
+    void record() => errors.add(repo.error.value);
+    repo.error.addListener(record);
+    await syncNowAndWait();
+    expect(errors, isEmpty);
+
+    service.apiVersion = "0.3.0";
+    await syncNowAndWait();
+    repo.error.removeListener(record);
+    expect(errors, [null]);
+    expect(repo.state.value, SyncState.success);
   });
 }

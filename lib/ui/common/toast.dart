@@ -13,16 +13,20 @@ class Toast {
   static final GlobalKey<ScaffoldMessengerState> messengerKey =
       GlobalKey<ScaffoldMessengerState>();
 
-  static void show(String message) {
+  static void show(
+    String message, {
+    Duration duration = const Duration(milliseconds: 2500),
+    bool replace = true,
+  }) {
     final messenger = messengerKey.currentState;
     if (messenger == null) return;
-    messenger.hideCurrentSnackBar();
+    if (replace) messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
       SnackBar(
         content: Text(message),
         dismissDirection: DismissDirection.down,
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(milliseconds: 2500),
+        duration: duration,
         padding: const EdgeInsets.all(8),
         showCloseIcon: true,
       ),

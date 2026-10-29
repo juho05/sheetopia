@@ -30,7 +30,8 @@ class SyncIcon extends StatelessWidget {
           builder: (context, state, _) {
             return switch (state) {
               SyncState.none => const Icon(Icons.cloud_off_outlined),
-              SyncState.failure => const Icon(Icons.wifi_off),
+              SyncState.offline => const Icon(Icons.wifi_off),
+              SyncState.error => const Icon(Symbols.cloud_alert),
               SyncState.partial => const Icon(Symbols.cloud_alert),
               SyncState.success => const Icon(Icons.cloud_done),
               SyncState.syncing => Stack(

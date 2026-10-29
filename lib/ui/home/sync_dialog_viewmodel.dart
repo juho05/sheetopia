@@ -32,6 +32,8 @@ class SyncDialogViewModel extends ChangeNotifier {
 
   SyncState get state => _repo.state.value;
 
+  String? get syncError => _repo.error.value;
+
   String? _lastSync;
   String? get lastSync => _lastSync;
 
@@ -45,6 +47,7 @@ class SyncDialogViewModel extends ChangeNotifier {
 
   SyncDialogViewModel({required SyncRepository repo}) : _repo = repo {
     repo.state.addListener(notifyListeners);
+    repo.error.addListener(notifyListeners);
     repo.lastSync.addListener(_updateLastSync);
     _updateLastSync();
   }
@@ -81,6 +84,12 @@ class SyncDialogViewModel extends ChangeNotifier {
       );
     } on UnauthenticatedException catch (_) {
       _errorText = "Invalid credentials!";
+    } on ApiVersionMismatchException catch (e) {
+      Log.warn("Incompatible sync server", e: e);
+      _errorText = e.serverNewer
+          ? "The sync server requires a newer version of Sheetopia. Update "
+                "the app to connect."
+          : "The sync server is outdated. Update the server to connect.";
     } on DioException catch (e, st) {
       Log.warn("Failed to connect to sync server", e: e, st: st);
       _errorText = "Failed to connect to server!";
@@ -108,6 +117,7 @@ class SyncDialogViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _repo.lastSync.removeListener(_updateLastSync);
+    _repo.error.removeListener(notifyListeners);
     _repo.state.removeListener(notifyListeners);
     super.dispose();
   }

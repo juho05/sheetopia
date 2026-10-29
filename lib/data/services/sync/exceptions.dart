@@ -48,3 +48,23 @@ class InvalidResponseBody implements Exception {
     return "InvalidResponseBody";
   }
 }
+
+class ApiVersionMismatchException implements Exception {
+  final String serverApiVersion;
+  final bool serverNewer;
+
+  const ApiVersionMismatchException(
+    this.serverApiVersion, {
+    required this.serverNewer,
+  });
+
+  String get message => serverNewer
+      ? "The sync server requires a newer version of Sheetopia. Update the "
+            "app to continue syncing."
+      : "The sync server is outdated. Update the server to continue syncing.";
+
+  @override
+  String toString() {
+    return "ApiVersionMismatchException: server API v$serverApiVersion";
+  }
+}
