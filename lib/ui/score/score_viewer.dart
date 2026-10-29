@@ -12,14 +12,15 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
-import 'package:sheetopia/ui/annotate/annotate_viewmodel.dart';
-import 'package:sheetopia/ui/annotate/annotation_toolbar.dart';
-import 'package:sheetopia/ui/common/overlay_icon_button.dart';
-import 'package:sheetopia/ui/score/annotation_mode.dart';
+import 'package:sheetopia/data/repositories/settings/appearance.dart';
 import 'package:sheetopia/data/repositories/settings/page_turning.dart';
 import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/ui/annotate/annotate_viewmodel.dart';
+import 'package:sheetopia/ui/annotate/annotation_toolbar.dart';
 import 'package:sheetopia/ui/common/fading_overlay.dart';
+import 'package:sheetopia/ui/common/overlay_icon_button.dart';
+import 'package:sheetopia/ui/score/annotation_mode.dart';
 import 'package:sheetopia/ui/score/chrome/full_screen_button.dart';
 import 'package:sheetopia/ui/score/chrome/play_session.dart';
 import 'package:sheetopia/ui/score/pdf_view.dart';
@@ -106,7 +107,9 @@ class _ScoreViewerState extends State<_ScoreViewer>
     with SingleTickerProviderStateMixin {
   late final ScoreViewModel _viewModel;
   late final PageTurningSettings _pageTurningSettings;
+  late final AppearanceSettings _appearanceSettings;
   late final Listenable _rebuildListenable;
+  late final Listenable _backgroundListenable;
 
   final Color _forwardHighlight = Colors.green;
   final Color _backwardHighlight = Colors.orange;
@@ -130,9 +133,11 @@ class _ScoreViewerState extends State<_ScoreViewer>
       sequence: widget.sequence,
     );
     _pageTurningSettings = context.read<SettingsRepository>().pageTurning;
+    _appearanceSettings = context.read<SettingsRepository>().appearanceSettings;
     _rebuildListenable = Listenable.merge([
       _viewModel,
       _pageTurningSettings,
+      _appearanceSettings,
       _annotation,
     ]);
     _viewModel.addListener(_exitAnnotationWithoutPdf);
@@ -140,6 +145,11 @@ class _ScoreViewerState extends State<_ScoreViewer>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
+    _backgroundListenable = Listenable.merge([
+      _pageTurnHighlightController,
+      _viewModel,
+      _appearanceSettings,
+    ]);
     _pageChangeSub = _viewModel.pageChangedStream.listen(
       _triggerPageTurnHighlight,
     );
@@ -188,6 +198,9 @@ class _ScoreViewerState extends State<_ScoreViewer>
     );
   }
 
+  Color? get _scoreBackground =>
+      _appearanceSettings.scoreBackground ? _viewModel.scoreBackground : null;
+
   void _triggerPageTurnHighlight(bool forward) {
     if (!_pageTurningSettings.flashOnPageTurn) return;
 
@@ -196,7 +209,7 @@ class _ScoreViewerState extends State<_ScoreViewer>
     _pageTurnHighlightAnimation =
         ColorTween(
           begin: targetColor,
-          end: Theme.of(context).colorScheme.surface,
+          end: _scoreBackground ?? Theme.of(context).colorScheme.surface,
         ).animate(
           CurvedAnimation(
             parent: _pageTurnHighlightController,
@@ -312,6 +325,7 @@ class _ScoreViewerState extends State<_ScoreViewer>
                                   annotation: _annotation,
                                   gradualPageTurns:
                                       _pageTurningSettings.gradualPageTurns,
+                                  backgroundColor: _scoreBackground,
                                   nextPath: sequence?.nextFile?.path,
                                   previousPath: sequence?.previousFile?.path,
                                   nextScoreId: widget.advanceOnOverflow
@@ -390,20 +404,15 @@ class _ScoreViewerState extends State<_ScoreViewer>
           AppFullScreen.setImmersive(false);
         }
       },
-      child: StreamBuilder<bool>(
-        stream: _viewModel.pageChangedStream,
-        builder: (context, _) {
-          return AnimatedBuilder(
-            animation: _pageTurnHighlightAnimation!,
-            child: child,
-            builder: (context, child) {
-              return Scaffold(
-                backgroundColor: _pageTurnHighlightAnimation!.isAnimating
-                    ? _pageTurnHighlightAnimation!.value
-                    : null,
-                body: child,
-              );
-            },
+      child: AnimatedBuilder(
+        animation: _backgroundListenable,
+        child: child,
+        builder: (context, child) {
+          return Scaffold(
+            backgroundColor: _pageTurnHighlightAnimation!.isAnimating
+                ? _pageTurnHighlightAnimation!.value
+                : _scoreBackground,
+            body: child,
           );
         },
       ),

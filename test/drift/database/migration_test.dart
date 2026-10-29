@@ -1,6 +1,6 @@
 // dart format width=80
 // ignore_for_file: unused_local_variable, unused_import
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift_dev/api/migrations_native.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +10,8 @@ import 'generated/schema_v1.dart' as v1;
 import 'generated/schema_v2.dart' as v2;
 import 'generated/schema_v15.dart' as v15;
 import 'generated/schema_v16.dart' as v16;
+import 'generated/schema_v18.dart' as v18;
+import 'generated/schema_v19.dart' as v19;
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -149,6 +151,39 @@ void main() {
             isFalse,
             reason: "the sweep waits 3h before touching migrated scores",
           );
+        },
+      );
+    },
+  );
+
+  test(
+    "migration from v18 to v19 keeps scores and ignores metadata edits for recency",
+    () async {
+      const opened = "2026-01-01T00:00:00.000Z";
+      const edited = "2026-03-01T00:00:00.000Z";
+
+      await verifier.testWithDataIntegrity(
+        oldVersion: 18,
+        newVersion: 19,
+        createOld: v18.DatabaseAtV18.new,
+        createNew: v19.DatabaseAtV19.new,
+        openTestedDatabase: Database.new,
+        createItems: (batch, oldDb) {
+          batch.customStatement(
+            "INSERT INTO scores (id, title, search_text, last_opened, "
+            "metadata_updated_at, file_updated_at, file_downloaded, file_type, "
+            "inserted_at, difficulty) VALUES ('score', 'Etude', ' etude ', "
+            "'$opened', '$edited', '$opened', 1, 'pdf', '$opened', 3)",
+          );
+        },
+        validateItems: (newDb) async {
+          final score = await newDb.select(newDb.scores).getSingle();
+          expect(score.title, "Etude");
+          expect(score.difficulty, 3);
+          expect(score.metadataUpdatedAt, edited);
+          expect(score.recentTime, opened);
+          expect(score.processingVersion, isNull);
+          expect(score.backgroundColor, isNull);
         },
       );
     },

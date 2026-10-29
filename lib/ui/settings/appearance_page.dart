@@ -96,6 +96,19 @@ class AppearancePage extends StatelessWidget {
                         value: viewModel.cardDifficulty,
                         onChanged: viewModel.updateCardDifficulty,
                       ),
+                      const Heading(
+                        text: "Score viewer",
+                        padding: EdgeInsets.only(top: 8),
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text("Match paper color"),
+                        subtitle: const Text(
+                          "Fill the background with the paper color of the score",
+                        ),
+                        value: viewModel.scoreBackground,
+                        onChanged: viewModel.updateScoreBackground,
+                      ),
                     ],
                   ),
                 );

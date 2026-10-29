@@ -139,9 +139,7 @@ class $ScoresTableTable extends ScoresTable
     aliasedName,
     false,
     generatedAs: GeneratedAs(
-      CustomExpression(
-        "MAX(${lastOpened.name}, ${metadataUpdatedAt.name}, ${fileUpdatedAt.name})",
-      ),
+      CustomExpression("MAX(${lastOpened.name}, ${fileUpdatedAt.name})"),
       false,
     ),
     type: DriftSqlType.dateTime,
@@ -282,6 +280,28 @@ class $ScoresTableTable extends ScoresTable
         requiredDuringInsert: false,
         defaultValue: Constant(ScoreType.score.name),
       ).withConverter<ScoreType>($ScoresTableTable.$convertertype);
+  static const VerificationMeta _processingVersionMeta = const VerificationMeta(
+    'processingVersion',
+  );
+  @override
+  late final GeneratedColumn<int> processingVersion = GeneratedColumn<int>(
+    'processing_version',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _backgroundColorMeta = const VerificationMeta(
+    'backgroundColor',
+  );
+  @override
+  late final GeneratedColumn<int> backgroundColor = GeneratedColumn<int>(
+    'background_color',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -308,6 +328,8 @@ class $ScoresTableTable extends ScoresTable
     fileType,
     annotations,
     type,
+    processingVersion,
+    backgroundColor,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -470,6 +492,24 @@ class $ScoresTableTable extends ScoresTable
         ),
       );
     }
+    if (data.containsKey('processing_version')) {
+      context.handle(
+        _processingVersionMeta,
+        processingVersion.isAcceptableOrUnknown(
+          data['processing_version']!,
+          _processingVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('background_color')) {
+      context.handle(
+        _backgroundColorMeta,
+        backgroundColor.isAcceptableOrUnknown(
+          data['background_color']!,
+          _backgroundColorMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -581,6 +621,14 @@ class $ScoresTableTable extends ScoresTable
           data['${effectivePrefix}type'],
         )!,
       ),
+      processingVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}processing_version'],
+      ),
+      backgroundColor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}background_color'],
+      ),
     );
   }
 
@@ -622,6 +670,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
   final FileType fileType;
   final String? annotations;
   final ScoreType type;
+  final int? processingVersion;
+  final int? backgroundColor;
   const ScoresTableData({
     required this.id,
     required this.title,
@@ -647,6 +697,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     required this.fileType,
     this.annotations,
     required this.type,
+    this.processingVersion,
+    this.backgroundColor,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -706,6 +758,12 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
         $ScoresTableTable.$convertertype.toSql(type),
       );
     }
+    if (!nullToAbsent || processingVersion != null) {
+      map['processing_version'] = Variable<int>(processingVersion);
+    }
+    if (!nullToAbsent || backgroundColor != null) {
+      map['background_color'] = Variable<int>(backgroundColor);
+    }
     return map;
   }
 
@@ -754,6 +812,12 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           ? const Value.absent()
           : Value(annotations),
       type: Value(type),
+      processingVersion: processingVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(processingVersion),
+      backgroundColor: backgroundColor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(backgroundColor),
     );
   }
 
@@ -795,6 +859,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       type: $ScoresTableTable.$convertertype.fromJson(
         serializer.fromJson<String>(json['type']),
       ),
+      processingVersion: serializer.fromJson<int?>(json['processingVersion']),
+      backgroundColor: serializer.fromJson<int?>(json['backgroundColor']),
     );
   }
   @override
@@ -831,6 +897,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       'type': serializer.toJson<String>(
         $ScoresTableTable.$convertertype.toJson(type),
       ),
+      'processingVersion': serializer.toJson<int?>(processingVersion),
+      'backgroundColor': serializer.toJson<int?>(backgroundColor),
     };
   }
 
@@ -859,6 +927,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     FileType? fileType,
     Value<String?> annotations = const Value.absent(),
     ScoreType? type,
+    Value<int?> processingVersion = const Value.absent(),
+    Value<int?> backgroundColor = const Value.absent(),
   }) => ScoresTableData(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -884,6 +954,12 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     fileType: fileType ?? this.fileType,
     annotations: annotations.present ? annotations.value : this.annotations,
     type: type ?? this.type,
+    processingVersion: processingVersion.present
+        ? processingVersion.value
+        : this.processingVersion,
+    backgroundColor: backgroundColor.present
+        ? backgroundColor.value
+        : this.backgroundColor,
   );
   @override
   String toString() {
@@ -911,7 +987,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           ..write('fileDownloaded: $fileDownloaded, ')
           ..write('fileType: $fileType, ')
           ..write('annotations: $annotations, ')
-          ..write('type: $type')
+          ..write('type: $type, ')
+          ..write('processingVersion: $processingVersion, ')
+          ..write('backgroundColor: $backgroundColor')
           ..write(')'))
         .toString();
   }
@@ -942,6 +1020,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     fileType,
     annotations,
     type,
+    processingVersion,
+    backgroundColor,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -970,7 +1050,9 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           other.fileDownloaded == this.fileDownloaded &&
           other.fileType == this.fileType &&
           other.annotations == this.annotations &&
-          other.type == this.type);
+          other.type == this.type &&
+          other.processingVersion == this.processingVersion &&
+          other.backgroundColor == this.backgroundColor);
 }
 
 class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
@@ -997,6 +1079,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
   final Value<FileType> fileType;
   final Value<String?> annotations;
   final Value<ScoreType> type;
+  final Value<int?> processingVersion;
+  final Value<int?> backgroundColor;
   final Value<int> rowid;
   const ScoresTableCompanion({
     this.id = const Value.absent(),
@@ -1022,6 +1106,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.fileType = const Value.absent(),
     this.annotations = const Value.absent(),
     this.type = const Value.absent(),
+    this.processingVersion = const Value.absent(),
+    this.backgroundColor = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ScoresTableCompanion.insert({
@@ -1048,6 +1134,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     required FileType fileType,
     this.annotations = const Value.absent(),
     this.type = const Value.absent(),
+    this.processingVersion = const Value.absent(),
+    this.backgroundColor = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
@@ -1078,6 +1166,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Expression<String>? fileType,
     Expression<String>? annotations,
     Expression<String>? type,
+    Expression<int>? processingVersion,
+    Expression<int>? backgroundColor,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1104,6 +1194,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       if (fileType != null) 'file_type': fileType,
       if (annotations != null) 'annotations': annotations,
       if (type != null) 'type': type,
+      if (processingVersion != null) 'processing_version': processingVersion,
+      if (backgroundColor != null) 'background_color': backgroundColor,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1132,6 +1224,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Value<FileType>? fileType,
     Value<String?>? annotations,
     Value<ScoreType>? type,
+    Value<int?>? processingVersion,
+    Value<int?>? backgroundColor,
     Value<int>? rowid,
   }) {
     return ScoresTableCompanion(
@@ -1158,6 +1252,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       fileType: fileType ?? this.fileType,
       annotations: annotations ?? this.annotations,
       type: type ?? this.type,
+      processingVersion: processingVersion ?? this.processingVersion,
+      backgroundColor: backgroundColor ?? this.backgroundColor,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1240,6 +1336,12 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
         $ScoresTableTable.$convertertype.toSql(type.value),
       );
     }
+    if (processingVersion.present) {
+      map['processing_version'] = Variable<int>(processingVersion.value);
+    }
+    if (backgroundColor.present) {
+      map['background_color'] = Variable<int>(backgroundColor.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1272,6 +1374,8 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
           ..write('fileType: $fileType, ')
           ..write('annotations: $annotations, ')
           ..write('type: $type, ')
+          ..write('processingVersion: $processingVersion, ')
+          ..write('backgroundColor: $backgroundColor, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8954,6 +9058,8 @@ typedef $$ScoresTableTableCreateCompanionBuilder =
       required FileType fileType,
       Value<String?> annotations,
       Value<ScoreType> type,
+      Value<int?> processingVersion,
+      Value<int?> backgroundColor,
       Value<int> rowid,
     });
 typedef $$ScoresTableTableUpdateCompanionBuilder =
@@ -8981,6 +9087,8 @@ typedef $$ScoresTableTableUpdateCompanionBuilder =
       Value<FileType> fileType,
       Value<String?> annotations,
       Value<ScoreType> type,
+      Value<int?> processingVersion,
+      Value<int?> backgroundColor,
       Value<int> rowid,
     });
 
@@ -9176,6 +9284,16 @@ class $$ScoresTableTableFilterComposer
         column: $table.type,
         builder: (column) => ColumnWithTypeConverterFilters(column),
       );
+
+  ColumnFilters<int> get processingVersion => $composableBuilder(
+    column: $table.processingVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get backgroundColor => $composableBuilder(
+    column: $table.backgroundColor,
+    builder: (column) => ColumnFilters(column),
+  );
 
   Expression<bool> genresTableRefs(
     Expression<bool> Function($$GenresTableTableFilterComposer f) f,
@@ -9381,6 +9499,16 @@ class $$ScoresTableTableOrderingComposer
     column: $table.type,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get processingVersion => $composableBuilder(
+    column: $table.processingVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get backgroundColor => $composableBuilder(
+    column: $table.backgroundColor,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ScoresTableTableAnnotationComposer
@@ -9489,6 +9617,16 @@ class $$ScoresTableTableAnnotationComposer
 
   GeneratedColumnWithTypeConverter<ScoreType, String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<int> get processingVersion => $composableBuilder(
+    column: $table.processingVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get backgroundColor => $composableBuilder(
+    column: $table.backgroundColor,
+    builder: (column) => column,
+  );
 
   Expression<T> genresTableRefs<T extends Object>(
     Expression<T> Function($$GenresTableTableAnnotationComposer a) f,
@@ -9621,6 +9759,8 @@ class $$ScoresTableTableTableManager
                 Value<FileType> fileType = const Value.absent(),
                 Value<String?> annotations = const Value.absent(),
                 Value<ScoreType> type = const Value.absent(),
+                Value<int?> processingVersion = const Value.absent(),
+                Value<int?> backgroundColor = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ScoresTableCompanion(
                 id: id,
@@ -9646,6 +9786,8 @@ class $$ScoresTableTableTableManager
                 fileType: fileType,
                 annotations: annotations,
                 type: type,
+                processingVersion: processingVersion,
+                backgroundColor: backgroundColor,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -9673,6 +9815,8 @@ class $$ScoresTableTableTableManager
                 required FileType fileType,
                 Value<String?> annotations = const Value.absent(),
                 Value<ScoreType> type = const Value.absent(),
+                Value<int?> processingVersion = const Value.absent(),
+                Value<int?> backgroundColor = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ScoresTableCompanion.insert(
                 id: id,
@@ -9698,6 +9842,8 @@ class $$ScoresTableTableTableManager
                 fileType: fileType,
                 annotations: annotations,
                 type: type,
+                processingVersion: processingVersion,
+                backgroundColor: backgroundColor,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

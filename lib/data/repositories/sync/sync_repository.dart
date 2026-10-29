@@ -442,6 +442,7 @@ class SyncRepository {
       _startupSync = false;
       _scoresRepo.remoteChangedTags(_changedTags);
       _scoresRepo.remoteChangedScores(_changedScores);
+      _scoresRepo.requestProcessing(_changedScores);
       _setlistsRepo.remoteChangedSetlists(_changedSetlists);
       _practiceRepo.remoteChangedCategories(_changedCategories);
       _practiceRepo.remoteChangedExercises(_changedExercises);
@@ -1864,6 +1865,12 @@ class SyncRepository {
                       : const Value.absent(),
                   fileType: fileChanged
                       ? Value(s.fileType)
+                      : const Value.absent(),
+                  processingVersion: fileChanged
+                      ? const Value(null)
+                      : const Value.absent(),
+                  backgroundColor: fileChanged
+                      ? const Value(null)
                       : const Value.absent(),
                   type: metadataChanged && s.type != null
                       ? Value(s.type!)

@@ -68,7 +68,7 @@ class Database extends _$Database {
   Database([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -223,6 +223,17 @@ class Database extends _$Database {
               await m.addColumn(schema.scores, schema.scores.partOf);
               await m.addColumn(schema.scores, schema.scores.musicalKey);
               await m.addColumn(schema.exercises, schema.exercises.difficulty);
+            },
+            from18To19: (m, schema) async {
+              await m.alterTable(
+                TableMigration(
+                  schema.scores,
+                  newColumns: [
+                    schema.scores.processingVersion,
+                    schema.scores.backgroundColor,
+                  ],
+                ),
+              );
             },
           ),
         ),

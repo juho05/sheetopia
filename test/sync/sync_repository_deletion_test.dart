@@ -687,6 +687,62 @@ void main() {
     },
   );
 
+  test("a downloaded file change resets the processing result", () async {
+    await createScore();
+    await db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .update(
+          (o) => o(
+            processingVersion: const Value(1),
+            backgroundColor: const Value(0xFFFFFFFF),
+            metadataUpdatedAt: Value(contentTime.add(const Duration(days: 2))),
+          ),
+        );
+    final remote = remoteScore();
+    service.scores = [
+      ScoreModel(
+        id: scoreId,
+        title: remote.title,
+        metadataUpdatedAt: remote.metadataUpdatedAt,
+        fileUpdatedAt: contentTime.add(const Duration(days: 1)),
+        fileType: FileType.pdf,
+        tagIds: const [],
+        type: null,
+        metadata: remote.metadata,
+      ),
+    ];
+
+    await syncAndWait();
+
+    final score = await db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .getSingle();
+    expect(score.processingVersion, isNull);
+    expect(score.backgroundColor, isNull);
+  });
+
+  test("downloaded metadata keeps the local processing result", () async {
+    await createScore();
+    await db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .update(
+          (o) => o(
+            processingVersion: const Value(1),
+            backgroundColor: const Value(0xFFFFFFFF),
+          ),
+        );
+    service.scores = [remoteScore(arranger: "Arranger")];
+
+    await syncAndWait();
+
+    final score = await db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .getSingle();
+    expect(score.arranger, "Arranger");
+    expect(score.processingVersion, 1);
+    expect(score.backgroundColor, 0xFFFFFFFF);
+  });
+
   test("a downloaded score without a type keeps the local one", () async {
     await createScore(type: ScoreType.exercise, ownedByExercise: true);
     service.scores = [remoteScore()];

@@ -59,6 +59,8 @@ void main() {
       fileUpdatedAt: timestamp,
       fileType: FileType.pdf,
       file: null,
+      processingVersion: null,
+      backgroundColor: null,
     );
   }
 

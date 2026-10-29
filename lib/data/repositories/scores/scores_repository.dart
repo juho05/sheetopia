@@ -90,6 +90,10 @@ class ScoresRepository {
 
   Stream<String> get lastOpenedChanged => _lastOpenedChanged.stream;
 
+  final PublishSubject<Set<String>> _processingRequests = PublishSubject();
+
+  Stream<Set<String>> get processingRequests => _processingRequests.stream;
+
   ScoresRepository({required this._db, required this._thumbnailService});
 
   Future<Score?> getScore(String id) async {
@@ -210,6 +214,10 @@ class ScoresRepository {
       fileType: score.fileType,
       file: score.fileDownloaded
           ? await scoreFile(score.id, score.fileType)
+          : null,
+      processingVersion: score.processingVersion,
+      backgroundColor: score.backgroundColor != null
+          ? Color(score.backgroundColor!)
           : null,
     );
   }
@@ -1313,6 +1321,8 @@ class ScoresRepository {
             metadataUpdatedAt: now,
             fileType: fileType,
             file: file,
+            processingVersion: null,
+            backgroundColor: null,
           ),
         );
       }
@@ -1341,10 +1351,9 @@ class ScoresRepository {
       rethrow;
     }
 
-    _updatedScoreIds.add((
-      changed: scores.map((s) => s.id).toSet(),
-      remoteTriggered: false,
-    ));
+    final ids = scores.map((s) => s.id).toSet();
+    _updatedScoreIds.add((changed: ids, remoteTriggered: false));
+    _processingRequests.add(ids);
     return scores;
   }
 
@@ -1377,11 +1386,14 @@ class ScoresRepository {
               fileUpdatedAt: Value(DateTime.now().toUtc()),
               fileType: Value(fileType),
               fileUploaded: const Value(false),
+              processingVersion: const Value(null),
+              backgroundColor: const Value(null),
             ),
           );
       await updateScoreStatus([scoreId]);
     });
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
+    _processingRequests.add({scoreId});
   }
 
   Future<List<String>> getInstruments({
@@ -1615,6 +1627,11 @@ class ScoresRepository {
   void remoteChangedScores(Set<String> scoreIds) {
     if (scoreIds.isEmpty) return;
     _updatedScoreIds.add((changed: scoreIds, remoteTriggered: true));
+  }
+
+  void requestProcessing(Set<String> scoreIds) {
+    if (scoreIds.isEmpty) return;
+    _processingRequests.add(scoreIds);
   }
 
   void announceDeletedScores(Set<String> scoreIds) {

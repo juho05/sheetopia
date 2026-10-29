@@ -29,6 +29,8 @@ class ScoreViewModel extends ChangeNotifier {
 
   String get scoreId => _scoreId;
 
+  Color? get scoreBackground => _score?.backgroundColor;
+
   // incremented on every successful switch, so a reprise (same id, same file)
   // still restarts the document
   int _switchToken = 0;

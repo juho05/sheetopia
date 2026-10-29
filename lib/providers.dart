@@ -14,12 +14,14 @@ import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/logger/log_repository.dart';
 import 'package:sheetopia/data/repositories/midi/midi_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
+import 'package:sheetopia/data/repositories/scores/score_processing_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/repositories/themeManager/theme_manager.dart';
 import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/score_processing/score_processing_service.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/system_integration.dart';
@@ -100,6 +102,15 @@ Future<List<SingleChildWidget>> createProviders({
       ),
       dispose: (context, repo) => repo.dispose(),
       // sync should start immediately
+      lazy: false,
+    ),
+    Provider(
+      create: (context) => ScoreProcessingRepository(
+        db: context.read(),
+        scoresRepo: context.read(),
+        service: ScoreProcessingService(),
+      ),
+      dispose: (context, repo) => repo.dispose(),
       lazy: false,
     ),
     ChangeNotifierProvider(

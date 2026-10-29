@@ -41,6 +41,8 @@ void main() {
     fileUpdatedAt: DateTime.utc(2026),
     fileType: fileType,
     file: downloaded ? File("$title.pdf") : null,
+    processingVersion: null,
+    backgroundColor: null,
   );
 
   Future<void> pumpToolbar(

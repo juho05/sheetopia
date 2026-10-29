@@ -43,9 +43,7 @@ class ScoresTable extends Table {
   )();
 
   late final recentTime = dateTime().generatedAs(
-    CustomExpression(
-      "MAX(${lastOpened.name}, ${metadataUpdatedAt.name}, ${fileUpdatedAt.name})",
-    ),
+    CustomExpression("MAX(${lastOpened.name}, ${fileUpdatedAt.name})"),
   )();
 
   late final lastOpened = dateTime().clientDefault(
@@ -77,6 +75,9 @@ class ScoresTable extends Table {
   late final type = text()
       .map(const ScoreTypeConverter())
       .withDefault(Constant(ScoreType.score.name))();
+
+  late final processingVersion = integer().nullable()();
+  late final backgroundColor = integer().nullable()();
 
   @override
   Set<Column<Object>>? get primaryKey => {id};

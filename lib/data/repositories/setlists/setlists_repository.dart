@@ -6,6 +6,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:ui';
+
 import 'package:drift/drift.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sheetopia/data/repositories/scores/difficulty.dart';
@@ -137,6 +139,10 @@ class SetlistsRepository {
       fileType: score.fileType,
       file: score.fileDownloaded
           ? await _scoresRepo.scoreFile(score.id, score.fileType)
+          : null,
+      processingVersion: score.processingVersion,
+      backgroundColor: score.backgroundColor != null
+          ? Color(score.backgroundColor!)
           : null,
     );
   }

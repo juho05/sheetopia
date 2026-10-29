@@ -53,6 +53,11 @@ class AppearanceSettings extends ChangeNotifier {
   bool _cardDifficulty = _cardDifficultyDefault;
   bool get cardDifficulty => _cardDifficulty;
 
+  static const String _scoreBackgroundKey = "appearance.score_background";
+  static const bool _scoreBackgroundDefault = false;
+  bool _scoreBackground = _scoreBackgroundDefault;
+  bool get scoreBackground => _scoreBackground;
+
   AppearanceSettings({required KeyValueRepository keyValueRepository})
     : _repo = keyValueRepository;
 
@@ -71,6 +76,8 @@ class AppearanceSettings extends ChangeNotifier {
         _cardBadgesDefault;
     _cardDifficulty =
         (await _repo.loadBool(_cardDifficultyKey)) ?? _cardDifficultyDefault;
+    _scoreBackground =
+        (await _repo.loadBool(_scoreBackgroundKey)) ?? _scoreBackgroundDefault;
     notifyListeners();
   }
 
@@ -80,11 +87,13 @@ class AppearanceSettings extends ChangeNotifier {
     _cardSubtitle = _cardSubtitleDefault;
     _cardBadges = _cardBadgesDefault;
     _cardDifficulty = _cardDifficultyDefault;
+    _scoreBackground = _scoreBackgroundDefault;
     notifyListeners();
     _repo.remove(_themeModeKey);
     _repo.remove(_cardSubtitleKey);
     _repo.remove(_cardBadgesKey);
     _repo.remove(_cardDifficultyKey);
+    _repo.remove(_scoreBackgroundKey);
   }
 
   set themeMode(ThemeMode mode) {
@@ -117,5 +126,13 @@ class AppearanceSettings extends ChangeNotifier {
     _cardDifficulty = value;
     notifyListeners();
     _repo.store(_cardDifficultyKey, value);
+  }
+
+  set scoreBackground(bool value) {
+    if (value == _scoreBackground) return;
+    Log.debug("score background: $value");
+    _scoreBackground = value;
+    notifyListeners();
+    _repo.store(_scoreBackgroundKey, value);
   }
 }

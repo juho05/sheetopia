@@ -7,6 +7,7 @@
  */
 
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:sheetopia/data/repositories/scores/difficulty.dart';
 import 'package:sheetopia/data/repositories/scores/musical_key.dart';
@@ -38,6 +39,9 @@ class Score {
   final FileType fileType;
   final File? file;
 
+  final int? processingVersion;
+  final Color? backgroundColor;
+
   Score({
     required this.id,
     required this.title,
@@ -58,6 +62,8 @@ class Score {
     required this.fileUpdatedAt,
     required this.fileType,
     required this.file,
+    required this.processingVersion,
+    required this.backgroundColor,
   });
 
   bool get playable => file != null && fileType.isKnown;
@@ -82,5 +88,7 @@ class Score {
     fileUpdatedAt: fileUpdatedAt,
     fileType: fileType,
     file: file,
+    processingVersion: processingVersion,
+    backgroundColor: backgroundColor,
   );
 }

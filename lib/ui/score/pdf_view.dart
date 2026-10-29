@@ -33,6 +33,8 @@ class PdfView extends StatefulWidget {
 
   final bool gradualPageTurns;
 
+  final Color? backgroundColor;
+
   final String? nextPath;
   final String? previousPath;
 
@@ -55,6 +57,7 @@ class PdfView extends StatefulWidget {
     required this.controller,
     required this.annotation,
     this.gradualPageTurns = false,
+    this.backgroundColor,
     this.nextPath,
     this.previousPath,
     this.nextScoreId,
@@ -255,6 +258,9 @@ class _PdfViewState extends State<PdfView> {
                   child: PdfPageView(
                     document: entry.document,
                     pageNumber: page.pageNumber,
+                    decoration: widget.backgroundColor != null
+                        ? BoxDecoration(color: widget.backgroundColor)
+                        : null,
                   ),
                 ),
                 Positioned.fill(

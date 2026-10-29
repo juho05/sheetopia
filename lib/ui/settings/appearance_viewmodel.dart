@@ -22,6 +22,8 @@ class AppearanceViewModel extends ChangeNotifier {
 
   bool get cardDifficulty => _settings.cardDifficulty;
 
+  bool get scoreBackground => _settings.scoreBackground;
+
   AppearanceViewModel({required this._settings}) {
     _settings.addListener(_onSettingsChanged);
     _onSettingsChanged();
@@ -46,6 +48,10 @@ class AppearanceViewModel extends ChangeNotifier {
 
   void updateCardDifficulty(bool value) {
     _settings.cardDifficulty = value;
+  }
+
+  void updateScoreBackground(bool value) {
+    _settings.scoreBackground = value;
   }
 
   @override
