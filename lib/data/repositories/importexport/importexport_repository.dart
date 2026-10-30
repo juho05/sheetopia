@@ -1093,23 +1093,11 @@ class ImportExportRepository extends ChangeNotifier {
   }
 
   static Future<void> _createZipFileFromDir(Map params) async {
-    final archive = createArchiveFromDirectory(
+    await ZipFileEncoder().zipDirectory(
       Directory(params["dir"]),
-      includeDirName: false,
+      filename: params["path"],
+      level: DeflateLevel.defaultCompression,
     );
-
-    final outStream = OutputFileStream(params["path"]);
-
-    try {
-      ZipEncoder().encodeStream(
-        archive,
-        outStream,
-        autoClose: true,
-        level: DeflateLevel.defaultCompression,
-      );
-    } finally {
-      outStream.close();
-    }
   }
 
   static Future<Map> _decodeZIPFile(Map params) async {

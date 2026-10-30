@@ -766,4 +766,38 @@ void main() {
     expect(await db.managers.exercisesTable.count(), 0);
     expect(await db.managers.scoresTable.count(), 1);
   });
+
+  test("a library larger than the open file limit round-trips", () async {
+    const scoreCount = 300;
+    for (var i = 0; i < scoreCount; i++) {
+      final id = "bulk-$i";
+      await db.managers.scoresTable.create(
+        (o) => o(
+          id: id,
+          title: "Bulk $i",
+          searchText: " bulk $i ",
+          fileDownloaded: true,
+          fileType: FileType.pdf,
+          lastOpened: Value(contentTime),
+          metadataUpdatedAt: Value(contentTime),
+          fileUpdatedAt: Value(contentTime),
+        ),
+      );
+      await scoresRepo.createScoreDir(id);
+      final file = await scoresRepo.scoreFile(id, FileType.pdf);
+      await file.writeAsString("%PDF-1.4 bulk $i");
+    }
+
+    final zip = await exportAll();
+
+    await db.managers.scoresTable.delete();
+    await (await scoresRepo.scoresDir).delete(recursive: true);
+    await (await scoresRepo.scoresDir).create(recursive: true);
+
+    await importFrom(zip);
+
+    expect(await db.managers.scoresTable.count(), scoreCount + 1);
+    final file = await scoresRepo.scoreFile("bulk-7", FileType.pdf);
+    expect(await file.readAsString(), "%PDF-1.4 bulk 7");
+  });
 }
