@@ -60,6 +60,7 @@ class MetadataAutoCompleteField extends StatelessWidget {
       onSelected: (option) => form.control(formControlName).value = option,
       fieldBuilder: (context, controller, focusNode) => ReactiveTextField(
         onTapOutside: (event) => focusNode.unfocus(),
+        selectAllOnTap: true,
         formControlName: formControlName,
         controller: controller,
         focusNode: focusNode,

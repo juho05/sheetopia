@@ -8,6 +8,7 @@
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
@@ -158,4 +159,91 @@ void main() {
 
     expect((await repo.getScore("a"))!.source, "Henle");
   });
+
+  TextSelection selectionOf(WidgetTester tester, Finder field) =>
+      tester.widget<TextField>(field).controller!.selection;
+
+  const fullTitle = TextSelection(baseOffset: 0, extentOffset: 5);
+
+  for (final kind in [PointerDeviceKind.mouse, PointerDeviceKind.touch]) {
+    testWidgets(
+      "tapping a metadata field selects its value with ${kind.name}",
+      (tester) async {
+        await pumpForm(tester);
+        final title = find.widgetWithText(TextField, "Title");
+
+        await tester.tap(title, kind: kind);
+        await settle(tester);
+        expect(selectionOf(tester, title), fullTitle);
+      },
+      variant: const TargetPlatformVariant({
+        TargetPlatform.linux,
+        TargetPlatform.android,
+      }),
+    );
+
+    testWidgets(
+      "tapping a focused metadata field places the caret with ${kind.name}",
+      (tester) async {
+        await pumpForm(tester);
+        final title = find.widgetWithText(TextField, "Title");
+
+        await tester.tap(title, kind: kind);
+        await settle(tester);
+        await tester.pump(kDoubleTapTimeout);
+        await tester.tap(title, kind: kind);
+        await settle(tester);
+        expect(selectionOf(tester, title).isCollapsed, isTrue);
+      },
+      variant: const TargetPlatformVariant({
+        TargetPlatform.linux,
+        TargetPlatform.android,
+      }),
+    );
+  }
+
+  testWidgets("tapping a metadata field selects a composer again after blur", (
+    tester,
+  ) async {
+    await db.managers.scoresTable
+        .filter((f) => f.id("a"))
+        .update((o) => o(composer: const Value("Bach")));
+    await pumpForm(tester);
+    final composer = find.widgetWithText(TextField, "Bach");
+
+    await tester.tap(composer, kind: PointerDeviceKind.mouse);
+    await settle(tester);
+    await tester.tapAt(Offset.zero, kind: PointerDeviceKind.mouse);
+    await settle(tester);
+    await tester.pump(kDoubleTapTimeout);
+    await tester.tap(composer, kind: PointerDeviceKind.mouse);
+    await settle(tester);
+
+    expect(
+      selectionOf(tester, composer),
+      const TextSelection(baseOffset: 0, extentOffset: 4),
+    );
+  });
+
+  testWidgets("dragging over a metadata field keeps the dragged selection", (
+    tester,
+  ) async {
+    await pumpForm(tester);
+    final title = find.widgetWithText(TextField, "Title");
+    final start = tester.getTopLeft(title) + const Offset(40, 20);
+
+    final gesture = await tester.startGesture(
+      start,
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump();
+    await gesture.moveBy(const Offset(30, 0));
+    await tester.pump();
+    await gesture.up();
+    await settle(tester);
+
+    final selection = selectionOf(tester, title);
+    expect(selection.isCollapsed, isFalse);
+    expect(selection, isNot(fullTitle));
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 }

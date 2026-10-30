@@ -106,6 +106,7 @@ class _MetadataFormState<T extends MetadataField>
         formControlName: widget.titleControlName,
         focusNode: _titleFocus,
         onTapOutside: (event) => _titleFocus.unfocus(),
+        selectAllOnTap: true,
         style: Theme.of(context).textTheme.headlineSmall,
       ),
       children: [for (final field in widget.permanentFields) _row(field)],
@@ -144,7 +145,10 @@ class _MetadataFormState<T extends MetadataField>
           if (widget.action != null)
             Align(
               alignment: Alignment.centerRight,
-              child: Padding(padding: const EdgeInsets.all(8), child: widget.action),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: widget.action,
+              ),
             ),
         ],
       ),

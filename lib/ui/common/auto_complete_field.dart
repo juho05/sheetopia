@@ -9,6 +9,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:sheetopia/ui/common/common_badge.dart';
+import 'package:sheetopia/ui/common/select_all_on_tap.dart';
 
 class AutoCompleteField extends StatefulWidget {
   final Future<Iterable<String>> Function(String filter) getOptions;
@@ -17,6 +18,7 @@ class AutoCompleteField extends StatefulWidget {
   final FocusNode? focusNode;
   final InputDecoration decoration;
   final bool autofocus;
+  final bool selectAllOnTap;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final Widget Function(
@@ -34,6 +36,7 @@ class AutoCompleteField extends StatefulWidget {
     this.focusNode,
     this.decoration = const InputDecoration(),
     this.autofocus = false,
+    this.selectAllOnTap = false,
     this.onChanged,
     this.onSubmitted,
     this.fieldBuilder,
@@ -140,6 +143,28 @@ class _AutoCompleteFieldState extends State<AutoCompleteField> {
     widget.onSelected?.call(option);
   }
 
+  Widget _textField(void Function()? onTap) {
+    return TextField(
+      controller: _controller,
+      focusNode: _focusNode,
+      autofocus: widget.autofocus,
+      decoration: widget.decoration,
+      onChanged: widget.onChanged,
+      onSubmitted: widget.onSubmitted,
+      onTapOutside: (event) => _focusNode.unfocus(),
+      onTap: onTap,
+    );
+  }
+
+  Widget _defaultField() {
+    if (!widget.selectAllOnTap) return _textField(null);
+    return SelectAllOnTap(
+      controller: _controller,
+      focusNode: _focusNode,
+      builder: _textField,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Focus(
@@ -162,15 +187,7 @@ class _AutoCompleteFieldState extends State<AutoCompleteField> {
               actions: {_FocusFirstOptionIntent: _focusFirstOptionAction},
               child:
                   widget.fieldBuilder?.call(context, _controller, _focusNode) ??
-                  TextField(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    autofocus: widget.autofocus,
-                    decoration: widget.decoration,
-                    onChanged: widget.onChanged,
-                    onSubmitted: widget.onSubmitted,
-                    onTapOutside: (event) => _focusNode.unfocus(),
-                  ),
+                  _defaultField(),
             ),
           ),
           AnimatedSize(

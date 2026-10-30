@@ -59,6 +59,7 @@ class _TextFilterFieldState extends State<TextFilterField> {
       controller: _controller,
       focusNode: _focusNode,
       autofocus: widget.autofocus,
+      selectAllOnTap: true,
       getOptions: widget.getOptions,
       onChanged: _onChanged,
       onSelected: _onChanged,

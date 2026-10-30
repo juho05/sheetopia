@@ -7,6 +7,7 @@
  */
 
 import 'package:drift/native.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
@@ -119,4 +120,50 @@ void main() {
     expect(find.text("Arranger"), findsOneWidget);
     expect(find.text("Busoni"), findsOneWidget);
   });
+
+  for (final kind in [PointerDeviceKind.mouse, PointerDeviceKind.touch]) {
+    testWidgets(
+      "tapping a filter selects its value, tapping again places the caret with ${kind.name}",
+      (tester) async {
+        viewModel.filterArranger = "Busoni";
+        await openDialog(tester);
+        final field = find.widgetWithText(TextField, "Busoni");
+        TextSelection selection() =>
+            tester.widget<TextField>(field).controller!.selection;
+
+        await tester.tap(field, kind: kind);
+        await settle(tester);
+        expect(
+          selection(),
+          const TextSelection(baseOffset: 0, extentOffset: 6),
+        );
+
+        await tester.pump(kDoubleTapTimeout);
+        await tester.tap(field, kind: kind);
+        await settle(tester);
+        expect(selection().isCollapsed, isTrue);
+      },
+      variant: const TargetPlatformVariant({
+        TargetPlatform.linux,
+        TargetPlatform.android,
+      }),
+    );
+  }
+
+  testWidgets("the clear button of a filter still clears it", (tester) async {
+    viewModel.filterArranger = "Busoni";
+    await openDialog(tester);
+
+    await tester.tap(
+      find.descendant(
+        of: find.widgetWithText(TextField, "Busoni"),
+        matching: find.byIcon(Icons.clear),
+      ),
+      kind: PointerDeviceKind.mouse,
+    );
+    await settle(tester);
+
+    expect(viewModel.filterArranger, isEmpty);
+    expect(find.text("Busoni"), findsNothing);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 }

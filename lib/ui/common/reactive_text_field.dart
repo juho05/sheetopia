@@ -12,6 +12,7 @@
 
 import 'package:material_ui/material_ui.dart';
 import 'package:reactive_forms/reactive_forms.dart' hide ReactiveTextField;
+import 'package:sheetopia/ui/common/select_all_on_tap.dart';
 
 class ReactiveTextField<T> extends ReactiveFormField<T, String> {
   final TextEditingController? _textController;
@@ -31,6 +32,7 @@ class ReactiveTextField<T> extends ReactiveFormField<T, String> {
     TextEditingController? controller,
     ReactiveFormFieldCallback<T>? onSubmitted,
     TapRegionCallback? onTapOutside,
+    bool selectAllOnTap = false,
   }) : _textController = controller,
        super(
          builder: (ReactiveFormFieldState<T, String> field) {
@@ -38,7 +40,7 @@ class ReactiveTextField<T> extends ReactiveFormField<T, String> {
            final effectiveDecoration = decoration.applyDefaults(
              Theme.of(state.context).inputDecorationTheme,
            );
-           return TextField(
+           Widget textField(void Function()? onTap) => TextField(
              controller: state._textController,
              focusNode: state.focusNode,
              decoration: effectiveDecoration.copyWith(
@@ -55,6 +57,13 @@ class ReactiveTextField<T> extends ReactiveFormField<T, String> {
                  : null,
              onChanged: field.didChange,
              onTapOutside: onTapOutside,
+             onTap: onTap,
+           );
+           if (!selectAllOnTap) return textField(null);
+           return SelectAllOnTap(
+             controller: state._textController,
+             focusNode: state.focusNode,
+             builder: textField,
            );
          },
        );
