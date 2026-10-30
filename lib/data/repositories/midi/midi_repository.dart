@@ -29,6 +29,7 @@ class MidiRepository with WidgetsBindingObserver {
   static const _reconnectStartupScanTimeout = Duration(minutes: 1);
   static const _reconnectBackoff = Duration(seconds: 5);
   static const _devicePollInterval = Duration(seconds: 20);
+  static const _bluetoothOffToastDelay = Duration(seconds: 2);
 
   final MidiCommand _midi = MidiCommand();
   final KeyValueRepository _keyValue;
@@ -55,8 +56,7 @@ class MidiRepository with WidgetsBindingObserver {
 
   final Map<MidiDeviceKey, Set<int>> _pressedContinuousControllers = {};
 
-  MidiRepository({required KeyValueRepository keyValue})
-    : _keyValue = keyValue {
+  MidiRepository({required this._keyValue}) {
     // TODO init only when midi is enabled in settings
     WidgetsBinding.instance.addObserver(this);
     _init();
@@ -381,7 +381,7 @@ class MidiRepository with WidgetsBindingObserver {
         _bleScanActive = false;
         _stopReconnectScan();
         _devices.add(await _midi.devices ?? []);
-        Toast.show("Bluetooth is off");
+        unawaited(_toastIfBluetoothStaysOff());
       case BluetoothState.unauthorized:
         _bleScanActive = false;
         _stopReconnectScan();
@@ -393,6 +393,19 @@ class MidiRepository with WidgetsBindingObserver {
       default:
         break;
     }
+  }
+
+  // A toast shown while hidden stays frozen until the window is restored, since
+  // no frames are produced. It would then report a state that may be long gone.
+  Future<void> _toastIfBluetoothStaysOff() async {
+    await Future.delayed(_bluetoothOffToastDelay);
+    if (_midi.bluetoothState != BluetoothState.poweredOff) return;
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    if (lifecycle == AppLifecycleState.hidden ||
+        lifecycle == AppLifecycleState.paused) {
+      return;
+    }
+    Toast.show("Bluetooth is off");
   }
 
   void _maybeAutoReconnect() {
