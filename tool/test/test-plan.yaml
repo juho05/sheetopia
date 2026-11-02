@@ -294,6 +294,17 @@ platform_features:
       file name (<title>.pdf, sheetopia-export-<date>.zip,
       sheetopia-logs_<date>.txt), the files land where chosen and are
       complete. Cancelling shows no success toast.
+  - id: export.large_library
+    platforms: [ macos, linux, android, ios ]
+    via: archive ZipFileEncoder, importexport_repository.dart (exports used to fail with "Too many open files" on macOS)
+    test: >-
+      Import fixtures/large-library.zip through Settings > Import/Export >
+      Import (the demo library plus 300 one-page "Bulk score NNN" scores,
+      325 scores in all, may take a minute). Then Export: it succeeds
+      without an error toast or Error log entries, and the saved zip
+      (iOS: share sheet > Save to Files) has 325 `scores/<id>/score.pdf`
+      entries (`unzip -l <zip> | grep -c score.pdf` on the host after
+      pulling it).
   - id: import.archive
     platforms: [ macos, linux, android, ios ]
     via: file_selector openFile, importexport_page.dart
@@ -380,6 +391,30 @@ platform_features:
       assertions`, Linux the screensaver inhibition over D-Bus, Android
       `dumpsys power | grep -i wake`, iOS best effort (say how you checked).
       Leaving the viewer releases it.
+  - id: viewer.score_processing
+    platforms: [ macos, linux, android, ios ]
+    via: >-
+      appearance.dart (Match paper color on by default on Android/iOS),
+      score_processing_service.dart (pdfrx renders in a background isolate),
+      pdf_page_image.dart (renders only the visible region, snapped to device
+      pixels)
+    test: >-
+      Before changing anything: Settings > Appearance > Match paper color is
+      on on Android/iOS and off on macOS/Linux, Settings > Page Margins >
+      Crop page margins is off everywhere. Import
+      fixtures/paper/tinted-margins.pdf (two pages of cream paper with about
+      20% empty margin on every side) and wait until the app log has
+      `Processed score <id> (2 pages, background fff5ebcc, margins
+      PageMargins(...))` for it (colour and the four margins about 0.2 may
+      differ slightly), then open it.
+      With Match paper color on, the area around the page is the cream paper
+      colour instead of the dark theme background, also after a page turn
+      flash; off, it is dark again. Turn Crop page margins on: the content
+      fills more of the screen with only a thin cream border left, both
+      pages, and staff lines and text are as sharp as without the crop
+      (`zoom` both). The View options button (tune icon, top right; on
+      desktop move the pointer first, it fades after 3 s) toggles both
+      switches in the open viewer and Settings shows the change.
   - id: window.close
     platforms: [ macos, linux ]
     excluded: mobile apps have no close button
@@ -485,6 +520,9 @@ feature_suite:
           button clears them; combined with search; instruments, genres and
           tags each match Any, All or Exact (selector at the row end); the
           active indicator shows; Clear resets and hides the added filters.
+          Tapping a filled text filter (e.g. arranger) selects its whole
+          value, a second tap places the caret, its clear button still
+          clears it.
       - id: library.selection
         test: >-
           Long-press starts selection (touch), Ctrl+click starts it (mouse),
@@ -522,8 +560,11 @@ feature_suite:
           in filled boxes. Source link: the link button is disabled while the
           name is empty, emptying the name hides the open button and saves no
           link, retyping the name brings the link back; clearing the link in
-          the dialog turns Save into Remove. The bottom only shows Next/Done
-          while importing, there is no Delete button in the form.
+          the dialog turns Save into Remove. Tapping (mouse and touch) into a
+          text field that has no focus selects its whole value, so typing
+          replaces it; tapping it again while focused places the caret, and
+          dragging over it selects what was dragged. The bottom only shows
+          Next/Done while importing, there is no Delete button in the form.
           Changes show in the library and survive a restart.
       - id: edit.tags
         test: >-
@@ -531,7 +572,11 @@ feature_suite:
           removes the tag from scores.
       - id: edit.change_file
         test: >-
-          Change file to another PDF updates the preview and thumbnail;
+          Change file to another PDF updates the preview and thumbnail and
+          reprocesses it (a demo score changed to
+          fixtures/paper/tinted-margins.pdf gets the cream paper colour in the
+          viewer with Match paper color on, once the log has its new
+          `Processed score` entry);
           changing to a non-PDF shows an error and keeps the old file (known
           risk: changeFile has no error handling).
       - id: edit.delete
@@ -556,6 +601,43 @@ feature_suite:
         test: >-
           "Flash on page turn" flashes green/orange; "Gradual page turns" turns
           half pages with a draggable split handle.
+      - id: viewer.view_options
+        test: >-
+          The View options button (tooltip "View options", top right, hidden
+          while annotating; on desktop it fades with the overlay 3 s after the
+          last pointer movement even outside fullscreen, move the pointer to
+          bring it back) opens a
+          dialog with Gradual page turns, Match paper color and Crop page
+          margins switches, Annotate and Done. Each switch applies to the
+          open score at once, persists and shows in its Settings page
+          (Page Turning, Appearance, Page Margins). Annotate closes the dialog
+          and enters annotation mode. Also in setlist, routine and exercise
+          play.
+      - id: viewer.crop
+        test: >-
+          Settings > Page Margins: Crop page margins (off by default) and a
+          Padding slider (0 to 5 %, 0.25 % steps, default 1 %, disabled while
+          cropping is off), both persist across a restart. Score processing
+          runs in the background after import and start, the log has
+          `Processed score <id> (..., margins ...)` per score; a score opened
+          before that shows uncropped until reopened, that is intended. With
+          cropping on: fixtures/paper/tinted-margins.pdf loses its 20%
+          margins on both pages, more padding leaves more border; the demo
+          scores lose their white margins, never any notes, title or page
+          number. Setlist play crops each score by its own margins, spill
+          pages (Gradual page turns) included.
+      - id: viewer.crop_annotations
+        inputs: [ stylus, mouse ]
+        test: >-
+          Annotations count as content when cropping (Settings > Page
+          Margins). Draw a stroke into the margin of
+          fixtures/paper/tinted-margins.pdf with cropping off; with cropping
+          on, that much margin stays visible. Enter annotation mode with
+          cropping on: the page does not move or resize while annotating,
+          also when erasing that stroke, and the crop only follows after
+          Done. Pen strokes, shape snapping and dragging or pasting a lasso
+          selection stop at the cropped edge. With cropping off again the
+          strokes are where they were drawn.
       - id: viewer.broken_pdf
         test: A damaged PDF shows "This PDF could not be opened." instead of crashing.
       - id: viewer.last_opened
@@ -572,8 +654,9 @@ feature_suite:
           next entry. A again, Esc and Done leave it. Also works in setlist,
           routine and exercise play. On touch-only: the pencil on a library
           card opens Edit score, its Annotate button (bottom left of the
-          preview) opens the annotate page. The viewer itself has no Edit
-          menu.
+          preview) opens the annotate page. View options > Annotate enters
+          it too; on a damaged PDF it must not crash or leave a stuck
+          toolbar. The viewer has no Edit menu.
       - id: annotate.stylus_vs_touch
         inputs: [ stylus, touch, mouse, trackpad ]
         test: >-
@@ -618,7 +701,9 @@ feature_suite:
         test: >-
           Playing turns across score boundaries with the spill page, swipe up
           (a fast fling) opens the sequence sheet to jump, the bubble shows
-          name and position.
+          name and position and doesn't cover the back and View options
+          buttons, also with a long score title in a narrow window
+          (`window --size 390x844`).
   - area: Practice
     tests:
       - id: practice.routines
@@ -688,7 +773,11 @@ feature_suite:
           Badges (Instruments, Genres, None) and Show difficulty (off by
           default, a coloured icon with the level as tooltip, also on exercise
           tiles in the exercise list and routines) change the library cards,
-          setlist subtitles and exercise tiles and persist. The demo has no
+          setlist subtitles and exercise tiles and persist. Score viewer:
+          Match paper color (off by default on Linux) fills the viewer
+          background with the score's paper colour (white for the demo
+          scores, cream for fixtures/paper/tinted-margins.pdf), visible in the
+          Dark theme, and persists. The demo has no
           arrangers, set some first; a card without the chosen subtitle shows
           "No composer"/"No arranger".
       - id: settings.page_turning
@@ -711,7 +800,8 @@ feature_suite:
           complete again, the
           arranger (also searchable), the exercise difficulties and the Hanon
           exercise's source link are back and export_diff against the first
-          export matches.
+          export matches. The imported scores are processed again (sqlite: no
+          score with an empty processing_version, see the Linux guide).
       - id: data.reimport_merges
         test: >-
           Importing the demo library again does not duplicate anything; a

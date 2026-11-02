@@ -50,7 +50,7 @@ release (`versions.plain`, only for tests that use it) an empty file.
    uses `setup` when old → new is off). The export after the update is
    `<platform>-<phase>-after.zip`.
    - macOS/Linux: save dialog, then `pull` the file.
-   - Android: the share sheet, save to Downloads/Files, then
+   - Android: the system save dialog, save to Downloads, then
      `android.sh adb $RUN pull /sdcard/Download/<file> <dest>`.
    Don't open scores between this export and the update.
 

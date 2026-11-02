@@ -108,7 +108,7 @@ Tests are prose for the agents: what to do and what must be true afterwards.
 | `harness/bin/e2e.dart` | the orchestrator (`tool.sh e2e`) |
 | `test-plan.yaml` | what is tested |
 | `guides/` | how agents operate each environment, update procedure |
-| `scripts/` | bash: prepare, stage, build, environments, fake GitHub, fixtures |
+| `scripts/` | bash: prepare, stage, build, environments, fake GitHub, fixtures (`fixture_files.py` generates PDFs and archives) |
 | `harness/` | Dart tools: `mcp` (agents' screen tools), `drive` (driver client), `vnc`, `fake_github`, `export_diff`, `plan` |
 | `app/main_e2e.dart` | app entry point with the flutter_driver extension |
 | `linux/` | the Linux desktop container image |

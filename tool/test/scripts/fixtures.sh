@@ -6,14 +6,16 @@
 #   many/        40 distinct PDFs for bulk imports
 #   invalid/     notes.txt, image.png, fake.pdf, corrupt.pdf, archive.zip,
 #                no-marker.zip
+#   paper/       tinted-margins.pdf (cream paper, wide margins, two pages)
 #   demo-library.zip
+#   large-library.zip  the demo library plus 300 one-page scores
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 RUN="$(run_dir "${1:?usage: fixtures.sh <run>}")"
 OUT="$RUN/fixtures"
 rm -rf "$OUT"
-mkdir -p "$OUT/valid" "$OUT/many" "$OUT/invalid"
+mkdir -p "$OUT/valid" "$OUT/many" "$OUT/invalid" "$OUT/paper"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
@@ -45,5 +47,8 @@ first="$(ls "$OUT"/valid/*.pdf | head -1)"
 head -c 2000 "$first" >"$OUT/invalid/corrupt.pdf"
 (cd "$tmp" && mkdir -p rnd && printf 'hello\n' >rnd/readme.txt && zip -q -r "$OUT/invalid/archive.zip" rnd)
 (cd "$tmp/demo" && zip -q -r "$OUT/invalid/no-marker.zip" . -x .sheetopia)
+
+python3 "$E2E_SCRIPTS/fixture_files.py" tinted "$OUT/paper/tinted-margins.pdf"
+python3 "$E2E_SCRIPTS/fixture_files.py" large-library "$RUN/demo-library.zip" "$OUT/large-library.zip" 300
 
 log "fixtures in $OUT: $(ls "$OUT/valid" | wc -l | tr -d ' ') valid, 40 bulk, $(ls "$OUT/invalid" | wc -l | tr -d ' ') invalid"

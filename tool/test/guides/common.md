@@ -100,7 +100,12 @@ need not clean up after your tests.
 - `invalid/`: `notes.txt`, `image.png`, `fake.pdf` (text with a .pdf
   extension), `corrupt.pdf` (truncated PDF), `archive.zip` (random zip),
   `no-marker.zip` (an export without the `.sheetopia` marker),
-- `demo-library.zip`: the run's demo library (also at `$RUN/demo-library.zip`).
+- `paper/tinted-margins.pdf`: two pages of cream paper (`#F5EBCC`) with
+  about 20% empty margin on every side, for Match paper color and Crop page
+  margins (the demo scores are white with narrow margins),
+- `demo-library.zip`: the run's demo library (also at `$RUN/demo-library.zip`),
+- `large-library.zip`: the demo library plus 300 one-page scores "Bulk score
+  001" to "Bulk score 300" (325 scores), import it only where a test asks for it.
 
 ## Looks wrong, is intended
 
@@ -119,6 +124,14 @@ Agents reported these before. They are how the app works, don't report them:
 - Esc leaves fullscreen, annotation mode and selection mode and closes
   dialogs. It doesn't leave a page, use the back arrow.
 - Search matches the start of words, words are split at spaces only.
+- On Android and iOS "Match paper color" is on by default: in the Dark theme
+  the viewer shows white (the demo scores' paper) around the pages.
+- After an import or a start the app analyses new PDFs in the background,
+  each logged at Debug as `Processed score <id> (...)`. A score opened
+  before that has no paper colour or crop yet, reopen it.
+- The score viewer's top-right View options button fades with the overlay
+  on desktop, 3 s after the last pointer movement, even outside
+  fullscreen. Move the pointer to bring it back. The back button stays.
 - Practice records shorter than 3 s are discarded. Let the stopwatch run at
   least 4 s whenever a test needs recorded time.
 

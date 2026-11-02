@@ -90,6 +90,10 @@ User `sheetopia` (password `sheetopia`, passwordless sudo), home
   lacks the module (`prereqs.sh` loads it): mark MIDI blocked.
 - Bluetooth: the system bus has BlueZ without any adapter, like a desktop
   without Bluetooth hardware.
+- Score processing: `sqlite3 ~/.local/share/de.julianh.sheetopia/sheetopia_database.sqlite
+  "select title, processing_version, iif(background_color is null, '', printf('%x', background_color)), margin_left, margin_top from scores"`
+  shows what the analysis found, an empty `processing_version` means not
+  processed yet.
 - Time: the container shares the host's clock and can't move it. Where a
   test needs time to pass, quit the app, shift the stored timestamps in its
   database (`sqlite3 ~/.local/share/de.julianh.sheetopia/sheetopia_database.sqlite`)
