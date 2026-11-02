@@ -27,7 +27,7 @@ class SequenceBubble extends StatelessWidget {
     return Align(
       alignment: Alignment.topCenter,
       child: Padding(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 8),
         child: Material(
           color: Colors.black.withAlpha(100),
           borderRadius: BorderRadius.circular(20),

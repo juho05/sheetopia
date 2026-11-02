@@ -140,7 +140,8 @@ class _PdfViewState extends State<PdfView> {
       if (resolved == null) return null;
       return _viewModel.visibleRegion(resolved.page, spill: resolved.spill);
     };
-    _annotation.onEnterRequested = _enterAnnotation;
+    _viewModel.addListener(_scheduleSyncEnter);
+    _scheduleSyncEnter();
     _onAnnotationChanged();
   }
 
@@ -190,6 +191,21 @@ class _PdfViewState extends State<PdfView> {
     _annotator = _annotation.viewModel;
     _viewModel.annotating = _annotator != null;
     if (old != null && !identical(old, _annotator)) _showAnnotationsOf(old);
+  }
+
+  bool _syncEnterScheduled = false;
+
+  // Setting the callback notifies, which must not happen during build.
+  void _scheduleSyncEnter() {
+    if (_syncEnterScheduled) return;
+    _syncEnterScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncEnterScheduled = false;
+      if (!mounted) return;
+      _annotation.onEnterRequested = _viewModel.documentAnnotations != null
+          ? _enterAnnotation
+          : null;
+    });
   }
 
   AnnotateViewModel? _enterAnnotation({PointerDownEvent? stylus}) {
@@ -249,7 +265,8 @@ class _PdfViewState extends State<PdfView> {
     _annotation.removeListener(_onAnnotationChanged);
     _annotation.pageAspect = null;
     _annotation.pageBounds = null;
-    _annotation.onEnterRequested = null;
+    _annotation.releaseOnEnterRequested(_enterAnnotation);
+    _viewModel.removeListener(_scheduleSyncEnter);
     widget.controller.detach(_viewModel);
     _viewModel.dispose();
     super.dispose();

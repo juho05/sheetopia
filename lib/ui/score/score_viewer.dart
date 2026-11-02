@@ -10,6 +10,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/settings/appearance.dart';
@@ -24,6 +25,7 @@ import 'package:sheetopia/ui/common/overlay_icon_button.dart';
 import 'package:sheetopia/ui/score/annotation_mode.dart';
 import 'package:sheetopia/ui/score/chrome/full_screen_button.dart';
 import 'package:sheetopia/ui/score/chrome/play_session.dart';
+import 'package:sheetopia/ui/score/chrome/view_options_dialog.dart';
 import 'package:sheetopia/ui/score/pdf_view.dart';
 import 'package:sheetopia/ui/score/score_sequence.dart';
 import 'package:sheetopia/ui/score/score_viewmodel.dart';
@@ -361,14 +363,35 @@ class _ScoreViewerState extends State<_ScoreViewer>
                                   fileType: _viewModel.fileType!,
                                 ),
                               },
-                            FadingOverlay(
-                              visible: session.backButtonVisible && !annotating,
-                              child: OverlayIconButton(
-                                icon: const BackButtonIcon(),
-                                onPressed: () {
-                                  AppFullScreen.setImmersive(false);
-                                  context.pop();
-                                },
+                            Align(
+                              alignment: AlignmentGeometry.topLeft,
+                              child: FadingOverlay(
+                                visible:
+                                    session.backButtonVisible && !annotating,
+                                child: OverlayIconButton(
+                                  icon: const BackButtonIcon(),
+                                  tooltip: MaterialLocalizations.of(
+                                    context,
+                                  ).backButtonTooltip,
+                                  onPressed: () {
+                                    AppFullScreen.setImmersive(false);
+                                    context.pop();
+                                  },
+                                ),
+                              ),
+                            ),
+                            Align(
+                              alignment: AlignmentGeometry.topRight,
+                              child: FadingOverlay(
+                                visible: session.overlayVisible && !annotating,
+                                child: OverlayIconButton(
+                                  icon: const Icon(Symbols.tune),
+                                  tooltip: "View options",
+                                  onPressed: () => ViewOptionsDialog.show(
+                                    context,
+                                    annotation: _annotation,
+                                  ),
+                                ),
                               ),
                             ),
                             if (widget.topOverlay != null)

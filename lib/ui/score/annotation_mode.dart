@@ -91,10 +91,25 @@ class AnnotationMode extends ChangeNotifier {
   double? Function(int pageIndex)? pageAspect;
   Rect? Function(int pageIndex)? pageBounds;
 
-  // set by the file view if it can be annotated
-  void Function()? onEnterRequested;
+  void Function()? _onEnterRequested;
+
+  // set by the file view while it can be annotated
+  void Function()? get onEnterRequested => _onEnterRequested;
+
+  set onEnterRequested(void Function()? callback) {
+    if (callback == _onEnterRequested) return;
+    _onEnterRequested = callback;
+    notifyListeners();
+  }
+
+  bool get canEnter => _onEnterRequested != null;
 
   AnnotationMode({required this._repo});
+
+  // Silent, the file view calls it while the widget tree is locked.
+  void releaseOnEnterRequested(void Function() callback) {
+    if (callback == _onEnterRequested) _onEnterRequested = null;
+  }
 
   void toggle() {
     if (active) {
