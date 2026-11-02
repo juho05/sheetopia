@@ -16,8 +16,6 @@ import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/score_processing/score_processing_service.dart';
 
 class ScoreProcessingRepository {
-  static const int processingVersion = 1;
-
   final Database _db;
   final ScoresRepository _scoresRepo;
   final ScoreProcessingService _service;
@@ -86,7 +84,9 @@ class ScoreProcessingRepository {
         s.fileType.equals(FileType.pdf.name) &
             s.fileDownloaded.isValue(true) &
             (s.processingVersion.isNull() |
-                s.processingVersion.isSmallerThanValue(processingVersion)),
+                s.processingVersion.isSmallerThanValue(
+                  currentProcessingVersion,
+                )),
       )
       ..orderBy([OrderingTerm.desc(s.recentTime), OrderingTerm.asc(s.id)])
       ..limit(1);
@@ -121,8 +121,12 @@ class ScoreProcessingRepository {
           .filter((f) => f.id(id))
           .update(
             (o) => o(
-              processingVersion: const Value(processingVersion),
+              processingVersion: const Value(currentProcessingVersion),
               backgroundColor: Value(result.backgroundColor),
+              marginLeft: Value(result.margins?.left),
+              marginTop: Value(result.margins?.top),
+              marginRight: Value(result.margins?.right),
+              marginBottom: Value(result.margins?.bottom),
             ),
           );
       return true;
@@ -130,7 +134,8 @@ class ScoreProcessingRepository {
     final color = result.backgroundColor?.toRadixString(16).padLeft(8, "0");
     Log.debug(
       "Processed score $id (${result.pageCount} pages, background "
-      "${color ?? "none"}) in ${stopwatch.elapsedMilliseconds} ms"
+      "${color ?? "none"}, margins ${result.margins ?? "none"}) in "
+      "${stopwatch.elapsedMilliseconds} ms"
       "${saved ? "" : ", discarded because the file changed"}",
     );
   }

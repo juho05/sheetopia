@@ -93,6 +93,9 @@ class SetlistNavigationViewModel extends ChangeNotifier
   String? get nextScoreId => nextPlayableEntry?.scoreId;
 
   @override
+  String? get previousScoreId => previousPlayableEntry?.scoreId;
+
+  @override
   bool next() {
     final next = _nextPlayable();
     if (next == null) return false;

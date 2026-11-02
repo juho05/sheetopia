@@ -29,6 +29,7 @@ import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/instr_expression.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/score_processing/page_margins.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/utils/id_path.dart';
@@ -906,6 +907,32 @@ class ScoresRepository {
     return decodeAnnotations(row?.read(_db.scoresTable.annotations));
   }
 
+  Future<PageMargins?> getPageMargins(String scoreId) async {
+    final s = _db.scoresTable;
+    final query = _db.selectOnly(s)
+      ..addColumns([
+        s.processingVersion,
+        s.marginLeft,
+        s.marginTop,
+        s.marginRight,
+        s.marginBottom,
+      ])
+      ..where(s.id.equals(scoreId));
+    final row = await query.getSingleOrNull();
+    final version = row?.read(s.processingVersion);
+    if (row == null || version == null || version < currentProcessingVersion) {
+      return null;
+    }
+    final left = row.read(s.marginLeft);
+    final top = row.read(s.marginTop);
+    final right = row.read(s.marginRight);
+    final bottom = row.read(s.marginBottom);
+    if (left == null || top == null || right == null || bottom == null) {
+      return null;
+    }
+    return PageMargins(left: left, top: top, right: right, bottom: bottom);
+  }
+
   Future<void> saveAnnotations(
     String scoreId,
     Map<int, List<Stroke>> pages,
@@ -1386,10 +1413,9 @@ class ScoresRepository {
               fileUpdatedAt: Value(DateTime.now().toUtc()),
               fileType: Value(fileType),
               fileUploaded: const Value(false),
-              processingVersion: const Value(null),
-              backgroundColor: const Value(null),
             ),
           );
+      await _db.clearProcessingResult(scoreId);
       await updateScoreStatus([scoreId]);
     });
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));

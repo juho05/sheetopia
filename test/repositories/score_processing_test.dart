@@ -23,6 +23,7 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/score_processing/background_color.dart';
+import 'package:sheetopia/data/services/score_processing/page_margins.dart';
 import 'package:sheetopia/data/services/score_processing/score_processing_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 
@@ -53,6 +54,12 @@ class _FakeProcessingService implements ScoreProcessingService {
     return ScoreProcessingResult(
       pageCount: 1,
       backgroundColor: 0xFF000000 | id.hashCode,
+      margins: const PageMargins(
+        left: 0.1,
+        top: 0.2,
+        right: 0.05,
+        bottom: 0.15,
+      ),
     );
   }
 
@@ -243,23 +250,17 @@ void main() {
 
       expect(service.processed, ["new", "middle", "old"]);
       final processed = await row("new");
-      expect(
-        processed.processingVersion,
-        ScoreProcessingRepository.processingVersion,
-      );
+      expect(processed.processingVersion, currentProcessingVersion);
       expect(processed.backgroundColor, 0xFF000000 | "new".hashCode);
       expect((await row("remote")).processingVersion, isNull);
       expect((await row("other")).processingVersion, isNull);
     });
 
     test("only reprocesses outdated versions", () async {
-      await insertScore(
-        "current",
-        processingVersion: ScoreProcessingRepository.processingVersion,
-      );
+      await insertScore("current", processingVersion: currentProcessingVersion);
       await insertScore(
         "outdated",
-        processingVersion: ScoreProcessingRepository.processingVersion - 1,
+        processingVersion: currentProcessingVersion - 1,
       );
 
       await start().process();
@@ -281,10 +282,7 @@ void main() {
       await run;
 
       expect(service.processed, ["a", "a"]);
-      expect(
-        (await row("a")).processingVersion,
-        ScoreProcessingRepository.processingVersion,
-      );
+      expect((await row("a")).processingVersion, currentProcessingVersion);
     });
 
     test("failures are retried once the file changes", () async {
@@ -303,10 +301,7 @@ void main() {
       await processing!.process();
 
       expect(service.processed, ["broken", "broken"]);
-      expect(
-        (await row("broken")).processingVersion,
-        ScoreProcessingRepository.processingVersion,
-      );
+      expect((await row("broken")).processingVersion, currentProcessingVersion);
     });
 
     test("results leave the metadata untouched", () async {
@@ -341,13 +336,18 @@ void main() {
     });
 
     test("changing the file resets the processing result", () async {
-      await insertScore(
-        "a",
-        processingVersion: ScoreProcessingRepository.processingVersion,
-      );
+      await insertScore("a", processingVersion: currentProcessingVersion);
       await db.managers.scoresTable
           .filter((f) => f.id("a"))
-          .update((o) => o(backgroundColor: const Value(0xFFFFFFFF)));
+          .update(
+            (o) => o(
+              backgroundColor: const Value(0xFFFFFFFF),
+              marginLeft: const Value(0.1),
+              marginTop: const Value(0.1),
+              marginRight: const Value(0.1),
+              marginBottom: const Value(0.1),
+            ),
+          );
       final replacement = File("${tempDir.path}/replacement.pdf");
       await replacement.writeAsString("%PDF-1.4 new");
 
@@ -356,6 +356,46 @@ void main() {
       final updated = await row("a");
       expect(updated.processingVersion, isNull);
       expect(updated.backgroundColor, isNull);
+      expect(updated.marginLeft, isNull);
+      expect(updated.marginTop, isNull);
+      expect(updated.marginRight, isNull);
+      expect(updated.marginBottom, isNull);
+      expect(await scoresRepo.getPageMargins("a"), isNull);
+    });
+
+    test("stores the margins of the result", () async {
+      await insertScore("a");
+      start();
+      await processing!.process();
+
+      expect(
+        await scoresRepo.getPageMargins("a"),
+        const PageMargins(left: 0.1, top: 0.2, right: 0.05, bottom: 0.15),
+      );
+    });
+
+    test("margins of an outdated processing result are not used", () async {
+      Future<void> setVersion(int? version) => db.managers.scoresTable
+          .filter((f) => f.id("a"))
+          .update(
+            (o) => o(
+              processingVersion: Value(version),
+              marginLeft: const Value(0.1),
+              marginTop: const Value(0.1),
+              marginRight: const Value(0.1),
+              marginBottom: const Value(0.1),
+            ),
+          );
+      await insertScore("a");
+
+      await setVersion(null);
+      expect(await scoresRepo.getPageMargins("a"), isNull);
+
+      await setVersion(currentProcessingVersion - 1);
+      expect(await scoresRepo.getPageMargins("a"), isNull);
+
+      await setVersion(currentProcessingVersion);
+      expect(await scoresRepo.getPageMargins("a"), isNotNull);
     });
 
     test("new scores are processed after import", () async {

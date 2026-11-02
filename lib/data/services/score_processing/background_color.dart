@@ -29,14 +29,27 @@ class PageBackground {
   /// Fraction of the analyzed area that has the background color.
   final double coverage;
 
+  final int paperLow;
+  final int paperHigh;
+
+  final double paperCoverage;
+
+  final bool paperTruncated;
+
   const PageBackground({
     required this.r,
     required this.g,
     required this.b,
     required this.coverage,
+    required this.paperLow,
+    required this.paperHigh,
+    required this.paperCoverage,
+    required this.paperTruncated,
   });
 
-  int get argb => 0xFF000000 | (r << 16) | (g << 8) | b;
+  bool get isDominant => coverage >= _minCoverage;
+
+  bool get hasReliablePaper => isDominant && paperCoverage >= _minPaperCoverage;
 }
 
 const _maxSamples = 200000;
@@ -44,19 +57,19 @@ const _smoothingRadius = 4;
 const _bandThreshold = 0.2;
 const _maxBandRadius = 48;
 const _minCoverage = 0.15;
+const _paperBandThreshold = 0.01;
+const _minPaperCoverage = 0.7;
 
 /// Returns the background color of the score as ARGB or null if no page has a
 /// dominant background.
 int? combinePageBackgrounds(Iterable<PageBackground> pages) {
-  final backgrounds = pages.where((b) => b.coverage >= _minCoverage).toList();
+  final backgrounds = pages.where((b) => b.isDominant).toList();
   if (backgrounds.isEmpty) return null;
 
-  return PageBackground(
-    r: _weightedMedian(backgrounds, (b) => b.r),
-    g: _weightedMedian(backgrounds, (b) => b.g),
-    b: _weightedMedian(backgrounds, (b) => b.b),
-    coverage: 1,
-  ).argb;
+  final r = _weightedMedian(backgrounds, (page) => page.r);
+  final g = _weightedMedian(backgrounds, (page) => page.g);
+  final b = _weightedMedian(backgrounds, (page) => page.b);
+  return 0xFF000000 | (r << 16) | (g << 8) | b;
 }
 
 /// Finds the luminance peak covering the most pixels and returns the median
@@ -71,7 +84,7 @@ PageBackground? estimatePageBackground(PageBitmap page) {
   for (var y = 0; y < page.height; y += step) {
     var i = y * page.width * 4;
     for (var x = 0; x < page.width; x += step, i += step * 4) {
-      luminance[_luminance(page.bgra, i)]++;
+      luminance[luminanceAt(page.bgra, i)]++;
       total++;
     }
   }
@@ -101,7 +114,7 @@ PageBackground? estimatePageBackground(PageBitmap page) {
     if (peak > 0 && smoothed[peak - 1] > value) continue;
     if (peak < 255 && smoothed[peak + 1] >= value) continue;
 
-    final (bandLow, bandHigh) = _peakBand(smoothed, peak);
+    final (bandLow, bandHigh) = _band(smoothed, peak, _bandThreshold);
     var mass = 0;
     for (var l = bandLow; l <= bandHigh; l++) {
       mass += luminance[l];
@@ -120,7 +133,7 @@ PageBackground? estimatePageBackground(PageBitmap page) {
   for (var y = 0; y < page.height; y += step) {
     var i = y * page.width * 4;
     for (var x = 0; x < page.width; x += step, i += step * 4) {
-      final l = _luminance(page.bgra, i);
+      final l = luminanceAt(page.bgra, i);
       if (l < low || l > high) continue;
       bHist[page.bgra[i]]++;
       gHist[page.bgra[i + 1]]++;
@@ -130,16 +143,32 @@ PageBackground? estimatePageBackground(PageBitmap page) {
   }
   if (count == 0) return null;
 
+  final r = _histogramMedian(rHist, count);
+  final g = _histogramMedian(gHist, count);
+  final b = _histogramMedian(bHist, count);
+  final paper = (29 * b + 150 * g + 77 * r) >> 8;
+  final (paperLow, paperHigh) = _band(smoothed, paper, _paperBandThreshold);
+  final threshold = smoothed[paper] * _paperBandThreshold;
+  var paperCount = 0;
+  for (var l = paperLow; l <= paperHigh; l++) {
+    paperCount += luminance[l];
+  }
   return PageBackground(
-    r: _histogramMedian(rHist, count),
-    g: _histogramMedian(gHist, count),
-    b: _histogramMedian(bHist, count),
+    r: r,
+    g: g,
+    b: b,
     coverage: count / total,
+    paperLow: paperLow,
+    paperHigh: paperHigh,
+    paperCoverage: paperCount / total,
+    paperTruncated:
+        (paperLow > 0 && smoothed[paperLow - 1] >= threshold) ||
+        (paperHigh < 255 && smoothed[paperHigh + 1] >= threshold),
   );
 }
 
-(int, int) _peakBand(Float64List smoothed, int peak) {
-  final threshold = smoothed[peak] * _bandThreshold;
+(int, int) _band(Float64List smoothed, int peak, double fraction) {
+  final threshold = smoothed[peak] * fraction;
   var low = peak;
   while (low > 0 &&
       peak - low < _maxBandRadius &&
@@ -155,7 +184,7 @@ PageBackground? estimatePageBackground(PageBitmap page) {
   return (low, high);
 }
 
-int _luminance(Uint8List bgra, int i) =>
+int luminanceAt(Uint8List bgra, int i) =>
     (29 * bgra[i] + 150 * bgra[i + 1] + 77 * bgra[i + 2]) >> 8;
 
 int _histogramMedian(Int32List hist, int count) {

@@ -6,8 +6,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui' show Rect;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logger/logger.dart';
@@ -16,11 +18,19 @@ import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/logger/log_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
+import 'package:sheetopia/data/services/score_processing/page_margins.dart';
+import 'package:sheetopia/ui/score/page_region.dart';
 import 'package:sheetopia/ui/score/pdf_viewmodel.dart';
 
 class _FakePage extends Fake implements PdfPage {
   @override
   final int pageNumber;
+
+  @override
+  double get width => 800;
+
+  @override
+  double get height => 800;
 
   _FakePage(this.pageNumber);
 }
@@ -62,11 +72,34 @@ class _FakeEntryFunctions extends Fake implements PdfrxEntryFunctions {
 }
 
 class _FakeScoresRepository extends Fake implements ScoresRepository {
-  @override
-  Stream<Set<String>> get updatedScoreIds => const Stream.empty();
+  final Map<String, PageMargins> margins = {};
+  final Map<String, Map<int, List<Stroke>>> annotations = {};
+  final StreamController<Set<String>> updates = StreamController.broadcast();
+  final List<String> marginQueries = [];
+  final Map<String, Completer<PageMargins?>> pendingMargins = {};
+  final Map<String, Completer<Map<int, List<Stroke>>>> pendingAnnotations = {};
+  bool failAnnotations = false;
+  bool failMargins = false;
 
   @override
-  Future<Map<int, List<Stroke>>> getAnnotations(String scoreId) async => {};
+  Stream<Set<String>> get updatedScoreIds => updates.stream;
+
+  @override
+  Future<Map<int, List<Stroke>>> getAnnotations(String scoreId) async {
+    if (failAnnotations) throw const FormatException();
+    final pending = pendingAnnotations[scoreId];
+    if (pending != null) return pending.future;
+    return annotations[scoreId] ?? {};
+  }
+
+  @override
+  Future<PageMargins?> getPageMargins(String scoreId) async {
+    marginQueries.add(scoreId);
+    if (failMargins) throw StateError("database closed");
+    final pending = pendingMargins[scoreId];
+    if (pending != null) return pending.future;
+    return margins[scoreId];
+  }
 }
 
 const _a = "/a.pdf";
@@ -83,6 +116,7 @@ void main() {
   late List<String> overflows;
   late bool canOverflow;
   late int pagesPerScreen;
+  late _FakeScoresRepository repo;
 
   // mirrors the page counts PdfView reports on every build
   void layout() {
@@ -102,15 +136,20 @@ void main() {
     String? nextPath,
     String? previousPath,
     String? nextScoreId,
+    String? previousScoreId,
+    bool cropEnabled = false,
   }) async {
     viewModel = PdfViewModel(
       file: File(_a),
-      scoresRepository: _FakeScoresRepository(),
+      scoresRepository: repo,
+      cropEnabled: cropEnabled,
+      cropPadding: 0.05,
       scoreId: "a",
       gradual: gradual,
       nextPath: nextPath,
       previousPath: previousPath,
       nextScoreId: nextScoreId,
+      previousScoreId: previousScoreId,
       onOverflowForward: () {
         overflows.add("forward");
         return canOverflow;
@@ -165,6 +204,7 @@ void main() {
     overflows = [];
     canOverflow = false;
     pagesPerScreen = 1;
+    repo = _FakeScoresRepository();
   });
 
   tearDown(() {
@@ -394,6 +434,327 @@ void main() {
 
       await prev();
       expect(state(), (1, false));
+    });
+  });
+
+  group("crop", () {
+    const margins = PageMargins(left: 0.2, top: 0.2, right: 0.2, bottom: 0.2);
+
+    Stroke stroke(double x) => Stroke(
+      colorValue: 0,
+      width: 0.001,
+      points: [StrokePoint(x: x, y: 0.5, pressure: 0.5)],
+      outline: [x, 0.5],
+    );
+
+    PdfPage firstPage() => viewModel.document!.pages.first;
+
+    test("shows the full page when disabled", () async {
+      repo.margins["a"] = margins;
+      await open();
+      expect(viewModel.visibleRegion(firstPage()), fullPageRegion);
+      expect(viewModel.cropPending, isFalse);
+    });
+
+    test("shows the full page without detected margins", () async {
+      await open(cropEnabled: true);
+      expect(viewModel.visibleRegion(firstPage()), fullPageRegion);
+    });
+
+    test("crops the margins minus the padding", () async {
+      repo.margins["a"] = margins;
+      await open(cropEnabled: true);
+      final region = viewModel.visibleRegion(firstPage());
+      expect(region.left, closeTo(0.15, 1e-9));
+      expect(region.right, closeTo(0.85, 1e-9));
+    });
+
+    test("is pending until the margins are known", () async {
+      repo.margins["a"] = margins;
+      viewModel = PdfViewModel(
+        file: File(_a),
+        scoresRepository: repo,
+        scoreId: "a",
+        cropEnabled: true,
+      );
+      expect(viewModel.cropPending, isTrue);
+      await pumpEventQueue();
+      expect(viewModel.cropPending, isFalse);
+    });
+
+    test("spill pages use the crop of their own score", () async {
+      repo.margins["a"] = margins;
+      await open(cropEnabled: true, nextPath: _b, nextScoreId: "b");
+      for (var i = 0; i < 4 && viewModel.spillDocument == null; i++) {
+        await next();
+      }
+
+      expect(viewModel.spillDocument, isNotNull);
+      expect(viewModel.visibleRegion(firstPage(), spill: true), fullPageRegion);
+      expect(viewModel.visibleRegion(firstPage()), isNot(fullPageRegion));
+    });
+
+    test("strokes in the margin stay visible", () async {
+      repo.margins["a"] = margins;
+      repo.annotations["a"] = {
+        2: [stroke(0.1)],
+      };
+      await open(cropEnabled: true);
+      expect(viewModel.visibleRegion(firstPage()).left, closeTo(0.1, 1e-9));
+    });
+
+    test("stays while annotating and follows the strokes after", () async {
+      repo.margins["a"] = margins;
+      repo.annotations["a"] = {
+        0: [stroke(0.1)],
+      };
+      await open(cropEnabled: true);
+
+      viewModel.annotating = true;
+      viewModel.setAnnotations({"a": {}});
+      expect(viewModel.visibleRegion(firstPage()).left, closeTo(0.1, 1e-9));
+
+      repo.annotations["a"] = {};
+      repo.updates.add({"a"});
+      await pumpEventQueue();
+      expect(viewModel.visibleRegion(firstPage()).left, closeTo(0.1, 1e-9));
+
+      var notified = 0;
+      viewModel.addListener(() => notified++);
+      viewModel.annotating = false;
+      expect(viewModel.visibleRegion(firstPage()).left, closeTo(0.15, 1e-9));
+      expect(notified, 1);
+    });
+
+    test(
+      "failed annotations neither block the score nor enable editing",
+      () async {
+        repo.margins["a"] = margins;
+        repo.failAnnotations = true;
+        await open(cropEnabled: true);
+        expect(viewModel.cropPending, isFalse);
+        expect(viewModel.documentAnnotations, isNull);
+        expect(viewModel.visibleRegion(firstPage()).left, closeTo(0.15, 1e-9));
+      },
+    );
+
+    test("failed margins show the full page", () async {
+      repo.margins["a"] = margins;
+      repo.failMargins = true;
+      await open(cropEnabled: true);
+      expect(viewModel.cropPending, isFalse);
+      expect(viewModel.visibleRegion(firstPage()), fullPageRegion);
+    });
+
+    test("margins stay on score updates", () async {
+      await open(cropEnabled: true);
+      expect(viewModel.visibleRegion(firstPage()), fullPageRegion);
+
+      repo.margins["a"] = margins;
+      repo.updates.add({"a"});
+      await pumpEventQueue();
+      expect(viewModel.visibleRegion(firstPage()), fullPageRegion);
+    });
+
+    test("margins reload when the document is opened anew", () async {
+      await open(gradual: false, cropEnabled: true);
+      repo.margins["a"] = margins;
+
+      viewModel.updateFile(File(_a));
+      await pumpEventQueue();
+      expect(viewModel.visibleRegion(firstPage()).left, closeTo(0.15, 1e-9));
+    });
+
+    test("the last spread waits for the crop", () async {
+      canOverflow = true;
+      await open(gradual: false, cropEnabled: true, previousPath: _b);
+      final pending = Completer<PageMargins?>();
+      repo.pendingMargins["b"] = pending;
+
+      await prev();
+      expect(overflows, ["backward"]);
+      viewModel.updateFile(File(_b));
+      viewModel.updateScoreId("b");
+      await pumpEventQueue();
+      expect(viewModel.documentScoreId, "b");
+      expect(viewModel.cropPending, isTrue);
+      expect(viewModel.needsLastSpreadStart, isFalse);
+
+      pending.complete(margins);
+      await pumpEventQueue();
+      expect(viewModel.cropPending, isFalse);
+      expect(viewModel.needsLastSpreadStart, isTrue);
+    });
+
+    test("the crop of the neighbors is known ahead of the turn", () async {
+      repo.margins["b"] = margins;
+      await open(
+        gradual: false,
+        cropEnabled: true,
+        nextPath: _b,
+        nextScoreId: "b",
+        previousPath: _b,
+        previousScoreId: "c",
+      );
+      expect(repo.marginQueries, containsAll(["a", "b", "c"]));
+
+      repo.marginQueries.clear();
+      final pendingWhenShown = <bool>[];
+      viewModel.addListener(() {
+        if (viewModel.documentScoreId == "b") {
+          pendingWhenShown.add(viewModel.cropPending);
+        }
+      });
+      viewModel.updateFile(File(_b));
+      viewModel.updateScoreId("b");
+      await pumpEventQueue();
+
+      expect(pendingWhenShown, isNotEmpty);
+      expect(pendingWhenShown, everyElement(isFalse));
+    });
+
+    test("turning to a neighbor uses its current margins", () async {
+      await open(
+        gradual: false,
+        cropEnabled: true,
+        nextPath: _b,
+        nextScoreId: "b",
+      );
+      expect(viewModel.documentScoreId, "a");
+
+      repo.margins["b"] = margins;
+      final regions = <Rect>[];
+      viewModel.addListener(() {
+        if (viewModel.documentScoreId == "b") {
+          regions.add(viewModel.visibleRegion(firstPage()));
+        }
+      });
+      viewModel.updateFile(File(_b));
+      viewModel.updateScoreId("b");
+      await pumpEventQueue();
+
+      expect(regions, isNotEmpty);
+      for (final region in regions) {
+        expect(region.left, closeTo(0.15, 1e-9));
+      }
+    });
+
+    test("spill pages on screen keep their crop when turned to", () async {
+      await open(cropEnabled: true, nextPath: _b, nextScoreId: "b");
+      repo.margins["b"] = margins;
+
+      viewModel.updateFile(File(_b));
+      viewModel.updateScoreId("b");
+      await pumpEventQueue();
+      expect(viewModel.documentScoreId, "b");
+      expect(viewModel.visibleRegion(firstPage()), fullPageRegion);
+    });
+
+    test("turns wait for the crop", () async {
+      final pending = repo.pendingMargins["a"] = Completer();
+      await open(gradual: false, cropEnabled: true);
+      layout();
+      expect(viewModel.cropPending, isTrue);
+
+      await next();
+      expect(viewModel.currentPageIndex, 0);
+      expect(turns, isEmpty);
+
+      pending.complete(margins);
+      await pumpEventQueue();
+      await next();
+      expect(viewModel.currentPageIndex, 1);
+    });
+
+    test("a load in flight does not replace newer strokes", () async {
+      repo.margins["a"] = margins;
+      await open(cropEnabled: true);
+
+      final pending = repo.pendingAnnotations["a"] = Completer();
+      repo.updates.add({"a"});
+      await pumpEventQueue();
+
+      viewModel.setAnnotations({
+        "a": {
+          0: [stroke(0.1)],
+        },
+      });
+      pending.complete({});
+      await pumpEventQueue();
+
+      expect(viewModel.strokesForPage(1), hasLength(1));
+      expect(viewModel.visibleRegion(firstPage()).left, closeTo(0.1, 1e-9));
+    });
+
+    test("the crop survives the sequence moving ahead of the view", () async {
+      await open(
+        gradual: false,
+        cropEnabled: true,
+        nextPath: _b,
+        nextScoreId: "b",
+      );
+      final pendingWhenShown = <bool>[];
+      viewModel.addListener(() {
+        if (viewModel.documentScoreId == "b") {
+          pendingWhenShown.add(viewModel.cropPending);
+        }
+      });
+
+      viewModel.updateNeighbors(
+        previous: _a,
+        previousScoreId: "a",
+        settled: false,
+      );
+      await pumpEventQueue();
+      viewModel.updateFile(File(_b));
+      viewModel.updateScoreId("b");
+      viewModel.updateNeighbors(
+        previous: _a,
+        previousScoreId: "a",
+        settled: true,
+      );
+      await pumpEventQueue();
+
+      expect(viewModel.documentScoreId, "b");
+      expect(pendingWhenShown, isNotEmpty);
+      expect(pendingWhenShown, everyElement(isFalse));
+    });
+
+    test("scores out of reach are dropped once settled", () async {
+      await open(
+        gradual: false,
+        cropEnabled: true,
+        nextPath: _b,
+        nextScoreId: "b",
+      );
+      viewModel.updateNeighbors(settled: false);
+      viewModel.updateNeighbors(settled: true);
+      repo.marginQueries.clear();
+
+      viewModel.updateNeighbors(next: _b, nextScoreId: "b", settled: true);
+      await pumpEventQueue();
+      expect(repo.marginQueries, ["b"]);
+    });
+
+    test("no crop work while disabled, it starts when enabled", () async {
+      repo.margins["a"] = margins;
+      await open();
+      expect(repo.marginQueries, isEmpty);
+
+      viewModel.updateCrop(enabled: true, padding: 0.05);
+      expect(viewModel.cropPending, isTrue);
+      await pumpEventQueue();
+      expect(viewModel.cropPending, isFalse);
+      expect(viewModel.visibleRegion(firstPage()).left, closeTo(0.15, 1e-9));
+    });
+
+    test("the region follows the padding", () async {
+      repo.margins["a"] = margins;
+      await open(cropEnabled: true);
+      expect(viewModel.visibleRegion(firstPage()).left, closeTo(0.15, 1e-9));
+
+      viewModel.updateCrop(enabled: true, padding: 0.1);
+      expect(viewModel.visibleRegion(firstPage()).left, closeTo(0.1, 1e-9));
     });
   });
 }

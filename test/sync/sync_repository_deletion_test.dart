@@ -695,6 +695,10 @@ void main() {
           (o) => o(
             processingVersion: const Value(1),
             backgroundColor: const Value(0xFFFFFFFF),
+            marginLeft: const Value(0.1),
+            marginTop: const Value(0.1),
+            marginRight: const Value(0.1),
+            marginBottom: const Value(0.1),
             metadataUpdatedAt: Value(contentTime.add(const Duration(days: 2))),
           ),
         );
@@ -719,6 +723,10 @@ void main() {
         .getSingle();
     expect(score.processingVersion, isNull);
     expect(score.backgroundColor, isNull);
+    expect(score.marginLeft, isNull);
+    expect(score.marginTop, isNull);
+    expect(score.marginRight, isNull);
+    expect(score.marginBottom, isNull);
   });
 
   test("downloaded metadata keeps the local processing result", () async {
@@ -729,6 +737,7 @@ void main() {
           (o) => o(
             processingVersion: const Value(1),
             backgroundColor: const Value(0xFFFFFFFF),
+            marginLeft: const Value(0.1),
           ),
         );
     service.scores = [remoteScore(arranger: "Arranger")];
@@ -741,6 +750,7 @@ void main() {
     expect(score.arranger, "Arranger");
     expect(score.processingVersion, 1);
     expect(score.backgroundColor, 0xFFFFFFFF);
+    expect(score.marginLeft, 0.1);
   });
 
   test("a downloaded score without a type keeps the local one", () async {

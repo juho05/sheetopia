@@ -19,6 +19,7 @@ import 'package:sheetopia/ui/annotate/annotation_surface.dart';
 import 'package:sheetopia/ui/annotate/pan_zoom_overlay.dart';
 import 'package:sheetopia/ui/common/overlay_icon_button.dart';
 import 'package:sheetopia/ui/score/annotation_mode.dart';
+import 'package:sheetopia/ui/score/pdf_page_image.dart';
 import 'package:sheetopia/ui/score/pdf_viewmodel.dart';
 import 'package:sheetopia/ui/score/score_file_view.dart';
 
@@ -35,10 +36,14 @@ class PdfView extends StatefulWidget {
 
   final Color? backgroundColor;
 
+  final bool cropEnabled;
+  final double cropPadding;
+
   final String? nextPath;
   final String? previousPath;
 
   final String? nextScoreId;
+  final String? previousScoreId;
   final bool neighborsSettled;
 
   final bool Function()? onOverflowForward;
@@ -58,9 +63,12 @@ class PdfView extends StatefulWidget {
     required this.annotation,
     this.gradualPageTurns = false,
     this.backgroundColor,
+    this.cropEnabled = false,
+    this.cropPadding = 0,
     this.nextPath,
     this.previousPath,
     this.nextScoreId,
+    this.previousScoreId,
     this.neighborsSettled = true,
     this.onOverflowForward,
     this.onOverflowBackward,
@@ -74,7 +82,12 @@ class PdfView extends StatefulWidget {
   State<PdfView> createState() => _PdfViewState();
 }
 
-typedef _SpreadPage = ({PdfDocument document, PdfPage page, bool spill});
+typedef _SpreadPage = ({
+  PdfDocument document,
+  PdfPage page,
+  bool spill,
+  Rect region,
+});
 
 class _PdfViewState extends State<PdfView> {
   late final PdfViewModel _viewModel;
@@ -95,9 +108,12 @@ class _PdfViewState extends State<PdfView> {
       scoresRepository: context.read(),
       scoreId: widget.scoreId,
       gradual: widget.gradualPageTurns,
+      cropEnabled: widget.cropEnabled,
+      cropPadding: widget.cropPadding,
       nextPath: widget.nextPath,
       previousPath: widget.previousPath,
       nextScoreId: widget.nextScoreId,
+      previousScoreId: widget.previousScoreId,
       neighborsSettled: widget.neighborsSettled,
       onOverflowForward: () => widget.onOverflowForward?.call() ?? false,
       onOverflowBackward: () => widget.onOverflowBackward?.call() ?? false,
@@ -116,15 +132,25 @@ class _PdfViewState extends State<PdfView> {
     _viewModel.addListener(_followDocument);
     _annotation.addListener(_onAnnotationChanged);
     _annotation.pageAspect = (index) {
-      final spill = index >= AnnotateViewModel.spillBase;
-      if (spill) index -= AnnotateViewModel.spillBase;
-      final pages =
-          (spill ? _viewModel.spillDocument : _viewModel.document)?.pages;
-      if (pages == null || index < 0 || index >= pages.length) return null;
-      return pages[index].height / pages[index].width;
+      final page = _resolvePage(index)?.page;
+      return page == null ? null : page.height / page.width;
+    };
+    _annotation.pageBounds = (index) {
+      final resolved = _resolvePage(index);
+      if (resolved == null) return null;
+      return _viewModel.visibleRegion(resolved.page, spill: resolved.spill);
     };
     _annotation.onEnterRequested = _enterAnnotation;
     _onAnnotationChanged();
+  }
+
+  ({PdfPage page, bool spill})? _resolvePage(int index) {
+    final spill = index >= AnnotateViewModel.spillBase;
+    if (spill) index -= AnnotateViewModel.spillBase;
+    final pages =
+        (spill ? _viewModel.spillDocument : _viewModel.document)?.pages;
+    if (pages == null || index < 0 || index >= pages.length) return null;
+    return (page: pages[index], spill: spill);
   }
 
   // The annotations always go to the score of the shown document.
@@ -162,6 +188,7 @@ class _PdfViewState extends State<PdfView> {
   void _onAnnotationChanged() {
     final old = _annotator;
     _annotator = _annotation.viewModel;
+    _viewModel.annotating = _annotator != null;
     if (old != null && !identical(old, _annotator)) _showAnnotationsOf(old);
   }
 
@@ -189,6 +216,10 @@ class _PdfViewState extends State<PdfView> {
       widget.controller.attach(_viewModel);
     }
     _viewModel.updateGradual(widget.gradualPageTurns);
+    _viewModel.updateCrop(
+      enabled: widget.cropEnabled,
+      padding: widget.cropPadding,
+    );
     if (widget.switchToken != oldWidget.switchToken ||
         widget.file.path != oldWidget.file.path) {
       _viewModel.updateFile(widget.file);
@@ -203,6 +234,7 @@ class _PdfViewState extends State<PdfView> {
       next: widget.nextPath,
       previous: widget.previousPath,
       nextScoreId: widget.nextScoreId,
+      previousScoreId: widget.previousScoreId,
       settled: widget.neighborsSettled,
     );
     // The updates above can move the scores without notifying, and switching
@@ -216,6 +248,7 @@ class _PdfViewState extends State<PdfView> {
   void dispose() {
     _annotation.removeListener(_onAnnotationChanged);
     _annotation.pageAspect = null;
+    _annotation.pageBounds = null;
     _annotation.onEnterRequested = null;
     widget.controller.detach(_viewModel);
     _viewModel.dispose();
@@ -227,14 +260,18 @@ class _PdfViewState extends State<PdfView> {
     final mediaQuery = MediaQuery.of(context);
     return LayoutBuilder(
       builder: (context, constraints) {
-        double calcPageWidth(PdfPage page) {
-          return constraints.maxHeight * (page.width / page.height);
+        double visibleAspect(_SpreadPage entry) {
+          final (page, region) = (entry.page, entry.region);
+          return page.width * region.width / (page.height * region.height);
+        }
+
+        double calcPageWidth(_SpreadPage entry) {
+          return constraints.maxHeight * visibleAspect(entry);
         }
 
         final transform = _annotation.transform;
         transform.viewport = constraints.biggest;
 
-        // Only a visible page takes input.
         Widget buildPage(_SpreadPage entry, {bool visible = false}) {
           final page = entry.page;
           final annotator = _annotation.viewModel;
@@ -247,39 +284,32 @@ class _PdfViewState extends State<PdfView> {
               annotator.scoreId == _viewModel.documentScoreId &&
               (base == 0 || annotator.spillScoreId == spillScoreId);
           return AspectRatio(
-            aspectRatio: page.width / page.height,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                MediaQuery(
-                  data: mediaQuery.copyWith(
-                    devicePixelRatio: max(mediaQuery.devicePixelRatio, 2.0),
+            aspectRatio: visibleAspect(entry),
+            child: MediaQuery(
+              data: mediaQuery.copyWith(
+                devicePixelRatio: max(mediaQuery.devicePixelRatio, 2.0),
+              ),
+              child: PdfPageImage(
+                document: entry.document,
+                pageNumber: page.pageNumber,
+                region: entry.region,
+                backgroundColor: widget.backgroundColor,
+                overlay: AnnotationSurface(
+                  viewModel: visible && ready ? annotator : null,
+                  pageIndex: base + page.pageNumber - 1,
+                  strokes: _viewModel.strokesForPage(
+                    page.pageNumber,
+                    spill: entry.spill,
                   ),
-                  child: PdfPageView(
-                    document: entry.document,
-                    pageNumber: page.pageNumber,
-                    decoration: widget.backgroundColor != null
-                        ? BoxDecoration(color: widget.backgroundColor)
-                        : null,
-                  ),
+                  visibleRegion: entry.region,
+                  onStylusDown:
+                      visible &&
+                          annotator == null &&
+                          _viewModel.documentAnnotations != null
+                      ? (event) => _enterAnnotation(stylus: event)
+                      : null,
                 ),
-                Positioned.fill(
-                  child: AnnotationSurface(
-                    viewModel: visible && ready ? annotator : null,
-                    pageIndex: base + page.pageNumber - 1,
-                    strokes: _viewModel.strokesForPage(
-                      page.pageNumber,
-                      spill: entry.spill,
-                    ),
-                    onStylusDown:
-                        visible &&
-                            annotator == null &&
-                            _viewModel.documentAnnotations != null
-                        ? (event) => _enterAnnotation(stylus: event)
-                        : null,
-                  ),
-                ),
-              ],
+              ),
             ),
           );
         }
@@ -292,10 +322,20 @@ class _PdfViewState extends State<PdfView> {
             final pages = <_SpreadPage>[
               if (document != null)
                 for (final page in document.pages)
-                  (document: document, page: page, spill: false),
+                  (
+                    document: document,
+                    page: page,
+                    spill: false,
+                    region: _viewModel.visibleRegion(page),
+                  ),
               if (spillDocument != null)
                 for (final page in spillDocument.pages)
-                  (document: spillDocument, page: page, spill: true),
+                  (
+                    document: spillDocument,
+                    page: page,
+                    spill: true,
+                    region: _viewModel.visibleRegion(page, spill: true),
+                  ),
             ];
 
             (int, double) calcPageCountAndGap(
@@ -307,8 +347,7 @@ class _PdfViewState extends State<PdfView> {
               while (startIndex + pageCount >= 0 &&
                   startIndex + pageCount < pages.length) {
                 final newTotalWidth =
-                    totalWidth +
-                    calcPageWidth(pages[startIndex + pageCount].page);
+                    totalWidth + calcPageWidth(pages[startIndex + pageCount]);
                 if (newTotalWidth > constraints.maxWidth &&
                     pageCount.abs() > 0) {
                   break;
@@ -363,7 +402,8 @@ class _PdfViewState extends State<PdfView> {
             final failed = _viewModel.loadFailed && !_viewModel.switching;
             final loading =
                 (_viewModel.document == null && !failed) ||
-                _viewModel.switching;
+                _viewModel.switching ||
+                (_viewModel.document != null && _viewModel.cropPending);
 
             final usedPageKeys = <String>{};
 
@@ -441,11 +481,14 @@ class _PdfViewState extends State<PdfView> {
               max(0, (document?.pages.length ?? 1) - 1),
             );
             if (pageIndex < pages.length) {
-              final page = pages[pageIndex].page;
-              final height = min(
-                constraints.maxHeight,
-                constraints.maxWidth * page.height / page.width,
-              );
+              final entry = pages[pageIndex];
+              final page = entry.page;
+              final height =
+                  min(
+                    constraints.maxHeight,
+                    constraints.maxWidth / visibleAspect(entry),
+                  ) /
+                  entry.region.height;
               _annotation.pageMaxSide =
                   max(height, height * page.width / page.height) * scale;
             }

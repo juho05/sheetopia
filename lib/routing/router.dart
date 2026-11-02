@@ -36,6 +36,7 @@ import 'package:sheetopia/ui/settings/logs/log_details_page.dart';
 import 'package:sheetopia/ui/settings/logs/logs_page.dart';
 import 'package:sheetopia/ui/settings/midi/midi_device_page.dart';
 import 'package:sheetopia/ui/settings/midi/midi_page.dart';
+import 'package:sheetopia/ui/settings/page_crop_page.dart';
 import 'package:sheetopia/ui/settings/page_turning_page.dart';
 import 'package:sheetopia/ui/settings/settings_page.dart';
 
@@ -193,6 +194,10 @@ GoRouter get goRouter {
             path: "settings",
             builder: (context, state) => const SettingsPage(),
             routes: [
+              GoRoute(
+                path: "pageCrop",
+                builder: (context, state) => const PageCropPage(),
+              ),
               GoRoute(
                 path: "pageTurning",
                 builder: (context, state) => const PageTurningPage(),

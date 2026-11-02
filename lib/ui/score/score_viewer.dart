@@ -13,6 +13,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/settings/appearance.dart';
+import 'package:sheetopia/data/repositories/settings/page_crop.dart';
 import 'package:sheetopia/data/repositories/settings/page_turning.dart';
 import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
@@ -108,6 +109,7 @@ class _ScoreViewerState extends State<_ScoreViewer>
   late final ScoreViewModel _viewModel;
   late final PageTurningSettings _pageTurningSettings;
   late final AppearanceSettings _appearanceSettings;
+  late final PageCropSettings _pageCropSettings;
   late final Listenable _rebuildListenable;
   late final Listenable _backgroundListenable;
 
@@ -134,10 +136,12 @@ class _ScoreViewerState extends State<_ScoreViewer>
     );
     _pageTurningSettings = context.read<SettingsRepository>().pageTurning;
     _appearanceSettings = context.read<SettingsRepository>().appearanceSettings;
+    _pageCropSettings = context.read<SettingsRepository>().pageCrop;
     _rebuildListenable = Listenable.merge([
       _viewModel,
       _pageTurningSettings,
       _appearanceSettings,
+      _pageCropSettings,
       _annotation,
     ]);
     _viewModel.addListener(_exitAnnotationWithoutPdf);
@@ -326,10 +330,16 @@ class _ScoreViewerState extends State<_ScoreViewer>
                                   gradualPageTurns:
                                       _pageTurningSettings.gradualPageTurns,
                                   backgroundColor: _scoreBackground,
+                                  cropEnabled: _pageCropSettings.enabled,
+                                  cropPadding:
+                                      _pageCropSettings.paddingPercent / 100,
                                   nextPath: sequence?.nextFile?.path,
                                   previousPath: sequence?.previousFile?.path,
                                   nextScoreId: widget.advanceOnOverflow
                                       ? sequence?.nextScoreId
+                                      : null,
+                                  previousScoreId: widget.advanceOnOverflow
+                                      ? sequence?.previousScoreId
                                       : null,
                                   neighborsSettled: _viewModel.sequenceSettled,
                                   onOverflowForward: widget.advanceOnOverflow

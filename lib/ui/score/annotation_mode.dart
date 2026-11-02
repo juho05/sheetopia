@@ -89,6 +89,7 @@ class AnnotationMode extends ChangeNotifier {
   int pageIndex = 0;
   double pageMaxSide = 0;
   double? Function(int pageIndex)? pageAspect;
+  Rect? Function(int pageIndex)? pageBounds;
 
   // set by the file view if it can be annotated
   void Function()? onEnterRequested;
@@ -162,6 +163,7 @@ class AnnotationMode extends ChangeNotifier {
       old.saveAll().whenComplete(old.dispose);
     }
     viewModel?.pageAspect = (index) => pageAspect?.call(index);
+    viewModel?.pageBounds = (index) => pageBounds?.call(index);
     _viewModel = viewModel;
     transform.reset();
     notifyListeners();

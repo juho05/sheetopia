@@ -11,6 +11,7 @@ import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/settings/appearance.dart';
 import 'package:sheetopia/data/repositories/settings/logging.dart';
+import 'package:sheetopia/data/repositories/settings/page_crop.dart';
 import 'package:sheetopia/data/repositories/settings/page_turning.dart';
 import 'package:sheetopia/system_integration.dart';
 
@@ -18,6 +19,7 @@ class SettingsRepository {
   final LoggingSettings logging;
   final AppearanceSettings appearanceSettings;
   final PageTurningSettings pageTurning;
+  final PageCropSettings pageCrop;
   final VersionCheckingSettings versionChecking;
 
   SettingsRepository({required KeyValueRepository keyValueRepository})
@@ -26,6 +28,7 @@ class SettingsRepository {
         keyValueRepository: keyValueRepository,
       ),
       pageTurning = PageTurningSettings(keyValueRepository: keyValueRepository),
+      pageCrop = PageCropSettings(keyValueRepository: keyValueRepository),
       versionChecking = VersionCheckingSettings(
         config: systemIntegrationConfig,
         keyValue: keyValueRepository,
@@ -37,6 +40,7 @@ class SettingsRepository {
     await Future.wait([
       appearanceSettings.load(),
       pageTurning.load(),
+      pageCrop.load(),
       versionChecking.load(),
     ]);
   }
@@ -44,6 +48,7 @@ class SettingsRepository {
   void dispose() {
     appearanceSettings.dispose();
     pageTurning.dispose();
+    pageCrop.dispose();
     versionChecking.dispose();
     logging.dispose();
   }

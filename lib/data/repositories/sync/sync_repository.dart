@@ -1866,18 +1866,13 @@ class SyncRepository {
                   fileType: fileChanged
                       ? Value(s.fileType)
                       : const Value.absent(),
-                  processingVersion: fileChanged
-                      ? const Value(null)
-                      : const Value.absent(),
-                  backgroundColor: fileChanged
-                      ? const Value(null)
-                      : const Value.absent(),
                   type: metadataChanged && s.type != null
                       ? Value(s.type!)
                       : const Value.absent(),
                 ),
               );
           if (fileChanged) {
+            await _db.clearProcessingResult(s.id);
             deleteFile = await _scoresRepo.scoreFile(score.id, score.fileType);
           }
         }

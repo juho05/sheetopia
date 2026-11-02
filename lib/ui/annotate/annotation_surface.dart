@@ -13,12 +13,15 @@ import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
 import 'package:sheetopia/ui/annotate/annotate_viewmodel.dart';
 import 'package:sheetopia/ui/annotate/annotation_painter.dart';
+import 'package:sheetopia/ui/score/page_region.dart';
 
 class AnnotationSurface extends StatefulWidget {
   final AnnotateViewModel? viewModel;
   final int pageIndex;
 
   final List<Stroke> strokes;
+
+  final Rect visibleRegion;
 
   final AnnotateViewModel? Function(PointerDownEvent event)? onStylusDown;
 
@@ -27,6 +30,7 @@ class AnnotationSurface extends StatefulWidget {
     required this.viewModel,
     required this.pageIndex,
     this.strokes = const [],
+    this.visibleRegion = fullPageRegion,
     this.onStylusDown,
   });
 
@@ -87,9 +91,10 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
   StrokePoint _normalize(Offset local) {
     final w = _size.width <= 0 ? 1.0 : _size.width;
     final h = _size.height <= 0 ? 1.0 : _size.height;
+    final region = widget.visibleRegion;
     return StrokePoint(
-      x: (local.dx / w).clamp(0.0, 1.0),
-      y: (local.dy / h).clamp(0.0, 1.0),
+      x: (local.dx / w).clamp(region.left, region.right),
+      y: (local.dy / h).clamp(region.top, region.bottom),
       pressure: 0.5, // disable pressure-sensitivity
     );
   }

@@ -15,10 +15,10 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
+import 'package:sheetopia/ui/score/score_data_cache.dart';
 import 'package:sheetopia/ui/score/score_file_view.dart';
 
 class PdfViewModel extends ChangeNotifier implements ScoreFileView {
-  final ScoresRepository _scoresRepository;
   String _scoreId;
 
   final bool Function()? _onOverflowForward;
@@ -28,6 +28,7 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
   String? _nextPath;
   String? _previousPath;
   String? _nextScoreId;
+  String? _previousScoreId;
   bool _neighborsSettled;
 
   bool _gradual;
@@ -52,24 +53,42 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
 
   String get documentScoreId => _documentScoreId;
 
-  final Map<String, Map<int, List<Stroke>>> _annotations = {};
+  final ScoreDataCache _scores;
 
   Map<int, List<Stroke>>? get documentAnnotations =>
-      _annotations[_documentScoreId];
+      _scores.annotationsOf(_documentScoreId);
 
   String? get spillScoreId =>
       _gradual && _spillScoreId != _documentScoreId ? _spillScoreId : null;
 
-  Map<int, List<Stroke>>? get spillAnnotations => _annotations[spillScoreId];
+  Map<int, List<Stroke>>? get spillAnnotations =>
+      _scores.annotationsOf(spillScoreId);
 
-  void setAnnotations(Map<String, Map<int, List<Stroke>>> annotations) {
-    for (final MapEntry(key: scoreId, value: pages) in annotations.entries) {
-      if (_annotatedScoreIds.contains(scoreId)) _annotations[scoreId] = pages;
-    }
-    notifyListeners();
+  void setAnnotations(Map<String, Map<int, List<Stroke>>> annotations) =>
+      _scores.setAnnotations(annotations);
+
+  set annotating(bool value) => _scores.annotating = value;
+
+  void updateCrop({required bool enabled, required double padding}) {
+    _scores.updateCrop(enabled: enabled, padding: padding);
+    _syncScores();
   }
 
-  StreamSubscription? _annotationsSub;
+  bool get cropPending => !_scores.cropReady(_documentScoreId);
+
+  Rect visibleRegion(PdfPage page, {bool spill = false}) =>
+      _scores.visibleRegion(
+        spill ? _spillScoreId : _documentScoreId,
+        Size(page.width, page.height),
+      );
+
+  Future<void> _refreshUnshownMargins() async {
+    if (_scoreId == _documentScoreId ||
+        (_gradual && _scoreId == _spillScoreId)) {
+      return;
+    }
+    await _scores.reloadMargins(_scoreId, keepUntilLoaded: true);
+  }
 
   File _file;
 
@@ -92,7 +111,8 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
 
   bool _needsLastSpreadStart = false;
 
-  bool get needsLastSpreadStart => _needsLastSpreadStart;
+  // the last spread depends on the size of the cropped pages
+  bool get needsLastSpreadStart => _needsLastSpreadStart && !cropPending;
 
   bool _switchInFlight = false;
 
@@ -121,6 +141,8 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
   PdfDocument? get spillDocument {
     final path = _spillPath;
     if (!_gradual || _document == null || path == null) return null;
+    final scoreId = _spillScoreId;
+    if (scoreId != null && !_scores.cropReady(scoreId)) return null;
     return path == _documentPath ? _document : _readyDocuments[path];
   }
 
@@ -128,49 +150,45 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
 
   PdfViewModel({
     required this._file,
-    required this._scoresRepository,
+    required ScoresRepository scoresRepository,
     required this._scoreId,
     this._gradual = false,
+    bool cropEnabled = false,
+    double cropPadding = 0,
     this._nextPath,
     this._previousPath,
     this._nextScoreId,
+    this._previousScoreId,
     this._neighborsSettled = true,
     this._onOverflowForward,
     this._onOverflowBackward,
     this._onPageTurned,
-  }) : _documentScoreId = _scoreId {
+  }) : _documentScoreId = _scoreId,
+       _scores = ScoreDataCache(
+         scoresRepository: scoresRepository,
+         cropEnabled: cropEnabled,
+         cropPadding: cropPadding,
+       ) {
+    _scores.addListener(notifyListeners);
     _loadDocument();
-    _syncAnnotations();
-    _annotationsSub = _scoresRepository.updatedScoreIds.listen((ids) {
-      for (final id in _annotatedScoreIds) {
-        if (ids.contains(id)) _loadAnnotations(id);
-      }
-    });
+    _syncScores();
   }
 
-  Set<String> get _annotatedScoreIds => {
+  // The neighbors are loaded ahead, so turning to one does not wait for its crop.
+  Set<String> get _trackedScoreIds => {
     _scoreId,
     _documentScoreId,
     if (_gradual) ?_spillScoreId,
+    if (_scores.cropEnabled) ...[?_nextScoreId, ?_previousScoreId],
   };
 
-  Future<void> _loadAnnotations(String scoreId) async {
-    final pages = await _scoresRepository.getAnnotations(scoreId);
-    if (_disposed || !_annotatedScoreIds.contains(scoreId)) return;
-    _annotations[scoreId] = pages;
-    notifyListeners();
-  }
-
-  void _syncAnnotations() {
-    final wanted = _annotatedScoreIds;
-    _annotations.removeWhere((id, _) => !wanted.contains(id));
-    for (final id in wanted) {
-      if (!_annotations.containsKey(id)) _loadAnnotations(id);
-    }
-  }
+  void _syncScores() =>
+      _scores.track(_trackedScoreIds, prune: _neighborsSettled);
 
   List<Stroke> strokesForPage(int pageNumber, {bool spill = false}) =>
-      _annotations[spill ? _spillScoreId : _documentScoreId]?[pageNumber - 1] ??
+      _scores.annotationsOf(
+        spill ? _spillScoreId : _documentScoreId,
+      )?[pageNumber - 1] ??
       const [];
 
   Future<void> updateFile(File file) async {
@@ -182,20 +200,24 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
     String? next,
     String? previous,
     String? nextScoreId,
+    String? previousScoreId,
     required bool settled,
   }) {
     if (next == _nextPath &&
         previous == _previousPath &&
         nextScoreId == _nextScoreId &&
+        previousScoreId == _previousScoreId &&
         settled == _neighborsSettled) {
       return;
     }
     _nextPath = next;
     _previousPath = previous;
     _nextScoreId = nextScoreId;
+    _previousScoreId = previousScoreId;
     _neighborsSettled = settled;
     // while a switch is pending the neighbors already belong to the new score
     if (settled && !_loadInProgress) _applySpill();
+    _syncScores();
     _syncPreloadedDocuments();
   }
 
@@ -203,14 +225,14 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
     final path = _nextScoreId == null ? null : _nextPath;
     _spillPath = path;
     _spillScoreId = path == null ? null : _nextScoreId;
-    _syncAnnotations();
+    _syncScores();
   }
 
   void updateGradual(bool gradual) {
     if (gradual == _gradual) return;
     _gradual = gradual;
     _half = false;
-    _syncAnnotations();
+    _syncScores();
   }
 
   void moveSplit(double delta) {
@@ -222,7 +244,7 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
     if (_scoreId == scoreId) return;
     _scoreId = scoreId;
     if (!_loadInProgress) _documentScoreId = scoreId;
-    _syncAnnotations();
+    _syncScores();
   }
 
   void clearSwitchInFlight() {
@@ -244,6 +266,7 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
       document = await (shown != null
           ? Future.value(shown)
           : preloaded ?? PdfDocument.openFile(path));
+      await _refreshUnshownMargins();
     } catch (e, st) {
       if (_disposed || generation != _loadGeneration) return;
       Log.error("Failed to open PDF $path", e: e, st: st);
@@ -260,6 +283,11 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
     }
     final old = _document;
     final oldPath = _documentPath;
+    final reopened =
+        _scoreId == _documentScoreId &&
+        old != null &&
+        document != null &&
+        !identical(old, document);
     _document = document;
     _documentPath = path;
     _documentScoreId = _scoreId;
@@ -281,8 +309,9 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
     if (_neighborsSettled) {
       _applySpill();
     } else {
-      _syncAnnotations();
+      _syncScores();
     }
+    if (reopened) _scores.reloadMargins(_scoreId);
     _loadFailed = document == null;
     final landOnLastPage = _pendingLandOnLastPage && document != null;
     _pendingLandOnLastPage = false;
@@ -307,7 +336,8 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
   @override
   void dispose() {
     _disposed = true;
-    _annotationsSub?.cancel();
+    _scores.removeListener(notifyListeners);
+    _scores.dispose();
     _document?.dispose();
     for (final document in _preloadedDocuments.values) {
       _disposeWhenReady(document);
@@ -339,9 +369,14 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
     }
   }
 
+  bool get _turnsBlocked =>
+      (_document == null && !_loadFailed) ||
+      _switchInFlight ||
+      (_document != null && cropPending);
+
   @override
   void nextPage() {
-    if ((_document == null && !_loadFailed) || _switchInFlight) return;
+    if (_turnsBlocked) return;
     if (_gradual) return _nextPageGradual();
     final newIndex = _currentPageIndex + _forwardPageCount;
     if (newIndex >= (_document?.pages.length ?? 0)) {
@@ -355,7 +390,7 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
 
   @override
   void prevPage() {
-    if ((_document == null && !_loadFailed) || _switchInFlight) return;
+    if (_turnsBlocked) return;
     if (_gradual) return _prevPageGradual();
     if (_currentPageIndex == 0) {
       _overflowBackward();

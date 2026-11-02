@@ -302,6 +302,50 @@ class $ScoresTableTable extends ScoresTable
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _marginLeftMeta = const VerificationMeta(
+    'marginLeft',
+  );
+  @override
+  late final GeneratedColumn<double> marginLeft = GeneratedColumn<double>(
+    'margin_left',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _marginTopMeta = const VerificationMeta(
+    'marginTop',
+  );
+  @override
+  late final GeneratedColumn<double> marginTop = GeneratedColumn<double>(
+    'margin_top',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _marginRightMeta = const VerificationMeta(
+    'marginRight',
+  );
+  @override
+  late final GeneratedColumn<double> marginRight = GeneratedColumn<double>(
+    'margin_right',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _marginBottomMeta = const VerificationMeta(
+    'marginBottom',
+  );
+  @override
+  late final GeneratedColumn<double> marginBottom = GeneratedColumn<double>(
+    'margin_bottom',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -330,6 +374,10 @@ class $ScoresTableTable extends ScoresTable
     type,
     processingVersion,
     backgroundColor,
+    marginLeft,
+    marginTop,
+    marginRight,
+    marginBottom,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -510,6 +558,36 @@ class $ScoresTableTable extends ScoresTable
         ),
       );
     }
+    if (data.containsKey('margin_left')) {
+      context.handle(
+        _marginLeftMeta,
+        marginLeft.isAcceptableOrUnknown(data['margin_left']!, _marginLeftMeta),
+      );
+    }
+    if (data.containsKey('margin_top')) {
+      context.handle(
+        _marginTopMeta,
+        marginTop.isAcceptableOrUnknown(data['margin_top']!, _marginTopMeta),
+      );
+    }
+    if (data.containsKey('margin_right')) {
+      context.handle(
+        _marginRightMeta,
+        marginRight.isAcceptableOrUnknown(
+          data['margin_right']!,
+          _marginRightMeta,
+        ),
+      );
+    }
+    if (data.containsKey('margin_bottom')) {
+      context.handle(
+        _marginBottomMeta,
+        marginBottom.isAcceptableOrUnknown(
+          data['margin_bottom']!,
+          _marginBottomMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -629,6 +707,22 @@ class $ScoresTableTable extends ScoresTable
         DriftSqlType.int,
         data['${effectivePrefix}background_color'],
       ),
+      marginLeft: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}margin_left'],
+      ),
+      marginTop: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}margin_top'],
+      ),
+      marginRight: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}margin_right'],
+      ),
+      marginBottom: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}margin_bottom'],
+      ),
     );
   }
 
@@ -672,6 +766,10 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
   final ScoreType type;
   final int? processingVersion;
   final int? backgroundColor;
+  final double? marginLeft;
+  final double? marginTop;
+  final double? marginRight;
+  final double? marginBottom;
   const ScoresTableData({
     required this.id,
     required this.title,
@@ -699,6 +797,10 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     required this.type,
     this.processingVersion,
     this.backgroundColor,
+    this.marginLeft,
+    this.marginTop,
+    this.marginRight,
+    this.marginBottom,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -764,6 +866,18 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     if (!nullToAbsent || backgroundColor != null) {
       map['background_color'] = Variable<int>(backgroundColor);
     }
+    if (!nullToAbsent || marginLeft != null) {
+      map['margin_left'] = Variable<double>(marginLeft);
+    }
+    if (!nullToAbsent || marginTop != null) {
+      map['margin_top'] = Variable<double>(marginTop);
+    }
+    if (!nullToAbsent || marginRight != null) {
+      map['margin_right'] = Variable<double>(marginRight);
+    }
+    if (!nullToAbsent || marginBottom != null) {
+      map['margin_bottom'] = Variable<double>(marginBottom);
+    }
     return map;
   }
 
@@ -818,6 +932,18 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       backgroundColor: backgroundColor == null && nullToAbsent
           ? const Value.absent()
           : Value(backgroundColor),
+      marginLeft: marginLeft == null && nullToAbsent
+          ? const Value.absent()
+          : Value(marginLeft),
+      marginTop: marginTop == null && nullToAbsent
+          ? const Value.absent()
+          : Value(marginTop),
+      marginRight: marginRight == null && nullToAbsent
+          ? const Value.absent()
+          : Value(marginRight),
+      marginBottom: marginBottom == null && nullToAbsent
+          ? const Value.absent()
+          : Value(marginBottom),
     );
   }
 
@@ -861,6 +987,10 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       ),
       processingVersion: serializer.fromJson<int?>(json['processingVersion']),
       backgroundColor: serializer.fromJson<int?>(json['backgroundColor']),
+      marginLeft: serializer.fromJson<double?>(json['marginLeft']),
+      marginTop: serializer.fromJson<double?>(json['marginTop']),
+      marginRight: serializer.fromJson<double?>(json['marginRight']),
+      marginBottom: serializer.fromJson<double?>(json['marginBottom']),
     );
   }
   @override
@@ -899,6 +1029,10 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       ),
       'processingVersion': serializer.toJson<int?>(processingVersion),
       'backgroundColor': serializer.toJson<int?>(backgroundColor),
+      'marginLeft': serializer.toJson<double?>(marginLeft),
+      'marginTop': serializer.toJson<double?>(marginTop),
+      'marginRight': serializer.toJson<double?>(marginRight),
+      'marginBottom': serializer.toJson<double?>(marginBottom),
     };
   }
 
@@ -929,6 +1063,10 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     ScoreType? type,
     Value<int?> processingVersion = const Value.absent(),
     Value<int?> backgroundColor = const Value.absent(),
+    Value<double?> marginLeft = const Value.absent(),
+    Value<double?> marginTop = const Value.absent(),
+    Value<double?> marginRight = const Value.absent(),
+    Value<double?> marginBottom = const Value.absent(),
   }) => ScoresTableData(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -960,6 +1098,10 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     backgroundColor: backgroundColor.present
         ? backgroundColor.value
         : this.backgroundColor,
+    marginLeft: marginLeft.present ? marginLeft.value : this.marginLeft,
+    marginTop: marginTop.present ? marginTop.value : this.marginTop,
+    marginRight: marginRight.present ? marginRight.value : this.marginRight,
+    marginBottom: marginBottom.present ? marginBottom.value : this.marginBottom,
   );
   @override
   String toString() {
@@ -989,7 +1131,11 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           ..write('annotations: $annotations, ')
           ..write('type: $type, ')
           ..write('processingVersion: $processingVersion, ')
-          ..write('backgroundColor: $backgroundColor')
+          ..write('backgroundColor: $backgroundColor, ')
+          ..write('marginLeft: $marginLeft, ')
+          ..write('marginTop: $marginTop, ')
+          ..write('marginRight: $marginRight, ')
+          ..write('marginBottom: $marginBottom')
           ..write(')'))
         .toString();
   }
@@ -1022,6 +1168,10 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     type,
     processingVersion,
     backgroundColor,
+    marginLeft,
+    marginTop,
+    marginRight,
+    marginBottom,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -1052,7 +1202,11 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           other.annotations == this.annotations &&
           other.type == this.type &&
           other.processingVersion == this.processingVersion &&
-          other.backgroundColor == this.backgroundColor);
+          other.backgroundColor == this.backgroundColor &&
+          other.marginLeft == this.marginLeft &&
+          other.marginTop == this.marginTop &&
+          other.marginRight == this.marginRight &&
+          other.marginBottom == this.marginBottom);
 }
 
 class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
@@ -1081,6 +1235,10 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
   final Value<ScoreType> type;
   final Value<int?> processingVersion;
   final Value<int?> backgroundColor;
+  final Value<double?> marginLeft;
+  final Value<double?> marginTop;
+  final Value<double?> marginRight;
+  final Value<double?> marginBottom;
   final Value<int> rowid;
   const ScoresTableCompanion({
     this.id = const Value.absent(),
@@ -1108,6 +1266,10 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.type = const Value.absent(),
     this.processingVersion = const Value.absent(),
     this.backgroundColor = const Value.absent(),
+    this.marginLeft = const Value.absent(),
+    this.marginTop = const Value.absent(),
+    this.marginRight = const Value.absent(),
+    this.marginBottom = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ScoresTableCompanion.insert({
@@ -1136,6 +1298,10 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.type = const Value.absent(),
     this.processingVersion = const Value.absent(),
     this.backgroundColor = const Value.absent(),
+    this.marginLeft = const Value.absent(),
+    this.marginTop = const Value.absent(),
+    this.marginRight = const Value.absent(),
+    this.marginBottom = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
@@ -1168,6 +1334,10 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Expression<String>? type,
     Expression<int>? processingVersion,
     Expression<int>? backgroundColor,
+    Expression<double>? marginLeft,
+    Expression<double>? marginTop,
+    Expression<double>? marginRight,
+    Expression<double>? marginBottom,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1196,6 +1366,10 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       if (type != null) 'type': type,
       if (processingVersion != null) 'processing_version': processingVersion,
       if (backgroundColor != null) 'background_color': backgroundColor,
+      if (marginLeft != null) 'margin_left': marginLeft,
+      if (marginTop != null) 'margin_top': marginTop,
+      if (marginRight != null) 'margin_right': marginRight,
+      if (marginBottom != null) 'margin_bottom': marginBottom,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1226,6 +1400,10 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Value<ScoreType>? type,
     Value<int?>? processingVersion,
     Value<int?>? backgroundColor,
+    Value<double?>? marginLeft,
+    Value<double?>? marginTop,
+    Value<double?>? marginRight,
+    Value<double?>? marginBottom,
     Value<int>? rowid,
   }) {
     return ScoresTableCompanion(
@@ -1254,6 +1432,10 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       type: type ?? this.type,
       processingVersion: processingVersion ?? this.processingVersion,
       backgroundColor: backgroundColor ?? this.backgroundColor,
+      marginLeft: marginLeft ?? this.marginLeft,
+      marginTop: marginTop ?? this.marginTop,
+      marginRight: marginRight ?? this.marginRight,
+      marginBottom: marginBottom ?? this.marginBottom,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1342,6 +1524,18 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     if (backgroundColor.present) {
       map['background_color'] = Variable<int>(backgroundColor.value);
     }
+    if (marginLeft.present) {
+      map['margin_left'] = Variable<double>(marginLeft.value);
+    }
+    if (marginTop.present) {
+      map['margin_top'] = Variable<double>(marginTop.value);
+    }
+    if (marginRight.present) {
+      map['margin_right'] = Variable<double>(marginRight.value);
+    }
+    if (marginBottom.present) {
+      map['margin_bottom'] = Variable<double>(marginBottom.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1376,6 +1570,10 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
           ..write('type: $type, ')
           ..write('processingVersion: $processingVersion, ')
           ..write('backgroundColor: $backgroundColor, ')
+          ..write('marginLeft: $marginLeft, ')
+          ..write('marginTop: $marginTop, ')
+          ..write('marginRight: $marginRight, ')
+          ..write('marginBottom: $marginBottom, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -9060,6 +9258,10 @@ typedef $$ScoresTableTableCreateCompanionBuilder =
       Value<ScoreType> type,
       Value<int?> processingVersion,
       Value<int?> backgroundColor,
+      Value<double?> marginLeft,
+      Value<double?> marginTop,
+      Value<double?> marginRight,
+      Value<double?> marginBottom,
       Value<int> rowid,
     });
 typedef $$ScoresTableTableUpdateCompanionBuilder =
@@ -9089,6 +9291,10 @@ typedef $$ScoresTableTableUpdateCompanionBuilder =
       Value<ScoreType> type,
       Value<int?> processingVersion,
       Value<int?> backgroundColor,
+      Value<double?> marginLeft,
+      Value<double?> marginTop,
+      Value<double?> marginRight,
+      Value<double?> marginBottom,
       Value<int> rowid,
     });
 
@@ -9292,6 +9498,26 @@ class $$ScoresTableTableFilterComposer
 
   ColumnFilters<int> get backgroundColor => $composableBuilder(
     column: $table.backgroundColor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get marginLeft => $composableBuilder(
+    column: $table.marginLeft,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get marginTop => $composableBuilder(
+    column: $table.marginTop,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get marginRight => $composableBuilder(
+    column: $table.marginRight,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get marginBottom => $composableBuilder(
+    column: $table.marginBottom,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9509,6 +9735,26 @@ class $$ScoresTableTableOrderingComposer
     column: $table.backgroundColor,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get marginLeft => $composableBuilder(
+    column: $table.marginLeft,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get marginTop => $composableBuilder(
+    column: $table.marginTop,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get marginRight => $composableBuilder(
+    column: $table.marginRight,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get marginBottom => $composableBuilder(
+    column: $table.marginBottom,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ScoresTableTableAnnotationComposer
@@ -9625,6 +9871,24 @@ class $$ScoresTableTableAnnotationComposer
 
   GeneratedColumn<int> get backgroundColor => $composableBuilder(
     column: $table.backgroundColor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get marginLeft => $composableBuilder(
+    column: $table.marginLeft,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get marginTop =>
+      $composableBuilder(column: $table.marginTop, builder: (column) => column);
+
+  GeneratedColumn<double> get marginRight => $composableBuilder(
+    column: $table.marginRight,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get marginBottom => $composableBuilder(
+    column: $table.marginBottom,
     builder: (column) => column,
   );
 
@@ -9761,6 +10025,10 @@ class $$ScoresTableTableTableManager
                 Value<ScoreType> type = const Value.absent(),
                 Value<int?> processingVersion = const Value.absent(),
                 Value<int?> backgroundColor = const Value.absent(),
+                Value<double?> marginLeft = const Value.absent(),
+                Value<double?> marginTop = const Value.absent(),
+                Value<double?> marginRight = const Value.absent(),
+                Value<double?> marginBottom = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ScoresTableCompanion(
                 id: id,
@@ -9788,6 +10056,10 @@ class $$ScoresTableTableTableManager
                 type: type,
                 processingVersion: processingVersion,
                 backgroundColor: backgroundColor,
+                marginLeft: marginLeft,
+                marginTop: marginTop,
+                marginRight: marginRight,
+                marginBottom: marginBottom,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -9817,6 +10089,10 @@ class $$ScoresTableTableTableManager
                 Value<ScoreType> type = const Value.absent(),
                 Value<int?> processingVersion = const Value.absent(),
                 Value<int?> backgroundColor = const Value.absent(),
+                Value<double?> marginLeft = const Value.absent(),
+                Value<double?> marginTop = const Value.absent(),
+                Value<double?> marginRight = const Value.absent(),
+                Value<double?> marginBottom = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ScoresTableCompanion.insert(
                 id: id,
@@ -9844,6 +10120,10 @@ class $$ScoresTableTableTableManager
                 type: type,
                 processingVersion: processingVersion,
                 backgroundColor: backgroundColor,
+                marginLeft: marginLeft,
+                marginTop: marginTop,
+                marginRight: marginRight,
+                marginBottom: marginBottom,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

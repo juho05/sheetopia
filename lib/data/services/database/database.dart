@@ -68,7 +68,7 @@ class Database extends _$Database {
   Database([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -235,6 +235,12 @@ class Database extends _$Database {
                 ),
               );
             },
+            from19To20: (m, schema) async {
+              await m.addColumn(schema.scores, schema.scores.marginLeft);
+              await m.addColumn(schema.scores, schema.scores.marginTop);
+              await m.addColumn(schema.scores, schema.scores.marginRight);
+              await m.addColumn(schema.scores, schema.scores.marginBottom);
+            },
           ),
         ),
       );
@@ -267,6 +273,21 @@ class Database extends _$Database {
     );
     db = db.interceptWith(LogInterceptor());
     return db;
+  }
+
+  Future<void> clearProcessingResult(String scoreId) {
+    return managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .update(
+          (o) => o(
+            processingVersion: const Value(null),
+            backgroundColor: const Value(null),
+            marginLeft: const Value(null),
+            marginTop: const Value(null),
+            marginRight: const Value(null),
+            marginBottom: const Value(null),
+          ),
+        );
   }
 
   static const Uuid uuid = Uuid();

@@ -8,6 +8,8 @@
 
 import 'package:drift/drift.dart';
 
+const currentProcessingVersion = 2;
+
 enum ScoreStatus {
   /// The score was created as part of another entity (e.g. exercise) which is has
   /// not been created yet. Shouldn't sync yet.
@@ -78,6 +80,10 @@ class ScoresTable extends Table {
 
   late final processingVersion = integer().nullable()();
   late final backgroundColor = integer().nullable()();
+  late final marginLeft = real().nullable()();
+  late final marginTop = real().nullable()();
+  late final marginRight = real().nullable()();
+  late final marginBottom = real().nullable()();
 
   @override
   Set<Column<Object>>? get primaryKey => {id};

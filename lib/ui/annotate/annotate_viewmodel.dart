@@ -7,7 +7,7 @@
  */
 
 import 'dart:math';
-import 'dart:ui' show Offset, Path;
+import 'dart:ui' show Offset, Path, Rect;
 
 import 'package:flutter/foundation.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
@@ -15,6 +15,7 @@ import 'package:sheetopia/data/repositories/scores/stroke.dart';
 import 'package:sheetopia/ui/annotate/lasso.dart';
 import 'package:sheetopia/ui/annotate/shape_snap.dart';
 import 'package:sheetopia/ui/annotate/stroke_outline.dart';
+import 'package:sheetopia/ui/score/page_region.dart';
 
 enum AnnotateTool { pen, eraser, lasso }
 
@@ -69,8 +70,9 @@ class _Selection {
     required this.indices,
     required this.strokes,
     required this.polygon,
+    required Rect bounds,
   }) : hidden = Set<Stroke>.identity()..addAll(strokes),
-       dragLimits = _limitsFor(strokes);
+       dragLimits = _limitsFor(strokes, bounds);
 
   bool contains(double x, double y, Offset offset) =>
       pointInPolygon(polygon, x - offset.dx, y - offset.dy);
@@ -85,21 +87,10 @@ class _Selection {
   // pair then lets it slide between the edges instead of pinning it.
   static ({double minDx, double maxDx, double minDy, double maxDy}) _limitsFor(
     List<Stroke> strokes,
+    Rect bounds,
   ) {
-    var minX = double.infinity;
-    var minY = double.infinity;
-    var maxX = double.negativeInfinity;
-    var maxY = double.negativeInfinity;
-    for (final stroke in strokes) {
-      final outline = stroke.outline;
-      for (var i = 0; i + 1 < outline.length; i += 2) {
-        minX = min(minX, outline[i]);
-        minY = min(minY, outline[i + 1]);
-        maxX = max(maxX, outline[i]);
-        maxY = max(maxY, outline[i + 1]);
-      }
-    }
-    if (!minX.isFinite) {
+    final box = strokesBounds(strokes);
+    if (box == null) {
       return (
         minDx: double.negativeInfinity,
         maxDx: double.infinity,
@@ -108,10 +99,10 @@ class _Selection {
       );
     }
     return (
-      minDx: min(-minX, 1 - maxX),
-      maxDx: max(-minX, 1 - maxX),
-      minDy: min(-minY, 1 - maxY),
-      maxDy: max(-minY, 1 - maxY),
+      minDx: min(bounds.left - box.left, bounds.right - box.right),
+      maxDx: max(bounds.left - box.left, bounds.right - box.right),
+      minDy: min(bounds.top - box.top, bounds.bottom - box.bottom),
+      maxDy: max(bounds.top - box.top, bounds.bottom - box.bottom),
     );
   }
 }
@@ -317,6 +308,39 @@ class AnnotateViewModel extends ChangeNotifier {
   // AnnotatePage, which owns the pdfrx controller; null until it is ready.
   double? Function(int pageIndex)? pageAspect;
 
+  Rect? Function(int pageIndex)? pageBounds;
+
+  Rect _boundsOf(int? pageIndex) =>
+      (pageIndex == null ? null : pageBounds?.call(pageIndex)) ??
+      fullPageRegion;
+
+  // A stroke past a cropped edge would grow the crop, so the whole pen stays
+  // inside of it. The edges of the page are no limit.
+  Rect _penBounds(int? pageIndex, double aspect) {
+    final bounds = _boundsOf(pageIndex);
+    final radiusX = _width * max(1.0, aspect) / 2;
+    (double, double) limit(double low, double high, double radius) {
+      final start = low > 0 ? low + radius : low;
+      final end = high < 1 ? high - radius : high;
+      if (start <= end) return (start, end);
+      final center = (low + high) / 2;
+      return (center, center);
+    }
+
+    final (left, right) = limit(bounds.left, bounds.right, radiusX);
+    final (top, bottom) = limit(bounds.top, bounds.bottom, radiusX / aspect);
+    return Rect.fromLTRB(left, top, right, bottom);
+  }
+
+  StrokePoint _limitPen(StrokePoint p, int? pageIndex, double aspect) {
+    final bounds = _penBounds(pageIndex, aspect);
+    return StrokePoint(
+      x: p.x.clamp(bounds.left, bounds.right),
+      y: p.y.clamp(bounds.top, bounds.bottom),
+      pressure: p.pressure,
+    );
+  }
+
   // Without pages they are loaded from the repository. The tools (pen type,
   // colors, widths, clipboard) continue from toolsFrom.
   AnnotateViewModel({
@@ -501,6 +525,7 @@ class AnnotateViewModel extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    p = _limitPen(p, pageIndex, aspect);
     _drawAspect = aspect;
     _activePoints = [p];
     _lastRawPoint = p;
@@ -550,6 +575,7 @@ class AnnotateViewModel extends ChangeNotifier {
       _moveSnap(snap, p);
       return;
     }
+    p = _limitPen(p, _activePageIndex, aspect);
     _lastRawPoint = p;
     _sx += (p.x - _sx) * _streamlineT;
     _sy += (p.y - _sy) * _streamlineT;
@@ -614,9 +640,10 @@ class AnnotateViewModel extends ChangeNotifier {
 
   void _moveSnap(_Snap snap, StrokePoint p) {
     final aspect = _drawAspect;
+    final bounds = _penBounds(_activePageIndex, aspect);
     var target = Offset(
-      (p.x + snap.grab.dx).clamp(0.0, 1.0),
-      (p.y + snap.grab.dy).clamp(0.0, 1.0),
+      (p.x + snap.grab.dx).clamp(bounds.left, bounds.right),
+      (p.y + snap.grab.dy).clamp(bounds.top, bounds.bottom),
     );
     if (snap.shape == SnapShape.line) {
       target = snapLineEnd(snap.anchor, target, aspect, _drawPageWidth);
@@ -758,6 +785,7 @@ class AnnotateViewModel extends ChangeNotifier {
       indices: indices,
       strokes: [for (final i in indices) strokes[i]],
       polygon: polygon,
+      bounds: _boundsOf(pageIndex),
     );
   }
 
@@ -793,6 +821,7 @@ class AnnotateViewModel extends ChangeNotifier {
       indices: selection.indices,
       strokes: after,
       polygon: translatePolygon(selection.polygon, offset.dx, offset.dy),
+      bounds: _boundsOf(selection.pageIndex),
     );
   }
 
@@ -858,7 +887,18 @@ class AnnotateViewModel extends ChangeNotifier {
     // Never hand the clipboard's own instances to a page: identity is what
     // erase, move and undo key on, so a second paste would alias the first.
     final nudge = _pasteNudge * (clipboard.copies[pageIndex] ?? 0);
-    strokes = [for (final s in strokes) translateStroke(s, nudge, nudge)];
+    final bounds = _boundsOf(pageIndex);
+    final limits = _Selection._limitsFor(strokes, bounds);
+    // At an edge the nudge goes the other way, or it would land on the original.
+    double place(double min, double max) {
+      if (nudge >= min && nudge <= max) return nudge;
+      if (-nudge >= min && -nudge <= max) return -nudge;
+      return nudge.clamp(min, max);
+    }
+
+    final dx = place(limits.minDx, limits.maxDx);
+    final dy = place(limits.minDy, limits.maxDy);
+    strokes = [for (final s in strokes) translateStroke(s, dx, dy)];
     clipboard.copies[pageIndex] = (clipboard.copies[pageIndex] ?? 0) + 1;
 
     final pageStrokes = List.of(_pages[pageIndex] ?? const <Stroke>[]);
@@ -876,6 +916,7 @@ class AnnotateViewModel extends ChangeNotifier {
       indices: [for (var i = 0; i < strokes.length; i++) start + i],
       strokes: strokes,
       polygon: _boundsPolygon(strokes),
+      bounds: bounds,
     );
     notifyListeners();
   }

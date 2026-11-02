@@ -22,6 +22,8 @@ abstract class ScoreSequence implements Listenable {
 
   String? get nextScoreId;
 
+  String? get previousScoreId;
+
   // True once the underlying collection is gone
   bool get deleted;
 

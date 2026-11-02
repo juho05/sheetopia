@@ -12,14 +12,17 @@ import 'dart:math';
 
 import 'package:pdfrx/pdfrx.dart';
 import 'package:sheetopia/data/services/score_processing/background_color.dart';
+import 'package:sheetopia/data/services/score_processing/page_margins.dart';
 
 class ScoreProcessingResult {
   final int pageCount;
   final int? backgroundColor;
+  final PageMargins? margins;
 
   const ScoreProcessingResult({
     required this.pageCount,
     required this.backgroundColor,
+    required this.margins,
   });
 }
 
@@ -42,7 +45,9 @@ class _RenderedPage {
 }
 
 class _Finish {
-  const _Finish();
+  final bool allPagesRendered;
+
+  const _Finish({required this.allPagesRendered});
 }
 
 const _workerExited = "exited";
@@ -73,12 +78,16 @@ class ScoreProcessingService {
       worker.sendPort.send(_Start(port.sendPort));
       // one page is analyzed while the next one renders
       var unacknowledged = 0;
+      var allPagesRendered = true;
       await Pdfrx.runAsBackgroundWork(() async {
         final pdf = await PdfDocument.openFile(path);
         try {
           for (final page in pdf.pages) {
             final rendered = await _renderPage(page);
-            if (rendered == null) continue;
+            if (rendered == null) {
+              allPagesRendered = false;
+              continue;
+            }
             if (unacknowledged > 0) {
               await _nextReply(replies);
               unacknowledged--;
@@ -90,7 +99,7 @@ class ScoreProcessingService {
           await pdf.dispose();
         }
       });
-      worker.sendPort.send(const _Finish());
+      worker.sendPort.send(_Finish(allPagesRendered: allPagesRendered));
       for (; unacknowledged > 0; unacknowledged--) {
         await _nextReply(replies);
       }
@@ -192,6 +201,7 @@ void _workerMain(SendPort initPort) {
   SendPort? reply;
   var pageCount = 0;
   final backgrounds = <PageBackground>[];
+  final margins = <PageMargins?>[];
   port.listen((message) {
     try {
       switch (message) {
@@ -199,25 +209,31 @@ void _workerMain(SendPort initPort) {
           reply = message.reply;
           pageCount = 0;
           backgrounds.clear();
+          margins.clear();
         case _RenderedPage():
-          final background = estimatePageBackground(
-            PageBitmap(
-              width: message.width,
-              height: message.height,
-              bgra: message.bgra.materialize().asUint8List(),
-            ),
+          final bitmap = PageBitmap(
+            width: message.width,
+            height: message.height,
+            bgra: message.bgra.materialize().asUint8List(),
           );
+          final background = estimatePageBackground(bitmap);
+          final pageMargins = estimatePageMargins(bitmap, background);
           pageCount++;
           if (background != null) backgrounds.add(background);
+          margins.add(pageMargins);
           reply?.send(true);
         case _Finish():
           reply?.send(
             ScoreProcessingResult(
               pageCount: pageCount,
               backgroundColor: combinePageBackgrounds(backgrounds),
+              margins: message.allPagesRendered
+                  ? combinePageMargins(margins)
+                  : null,
             ),
           );
           backgrounds.clear();
+          margins.clear();
       }
     } catch (e, st) {
       reply?.send(RemoteError(e.toString(), st.toString()));

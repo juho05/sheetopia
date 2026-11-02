@@ -18,6 +18,7 @@ import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/annotate/annotate_viewmodel.dart';
+import 'package:sheetopia/ui/score/page_region.dart';
 
 const _scoreId = 'score-1';
 const _aspect = 1.4;
@@ -96,6 +97,69 @@ void main() {
     viewModel.appendPoint(_p(to.dx, to.dy), _aspect);
     viewModel.endStroke();
   }
+
+  group('visible part of a cropped page', () {
+    const visible = Rect.fromLTRB(0.2, 0.2, 0.8, 0.8);
+
+    setUp(() => viewModel.pageBounds = (_) => visible);
+
+    test('a selection cannot be dragged out of it', () {
+      draw(0, const [Offset(0.5, 0.5), Offset(0.55, 0.55)]);
+      viewModel.setLasso();
+      lassoRect(0, const Rect.fromLTRB(0.4, 0.4, 0.65, 0.65));
+      expect(viewModel.hasSelection, isTrue);
+
+      drag(0, const Offset(0.5, 0.5), const Offset(1, 1));
+
+      final outline = viewModel.strokesFor(0).single.outline;
+      for (var i = 0; i + 1 < outline.length; i += 2) {
+        expect(outline[i], lessThanOrEqualTo(visible.right + 1e-6));
+        expect(outline[i + 1], lessThanOrEqualTo(visible.bottom + 1e-6));
+      }
+    });
+
+    test('the whole pen stays inside of it', () {
+      viewModel.setWidthFraction(1);
+      draw(0, const [
+        Offset(0.1, 0.1),
+        Offset(0.1, 0.5),
+        Offset(0.5, 0.95),
+        Offset(0.95, 0.95),
+      ]);
+
+      final box = strokesBounds(viewModel.strokesFor(0))!;
+      expect(box.left, greaterThanOrEqualTo(visible.left - 1e-3));
+      expect(box.top, greaterThanOrEqualTo(visible.top - 1e-3));
+      expect(box.right, lessThanOrEqualTo(visible.right + 1e-3));
+      expect(box.bottom, lessThanOrEqualTo(visible.bottom + 1e-3));
+    });
+
+    test('the pen is not limited by an uncropped page edge', () {
+      viewModel.pageBounds = (_) => fullPageRegion;
+      viewModel.setWidthFraction(1);
+      draw(0, const [Offset(0, 0.5), Offset(0.3, 0.5)]);
+
+      expect(strokesBounds(viewModel.strokesFor(0))!.left, lessThan(0));
+    });
+
+    test('a paste lands inside of it', () {
+      viewModel.pageBounds = null;
+      draw(0, const [Offset(0.02, 0.02), Offset(0.05, 0.05)]);
+      viewModel.setLasso();
+      lassoRect(0, const Rect.fromLTRB(0.0, 0.0, 0.1, 0.1));
+      viewModel.copySelection();
+      viewModel.clearSelection();
+
+      viewModel.pageBounds = (_) => visible;
+      viewModel.pasteInto(1);
+
+      final outline = viewModel.strokesFor(1).single.outline;
+      for (var i = 0; i + 1 < outline.length; i += 2) {
+        expect(outline[i], greaterThanOrEqualTo(visible.left - 1e-6));
+        expect(outline[i + 1], greaterThanOrEqualTo(visible.top - 1e-6));
+      }
+    });
+  });
 
   group('lasso selection', () {
     test('selects only the strokes it encloses', () {
@@ -328,6 +392,22 @@ void main() {
       expect(strokes.length, 2);
       expect(identical(strokes[1], source), isFalse);
       expect(strokes[1].bounds.minX, greaterThan(source.bounds.minX));
+    });
+
+    test('a copy pasted at the edge of the visible part still moves', () {
+      draw(0, const [Offset(0.3, 0.3), Offset(0.4, 0.4)]);
+      lassoRect(0, const Rect.fromLTRB(0.2, 0.2, 0.5, 0.5));
+      final box = strokesBounds(viewModel.strokesFor(0))!;
+
+      viewModel.copySelection();
+      viewModel.pageBounds = (_) => Rect.fromLTRB(0, 0, box.right, box.bottom);
+      viewModel.pasteInto(0);
+
+      final pasted = strokesBounds([viewModel.strokesFor(0)[1]])!;
+      expect(pasted.left, lessThan(box.left));
+      expect(pasted.top, lessThan(box.top));
+      expect(pasted.right, lessThanOrEqualTo(box.right));
+      expect(pasted.bottom, lessThanOrEqualTo(box.bottom));
     });
 
     test('pasting twice stacks the copies apart', () {

@@ -136,6 +136,10 @@ class RoutinePlayViewModel extends ChangeNotifier implements ScoreSequence {
   @override
   String? get nextScoreId => hasNext ? _entries[_index + 1].score?.id : null;
 
+  @override
+  String? get previousScoreId =>
+      hasPrevious ? _entries[_index - 1].score?.id : null;
+
   Set<String> get _exerciseIds => _entries.map((e) => e.exercise.id).toSet();
 
   Set<String> get _scoreIds =>
