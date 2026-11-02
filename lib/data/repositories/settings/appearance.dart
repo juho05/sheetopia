@@ -6,6 +6,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:io';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
@@ -54,7 +56,8 @@ class AppearanceSettings extends ChangeNotifier {
   bool get cardDifficulty => _cardDifficulty;
 
   static const String _scoreBackgroundKey = "appearance.score_background";
-  static const bool _scoreBackgroundDefault = false;
+  static final bool _scoreBackgroundDefault =
+      Platform.isAndroid || Platform.isIOS;
   bool _scoreBackground = _scoreBackgroundDefault;
   bool get scoreBackground => _scoreBackground;
 
