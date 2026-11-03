@@ -6,10 +6,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:async';
+
 import 'package:cross_file/cross_file.dart';
 import 'package:desktop_drop/desktop_drop.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/ui/common/fading_overlay.dart';
 
 class DropArea extends StatefulWidget {
@@ -33,6 +35,8 @@ class DropArea extends StatefulWidget {
 }
 
 class _DropAreaState extends State<DropArea> {
+  static bool? _dropAccepted;
+
   bool _dragging = false;
 
   void _setDragging(bool dragging) {
@@ -62,11 +66,16 @@ class _DropAreaState extends State<DropArea> {
 
   void _onDragDone(DropDoneDetails details) {
     _setDragging(false);
-    if (details.files.isEmpty || !_isUnobstructed(details.globalPosition)) {
-      DesktopDrop.instance.clearReceivingCache();
-      return;
+    final accept =
+        details.files.isNotEmpty && _isUnobstructed(details.globalPosition);
+    if (_dropAccepted == null) {
+      scheduleMicrotask(() {
+        if (_dropAccepted == false) DesktopDrop.instance.clearReceivingCache();
+        _dropAccepted = null;
+      });
     }
-    widget.onDrop(details.files);
+    _dropAccepted = (_dropAccepted ?? false) || accept;
+    if (accept) widget.onDrop(details.files);
   }
 
   @override
