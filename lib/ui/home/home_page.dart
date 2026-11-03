@@ -83,8 +83,8 @@ class _HomePageState extends State<HomePage> {
         return;
       }
       context.go("/scores/import");
-    } on InvalidFileTypeException catch (e, st) {
-      Toast.exception(e, st: st, errorMsg: "Unsupported file type!");
+    } on ScoreFileException catch (e, st) {
+      Toast.exception(e, st: st, errorMsg: e.userMessage);
     } catch (e, st) {
       Toast.exception(e, st: st, errorMsg: "Failed to import scores!");
     }
@@ -212,12 +212,8 @@ class _HomePageState extends State<HomePage> {
                               "/practice/exercises/create?separate=$separate",
                             );
                           }
-                        } on InvalidFileTypeException catch (e, st) {
-                          Toast.exception(
-                            e,
-                            st: st,
-                            errorMsg: "Unsupported file type!",
-                          );
+                        } on ScoreFileException catch (e, st) {
+                          Toast.exception(e, st: st, errorMsg: e.userMessage);
                         } catch (e, st) {
                           Toast.exception(
                             e,

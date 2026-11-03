@@ -25,6 +25,7 @@ import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/score_processing/background_color.dart';
 import 'package:sheetopia/data/services/score_processing/page_margins.dart';
 import 'package:sheetopia/data/services/score_processing/score_processing_service.dart';
+import 'package:sheetopia/data/services/pdf_validation_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 
 class _FakePathProvider extends PathProviderPlatform
@@ -106,6 +107,14 @@ bool _isStaffLine(int y) => y % 20 < 2;
 int? detectBackgroundColor(List<PageBitmap> pages) => combinePageBackgrounds([
   for (final page in pages) ?estimatePageBackground(page),
 ]);
+
+class _FakePdfValidationService extends PdfValidationService {
+  @override
+  Future<PdfValidity> validate(String path) async =>
+      (await File(path).readAsString()).startsWith("%PDF")
+      ? PdfValidity.valid
+      : PdfValidity.invalid;
+}
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -227,6 +236,7 @@ void main() {
       scoresRepo = ScoresRepository(
         db: db,
         thumbnailService: ThumbnailService(),
+        pdfValidationService: _FakePdfValidationService(),
       );
       service = _FakeProcessingService();
       processing = null;

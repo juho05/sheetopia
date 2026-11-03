@@ -16,6 +16,7 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
+import 'package:sheetopia/data/services/pdf_validation_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/edit_score/edit_tag_dialog.dart';
 
@@ -29,7 +30,11 @@ void main() {
   setUp(() async {
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
-    repo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
+    repo = ScoresRepository(
+      db: db,
+      thumbnailService: ThumbnailService(),
+      pdfValidationService: const PdfValidationService(),
+    );
   });
 
   tearDown(() async {

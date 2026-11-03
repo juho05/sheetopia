@@ -16,6 +16,7 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/pdf_validation_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/annotate/annotate_viewmodel.dart';
 import 'package:sheetopia/ui/score/page_region.dart';
@@ -36,7 +37,11 @@ void main() {
   setUp(() async {
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
-    repo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
+    repo = ScoresRepository(
+      db: db,
+      thumbnailService: ThumbnailService(),
+      pdfValidationService: const PdfValidationService(),
+    );
     await db.managers.scoresTable.create(
       (o) => o(
         id: _scoreId,

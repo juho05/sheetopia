@@ -21,6 +21,7 @@ import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/repositories/themeManager/theme_manager.dart';
 import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/pdf_validation_service.dart';
 import 'package:sheetopia/data/services/score_processing/score_processing_service.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
@@ -74,11 +75,13 @@ Future<List<SingleChildWidget>> createProviders({
       ),
     ),
     Provider(create: (context) => ThumbnailService()),
+    Provider(create: (context) => const PdfValidationService()),
     Provider(create: (context) => SyncService()),
     Provider(
       create: (context) => ScoresRepository(
         db: context.read(),
         thumbnailService: context.read(),
+        pdfValidationService: context.read(),
       ),
     ),
     Provider(

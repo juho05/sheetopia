@@ -21,23 +21,33 @@ import 'package:path_provider/path_provider.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/scores/difficulty.dart';
-import 'package:sheetopia/data/repositories/scores/musical_key.dart';
 import 'package:sheetopia/data/repositories/scores/filter_match_type.dart';
+import 'package:sheetopia/data/repositories/scores/musical_key.dart';
 import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/instr_expression.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
-import 'package:sheetopia/data/services/score_processing/page_margins.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
+import 'package:sheetopia/data/services/pdf_validation_service.dart';
+import 'package:sheetopia/data/services/score_processing/page_margins.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/utils/id_path.dart';
 
-class InvalidFileTypeException implements Exception {
+sealed class ScoreFileException implements Exception {
+  const ScoreFileException();
+
+  String get userMessage;
+}
+
+class InvalidFileTypeException extends ScoreFileException {
   final String filePath;
 
   const InvalidFileTypeException({required this.filePath});
+
+  @override
+  String get userMessage => "Unsupported file type!";
 
   @override
   String toString() {
@@ -46,9 +56,34 @@ class InvalidFileTypeException implements Exception {
   }
 }
 
+class InvalidPdfException extends ScoreFileException {
+  final String fileName;
+
+  const InvalidPdfException({required this.fileName});
+
+  @override
+  String get userMessage => "Invalid or damaged PDF!";
+
+  @override
+  String toString() => "Invalid or damaged PDF: $fileName";
+}
+
+class PasswordProtectedPdfException extends ScoreFileException {
+  final String fileName;
+
+  const PasswordProtectedPdfException({required this.fileName});
+
+  @override
+  String get userMessage => "Password protected PDFs are not supported!";
+
+  @override
+  String toString() => "Password protected PDF: $fileName";
+}
+
 class ScoresRepository {
   final Database _db;
   final ThumbnailService _thumbnailService;
+  final PdfValidationService _pdfValidationService;
 
   static const List<XTypeGroup> scoreFileTypeGroup = [
     XTypeGroup(
@@ -95,7 +130,11 @@ class ScoresRepository {
 
   Stream<Set<String>> get processingRequests => _processingRequests.stream;
 
-  ScoresRepository({required this._db, required this._thumbnailService});
+  ScoresRepository({
+    required this._db,
+    required this._thumbnailService,
+    required this._pdfValidationService,
+  });
 
   Future<Score?> getScore(String id) async {
     final result = await _db.managers.scoresTable
@@ -1325,6 +1364,7 @@ class ScoresRepository {
         final file = await scoreFile(id, fileType);
 
         await f.saveTo(file.path);
+        await _validateFile(file, fileType, name: f.name);
 
         final now = DateTime.now().toUtc();
         scores.add(
@@ -1392,10 +1432,20 @@ class ScoresRepository {
       throw InvalidFileTypeException(filePath: file.path);
     }
 
-    await createScoreDir(scoreId);
-    final targetFile = await scoreFile(scoreId, fileType);
-
-    await file.saveTo(targetFile.path);
+    final tempDir = await getTemporaryDirectory();
+    final tempFile = File(
+      path.join(tempDir.path, "sheetopia_import_${_db.newId()}"),
+    );
+    try {
+      await file.saveTo(tempFile.path);
+      await _validateFile(tempFile, fileType, name: file.name);
+      await createScoreDir(scoreId);
+      await tempFile.copy((await scoreFile(scoreId, fileType)).path);
+    } finally {
+      try {
+        await tempFile.delete();
+      } catch (_) {}
+    }
 
     if (fileTypeExtension(fileType) != fileTypeExtension(score.fileType)) {
       try {
@@ -1717,6 +1767,22 @@ class ScoresRepository {
     input = input.trim().toLowerCase().replaceAll(_whitespaceRegex, " ");
     input = removeDiacritics(input);
     return input.split(" ").map((s) => " $s");
+  }
+
+  Future<void> _validateFile(
+    File file,
+    FileType fileType, {
+    required String name,
+  }) async {
+    if (fileType != FileType.pdf) return;
+    switch (await _pdfValidationService.validate(file.path)) {
+      case PdfValidity.valid:
+        return;
+      case PdfValidity.invalid:
+        throw InvalidPdfException(fileName: name);
+      case PdfValidity.passwordProtected:
+        throw PasswordProtectedPdfException(fileName: name);
+    }
   }
 
   Future<FileType?> _getFileType(XFile file) async {

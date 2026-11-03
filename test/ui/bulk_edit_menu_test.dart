@@ -21,6 +21,7 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/pdf_validation_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
@@ -67,7 +68,11 @@ void main() {
     PathProviderPlatform.instance = _FakePathProvider(tempDir.path);
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
-    repo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
+    repo = ScoresRepository(
+      db: db,
+      thumbnailService: ThumbnailService(),
+      pdfValidationService: const PdfValidationService(),
+    );
     setlistsRepo = SetlistsRepository(db: db, scoresRepo: repo);
     selected = [];
     deleted = false;

@@ -24,6 +24,7 @@ import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
+import 'package:sheetopia/data/services/pdf_validation_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/practice/exercise_card.dart';
 import 'package:sheetopia/ui/practice/exercise_play_page.dart';
@@ -141,6 +142,7 @@ void main() {
       scoresRepo = ScoresRepository(
         db: db,
         thumbnailService: ThumbnailService(),
+        pdfValidationService: const PdfValidationService(),
       );
       repo = PracticeRepository(db: db, scoresRepo: scoresRepo);
     });

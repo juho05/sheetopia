@@ -16,6 +16,7 @@ import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/pdf_validation_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/practice/practice_records_page.dart';
 
@@ -39,7 +40,11 @@ void main() {
   setUp(() async {
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
-    scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
+    scoresRepo = ScoresRepository(
+      db: db,
+      thumbnailService: ThumbnailService(),
+      pdfValidationService: const PdfValidationService(),
+    );
     repo = PracticeRepository(db: db, scoresRepo: scoresRepo);
   });
 

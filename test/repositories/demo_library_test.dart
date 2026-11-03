@@ -27,6 +27,7 @@ import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
+import 'package:sheetopia/data/services/pdf_validation_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 
 const _archive = "tool/demo_library/out/sheetopia-demo-library.zip";
@@ -95,6 +96,7 @@ void main() {
     final scoresRepo = ScoresRepository(
       db: db,
       thumbnailService: ThumbnailService(),
+      pdfValidationService: const PdfValidationService(),
     );
     final setlistsRepo = SetlistsRepository(db: db, scoresRepo: scoresRepo);
     final practiceRepo = PracticeRepository(db: db, scoresRepo: scoresRepo);

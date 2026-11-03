@@ -38,6 +38,7 @@ import 'package:sheetopia/data/services/sync/models/tags.dart';
 import 'package:sheetopia/data/services/sync/models/update_score_result.dart';
 import 'package:sheetopia/data/services/sync/sync_connection.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
+import 'package:sheetopia/data/services/pdf_validation_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 
 class _FakePathProvider extends PathProviderPlatform
@@ -458,7 +459,11 @@ void main() {
 
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
-    scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
+    scoresRepo = ScoresRepository(
+      db: db,
+      thumbnailService: ThumbnailService(),
+      pdfValidationService: const PdfValidationService(),
+    );
     setlistsRepo = SetlistsRepository(db: db, scoresRepo: scoresRepo);
     practiceRepo = PracticeRepository(db: db, scoresRepo: scoresRepo);
     service = _FakeSyncService();

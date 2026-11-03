@@ -14,6 +14,7 @@ import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/scores/difficulty.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/pdf_validation_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/common/difficulty.dart';
 import 'package:sheetopia/ui/home/filter_dialog.dart';
@@ -26,7 +27,11 @@ void main() {
 
   setUp(() async {
     db = Database(NativeDatabase.memory());
-    repo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
+    repo = ScoresRepository(
+      db: db,
+      thumbnailService: ThumbnailService(),
+      pdfValidationService: const PdfValidationService(),
+    );
     viewModel = LibraryViewModel(repo: repo);
   });
 

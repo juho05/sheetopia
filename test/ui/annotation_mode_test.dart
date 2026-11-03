@@ -16,6 +16,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/pdf_validation_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/annotate/annotate_viewmodel.dart';
 import 'package:sheetopia/ui/annotate/annotation_surface.dart';
@@ -70,6 +71,7 @@ void main() {
       final repo = ScoresRepository(
         db: db,
         thumbnailService: ThumbnailService(),
+        pdfValidationService: const PdfValidationService(),
       );
       await db.managers.scoresTable.create(
         (o) => o(

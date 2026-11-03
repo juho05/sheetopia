@@ -58,6 +58,16 @@ class _EditScorePreviewState extends State<EditScorePreview> {
         .listen((_) => _loadAnnotations());
   }
 
+  Future<void> _changeFile(EditScoreViewModel viewModel) async {
+    try {
+      await viewModel.changeFile();
+    } on ScoreFileException catch (e, st) {
+      Toast.exception(e, st: st, errorMsg: e.userMessage);
+    } catch (e, st) {
+      Toast.exception(e, st: st, errorMsg: "Failed to change score file!");
+    }
+  }
+
   Future<void> _loadAnnotations() async {
     final pages = await _scoresRepo.getAnnotations(widget.score.id);
     if (!mounted) return;
@@ -235,8 +245,7 @@ class _EditScorePreviewState extends State<EditScorePreview> {
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: FilledButton.icon(
-                  onPressed: () =>
-                      context.read<EditScoreViewModel>().changeFile(),
+                  onPressed: () => _changeFile(viewModel),
                   icon: const Icon(Icons.edit),
                   label: const Text("Change"),
                 ),

@@ -73,8 +73,8 @@ class EditExerciseScores extends StatelessWidget {
   Future<void> _import(Future<void> Function() action) async {
     try {
       await action();
-    } on InvalidFileTypeException catch (e, st) {
-      Toast.exception(e, st: st, errorMsg: "Unsupported file type!");
+    } on ScoreFileException catch (e, st) {
+      Toast.exception(e, st: st, errorMsg: e.userMessage);
     } catch (e, st) {
       Toast.exception(e, st: st, errorMsg: "Failed to import files!");
     }
@@ -408,8 +408,8 @@ class _ScoreFileMenu extends StatelessWidget {
   Future<void> _changeFile() async {
     try {
       await viewModel.changeScoreFile(score.id);
-    } on InvalidFileTypeException catch (e, st) {
-      Toast.exception(e, st: st, errorMsg: "Unsupported file type!");
+    } on ScoreFileException catch (e, st) {
+      Toast.exception(e, st: st, errorMsg: e.userMessage);
     } catch (e, st) {
       Toast.exception(e, st: st, errorMsg: "Failed to change score file!");
     }

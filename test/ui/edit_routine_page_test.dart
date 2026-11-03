@@ -23,6 +23,7 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/data/services/pdf_validation_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/practice/edit_routine_page.dart';
 import 'package:sheetopia/ui/practice/exercise_score_selector.dart';
@@ -103,7 +104,11 @@ void main() {
     PathProviderPlatform.instance = _FakePathProvider(tempDir.path);
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
-    scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
+    scoresRepo = ScoresRepository(
+      db: db,
+      thumbnailService: ThumbnailService(),
+      pdfValidationService: const PdfValidationService(),
+    );
     repo = PracticeRepository(db: db, scoresRepo: scoresRepo);
     // resolving score files creates directories, the fake async zone of a
     // widget test never lets that land

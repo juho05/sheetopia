@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/pdf_validation_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/ui/common/rounded_list_tile.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
@@ -52,6 +53,7 @@ void main() {
       scoresRepo: ScoresRepository(
         db: db,
         thumbnailService: ThumbnailService(),
+        pdfValidationService: const PdfValidationService(),
       ),
     );
   });

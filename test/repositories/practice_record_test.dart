@@ -19,6 +19,7 @@ import 'package:sheetopia/data/repositories/practice/practice_routine.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/routing/practice_resume.dart';
 import 'package:sheetopia/data/services/database/database.dart';
+import 'package:sheetopia/data/services/pdf_validation_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 
 class _FakePathProvider extends PathProviderPlatform
@@ -101,7 +102,11 @@ void main() {
     PathProviderPlatform.instance = _FakePathProvider(tempDir.path);
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
-    scoresRepo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
+    scoresRepo = ScoresRepository(
+      db: db,
+      thumbnailService: ThumbnailService(),
+      pdfValidationService: const PdfValidationService(),
+    );
     repo = PracticeRepository(db: db, scoresRepo: scoresRepo);
   });
 

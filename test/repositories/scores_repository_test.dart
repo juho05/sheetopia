@@ -24,6 +24,7 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/data/services/database/tags_table.dart';
+import 'package:sheetopia/data/services/pdf_validation_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 
 class _FakePathProvider extends PathProviderPlatform
@@ -37,6 +38,14 @@ class _FakePathProvider extends PathProviderPlatform
 
   @override
   Future<String?> getTemporaryPath() async => root;
+}
+
+class _FakePdfValidationService extends PdfValidationService {
+  @override
+  Future<PdfValidity> validate(String path) async =>
+      (await File(path).readAsString()).startsWith("%PDF")
+      ? PdfValidity.valid
+      : PdfValidity.invalid;
 }
 
 void main() {
@@ -91,7 +100,11 @@ void main() {
     PathProviderPlatform.instance = _FakePathProvider(tempDir.path);
     db = Database(NativeDatabase.memory());
     await db.customStatement("PRAGMA foreign_keys = ON");
-    repo = ScoresRepository(db: db, thumbnailService: ThumbnailService());
+    repo = ScoresRepository(
+      db: db,
+      thumbnailService: ThumbnailService(),
+      pdfValidationService: _FakePdfValidationService(),
+    );
   });
 
   tearDown(() async {
@@ -606,6 +619,51 @@ void main() {
     expect(score.fileType, FileType.pdf);
     expect(await existing.exists(), isTrue);
     expect(await existing.readAsString(), "%PDF-1.4 new");
+  });
+
+  test("an invalid pdf aborts the whole import", () async {
+    final valid = File("${tempDir.path}/valid.pdf");
+    await valid.writeAsString("%PDF-1.4");
+    final invalid = File("${tempDir.path}/fake.pdf");
+    await invalid.writeAsString("not a pdf");
+
+    await expectLater(
+      repo.importAll([
+        XFile(valid.path),
+        XFile(invalid.path),
+      ], status: ScoreStatus.needsFirstEdit),
+      throwsA(isA<InvalidPdfException>()),
+    );
+
+    expect(await db.managers.scoresTable.get(), isEmpty);
+    final scoresDir = Directory("${tempDir.path}/scores");
+    expect(
+      await scoresDir.list(recursive: true).where((e) => e is File).toList(),
+      isEmpty,
+    );
+  });
+
+  test("changing to an invalid pdf keeps the old file", () async {
+    await insertScore("keep", fileDownloaded: true);
+    await repo.createScoreDir("keep");
+    final existing = await repo.scoreFile("keep", FileType.pdf);
+    await existing.writeAsString("%PDF-1.4 old");
+
+    final replacement = File("${tempDir.path}/fake.pdf");
+    await replacement.writeAsString("not a pdf");
+    await expectLater(
+      repo.updateScoreFile("keep", XFile(replacement.path)),
+      throwsA(isA<InvalidPdfException>()),
+    );
+
+    expect(await existing.readAsString(), "%PDF-1.4 old");
+    expect(await existing.parent.list().map((e) => e.path).toList(), [
+      existing.path,
+    ]);
+    final row = await db.managers.scoresTable
+        .filter((f) => f.id("keep"))
+        .getSingle();
+    expect(row.fileUpdatedAt, timestamp);
   });
 
   test("nothing is deleted when every exercise score is linked", () async {
