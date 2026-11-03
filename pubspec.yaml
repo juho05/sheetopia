@@ -45,7 +45,7 @@ dependencies:
   flutter_midi_command:
     git:
       url: https://github.com/juho05/FlutterMidiCommand
-      ref: 49dc0306510b037367b45a3252a26fff8fbc4fd1
+      ref: fb69f6944b8a584b5257457ef98f59408e54c0a1
   collection: ^1.19.1
   window_manager: ^0.5.1
   flutter_fullscreen: ^1.2.0
