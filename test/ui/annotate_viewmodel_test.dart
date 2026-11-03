@@ -6,12 +6,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:async';
 import 'dart:math';
 import 'dart:ui';
 
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
+import 'package:sheetopia/data/repositories/logger/log_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
 import 'package:sheetopia/data/services/database/database.dart';
@@ -22,12 +26,59 @@ import 'package:sheetopia/ui/annotate/annotate_viewmodel.dart';
 import 'package:sheetopia/ui/score/page_region.dart';
 
 const _scoreId = 'score-1';
+
+class _BlockingRepo extends Fake implements ScoresRepository {
+  final write = Completer<void>();
+
+  @override
+  Future<Map<int, List<Stroke>>> getAnnotations(String scoreId) async => {};
+
+  @override
+  Future<void> saveAnnotations(String scoreId, Map<int, List<Stroke>> pages) =>
+      write.future;
+}
+
+class _FailingOnceRepo extends Fake implements ScoresRepository {
+  final saved = <Map<int, List<Stroke>>>[];
+  var _failed = false;
+
+  @override
+  Future<Map<int, List<Stroke>>> getAnnotations(String scoreId) async => {};
+
+  @override
+  Future<void> saveAnnotations(
+    String scoreId,
+    Map<int, List<Stroke>> pages,
+  ) async {
+    if (!_failed) {
+      _failed = true;
+      throw StateError("disk full");
+    }
+    saved.add(pages);
+  }
+}
+
+class _RecordingRepo extends Fake implements ScoresRepository {
+  final load = Completer<Map<int, List<Stroke>>>();
+  final saved = <Map<int, List<Stroke>>>[];
+
+  @override
+  Future<Map<int, List<Stroke>>> getAnnotations(String scoreId) => load.future;
+
+  @override
+  Future<void> saveAnnotations(
+    String scoreId,
+    Map<int, List<Stroke>> pages,
+  ) async => saved.add(pages);
+}
+
 const _aspect = 1.4;
 
 StrokePoint _p(double x, double y) => StrokePoint(x: x, y: y, pressure: 0.5);
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  Log.init(LogRepository());
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late Database db;
@@ -696,4 +747,111 @@ void main() {
       await sub.cancel();
     },
   );
+
+  testWidgets("a stroke is saved after the save delay without leaving", (
+    tester,
+  ) async {
+    final recording = _RecordingRepo();
+    viewModel.dispose();
+    viewModel = AnnotateViewModel(repo: recording, scoreId: _scoreId);
+    draw(0, const [Offset(0.3, 0.3), Offset(0.4, 0.4)]);
+
+    await tester.pump(AnnotateViewModel.saveDelay ~/ 2);
+    expect(recording.saved, isEmpty);
+    await tester.pump(AnnotateViewModel.saveDelay);
+
+    expect(recording.saved.single[0], hasLength(1));
+  });
+
+  testWidgets("erasing waits for the gesture to end before saving", (
+    tester,
+  ) async {
+    final recording = _RecordingRepo();
+    viewModel.dispose();
+    viewModel = AnnotateViewModel(repo: recording, scoreId: _scoreId);
+    draw(0, const [Offset(0.3, 0.3), Offset(0.4, 0.4)]);
+    await tester.pump(AnnotateViewModel.saveDelay);
+    recording.saved.clear();
+
+    viewModel.setEraser();
+    viewModel.startStroke(0, _p(0.3, 0.4), _aspect);
+    viewModel.appendPoint(_p(0.4, 0.3), _aspect);
+    expect(viewModel.strokesFor(0), isEmpty);
+    await tester.pump(AnnotateViewModel.saveDelay * 2);
+    expect(recording.saved, isEmpty);
+
+    viewModel.endStroke();
+    await tester.pump(AnnotateViewModel.saveDelay);
+    expect(recording.saved.single[0], isEmpty);
+  });
+
+  test("strokes drawn while loading are saved with the loaded ones", () async {
+    draw(0, const [Offset(0.3, 0.3), Offset(0.4, 0.4)]);
+    final loadedStroke = viewModel.strokesFor(0).single;
+    final recording = _RecordingRepo();
+    viewModel.dispose();
+    viewModel = AnnotateViewModel(repo: recording, scoreId: _scoreId);
+
+    draw(0, const [Offset(0.5, 0.5), Offset(0.6, 0.6)]);
+    await viewModel.saveAll();
+    expect(recording.saved.single[0], hasLength(1));
+
+    recording.load.complete({
+      0: [loadedStroke],
+    });
+    await pumpEventQueue();
+    await viewModel.saveAll();
+
+    expect(recording.saved.last[0], hasLength(2));
+    expect(recording.saved.last[0]!.first, same(loadedStroke));
+  });
+
+  test("a stroke is saved before the app exits", () async {
+    draw(0, const [Offset(0.3, 0.3), Offset(0.4, 0.4)]);
+
+    final response = await WidgetsBinding.instance.handleRequestAppExit();
+
+    expect(response, AppExitResponse.exit);
+    expect((await repo.getAnnotations(_scoreId))[0], hasLength(1));
+  });
+
+  test("a failed save is retried by the next one", () async {
+    final failing = _FailingOnceRepo();
+    viewModel.dispose();
+    viewModel = AnnotateViewModel(repo: failing, scoreId: _scoreId);
+    draw(0, const [Offset(0.3, 0.3), Offset(0.4, 0.4)]);
+
+    await viewModel.saveAll();
+    expect(failing.saved, isEmpty);
+
+    await viewModel.saveAll();
+    expect(failing.saved.single[0], hasLength(1));
+  });
+
+  test("the app exits even if the save fails", () async {
+    viewModel.dispose();
+    viewModel = AnnotateViewModel(repo: _FailingOnceRepo(), scoreId: _scoreId);
+    draw(0, const [Offset(0.3, 0.3), Offset(0.4, 0.4)]);
+
+    final response = await WidgetsBinding.instance.handleRequestAppExit();
+
+    expect(response, AppExitResponse.exit);
+  });
+
+  test("a save without changes waits for the running one", () async {
+    final blocking = _BlockingRepo();
+    viewModel.dispose();
+    viewModel = AnnotateViewModel(repo: blocking, scoreId: _scoreId);
+    draw(0, const [Offset(0.3, 0.3), Offset(0.4, 0.4)]);
+    unawaited(viewModel.saveAll());
+
+    var done = false;
+    unawaited(viewModel.saveAll().then((_) => done = true));
+    await pumpEventQueue();
+    expect(done, isFalse);
+
+    blocking.write.complete();
+    await pumpEventQueue();
+    expect(done, isTrue);
+  });
 }

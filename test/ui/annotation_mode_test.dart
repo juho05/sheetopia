@@ -22,6 +22,8 @@ import 'package:sheetopia/ui/annotate/annotate_viewmodel.dart';
 import 'package:sheetopia/ui/annotate/annotation_surface.dart';
 import 'package:sheetopia/ui/score/annotation_mode.dart';
 
+import 'dispose_with_tree.dart';
+
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
@@ -65,6 +67,7 @@ void main() {
   group("entering by stylus", () {
     late Database db;
     late AnnotationMode mode;
+    late bool disposed;
 
     setUp(() async {
       db = Database(NativeDatabase.memory());
@@ -83,27 +86,37 @@ void main() {
         ),
       );
       mode = AnnotationMode(repo: repo);
+      disposed = false;
     });
 
-    tearDown(() async {
+    void disposeMode() {
+      if (disposed) return;
+      disposed = true;
       mode.dispose();
+    }
+
+    tearDown(() async {
+      disposeMode();
       await db.close();
     });
 
     Future<void> pumpSurface(WidgetTester tester) {
       return tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: ListenableBuilder(
-            listenable: mode,
-            builder: (context, _) => AnnotationSurface(
-              viewModel: mode.viewModel,
-              pageIndex: 0,
-              onStylusDown: (event) => mode.enter(
-                scoreId: "a",
-                pages: {},
-                toolbarAtTop: false,
-                byStylus: true,
+        DisposeWithTree(
+          onDispose: disposeMode,
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: ListenableBuilder(
+              listenable: mode,
+              builder: (context, _) => AnnotationSurface(
+                viewModel: mode.viewModel,
+                pageIndex: 0,
+                onStylusDown: (event) => mode.enter(
+                  scoreId: "a",
+                  pages: {},
+                  toolbarAtTop: false,
+                  byStylus: true,
+                ),
               ),
             ),
           ),

@@ -6,10 +6,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:async';
 import 'dart:math';
-import 'dart:ui' show Offset, Path, Rect;
+import 'dart:ui' show AppExitResponse, Offset, Path, Rect;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleListener;
+import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/stroke.dart';
 import 'package:sheetopia/ui/annotate/lasso.dart';
@@ -206,6 +209,16 @@ class AnnotateViewModel extends ChangeNotifier {
   // the page lists as they are stored
   Map<int, List<Stroke>> _saved = {};
   bool _dirty = false;
+  bool _ownSaveFailed = false;
+  bool _spillSaveFailed = false;
+
+  static const Duration saveDelay = Duration(seconds: 1);
+
+  Timer? _saveTimer;
+
+  Future<void> _saving = Future.value();
+
+  late final AppLifecycleListener _lifecycle;
 
   // Two channels so a pen sample never dirties the lasso layer and a lasso
   // sample never dirties the live-stroke layer.
@@ -362,6 +375,13 @@ class AnnotateViewModel extends ChangeNotifier {
     if (pages != null) _addLoaded(pages, 0);
     if (spillPages != null) _addLoaded(spillPages, spillBase);
     _load(own: pages == null, spill: spillPages == null);
+    _lifecycle = AppLifecycleListener(
+      onHide: saveAll,
+      onExitRequested: () async {
+        await saveAll();
+        return AppExitResponse.exit;
+      },
+    );
   }
 
   Future<void> _load({required bool own, required bool spill}) async {
@@ -382,10 +402,12 @@ class AnnotateViewModel extends ChangeNotifier {
       final drawn = _pages[base + index];
       _saved[base + index] = strokes;
       _pages[base + index] = drawn == null ? strokes : [...strokes, ...drawn];
+      if (drawn != null) _markDirty();
     }
   }
 
   bool _changed({required bool spill}) {
+    if (spill ? _spillSaveFailed : _ownSaveFailed) return true;
     final indices = {
       ..._pages.keys,
       ..._saved.keys,
@@ -717,6 +739,7 @@ class AnnotateViewModel extends ChangeNotifier {
         erased.sort((a, b) => a.$1.compareTo(b.$1));
         _undoStack.add(_EraseOp(pageIndex: pageIndex, removed: erased));
         _redoStack.clear();
+        _markDirty();
       }
       notifyListeners();
       return;
@@ -745,7 +768,7 @@ class AnnotateViewModel extends ChangeNotifier {
 
     _undoStack.add(_AddOp(pageIndex: pageIndex, strokes: [stroke]));
     _redoStack.clear();
-    _dirty = true;
+    _markDirty();
 
     notifyListeners();
   }
@@ -814,7 +837,7 @@ class AnnotateViewModel extends ChangeNotifier {
     _pages[selection.pageIndex] = pageStrokes;
     _undoStack.add(_MoveOp(pageIndex: selection.pageIndex, moved: moved));
     _redoStack.clear();
-    _dirty = true;
+    _markDirty();
 
     _selection = _Selection(
       pageIndex: selection.pageIndex,
@@ -844,7 +867,7 @@ class AnnotateViewModel extends ChangeNotifier {
         _EraseOp(pageIndex: selection.pageIndex, removed: removed),
       );
       _redoStack.clear();
-      _dirty = true;
+      _markDirty();
     }
     _resetLasso();
     notifyListeners();
@@ -908,7 +931,7 @@ class AnnotateViewModel extends ChangeNotifier {
 
     _undoStack.add(_AddOp(pageIndex: pageIndex, strokes: strokes));
     _redoStack.clear();
-    _dirty = true;
+    _markDirty();
 
     _resetLasso();
     _selection = _Selection(
@@ -1110,7 +1133,7 @@ class AnnotateViewModel extends ChangeNotifier {
   // them back is a legitimate move. The following score is left alone too.
   void clearAll() {
     final active = _activePageIndex;
-    _dirty = true;
+    _markDirty();
     _pages.removeWhere((index, _) => index < spillBase);
     _undoStack.clear();
     _redoStack.clear();
@@ -1154,7 +1177,7 @@ class AnnotateViewModel extends ChangeNotifier {
     _pages[op.pageIndex] = pageStrokes;
 
     _redoStack.add(op);
-    _dirty = true;
+    _markDirty();
 
     // The selection holds instances that are no longer on the page.
     _resetLasso();
@@ -1181,21 +1204,50 @@ class AnnotateViewModel extends ChangeNotifier {
     _pages[op.pageIndex] = pageStrokes;
 
     _undoStack.add(op);
-    _dirty = true;
+    _markDirty();
 
     _resetLasso();
     notifyListeners();
   }
 
-  Future<void> saveAll() async {
-    if (!_dirty) return;
+  void _markDirty() {
+    _dirty = true;
+    _saveTimer?.cancel();
+    _saveTimer = Timer(saveDelay, saveAll);
+  }
+
+  Future<void> saveAll() {
+    _saveTimer?.cancel();
+    if (!_dirty) return _saving;
     _dirty = false;
-    final own = _changed(spill: false);
     final spillScoreId = _spillScoreId;
-    final spill = spillScoreId != null && _changed(spill: true);
+    final own = _changed(spill: false) ? pages : null;
+    final spill = spillScoreId != null && _changed(spill: true)
+        ? spillPages
+        : null;
     _saved = Map.of(_pages);
-    if (own) await _repo.saveAnnotations(_scoreId, pages);
-    if (spill) await _repo.saveAnnotations(spillScoreId, spillPages);
+    _ownSaveFailed = false;
+    _spillSaveFailed = false;
+    return _saving = _saving.then((_) async {
+      if (own != null && !await _save(_scoreId, own)) {
+        _ownSaveFailed = true;
+        _dirty = true;
+      }
+      if (spill != null && !await _save(spillScoreId!, spill)) {
+        _spillSaveFailed = true;
+        _dirty = true;
+      }
+    });
+  }
+
+  Future<bool> _save(String scoreId, Map<int, List<Stroke>> pages) async {
+    try {
+      await _repo.saveAnnotations(scoreId, pages);
+      return true;
+    } catch (e, st) {
+      Log.error("Failed to save annotations of $scoreId", e: e, st: st);
+      return false;
+    }
   }
 
   bool _disposed = false;
@@ -1203,6 +1255,8 @@ class AnnotateViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _saveTimer?.cancel();
+    _lifecycle.dispose();
     for (final n in _liveRepaints.values) {
       n.dispose();
     }

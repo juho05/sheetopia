@@ -22,9 +22,17 @@ import 'package:sheetopia/ui/annotate/annotation_surface.dart';
 import 'package:sheetopia/ui/score/page_region.dart';
 import 'package:sheetopia/ui/score/pdf_page_image.dart';
 
+import 'dispose_with_tree.dart';
+
 class _FakeRepo extends Fake implements ScoresRepository {
   @override
   Future<Map<int, List<Stroke>>> getAnnotations(String scoreId) async => {};
+
+  @override
+  Future<void> saveAnnotations(
+    String scoreId,
+    Map<int, List<Stroke>> pages,
+  ) async {}
 }
 
 class _FakeImage implements PdfImage {
@@ -516,27 +524,38 @@ void main() {
     const region = Rect.fromLTRB(0.2, 0.1, 0.8, 0.9);
     const window = Size(300, 400);
     late AnnotateViewModel viewModel;
+    late bool disposed;
 
     setUp(() {
       viewModel = AnnotateViewModel(repo: _FakeRepo(), scoreId: "a", pages: {});
       viewModel.pageBounds = (_) => region;
+      disposed = false;
     });
 
-    tearDown(() => viewModel.dispose());
+    void disposeViewModel() {
+      if (disposed) return;
+      disposed = true;
+      viewModel.dispose();
+    }
+
+    tearDown(disposeViewModel);
 
     Future<Offset> pump(WidgetTester tester, Rect region) async {
       await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: Center(
-            child: SizedBox.fromSize(
-              size: window,
-              child: FullPageBox(
-                region: region,
-                child: AnnotationSurface(
-                  viewModel: viewModel,
-                  pageIndex: 0,
-                  visibleRegion: region,
+        DisposeWithTree(
+          onDispose: disposeViewModel,
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: Center(
+              child: SizedBox.fromSize(
+                size: window,
+                child: FullPageBox(
+                  region: region,
+                  child: AnnotationSurface(
+                    viewModel: viewModel,
+                    pageIndex: 0,
+                    visibleRegion: region,
+                  ),
                 ),
               ),
             ),
