@@ -124,6 +124,8 @@ class _PdfViewState extends State<PdfView> {
       },
     );
     widget.controller.attach(_viewModel);
+    _viewModel.addListener(_reportCrop);
+    _reportCrop();
     _rebuildListenable = Listenable.merge([
       _viewModel,
       _annotation,
@@ -143,6 +145,16 @@ class _PdfViewState extends State<PdfView> {
     _viewModel.addListener(_scheduleSyncEnter);
     _scheduleSyncEnter();
     _onAnnotationChanged();
+  }
+
+  void _reportCrop() {
+    final excluded = _viewModel.documentCropExcluded;
+    widget.controller.reportCrop(
+      _viewModel,
+      excluded == null
+          ? null
+          : (scoreId: _viewModel.documentScoreId, excluded: excluded),
+    );
   }
 
   ({PdfPage page, bool spill})? _resolvePage(int index) {
@@ -230,6 +242,7 @@ class _PdfViewState extends State<PdfView> {
     if (widget.controller != oldWidget.controller) {
       oldWidget.controller.detach(_viewModel);
       widget.controller.attach(_viewModel);
+      _reportCrop();
     }
     _viewModel.updateGradual(widget.gradualPageTurns);
     _viewModel.updateCrop(
@@ -267,6 +280,7 @@ class _PdfViewState extends State<PdfView> {
     _annotation.pageBounds = null;
     _annotation.releaseOnEnterRequested(_enterAnnotation);
     _viewModel.removeListener(_scheduleSyncEnter);
+    _viewModel.removeListener(_reportCrop);
     widget.controller.detach(_viewModel);
     _viewModel.dispose();
     super.dispose();

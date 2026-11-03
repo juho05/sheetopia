@@ -26,6 +26,7 @@ class ScoreMetadataModel {
   final List<String>? instruments;
   final List<String>? genres;
   final Map<String, dynamic>? annotations;
+  final bool? cropExcluded;
 
   ScoreMetadataModel({
     required this.composer,
@@ -39,6 +40,7 @@ class ScoreMetadataModel {
     required this.instruments,
     required this.genres,
     required this.annotations,
+    required this.cropExcluded,
   });
 
   factory ScoreMetadataModel.fromJson(Map<String, dynamic> json) =>

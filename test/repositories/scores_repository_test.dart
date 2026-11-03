@@ -133,6 +133,25 @@ void main() {
     },
   );
 
+  test("excluding a score from cropping marks it for upload", () async {
+    await insertScore("a");
+    await db.managers.scoresTable
+        .filter((f) => f.id("a"))
+        .update((o) => o(metadataUploaded: const Value(true)));
+    final updates = repo.updatedScoreIds.first;
+
+    await repo.setCropExcluded("a", true);
+
+    expect(await updates, {"a"});
+    expect(await repo.getCropExcluded("a"), isTrue);
+    expect((await repo.getScore("a"))!.cropExcluded, isTrue);
+    final row = await db.managers.scoresTable
+        .filter((f) => f.id("a"))
+        .getSingle();
+    expect(row.metadataUploaded, isFalse);
+    expect(row.metadataUpdatedAt.isAfter(timestamp), isTrue);
+  });
+
   test("score ids cover every match without join duplicates", () async {
     for (final id in ["a", "b", "c"]) {
       await insertScore(

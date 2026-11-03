@@ -68,7 +68,7 @@ class Database extends _$Database {
   Database([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 20;
+  int get schemaVersion => 21;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -240,6 +240,9 @@ class Database extends _$Database {
               await m.addColumn(schema.scores, schema.scores.marginTop);
               await m.addColumn(schema.scores, schema.scores.marginRight);
               await m.addColumn(schema.scores, schema.scores.marginBottom);
+            },
+            from20To21: (m, schema) async {
+              await m.addColumn(schema.scores, schema.scores.cropExcluded);
             },
           ),
         ),

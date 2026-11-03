@@ -61,6 +61,17 @@ class ScoreViewModel extends ChangeNotifier {
 
   FileType? get fileType => _score?.fileType;
 
+  // null while the shown document and the loaded score differ, e.g. during a switch
+  ({String scoreId, String title, bool excluded})? get cropOption {
+    final crop = fileView.crop;
+    final score = _score;
+    if (crop == null || score == null || score.id != crop.scoreId) return null;
+    return (scoreId: score.id, title: score.title, excluded: crop.excluded);
+  }
+
+  Future<void> setCropExcluded(String scoreId, bool excluded) =>
+      _repo.setCropExcluded(scoreId, excluded);
+
   final StreamController<bool> _pageChangedStreamController =
       StreamController.broadcast();
 
@@ -167,6 +178,7 @@ class ScoreViewModel extends ChangeNotifier {
     _midiRepository.removeActionListener(_midiActionListener);
     _updatedScoresSub?.cancel();
     sequence?.removeListener(_onSequenceChanged);
+    fileView.dispose();
     super.dispose();
   }
 }

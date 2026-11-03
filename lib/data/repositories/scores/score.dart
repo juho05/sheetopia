@@ -42,6 +42,8 @@ class Score {
   final int? processingVersion;
   final Color? backgroundColor;
 
+  final bool cropExcluded;
+
   Score({
     required this.id,
     required this.title,
@@ -64,6 +66,7 @@ class Score {
     required this.file,
     required this.processingVersion,
     required this.backgroundColor,
+    required this.cropExcluded,
   });
 
   bool get playable => file != null && fileType.isKnown;
@@ -90,5 +93,6 @@ class Score {
     file: file,
     processingVersion: processingVersion,
     backgroundColor: backgroundColor,
+    cropExcluded: cropExcluded,
   );
 }

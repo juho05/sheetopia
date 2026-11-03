@@ -390,6 +390,7 @@ class _ScoreViewerState extends State<_ScoreViewer>
                                   onPressed: () => ViewOptionsDialog.show(
                                     context,
                                     annotation: _annotation,
+                                    score: _viewModel,
                                   ),
                                 ),
                               ),

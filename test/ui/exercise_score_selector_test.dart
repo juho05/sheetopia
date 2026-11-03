@@ -43,6 +43,7 @@ void main() {
     file: downloaded ? File("$title.pdf") : null,
     processingVersion: null,
     backgroundColor: null,
+    cropExcluded: false,
   );
 
   Future<void> pumpToolbar(

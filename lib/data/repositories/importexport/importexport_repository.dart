@@ -239,6 +239,7 @@ class ImportExportRepository extends ChangeNotifier {
                             ? {}
                             : jsonDecode(s.annotations!)
                                   as Map<String, dynamic>,
+                        cropExcluded: s.cropExcluded,
                       ),
                       metadataUpdatedAt: s.metadataUpdatedAt,
                       tagIds: s.tags.map((t) => t.id).toList(),
@@ -934,6 +935,7 @@ class ImportExportRepository extends ChangeNotifier {
               notes: optionalStringValue(s.metadata.notes),
               difficulty: optionalIntValue(s.metadata.difficulty),
               annotations: _annotationsColumnValue(s.metadata.annotations),
+              cropExcluded: optionalBoolValue(s.metadata.cropExcluded),
               metadataUploaded: const Value(false),
               metadataUpdatedAt: Value(s.metadataUpdatedAt.toUtc()),
               writtenAt: Value(importedAt),
@@ -990,6 +992,9 @@ class ImportExportRepository extends ChangeNotifier {
                       : const Value.absent(),
                   annotations: metadataChanged
                       ? _annotationsColumnValue(s.metadata.annotations)
+                      : const Value.absent(),
+                  cropExcluded: metadataChanged
+                      ? optionalBoolValue(s.metadata.cropExcluded)
                       : const Value.absent(),
                   searchText: metadataChanged
                       ? Value(

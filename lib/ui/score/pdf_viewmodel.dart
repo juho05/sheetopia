@@ -76,6 +76,8 @@ class PdfViewModel extends ChangeNotifier implements ScoreFileView {
 
   bool get cropPending => !_scores.cropReady(_documentScoreId);
 
+  bool? get documentCropExcluded => _scores.excludedOf(_documentScoreId);
+
   Rect visibleRegion(PdfPage page, {bool spill = false}) =>
       _scores.visibleRegion(
         spill ? _spillScoreId : _documentScoreId,

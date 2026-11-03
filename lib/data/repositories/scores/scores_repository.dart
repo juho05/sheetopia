@@ -259,6 +259,7 @@ class ScoresRepository {
       backgroundColor: score.backgroundColor != null
           ? Color(score.backgroundColor!)
           : null,
+      cropExcluded: score.cropExcluded,
     );
   }
 
@@ -946,6 +947,27 @@ class ScoresRepository {
     return decodeAnnotations(row?.read(_db.scoresTable.annotations));
   }
 
+  Future<bool> getCropExcluded(String scoreId) async {
+    final query = _db.selectOnly(_db.scoresTable)
+      ..addColumns([_db.scoresTable.cropExcluded])
+      ..where(_db.scoresTable.id.equals(scoreId));
+    final row = await query.getSingleOrNull();
+    return row?.read(_db.scoresTable.cropExcluded) ?? false;
+  }
+
+  Future<void> setCropExcluded(String scoreId, bool excluded) async {
+    await _db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .update(
+          (o) => o(
+            cropExcluded: Value(excluded),
+            metadataUpdatedAt: Value(DateTime.now().toUtc()),
+            metadataUploaded: const Value(false),
+          ),
+        );
+    _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
+  }
+
   Future<PageMargins?> getPageMargins(String scoreId) async {
     final s = _db.scoresTable;
     final query = _db.selectOnly(s)
@@ -1390,6 +1412,7 @@ class ScoresRepository {
             file: file,
             processingVersion: null,
             backgroundColor: null,
+            cropExcluded: false,
           ),
         );
       }

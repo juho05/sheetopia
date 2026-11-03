@@ -346,6 +346,21 @@ class $ScoresTableTable extends ScoresTable
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _cropExcludedMeta = const VerificationMeta(
+    'cropExcluded',
+  );
+  @override
+  late final GeneratedColumn<bool> cropExcluded = GeneratedColumn<bool>(
+    'crop_excluded',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("crop_excluded" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -378,6 +393,7 @@ class $ScoresTableTable extends ScoresTable
     marginTop,
     marginRight,
     marginBottom,
+    cropExcluded,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -588,6 +604,15 @@ class $ScoresTableTable extends ScoresTable
         ),
       );
     }
+    if (data.containsKey('crop_excluded')) {
+      context.handle(
+        _cropExcludedMeta,
+        cropExcluded.isAcceptableOrUnknown(
+          data['crop_excluded']!,
+          _cropExcludedMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -723,6 +748,10 @@ class $ScoresTableTable extends ScoresTable
         DriftSqlType.double,
         data['${effectivePrefix}margin_bottom'],
       ),
+      cropExcluded: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}crop_excluded'],
+      )!,
     );
   }
 
@@ -770,6 +799,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
   final double? marginTop;
   final double? marginRight;
   final double? marginBottom;
+  final bool cropExcluded;
   const ScoresTableData({
     required this.id,
     required this.title,
@@ -801,6 +831,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     this.marginTop,
     this.marginRight,
     this.marginBottom,
+    required this.cropExcluded,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -878,6 +909,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     if (!nullToAbsent || marginBottom != null) {
       map['margin_bottom'] = Variable<double>(marginBottom);
     }
+    map['crop_excluded'] = Variable<bool>(cropExcluded);
     return map;
   }
 
@@ -944,6 +976,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       marginBottom: marginBottom == null && nullToAbsent
           ? const Value.absent()
           : Value(marginBottom),
+      cropExcluded: Value(cropExcluded),
     );
   }
 
@@ -991,6 +1024,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       marginTop: serializer.fromJson<double?>(json['marginTop']),
       marginRight: serializer.fromJson<double?>(json['marginRight']),
       marginBottom: serializer.fromJson<double?>(json['marginBottom']),
+      cropExcluded: serializer.fromJson<bool>(json['cropExcluded']),
     );
   }
   @override
@@ -1033,6 +1067,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
       'marginTop': serializer.toJson<double?>(marginTop),
       'marginRight': serializer.toJson<double?>(marginRight),
       'marginBottom': serializer.toJson<double?>(marginBottom),
+      'cropExcluded': serializer.toJson<bool>(cropExcluded),
     };
   }
 
@@ -1067,6 +1102,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     Value<double?> marginTop = const Value.absent(),
     Value<double?> marginRight = const Value.absent(),
     Value<double?> marginBottom = const Value.absent(),
+    bool? cropExcluded,
   }) => ScoresTableData(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -1102,6 +1138,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     marginTop: marginTop.present ? marginTop.value : this.marginTop,
     marginRight: marginRight.present ? marginRight.value : this.marginRight,
     marginBottom: marginBottom.present ? marginBottom.value : this.marginBottom,
+    cropExcluded: cropExcluded ?? this.cropExcluded,
   );
   @override
   String toString() {
@@ -1135,7 +1172,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           ..write('marginLeft: $marginLeft, ')
           ..write('marginTop: $marginTop, ')
           ..write('marginRight: $marginRight, ')
-          ..write('marginBottom: $marginBottom')
+          ..write('marginBottom: $marginBottom, ')
+          ..write('cropExcluded: $cropExcluded')
           ..write(')'))
         .toString();
   }
@@ -1172,6 +1210,7 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
     marginTop,
     marginRight,
     marginBottom,
+    cropExcluded,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -1206,7 +1245,8 @@ class ScoresTableData extends DataClass implements Insertable<ScoresTableData> {
           other.marginLeft == this.marginLeft &&
           other.marginTop == this.marginTop &&
           other.marginRight == this.marginRight &&
-          other.marginBottom == this.marginBottom);
+          other.marginBottom == this.marginBottom &&
+          other.cropExcluded == this.cropExcluded);
 }
 
 class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
@@ -1239,6 +1279,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
   final Value<double?> marginTop;
   final Value<double?> marginRight;
   final Value<double?> marginBottom;
+  final Value<bool> cropExcluded;
   final Value<int> rowid;
   const ScoresTableCompanion({
     this.id = const Value.absent(),
@@ -1270,6 +1311,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.marginTop = const Value.absent(),
     this.marginRight = const Value.absent(),
     this.marginBottom = const Value.absent(),
+    this.cropExcluded = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ScoresTableCompanion.insert({
@@ -1302,6 +1344,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     this.marginTop = const Value.absent(),
     this.marginRight = const Value.absent(),
     this.marginBottom = const Value.absent(),
+    this.cropExcluded = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
@@ -1338,6 +1381,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Expression<double>? marginTop,
     Expression<double>? marginRight,
     Expression<double>? marginBottom,
+    Expression<bool>? cropExcluded,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1370,6 +1414,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       if (marginTop != null) 'margin_top': marginTop,
       if (marginRight != null) 'margin_right': marginRight,
       if (marginBottom != null) 'margin_bottom': marginBottom,
+      if (cropExcluded != null) 'crop_excluded': cropExcluded,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1404,6 +1449,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     Value<double?>? marginTop,
     Value<double?>? marginRight,
     Value<double?>? marginBottom,
+    Value<bool>? cropExcluded,
     Value<int>? rowid,
   }) {
     return ScoresTableCompanion(
@@ -1436,6 +1482,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
       marginTop: marginTop ?? this.marginTop,
       marginRight: marginRight ?? this.marginRight,
       marginBottom: marginBottom ?? this.marginBottom,
+      cropExcluded: cropExcluded ?? this.cropExcluded,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1536,6 +1583,9 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
     if (marginBottom.present) {
       map['margin_bottom'] = Variable<double>(marginBottom.value);
     }
+    if (cropExcluded.present) {
+      map['crop_excluded'] = Variable<bool>(cropExcluded.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1574,6 +1624,7 @@ class ScoresTableCompanion extends UpdateCompanion<ScoresTableData> {
           ..write('marginTop: $marginTop, ')
           ..write('marginRight: $marginRight, ')
           ..write('marginBottom: $marginBottom, ')
+          ..write('cropExcluded: $cropExcluded, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -9262,6 +9313,7 @@ typedef $$ScoresTableTableCreateCompanionBuilder =
       Value<double?> marginTop,
       Value<double?> marginRight,
       Value<double?> marginBottom,
+      Value<bool> cropExcluded,
       Value<int> rowid,
     });
 typedef $$ScoresTableTableUpdateCompanionBuilder =
@@ -9295,6 +9347,7 @@ typedef $$ScoresTableTableUpdateCompanionBuilder =
       Value<double?> marginTop,
       Value<double?> marginRight,
       Value<double?> marginBottom,
+      Value<bool> cropExcluded,
       Value<int> rowid,
     });
 
@@ -9518,6 +9571,11 @@ class $$ScoresTableTableFilterComposer
 
   ColumnFilters<double> get marginBottom => $composableBuilder(
     column: $table.marginBottom,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get cropExcluded => $composableBuilder(
+    column: $table.cropExcluded,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9755,6 +9813,11 @@ class $$ScoresTableTableOrderingComposer
     column: $table.marginBottom,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get cropExcluded => $composableBuilder(
+    column: $table.cropExcluded,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ScoresTableTableAnnotationComposer
@@ -9889,6 +9952,11 @@ class $$ScoresTableTableAnnotationComposer
 
   GeneratedColumn<double> get marginBottom => $composableBuilder(
     column: $table.marginBottom,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get cropExcluded => $composableBuilder(
+    column: $table.cropExcluded,
     builder: (column) => column,
   );
 
@@ -10029,6 +10097,7 @@ class $$ScoresTableTableTableManager
                 Value<double?> marginTop = const Value.absent(),
                 Value<double?> marginRight = const Value.absent(),
                 Value<double?> marginBottom = const Value.absent(),
+                Value<bool> cropExcluded = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ScoresTableCompanion(
                 id: id,
@@ -10060,6 +10129,7 @@ class $$ScoresTableTableTableManager
                 marginTop: marginTop,
                 marginRight: marginRight,
                 marginBottom: marginBottom,
+                cropExcluded: cropExcluded,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -10093,6 +10163,7 @@ class $$ScoresTableTableTableManager
                 Value<double?> marginTop = const Value.absent(),
                 Value<double?> marginRight = const Value.absent(),
                 Value<double?> marginBottom = const Value.absent(),
+                Value<bool> cropExcluded = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ScoresTableCompanion.insert(
                 id: id,
@@ -10124,6 +10195,7 @@ class $$ScoresTableTableTableManager
                 marginTop: marginTop,
                 marginRight: marginRight,
                 marginBottom: marginBottom,
+                cropExcluded: cropExcluded,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

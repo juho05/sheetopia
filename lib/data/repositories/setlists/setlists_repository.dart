@@ -144,6 +144,7 @@ class SetlistsRepository {
       backgroundColor: score.backgroundColor != null
           ? Color(score.backgroundColor!)
           : null,
+      cropExcluded: score.cropExcluded,
     );
   }
 

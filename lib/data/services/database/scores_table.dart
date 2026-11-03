@@ -85,6 +85,8 @@ class ScoresTable extends Table {
   late final marginRight = real().nullable()();
   late final marginBottom = real().nullable()();
 
+  late final cropExcluded = boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column<Object>>? get primaryKey => {id};
 

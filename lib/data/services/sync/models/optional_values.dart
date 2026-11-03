@@ -14,6 +14,11 @@ Value<String?> optionalStringValue(String? str) {
   return Value(str);
 }
 
+Value<bool> optionalBoolValue(bool? value) {
+  if (value == null) return const Value.absent();
+  return Value(value);
+}
+
 Value<DateTime?> optionalDateTimeValue(String? str) {
   if (str == null) return const Value.absent();
   if (str == "") return const Value(null);

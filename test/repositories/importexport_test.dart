@@ -124,6 +124,7 @@ void main() {
         composer: const Value("Bach"),
         arranger: const Value("Busoni"),
         difficulty: const Value(4),
+        cropExcluded: const Value(true),
         source: const Value("IMSLP"),
         sourceLink: const Value("https://imslp.org"),
         searchText: " prelude bach busoni ",
@@ -319,6 +320,7 @@ void main() {
     expect(score.composer, "Bach");
     expect(score.arranger, "Busoni");
     expect(score.difficulty, 4);
+    expect(score.cropExcluded, isTrue);
     expect(score.searchText, " prelude bach busoni ");
     expect(score.source, "IMSLP");
     expect(score.sourceLink, "https://imslp.org");

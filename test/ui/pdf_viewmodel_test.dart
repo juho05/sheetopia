@@ -73,6 +73,7 @@ class _FakeEntryFunctions extends Fake implements PdfrxEntryFunctions {
 
 class _FakeScoresRepository extends Fake implements ScoresRepository {
   final Map<String, PageMargins> margins = {};
+  final Set<String> excluded = {};
   final Map<String, Map<int, List<Stroke>>> annotations = {};
   final StreamController<Set<String>> updates = StreamController.broadcast();
   final List<String> marginQueries = [];
@@ -91,6 +92,10 @@ class _FakeScoresRepository extends Fake implements ScoresRepository {
     if (pending != null) return pending.future;
     return annotations[scoreId] ?? {};
   }
+
+  @override
+  Future<bool> getCropExcluded(String scoreId) async =>
+      excluded.contains(scoreId);
 
   @override
   Future<PageMargins?> getPageMargins(String scoreId) async {
@@ -755,6 +760,59 @@ void main() {
 
       viewModel.updateCrop(enabled: true, padding: 0.1);
       expect(viewModel.visibleRegion(firstPage()).left, closeTo(0.1, 1e-9));
+    });
+
+    test("an excluded score shows the full page", () async {
+      repo.margins["a"] = margins;
+      repo.excluded.add("a");
+      await open(cropEnabled: true);
+      expect(viewModel.cropPending, isFalse);
+      expect(viewModel.visibleRegion(firstPage()), fullPageRegion);
+    });
+
+    test("the exclusion follows score updates", () async {
+      repo.margins["a"] = margins;
+      await open(cropEnabled: true);
+      expect(viewModel.visibleRegion(firstPage()).left, closeTo(0.15, 1e-9));
+
+      repo.excluded.add("a");
+      repo.updates.add({"a"});
+      await pumpEventQueue();
+      expect(viewModel.cropPending, isFalse);
+      expect(viewModel.visibleRegion(firstPage()), fullPageRegion);
+
+      repo.excluded.remove("a");
+      repo.updates.add({"a"});
+      await pumpEventQueue();
+      expect(viewModel.visibleRegion(firstPage()).left, closeTo(0.15, 1e-9));
+    });
+
+    test("an exclusion changed while disabled applies when enabled", () async {
+      repo.margins["a"] = margins;
+      await open(cropEnabled: true);
+      viewModel.updateCrop(enabled: false, padding: 0.05);
+
+      repo.excluded.add("a");
+      repo.updates.add({"a"});
+      await pumpEventQueue();
+
+      viewModel.updateCrop(enabled: true, padding: 0.05);
+      await pumpEventQueue();
+      expect(viewModel.visibleRegion(firstPage()), fullPageRegion);
+    });
+
+    test("neighbors use their own exclusion", () async {
+      repo.margins["a"] = margins;
+      repo.margins["b"] = margins;
+      repo.excluded.add("b");
+      await open(cropEnabled: true, nextPath: _b, nextScoreId: "b");
+      for (var i = 0; i < 4 && viewModel.spillDocument == null; i++) {
+        await next();
+      }
+
+      expect(viewModel.spillDocument, isNotNull);
+      expect(viewModel.visibleRegion(firstPage(), spill: true), fullPageRegion);
+      expect(viewModel.visibleRegion(firstPage()), isNot(fullPageRegion));
     });
   });
 }

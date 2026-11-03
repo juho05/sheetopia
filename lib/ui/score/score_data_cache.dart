@@ -28,7 +28,12 @@ class _ScoreData {
   PageMargins? strokeInsets;
   bool strokesKnown = false;
 
-  bool get cropKnown => marginsKnown && strokesKnown;
+  bool excluded = false;
+  bool excludedKnown = false;
+  int excludedGeneration = 0;
+
+  bool get cropKnown =>
+      excludedKnown && (excluded || (marginsKnown && strokesKnown));
 }
 
 /// The annotations and the crop of the scores a PDF view shows or is about to
@@ -58,7 +63,9 @@ class ScoreDataCache extends ChangeNotifier {
   }) {
     _updatesSub = _scoresRepository.updatedScoreIds.listen((ids) {
       for (final MapEntry(key: id, value: score) in _scores.entries) {
-        if (ids.contains(id)) _loadAnnotations(id, score);
+        if (!ids.contains(id)) continue;
+        _loadAnnotations(id, score);
+        if (_cropEnabled) _loadExcluded(id, score);
       }
     });
   }
@@ -78,8 +85,10 @@ class ScoreDataCache extends ChangeNotifier {
     if (!enabled) return;
     for (final MapEntry(key: id, value: score) in _scores.entries) {
       score.strokesKnown = false;
+      score.excludedKnown = false;
       _updateStrokeInsets(score);
       if (!score.marginsKnown) _loadMargins(id, score);
+      _loadExcluded(id, score);
     }
   }
 
@@ -90,7 +99,10 @@ class ScoreDataCache extends ChangeNotifier {
       if (_scores.containsKey(id)) continue;
       final score = _scores[id] = _ScoreData();
       _loadAnnotations(id, score);
-      if (_cropEnabled) _loadMargins(id, score);
+      if (_cropEnabled) {
+        _loadMargins(id, score);
+        _loadExcluded(id, score);
+      }
     }
   }
 
@@ -109,13 +121,19 @@ class ScoreDataCache extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool? excludedOf(String scoreId) {
+    final score = _scores[scoreId];
+    if (!_cropEnabled || score == null || !score.excludedKnown) return null;
+    return score.excluded;
+  }
+
   bool cropReady(String scoreId) =>
       !_cropEnabled || (_scores[scoreId]?.cropKnown ?? false);
 
   Rect visibleRegion(String? scoreId, Size pageSize) {
     final score = _scores[scoreId];
     final margins = score?.margins;
-    if (!_cropEnabled || score == null || margins == null) {
+    if (!_cropEnabled || score == null || score.excluded || margins == null) {
       return fullPageRegion;
     }
     return visiblePageRegion(
@@ -179,6 +197,25 @@ class ScoreDataCache extends ChangeNotifier {
     score.margins = margins;
     score.marginsKnown = true;
     notifyListeners();
+  }
+
+  Future<void> _loadExcluded(String scoreId, _ScoreData score) async {
+    final generation = ++score.excludedGeneration;
+    var excluded = false;
+    try {
+      excluded = await _scoresRepository.getCropExcluded(scoreId);
+    } catch (e, st) {
+      Log.error("Failed to load crop exclusion of $scoreId", e: e, st: st);
+    }
+    if (_disposed ||
+        !identical(_scores[scoreId], score) ||
+        generation != score.excludedGeneration) {
+      return;
+    }
+    final changed = !score.excludedKnown || excluded != score.excluded;
+    score.excluded = excluded;
+    score.excludedKnown = true;
+    if (changed) notifyListeners();
   }
 
   @override

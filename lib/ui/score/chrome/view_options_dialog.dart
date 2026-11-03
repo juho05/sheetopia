@@ -11,19 +11,27 @@ import 'package:provider/provider.dart';
 import 'package:sheetopia/data/repositories/settings/settings_repository.dart';
 import 'package:sheetopia/ui/common/sheetopia_dialog.dart';
 import 'package:sheetopia/ui/score/annotation_mode.dart';
+import 'package:sheetopia/ui/score/score_viewmodel.dart';
 
 class ViewOptionsDialog extends StatelessWidget {
   final AnnotationMode annotation;
+  final ScoreViewModel score;
 
-  const ViewOptionsDialog({super.key, required this.annotation});
+  const ViewOptionsDialog({
+    super.key,
+    required this.annotation,
+    required this.score,
+  });
 
   static Future<void> show(
     BuildContext context, {
     required AnnotationMode annotation,
+    required ScoreViewModel score,
   }) {
     return showSheetopiaDialog<void>(
       context: context,
-      builder: (context) => ViewOptionsDialog(annotation: annotation),
+      builder: (context) =>
+          ViewOptionsDialog(annotation: annotation, score: score),
     );
   }
 
@@ -43,8 +51,11 @@ class ViewOptionsDialog extends StatelessWidget {
           appearance,
           pageCrop,
           annotation,
+          score,
+          score.fileView,
         ]),
         builder: (context, _) {
+          final cropOption = score.cropOption;
           return SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -75,6 +86,19 @@ class ViewOptionsDialog extends StatelessWidget {
                   value: pageCrop.enabled,
                   onChanged: (value) => pageCrop.enabled = value,
                 ),
+                if (pageCrop.enabled && cropOption != null)
+                  SwitchListTile(
+                    contentPadding: const EdgeInsets.only(left: 16),
+                    title: const Text("Crop this score"),
+                    subtitle: Text(
+                      cropOption.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    value: !cropOption.excluded,
+                    onChanged: (value) =>
+                        score.setCropExcluded(cropOption.scoreId, !value),
+                  ),
                 const SizedBox(height: 12),
                 Row(
                   spacing: 8,

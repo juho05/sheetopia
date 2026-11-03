@@ -1657,6 +1657,7 @@ class SyncRepository {
             annotations: s.annotations == null
                 ? {}
                 : jsonDecode(s.annotations!) as Map<String, dynamic>,
+            cropExcluded: s.cropExcluded,
           ),
         );
         await _markMetadataUploaded(
@@ -1789,6 +1790,7 @@ class SyncRepository {
               notes: optionalStringValue(s.metadata.notes),
               difficulty: optionalIntValue(s.metadata.difficulty),
               annotations: _annotationsColumnValue(s.metadata.annotations),
+              cropExcluded: optionalBoolValue(s.metadata.cropExcluded),
               metadataUploaded: const Value(true),
               metadataUpdatedAt: Value(metadataUpdatedAt),
               lastOpened: Value(
@@ -1843,6 +1845,9 @@ class SyncRepository {
                       : const Value.absent(),
                   annotations: metadataChanged
                       ? _annotationsColumnValue(s.metadata.annotations)
+                      : const Value.absent(),
+                  cropExcluded: metadataChanged
+                      ? optionalBoolValue(s.metadata.cropExcluded)
                       : const Value.absent(),
                   searchText: metadataChanged
                       ? Value(

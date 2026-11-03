@@ -86,6 +86,7 @@ class _FakeSyncService extends SyncService {
   final uploadedTags = <_ScoreUpload>[];
 
   final uploadedScoreTypes = <String, ScoreType?>{};
+  final uploadedScoreMetadata = <String, ScoreMetadataModel>{};
   final uploadedScoreFiles = <String>[];
   final uploadedTagTypes = <String, TagType?>{};
   final uploadedSetlists = <_ScoreUpload>[];
@@ -212,6 +213,7 @@ class _FakeSyncService extends SyncService {
   }) async {
     uploadedScores.add((id: scoreId, writtenAt: writtenAt));
     uploadedScoreTypes[scoreId] = type;
+    uploadedScoreMetadata[scoreId] = metadata;
     if (writtenAt == null) return null;
     return UpdateScoreResultModel(hasFile: false);
   }
@@ -605,6 +607,7 @@ void main() {
     String? partOf = "",
     String? musicalKey = "",
     int? difficulty = 0,
+    bool? cropExcluded = false,
   }) {
     return ScoreModel(
       id: id,
@@ -626,9 +629,46 @@ void main() {
         instruments: const [],
         genres: const [],
         annotations: const {},
+        cropExcluded: cropExcluded,
       ),
     );
   }
+
+  Future<bool> localCropExcluded() async =>
+      (await db.managers.scoresTable.filter((f) => f.id(scoreId)).getSingle())
+          .cropExcluded;
+
+  test("a downloaded score applies the crop exclusion", () async {
+    await createScore();
+    service.scores = [remoteScore(cropExcluded: true)];
+
+    await syncAndWait();
+
+    expect(await localCropExcluded(), isTrue);
+  });
+
+  test("a score from a client without crop exclusion keeps it", () async {
+    await createScore();
+    await db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .update((o) => o(cropExcluded: const Value(true)));
+    service.scores = [remoteScore(cropExcluded: null)];
+
+    await syncAndWait();
+
+    expect(await localCropExcluded(), isTrue);
+  });
+
+  test("an uploaded score sends the crop exclusion", () async {
+    await createScore(uploaded: false);
+    await db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .update((o) => o(cropExcluded: const Value(true)));
+
+    await syncAndWait();
+
+    expect(service.uploadedScoreMetadata[scoreId]?.cropExcluded, isTrue);
+  });
 
   test(
     "a downloaded score applies arranger, part of, key and difficulty",

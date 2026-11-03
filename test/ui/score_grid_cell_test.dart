@@ -61,6 +61,7 @@ void main() {
       file: null,
       processingVersion: null,
       backgroundColor: null,
+      cropExcluded: false,
     );
   }
 

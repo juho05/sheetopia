@@ -29,6 +29,7 @@ ScoreMetadataModel _$ScoreMetadataModelFromJson(Map<String, dynamic> json) =>
           'annotations',
           (v) => v as Map<String, dynamic>?,
         ),
+        cropExcluded: $checkedConvert('cropExcluded', (v) => v as bool?),
       );
       return val;
     });
@@ -46,4 +47,5 @@ Map<String, dynamic> _$ScoreMetadataModelToJson(ScoreMetadataModel instance) =>
       'instruments': instance.instruments,
       'genres': instance.genres,
       'annotations': instance.annotations,
+      'cropExcluded': instance.cropExcluded,
     };
