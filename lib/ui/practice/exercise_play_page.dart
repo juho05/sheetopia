@@ -9,6 +9,7 @@
 import 'dart:io';
 
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:sheetopia/ui/practice/exercise_card.dart';
@@ -117,21 +118,42 @@ class _ExercisePlayPageState extends State<ExercisePlayPage> {
       appBar: AppBar(
         automaticallyImplyLeading: session?.backButtonVisible ?? true,
       ),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            if (exercise != null)
-              ExerciseCard(
-                exercise: exercise,
-                scoresUnavailable: _viewModel.hasScores,
-              ),
-            if (session != null)
-              FullScreenButton(
-                visible: session.overlayVisible,
-                fullScreen: session.isFullScreen,
-                onPressed: session.toggleFullScreen,
-              ),
-          ],
+      body: CallbackShortcuts(
+        bindings: {
+          if (session != null) ...{
+            const SingleActivator(
+              LogicalKeyboardKey.escape,
+              includeRepeats: false,
+            ): session.exitFullScreen,
+            const SingleActivator(
+              LogicalKeyboardKey.keyF,
+              includeRepeats: false,
+            ): session.toggleFullScreen,
+            const SingleActivator(
+              LogicalKeyboardKey.f11,
+              includeRepeats: false,
+            ): session.toggleFullScreen,
+          },
+        },
+        child: FocusScope(
+          autofocus: true,
+          child: SafeArea(
+            child: Stack(
+              children: [
+                if (exercise != null)
+                  ExerciseCard(
+                    exercise: exercise,
+                    scoresUnavailable: _viewModel.hasScores,
+                  ),
+                if (session != null)
+                  FullScreenButton(
+                    visible: session.overlayVisible,
+                    fullScreen: session.isFullScreen,
+                    onPressed: session.toggleFullScreen,
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
       bottomNavigationBar: _viewModel.timer.started

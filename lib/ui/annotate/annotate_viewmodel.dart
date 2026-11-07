@@ -285,6 +285,8 @@ class AnnotateViewModel extends ChangeNotifier {
 
   int? _activePageIndex;
   bool _activeIsTouch = false;
+  bool _activeIsStylus = false;
+  Object? _activeOwner;
   List<StrokePoint>? _activePoints;
   StrokePoint? _lastRawPoint;
   double _sx = 0;
@@ -526,17 +528,30 @@ class AnnotateViewModel extends ChangeNotifier {
     );
   }
 
-  void startStroke(
+  bool ownsStroke(Object owner) =>
+      !_disposed && _activePageIndex != null && identical(_activeOwner, owner);
+
+  // A stylus takes over a stroke from a finger or mouse, otherwise the first
+  // pointer keeps it. Returns whether the stroke was started.
+  bool startStroke(
     int pageIndex,
     StrokePoint p,
     double aspect, {
     bool isTouch = false,
+    bool isStylus = false,
+    Object? owner,
   }) {
+    if (_activePageIndex != null) {
+      if (!isStylus || _activeIsStylus) return false;
+      cancelStroke();
+    }
     _activePageIndex = pageIndex;
     _activeIsTouch = isTouch;
+    _activeIsStylus = isStylus;
+    _activeOwner = owner;
     if (_tool == AnnotateTool.lasso) {
       _startLasso(pageIndex, p);
-      return;
+      return true;
     }
     if (eraser) {
       _eraseSnapshot = List.of(_pages[pageIndex] ?? const <Stroke>[]);
@@ -545,7 +560,7 @@ class AnnotateViewModel extends ChangeNotifier {
       _eraseAspect = aspect;
       _eraseSegment(p, p);
       notifyListeners();
-      return;
+      return true;
     }
     p = _limitPen(p, pageIndex, aspect);
     _drawAspect = aspect;
@@ -555,6 +570,7 @@ class AnnotateViewModel extends ChangeNotifier {
     _sy = p.y;
     _livePath = Path()..moveTo(p.x, p.y * aspect);
     _pingLive(pageIndex);
+    return true;
   }
 
   void _startLasso(int pageIndex, StrokePoint p) {

@@ -62,14 +62,27 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
     _holdTimer?.cancel();
     _holdTimer = Timer(
       _holdDelay,
-      () => _drawing?.snapToShape(pageWidth: _size.width),
+      () => _owned?.snapToShape(pageWidth: _size.width),
     );
   }
 
   @override
   void dispose() {
     _holdTimer?.cancel();
+    // The recognizer drops its pointer without an end event, so the stroke
+    // would block all others. Deferred because the widget tree is locked.
+    final drawing = _owned;
+    if (drawing != null) {
+      scheduleMicrotask(() {
+        if (drawing.ownsStroke(this)) drawing.cancelStroke();
+      });
+    }
     super.dispose();
+  }
+
+  AnnotateViewModel? get _owned {
+    final drawing = _drawing;
+    return drawing != null && drawing.ownsStroke(this) ? drawing : null;
   }
 
   bool _isStylus(PointerDownEvent event) =>
@@ -107,14 +120,18 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
       viewModel = widget.onStylusDown?.call(event);
       _tapOrigin = event.position;
     }
-    _drawing = viewModel;
-    viewModel?.startStroke(
-      widget.pageIndex,
-      _normalize(event.localPosition),
-      _aspect,
-      isTouch: event.kind == PointerDeviceKind.touch,
-    );
-    _armHold(event.position);
+    final started =
+        viewModel?.startStroke(
+          widget.pageIndex,
+          _normalize(event.localPosition),
+          _aspect,
+          isTouch: event.kind == PointerDeviceKind.touch,
+          isStylus: _isStylus(event),
+          owner: this,
+        ) ??
+        false;
+    _drawing = started ? viewModel : null;
+    if (started) _armHold(event.position);
   }
 
   void _onUpdate(PointerMoveEvent event) {
@@ -125,7 +142,7 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
     if ((event.position - _holdOrigin).distance > _holdSlop) {
       _armHold(event.position);
     }
-    _drawing?.appendPoint(
+    _owned?.appendPoint(
       _normalize(event.localPosition),
       _aspect,
       pageWidth: _size.width,
@@ -135,9 +152,9 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
   void _onEnd() {
     _holdTimer?.cancel();
     if (_tapOrigin != null) {
-      _drawing?.cancelStroke();
+      _owned?.cancelStroke();
     } else {
-      _drawing?.endStroke();
+      _owned?.endStroke();
     }
     _tapOrigin = null;
     _drawing = null;
@@ -265,15 +282,24 @@ class _DrawGestureRecognizer extends OneSequenceGestureRecognizer {
   void Function()? onDrawEnd;
 
   int? _pointer;
+  bool _pointerIsStylus = false;
+
+  static bool _isStylus(PointerEvent event) =>
+      event.kind == PointerDeviceKind.stylus ||
+      event.kind == PointerDeviceKind.invertedStylus;
 
   @override
   bool isPointerAllowed(PointerDownEvent event) =>
-      _pointer == null && (shouldAllow?.call(event) ?? false);
+      (_pointer == null || (_isStylus(event) && !_pointerIsStylus)) &&
+      (shouldAllow?.call(event) ?? false);
 
   @override
   void addAllowedPointer(PointerDownEvent event) {
+    final previous = _pointer;
     _pointer = event.pointer;
+    _pointerIsStylus = _isStylus(event);
     startTrackingPointer(event.pointer, event.transform);
+    if (previous != null) stopTrackingPointer(previous);
     resolve(GestureDisposition.accepted);
     onDrawStart?.call(event);
   }

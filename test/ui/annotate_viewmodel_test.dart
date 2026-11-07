@@ -296,6 +296,114 @@ void main() {
     });
   });
 
+  group('second pointer', () {
+    final stylus = Object();
+    final finger = Object();
+
+    void appendLine(Offset from, Offset to) {
+      for (var s = 1; s <= 10; s++) {
+        final t = s / 10;
+        viewModel.appendPoint(
+          _p(from.dx + (to.dx - from.dx) * t, from.dy + (to.dy - from.dy) * t),
+          _aspect,
+        );
+      }
+    }
+
+    test('a finger is ignored while a stylus draws', () {
+      expect(
+        viewModel.startStroke(
+          0,
+          _p(0.1, 0.1),
+          _aspect,
+          isStylus: true,
+          owner: stylus,
+        ),
+        isTrue,
+      );
+      expect(
+        viewModel.startStroke(
+          1,
+          _p(0.5, 0.5),
+          _aspect,
+          isTouch: true,
+          owner: finger,
+        ),
+        isFalse,
+      );
+      expect(viewModel.ownsStroke(stylus), isTrue);
+      expect(viewModel.ownsStroke(finger), isFalse);
+      appendLine(const Offset(0.1, 0.1), const Offset(0.4, 0.1));
+      viewModel.endStroke();
+
+      expect(viewModel.pages[0], hasLength(1));
+      expect(viewModel.pages[1] ?? const [], isEmpty);
+    });
+
+    test('a stylus takes over from a finger', () {
+      viewModel.startStroke(
+        1,
+        _p(0.5, 0.5),
+        _aspect,
+        isTouch: true,
+        owner: finger,
+      );
+      appendLine(const Offset(0.5, 0.5), const Offset(0.8, 0.5));
+      expect(
+        viewModel.startStroke(
+          0,
+          _p(0.1, 0.1),
+          _aspect,
+          isStylus: true,
+          owner: stylus,
+        ),
+        isTrue,
+      );
+      expect(viewModel.ownsStroke(finger), isFalse);
+      appendLine(const Offset(0.1, 0.1), const Offset(0.4, 0.1));
+      viewModel.endStroke();
+
+      expect(viewModel.pages[0], hasLength(1));
+      expect(viewModel.pages[1] ?? const [], isEmpty);
+    });
+
+    test('the first finger keeps the stroke', () {
+      final other = Object();
+      viewModel.startStroke(
+        0,
+        _p(0.1, 0.1),
+        _aspect,
+        isTouch: true,
+        owner: finger,
+      );
+      expect(
+        viewModel.startStroke(
+          1,
+          _p(0.5, 0.5),
+          _aspect,
+          isTouch: true,
+          owner: other,
+        ),
+        isFalse,
+      );
+      expect(viewModel.ownsStroke(finger), isTrue);
+    });
+
+    test('a new stroke starts once the previous one ended', () {
+      draw(0, const [Offset(0.1, 0.1), Offset(0.4, 0.1)]);
+      expect(
+        viewModel.startStroke(
+          1,
+          _p(0.5, 0.5),
+          _aspect,
+          isTouch: true,
+          owner: finger,
+        ),
+        isTrue,
+      );
+    });
+  });
+
   group('move', () {
     test('shifts the strokes and keeps their z-order', () {
       draw(0, const [Offset(0.3, 0.3), Offset(0.4, 0.4)]);
