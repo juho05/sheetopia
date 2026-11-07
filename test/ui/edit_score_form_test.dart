@@ -56,7 +56,7 @@ void main() {
     }
   }
 
-  Future<void> pumpForm(WidgetTester tester) async {
+  Future<void> pumpForm(WidgetTester tester, {bool isImport = false}) async {
     tester.view.physicalSize = const Size(800, 1600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -65,8 +65,11 @@ void main() {
         providers: [
           Provider<ScoresRepository>.value(value: repo),
           ChangeNotifierProvider(
-            create: (context) =>
-                EditScoreViewModel(repo: repo, scoreId: "a", isImport: false),
+            create: (context) => EditScoreViewModel(
+              repo: repo,
+              scoreId: "a",
+              isImport: isImport,
+            ),
           ),
         ],
         child: MaterialApp(
@@ -82,6 +85,21 @@ void main() {
     );
     await settle(tester);
   }
+
+  testWidgets("an empty title disables Done while importing", (tester) async {
+    await pumpForm(tester, isImport: true);
+    FilledButton done() =>
+        tester.widget(find.widgetWithText(FilledButton, "Done"));
+    expect(done().onPressed, isNotNull);
+
+    await tester.enterText(find.widgetWithText(TextField, "Title"), "");
+    await settle(tester);
+    expect(done().onPressed, isNull);
+
+    await tester.enterText(find.byType(TextField).first, "New");
+    await settle(tester);
+    expect(done().onPressed, isNotNull);
+  });
 
   testWidgets("empty optional fields are hidden until added", (tester) async {
     await pumpForm(tester);

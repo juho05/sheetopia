@@ -8,6 +8,7 @@
 
 import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
+import 'package:reactive_forms/reactive_forms.dart';
 import 'package:sheetopia/ui/common/next_button.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_viewmodel.dart';
 
@@ -18,11 +19,13 @@ class NextDoneButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return viewModel.hasNext
-        ? NextButton(onPressed: () => viewModel.next())
-        : FilledButton(
-            onPressed: () => context.pop(),
-            child: const Text("Done"),
-          );
+    return ReactiveFormConsumer(
+      builder: (context, form, _) => viewModel.hasNext
+          ? NextButton(onPressed: form.valid ? () => viewModel.next() : null)
+          : FilledButton(
+              onPressed: form.valid ? () => context.pop() : null,
+              child: const Text("Done"),
+            ),
+    );
   }
 }

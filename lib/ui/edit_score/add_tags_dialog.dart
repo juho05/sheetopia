@@ -229,7 +229,8 @@ class AddTagsDialog extends StatelessWidget {
                           )
                         : Center(
                             child: Text(
-                              viewModel.manageTagsMode || enableCreateTagFromSearch
+                              viewModel.manageTagsMode ||
+                                      enableCreateTagFromSearch
                                   ? "Use the search bar to create a new tag."
                                   : "No tags found.",
                               textAlign: TextAlign.center,
@@ -242,7 +243,9 @@ class AddTagsDialog extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text("${viewModel.selected.length} tags selected"),
+                      Text(
+                        "${viewModel.selected.length} ${viewModel.selected.length == 1 ? "tag" : "tags"} selected",
+                      ),
                       if (viewModel.selected.isEmpty)
                         OutlinedButton(
                           onPressed: () {
