@@ -39,8 +39,13 @@ class MidiViewModel extends ChangeNotifier {
     return _remembered.where((k) => !connected.contains(k)).toList();
   }
 
+  BluetoothState _bluetoothState = BluetoothState.unknown;
+
+  BluetoothState get bluetoothState => _bluetoothState;
+
   StreamSubscription? _devicesSub;
   StreamSubscription? _rememberedSub;
+  StreamSubscription? _bluetoothStateSub;
 
   MidiViewModel({required MidiRepository midiRepository})
     : _repo = midiRepository {
@@ -50,6 +55,10 @@ class MidiViewModel extends ChangeNotifier {
     });
     _rememberedSub = _repo.rememberedKeys.listen((remembered) {
       _remembered = remembered;
+      notifyListeners();
+    });
+    _bluetoothStateSub = _repo.bluetoothState.listen((state) {
+      _bluetoothState = state;
       notifyListeners();
     });
     _repo.startScanning();
@@ -72,6 +81,7 @@ class MidiViewModel extends ChangeNotifier {
   void dispose() {
     _devicesSub?.cancel();
     _rememberedSub?.cancel();
+    _bluetoothStateSub?.cancel();
     _repo.stopScanning();
     super.dispose();
   }

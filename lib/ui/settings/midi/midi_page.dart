@@ -6,6 +6,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -35,6 +36,9 @@ class MidiPage extends StatelessWidget {
                   (device) =>
                       !device.connected &&
                       !remembered.contains(MidiDeviceKey.fromDevice(device)),
+                );
+                final bluetoothIssue = _BluetoothIssue.of(
+                  viewModel.bluetoothState,
                 );
                 return CustomScrollView(
                   slivers: [
@@ -81,6 +85,10 @@ class MidiPage extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (bluetoothIssue != null)
+                      SliverToBoxAdapter(
+                        child: _BluetoothIssueTile(issue: bluetoothIssue),
+                      ),
                     SliverList.list(
                       children: disconnectedDevices
                           .map(
@@ -140,6 +148,51 @@ class MidiPage extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+enum _BluetoothIssue {
+  off(
+    title: "Bluetooth is off",
+    message: "Turn on Bluetooth to discover wireless devices",
+  ),
+  unauthorized(
+    title: "Bluetooth permission denied",
+    message:
+        "Allow Bluetooth access in the system settings to discover wireless devices",
+  ),
+  unsupported(
+    title: "Bluetooth not available",
+    message: "Only wired MIDI devices can be used on this device",
+  );
+
+  final String title;
+  final String message;
+
+  const _BluetoothIssue({required this.title, required this.message});
+
+  static _BluetoothIssue? of(BluetoothState state) => switch (state) {
+    BluetoothState.poweredOff => off,
+    BluetoothState.unauthorized => unauthorized,
+    BluetoothState.unsupported => unsupported,
+    _ => null,
+  };
+}
+
+class _BluetoothIssueTile extends StatelessWidget {
+  final _BluetoothIssue issue;
+
+  const _BluetoothIssueTile({required this.issue});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    return ListTile(
+      leading: Icon(Icons.bluetooth_disabled, color: color),
+      title: Text(issue.title),
+      subtitle: Text(issue.message),
+      textColor: color,
     );
   }
 }

@@ -47,6 +47,11 @@ class MidiRepository with WidgetsBindingObserver {
 
   ValueStream<Set<MidiDeviceKey>> get rememberedKeys => _rememberedKeys.stream;
 
+  late final BehaviorSubject<BluetoothState> _bluetoothState =
+      BehaviorSubject.seeded(_midi.bluetoothState);
+
+  ValueStream<BluetoothState> get bluetoothState => _bluetoothState.stream;
+
   final Map<MidiDeviceKey, MidiMappings> _midiMappings = {};
 
   final Set<MidiActionListener> _actionListeners = {};
@@ -373,6 +378,7 @@ class MidiRepository with WidgetsBindingObserver {
   }
 
   Future<void> _onBluetoothStateChanged(BluetoothState state) async {
+    _bluetoothState.add(state);
     switch (state) {
       case BluetoothState.poweredOn:
         if (_scanRefCount > 0 && !_bleScanActive) {
@@ -532,5 +538,6 @@ class MidiRepository with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _devices.close();
     _rememberedKeys.close();
+    _bluetoothState.close();
   }
 }
