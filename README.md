@@ -108,7 +108,7 @@ Visit [sheetopia-sync](https://github.com/juho05/sheetopia-sync#setup) to instal
 
 <p align="center">
   <img src="screenshots/library-0.7.0.png" alt="Library"><br>
-  <em>library in light and dark theme</em>
+  <em>library</em>
 </p>
 
 <p align="center">

@@ -239,7 +239,7 @@ Future<void> _import(AppDriver driver, Library library) async {
 Future<void> _capture(Target target, AppDriver driver, FormFactor formFactor, Scene scene, Library library, String file) async {
   final context = SceneContext(driver, library, formFactor, await driver.size());
   await driver.unfocus();
-  await driver.theme('dark');
+  await driver.theme(scene.light ? 'light' : 'dark');
   await driver.call('reset');
   await driver.settle();
   img.Image image;
@@ -248,13 +248,6 @@ Future<void> _capture(Target target, AppDriver driver, FormFactor formFactor, Sc
     await context.ready();
 
     image = decode(await target.capture(driver, formFactor));
-    if (scene.lightAndDark) {
-      await driver.theme('light');
-      await context.ready();
-      final light = decode(await target.capture(driver, formFactor));
-      await driver.theme('dark');
-      image = diagonal(light, image);
-    }
   } finally {
     await scene.cleanup?.call(context).catchError((Object e) => log('  ${scene.name} cleanup failed: $e'));
   }

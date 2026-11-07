@@ -55,6 +55,6 @@ macOS the Screen Recording permission for the terminal (the window may be covere
 
 ## Scenes
 
-The README motifs in `cli/lib/scenes.dart`. `library` is light below the diagonal and dark above it, the rest are dark.
+The README motifs in `cli/lib/scenes.dart`. `filter`, `play_setlist`, `practice_routine` and `exercise_edit` are light, the rest dark.
 `--explore` starts the app with the library imported and waits, for writing scenes with
 `tool/test/harness/bin/drive.dart`. It keeps the staged tree for `--stage`.
