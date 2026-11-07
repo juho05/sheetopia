@@ -12,7 +12,8 @@
 # Tests are written for the agents that execute them: say what to do and what
 # must be true afterwards, the agent figures out the clicks. Each test has an
 # `id` (stable, used in reports), a `test` description and optionally
-# `enabled: false`.
+# `enabled: false` and `own_agent: true` (runs alone instead of sharing an
+# agent with other tests, for long tests).
 #
 # Rule for platform_features: platform-dependent behaviour that comes from a
 # third-party package/plugin or from a platform branch in Sheetopia's own code
@@ -236,8 +237,8 @@ platform_features:
     via: file_selector (desktop), file_picker (mobile), lib/file_picker.dart
     test: >-
       Library FAB > Import files opens the native picker, which only offers
-      PDFs. One PDF: the import page opens with it and saving a title adds it
-      to the library. Three PDFs at once: Next/Next/Done imports all. Same for
+      PDFs. One PDF: it is added to the library and the import page opens
+      with it. Three PDFs at once: Next/Next/Done goes through all. Same for
       Edit exercise > Import score (iOS/Android first ask Files or Scan).
       Cancelling changes nothing and shows no error. Where the picker lets you
       choose them (renamed/"all files"), fake.pdf and corrupt.pdf give a clear
@@ -248,7 +249,8 @@ platform_features:
     test: >-
       Drag PDFs from the system file manager onto the app: one PDF (library:
       "Drop to import" scrim, then the import page), several PDFs, a non-PDF,
-      a mix of valid and invalid (nothing imported, "Unsupported file type!"),
+      fake.pdf and corrupt.pdf (each a clear error, nothing imported), a mix
+      of valid and invalid (nothing imported, "Unsupported file type!"),
       dropping onto the Practice tab and the Exercises page (several files
       ask Separate/Single exercises) and onto Edit exercise > scores. The
       Setlists tab and a drop while a dialog is open are ignored.
@@ -259,16 +261,18 @@ platform_features:
     platforms: [ android, ios ]
     excluded: desktop apps don't receive shares
     via: flutter_sharing_intent (fork), lib/main.dart, share_inbox.dart
+    own_agent: true
     test: >-
       Share from the Files app into Sheetopia: one PDF ("Import as"
       Score → import page; Exercise → exercise editor with the score), three
       PDFs (Score: all through the import page; Exercise: Separate creates
-      three, Single one exercise with three scores), invalid files
-      (notes.txt, image.png, fake.pdf, corrupt.pdf: clear error, nothing
-      half-imported) and a mix of valid and invalid (nothing imported, error
-      toast). Do it with the app running on another page (score, exercise)
-      and with the app not running (cold start). iOS: the shared copies are
-      cleaned up from the share inbox afterwards.
+      three, Single one exercise with three scores), each invalid file on
+      its own (notes.txt, image.png, fake.pdf, corrupt.pdf: clear error,
+      nothing half-imported) and a mix of valid and invalid (nothing
+      imported, error toast). Share one valid PDF and one invalid file each
+      while a score is open in the viewer, while an exercise page is open
+      and with the app not running (cold start, force stop first). iOS: the
+      shared copies are cleaned up from the share inbox afterwards.
   - id: share.send
     platforms: [ macos, android, ios ]
     excluded: Linux has no share action, it saves files instead (export.save_dialog)
@@ -372,7 +376,9 @@ platform_features:
     test: >-
       In the score viewer, setlist play, routine play and exercise play F/F11
       and the fullscreen button toggle real window fullscreen, Esc leaves it,
-      the overlay hides after 3s and the cursor hides with it. Leaving the
+      the overlay hides after 3s and the cursor hides with it. Exercises
+      without a score show a text card instead, there F/F11/Esc work too but
+      the app bar, toolbar and cursor intentionally stay. Leaving the
       viewer exits fullscreen (except on macOS, where it intentionally stays,
       with the back button visible while the overlay shows).
   - id: viewer.immersive
@@ -508,14 +514,15 @@ feature_suite:
           imported) shows "No composer".
       - id: library.search
         test: >-
-          Search by title, composer and arranger (the demo has no arranger,
-          set one first), case and diacritics insensitive
+          Search by title, composer, arranger and "Part of" (the demo has no
+          arranger, set one first), case and diacritics insensitive
           ("frederic" finds Frédéric Chopin, "fur elise" finds "Für Elise");
           count shows "X of Y"; no match shows "No scores found.".
       - id: library.filter
         test: >-
-          Filter rows: composer, instruments and tags; arranger, source,
-          difficulty (signal bar icons, any of the selected) and genres are
+          Filter rows: composer, instruments and tags; arranger, "Part of",
+          key (any of the selected keys), source, difficulty (signal bar
+          icons, any of the selected) and genres are
           added with the "Add filter" row, stay visible until their remove
           button clears them; combined with search; instruments, genres and
           tags each match Any, All or Exact (selector at the row end); the
@@ -530,8 +537,9 @@ feature_suite:
           typing in search), Esc and back clear it.
       - id: library.bulk_edit
         test: >-
-          On a selection: "Edit metadata" picks composer, arranger, source
-          (with link button), difficulty (icon selector), instruments, genres
+          On a selection: "Edit metadata" picks composer, arranger, "Part
+          of", key (tonic and Major/Minor), source (with link button),
+          difficulty (icon selector), instruments, genres
           or tags (add and remove chips) in one dialog, an empty value offers
           Clear; add to setlist, delete (with
           confirmation and "Deleted N scores"). Each change is visible
@@ -542,15 +550,18 @@ feature_suite:
     tests:
       - id: edit.import_flow
         test: >-
-          Import two PDFs: Next then Done, the title is required (empty title
-          is not saved), autosave keeps edits without an explicit save.
+          Import two PDFs: Next then Done, the title is required (an empty
+          title is not saved and disables Next/Done), autosave keeps edits
+          without an explicit save.
       - id: edit.metadata
         test: >-
           The first card has the title as a heading and the permanent rows
           with icon and label (label above the value on phones): composer
           (autocomplete), instruments and tags (badges with remove buttons
           and an add button). The second card holds the optional rows,
-          arranger, difficulty (five signal bar icons, tapping the selected
+          arranger, "Part of" (autocomplete), key (a tonic menu with "Not
+          set" and a Major/Minor menu, muted until a tonic is chosen),
+          difficulty (five signal bar icons, tapping the selected
           one clears it), source (edited in place, link button opens a dialog
           where an invalid link shows "Must be an http(s) link", the open
           button opens it), genres and notes, only when filled or added with
@@ -666,7 +677,10 @@ feature_suite:
           landing cancels an in-progress finger stroke (pinch) but never a
           stylus stroke. Default mode is Draw on desktop. A finger panning
           while a stylus draws moves the page under the stylus, so the stroke
-          follows the page, not the screen path.
+          follows the page, not the screen path. In two-page view only one
+          stroke draws at a time: a finger on the other page draws nothing
+          while a stylus draws, a stylus landing drops a finger stroke, and
+          otherwise the first pointer keeps drawing.
       - id: annotate.tools
         test: >-
           Pen and marker in every colour, width slider, eraser (also with an

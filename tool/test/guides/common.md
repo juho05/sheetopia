@@ -117,7 +117,32 @@ Agents reported these before. They are how the app works, don't report them:
   mid-scroll, showing the end, a gap and the start (`an   bulk-01-Ah_vous...`).
 - Tag strips on cards in list/grid views are horizontally scrollable.
   It is normal that they appear cut off because the user can scroll to reveal the rest.
+- Suggestion badges below text fields (edit pages, bulk edit and filter
+  dialogs) are a
+  sideways scrolling row, long values are cut off at the edge. Tap the
+  visible part, a tap outside a dialog closes it.
 - The logs page lists the newest entry first.
+- A field's validation message (e.g. "required" under an emptied title)
+  only shows once the field loses focus. Tap outside it before checking.
+- A setlist can hold the same score more than once, adding a score that is
+  already in it adds it again.
+- The stylus eraser end (inverted stylus) draws like the tip, erasing with it
+  isn't supported yet. Use the eraser tool.
+- In viewer fullscreen the back arrow is hidden (macOS shows it with the
+  overlay). Alt+Left and the mouse back button do nothing.
+- In fullscreen routine or exercise play, an exercise without a score shows
+  a text card that keeps its app bar, toolbar and cursor. Only the back arrow
+  hides.
+- The update check runs at most every 3 hours, a restart soon after an
+  earlier check shows no update dialog.
+- Files chosen, dropped or shared for import are added to the library right
+  away, the import page only edits their metadata and saves as you type.
+  Back on it is the same as Done: the score stays in the library. Importing
+  the same file again adds another score.
+- Imported files not reached on the import page (Back before Next) stay
+  pending until they are edited or their edit page is opened. The next import
+  page, from any import (picker, drop, share), opens on the oldest pending
+  score first, not on the file just added.
 - In the viewer a stylus tap starts annotating instead of turning the page.
 - In Draw mode touch and mouse draw and don't pan, Move mode pans. A stylus
   always draws.

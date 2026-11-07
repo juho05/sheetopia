@@ -287,9 +287,17 @@ Evidence screenshots go to $runDir/screenshots/$platform/ (the screen tools' sav
       if (isEnabled(t) && (t['platforms'] ?? const ['linux']).contains(platform)) t,
   ];
 
-  List<List<Json>> chunks(List<Json> tests) => [
-    for (var i = 0; i < tests.length; i += perAgent) tests.sublist(i, min(tests.length, i + perAgent)),
-  ];
+  List<List<Json>> chunks(List<Json> tests) {
+    final shared = [
+      for (final t in tests)
+        if (t['own_agent'] != true) t,
+    ];
+    return [
+      for (var i = 0; i < shared.length; i += perAgent) shared.sublist(i, min(shared.length, i + perAgent)),
+      for (final t in tests)
+        if (t['own_agent'] == true) [t],
+    ];
+  }
 
   Future<_Chain> platformChain(String platform) async {
     final update = updatePlatforms.contains(platform);
@@ -313,7 +321,7 @@ Return environmentOk=false only if the environment or app can't be used at all. 
         for (final Json area in plan['feature_suite'] ?? const [])
           for (final (i, tests) in chunks([
             for (final Json t in area['tests'] ?? const [])
-              if (isEnabled(t)) {'id': t['id'], 'test': _testText(t)},
+              if (isEnabled(t)) {'id': t['id'], 'test': _testText(t), 'own_agent': t['own_agent']},
           ]).indexed)
             _StepSpec(
               'feature-suite-${area['area'].toString().toLowerCase().replaceAll(RegExp('[^a-z0-9]+'), '-')}-${i + 1}',
