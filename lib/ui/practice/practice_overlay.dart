@@ -362,7 +362,7 @@ class _PracticeRecoveryOverlayState extends State<PracticeRecoveryOverlay> {
     final today = DateTime(now.year, now.month, now.day);
     final day = DateTime(leftAt.year, leftAt.month, leftAt.day);
     if (day == today) return time;
-    if (day == today.subtract(const Duration(days: 1))) {
+    if (day == DateTime(now.year, now.month, now.day - 1)) {
       return "yesterday at $time";
     }
     return "${localizations.formatMediumDate(leftAt)} at $time";

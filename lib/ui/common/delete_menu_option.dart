@@ -15,7 +15,7 @@ import 'package:sheetopia/ui/common/toast.dart';
 
 class DeleteMenuOption extends ContextMenuOption {
   final String itemType;
-  final String name;
+  final String Function() name;
   final Future<void> Function() onDelete;
   final Future<bool> Function(BuildContext context, String name)? confirm;
 
@@ -28,7 +28,7 @@ class DeleteMenuOption extends ContextMenuOption {
          icon: Symbols.delete,
          title: "Delete",
          onSelected: (context) =>
-             _delete(context, itemType, name, onDelete, confirm),
+             _delete(context, itemType, name(), onDelete, confirm),
        );
 
   static Future<void> _delete(

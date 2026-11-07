@@ -61,7 +61,12 @@ class EditScoreViewModel extends ChangeNotifier {
 
   Future<void> delete() async {
     _deleted = true;
-    await _repo.deleteScore(score!.id);
+    try {
+      await _repo.deleteScore(score!.id);
+    } catch (_) {
+      _deleted = false;
+      rethrow;
+    }
   }
 
   Future<void> changeFile() async {

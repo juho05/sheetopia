@@ -22,6 +22,7 @@ import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/data/services/database/database.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
+import 'package:sheetopia/utils/compare_names.dart';
 
 typedef ExercisePracticeTotal = ({
   String exerciseId,
@@ -409,6 +410,8 @@ class PracticeRepository {
       ..orderBy([
         (t) => OrderingTerm.asc(t.position),
         (t) => OrderingTerm.asc(t.name.lower()),
+        (t) => OrderingTerm.asc(t.name),
+        (t) => OrderingTerm.asc(t.id),
       ]);
     return await query.get();
   }
@@ -466,7 +469,6 @@ class PracticeRepository {
             .filter(
               (f) => f.exerciseTagsTableRefs((f) => f.exercise.id(exerciseId)),
             )
-            .orderBy((o) => o.name.asc())
             .get())
         .map(
           (t) => Tag(
@@ -477,7 +479,8 @@ class PracticeRepository {
             updatedAt: t.updatedAt.toUtc(),
           ),
         )
-        .toList();
+        .toList()
+      ..sort(Tag.compareByName);
   }
 
   Future<Map<String, List<Tag>>> _getExercisesTags(
@@ -491,7 +494,6 @@ class PracticeRepository {
           (f) =>
               f.exerciseTagsTableRefs((f) => f.exercise.id.isIn(exerciseIds)),
         )
-        .orderBy((o) => o.name.asc())
         .withReferences((prefetch) => prefetch(exerciseTagsTableRefs: true))
         .get(distinct: true);
     for (final t in tags) {
@@ -508,6 +510,9 @@ class PracticeRepository {
       for (final ref in refs) {
         (exerciseTags[ref.exercise] ??= []).add(tag);
       }
+    }
+    for (final tags in exerciseTags.values) {
+      tags.sort(Tag.compareByName);
     }
 
     return exerciseTags;
@@ -998,8 +1003,7 @@ class PracticeRepository {
   }
 
   List<String> _merge(Iterable<String> values, int? size) {
-    final merged = values.toSet().toList()
-      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    final merged = values.toSet().toList()..sort(compareNames);
     if (size == null || merged.length <= size) return merged;
     return merged.sublist(0, size);
   }

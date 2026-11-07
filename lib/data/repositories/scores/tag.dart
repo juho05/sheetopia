@@ -9,6 +9,7 @@
 import 'dart:ui';
 
 import 'package:sheetopia/data/services/database/tags_table.dart';
+import 'package:sheetopia/utils/compare_names.dart';
 
 class Tag {
   final String id;
@@ -24,6 +25,11 @@ class Tag {
     required this.type,
     required this.updatedAt,
   });
+
+  static int compareByName(Tag a, Tag b) {
+    final byName = compareNames(a.name, b.name);
+    return byName != 0 ? byName : a.id.compareTo(b.id);
+  }
 
   @override
   bool operator ==(Object other) {

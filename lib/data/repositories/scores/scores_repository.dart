@@ -34,6 +34,7 @@ import 'package:sheetopia/data/services/pdf_validation_service.dart';
 import 'package:sheetopia/data/services/score_processing/page_margins.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
 import 'package:sheetopia/utils/id_path.dart';
+import 'package:sheetopia/utils/compare_names.dart';
 
 sealed class ScoreFileException implements Exception {
   const ScoreFileException();
@@ -157,13 +158,13 @@ class ScoresRepository {
           (data.genresTableRefs.prefetchedData ?? [])
               .map((e) => e.genre)
               .toList()
-            ..sort(),
+            ..sort(compareNames),
       instruments:
           (data.instrumentsTableRefs.prefetchedData ?? [])
               .map((e) => e.instrument)
               .toList()
-            ..sort(),
-      tags: (await _getScoreTags(score.id)).toList(),
+            ..sort(compareNames),
+      tags: await _getScoreTags(score.id),
     );
   }
 
@@ -606,7 +607,7 @@ class ScoresRepository {
       (result[row.score] ??= []).add(row.genre);
     }
     for (final genres in result.values) {
-      genres.sort();
+      genres.sort(compareNames);
     }
     return result;
   }
@@ -623,15 +624,14 @@ class ScoresRepository {
       (result[row.score] ??= []).add(row.instrument);
     }
     for (final instruments in result.values) {
-      instruments.sort();
+      instruments.sort(compareNames);
     }
     return result;
   }
 
-  Future<Iterable<Tag>> _getScoreTags(String scoreId) async {
+  Future<List<Tag>> _getScoreTags(String scoreId) async {
     return (await _db.managers.tagsTable
             .filter((f) => f.scoreTagsTableRefs((f) => f.score.id(scoreId)))
-            .orderBy((o) => o.name.asc())
             .get())
         .map(
           (t) => Tag(
@@ -641,7 +641,9 @@ class ScoresRepository {
             type: t.type,
             updatedAt: t.updatedAt.toUtc(),
           ),
-        );
+        )
+        .toList()
+      ..sort(Tag.compareByName);
   }
 
   Future<Map<String, List<Tag>>> _getScoresTags(
@@ -651,7 +653,6 @@ class ScoresRepository {
 
     final tags = await _db.managers.tagsTable
         .filter((f) => f.scoreTagsTableRefs((f) => f.score.id.isIn(scoreIds)))
-        .orderBy((o) => o.name.asc())
         .withReferences((prefetch) => prefetch(scoreTagsTableRefs: true))
         .get(distinct: true);
     for (final t in tags) {
@@ -670,6 +671,9 @@ class ScoresRepository {
           scoreTags[s.score]!.add(tag);
         }
       }
+    }
+    for (final tags in scoreTags.values) {
+      tags.sort(Tag.compareByName);
     }
 
     return scoreTags;
@@ -1054,7 +1058,11 @@ class ScoresRepository {
     if (size != null) {
       q.limit(size, offset: offset);
     }
-    q.orderBy([(t) => OrderingTerm.asc(t.name.lower())]);
+    q.orderBy([
+      (t) => OrderingTerm.asc(t.name.lower()),
+      (t) => OrderingTerm.asc(t.name),
+      (t) => OrderingTerm.asc(t.id),
+    ]);
     final rows = await q.get();
     return rows
         .map(
@@ -1073,7 +1081,11 @@ class ScoresRepository {
     if (tagIds.isEmpty) return [];
     final q = _db.select(_db.tagsTable);
     q.where((tbl) => tbl.id.isIn(tagIds));
-    q.orderBy([(t) => OrderingTerm.asc(t.name.lower())]);
+    q.orderBy([
+      (t) => OrderingTerm.asc(t.name.lower()),
+      (t) => OrderingTerm.asc(t.name),
+      (t) => OrderingTerm.asc(t.id),
+    ]);
     final rows = await q.get();
     return rows
         .map(
@@ -1509,7 +1521,10 @@ class ScoresRepository {
     if (exclude.isNotEmpty) {
       query.where(_db.instrumentsTable.instrument.isNotIn(exclude));
     }
-    query.orderBy([OrderingTerm.asc(_db.instrumentsTable.instrument.lower())]);
+    query.orderBy([
+      OrderingTerm.asc(_db.instrumentsTable.instrument.lower()),
+      OrderingTerm.asc(_db.instrumentsTable.instrument),
+    ]);
     if (size != null) {
       query.limit(size, offset: offset);
     }
@@ -1532,7 +1547,10 @@ class ScoresRepository {
     if (exclude.isNotEmpty) {
       query.where(_db.genresTable.genre.isNotIn(exclude));
     }
-    query.orderBy([OrderingTerm.asc(_db.genresTable.genre.lower())]);
+    query.orderBy([
+      OrderingTerm.asc(_db.genresTable.genre.lower()),
+      OrderingTerm.asc(_db.genresTable.genre),
+    ]);
     if (size != null) {
       query.limit(size, offset: offset);
     }
@@ -1554,7 +1572,10 @@ class ScoresRepository {
             _db.scoresTable.composer.contains(filter),
       );
     }
-    query.orderBy([OrderingTerm.asc(_db.scoresTable.composer.lower())]);
+    query.orderBy([
+      OrderingTerm.asc(_db.scoresTable.composer.lower()),
+      OrderingTerm.asc(_db.scoresTable.composer),
+    ]);
     if (size != null) {
       query.limit(size, offset: offset);
     }
@@ -1576,7 +1597,10 @@ class ScoresRepository {
             _db.scoresTable.arranger.contains(filter),
       );
     }
-    query.orderBy([OrderingTerm.asc(_db.scoresTable.arranger.lower())]);
+    query.orderBy([
+      OrderingTerm.asc(_db.scoresTable.arranger.lower()),
+      OrderingTerm.asc(_db.scoresTable.arranger),
+    ]);
     if (size != null) {
       query.limit(size, offset: offset);
     }
@@ -1598,7 +1622,10 @@ class ScoresRepository {
             _db.scoresTable.partOf.contains(filter),
       );
     }
-    query.orderBy([OrderingTerm.asc(_db.scoresTable.partOf.lower())]);
+    query.orderBy([
+      OrderingTerm.asc(_db.scoresTable.partOf.lower()),
+      OrderingTerm.asc(_db.scoresTable.partOf),
+    ]);
     if (size != null) {
       query.limit(size, offset: offset);
     }
@@ -1620,7 +1647,10 @@ class ScoresRepository {
             _db.scoresTable.source.contains(filter),
       );
     }
-    query.orderBy([OrderingTerm.asc(_db.scoresTable.source.lower())]);
+    query.orderBy([
+      OrderingTerm.asc(_db.scoresTable.source.lower()),
+      OrderingTerm.asc(_db.scoresTable.source),
+    ]);
     if (size != null) {
       query.limit(size, offset: offset);
     }

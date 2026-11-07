@@ -18,6 +18,7 @@ import 'package:sheetopia/data/repositories/scores/tag.dart';
 import 'package:sheetopia/ui/common/metadata_form_viewmodel.dart';
 import 'package:sheetopia/ui/common/score_field.dart';
 import 'package:sheetopia/ui/edit_score/edit_score_viewmodel.dart';
+import 'package:sheetopia/utils/compare_names.dart';
 
 class EditScoreFormViewModel extends ChangeNotifier
     with MetadataFormViewModel<ScoreField> {
@@ -28,11 +29,11 @@ class EditScoreFormViewModel extends ChangeNotifier
 
   Score get score => _score;
 
-  SplayTreeSet<String> _instruments = SplayTreeSet();
+  SplayTreeSet<String> _instruments = SplayTreeSet(compareNames);
 
   Iterable<String> get instruments => _instruments;
 
-  SplayTreeSet<String> _genres = SplayTreeSet();
+  SplayTreeSet<String> _genres = SplayTreeSet(compareNames);
 
   Iterable<String> get genres => _genres;
 
@@ -243,8 +244,8 @@ class EditScoreFormViewModel extends ChangeNotifier
       formSource: _score.source ?? "",
       formNotes: _score.notes ?? "",
     });
-    _instruments = SplayTreeSet.of(score.instruments);
-    _genres = SplayTreeSet.of(score.genres);
+    _instruments = SplayTreeSet.of(score.instruments, compareNames);
+    _genres = SplayTreeSet.of(score.genres, compareNames);
     _musicalKey = score.musicalKey;
     loadMetadata(
       tags: _score.tags,

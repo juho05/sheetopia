@@ -61,7 +61,7 @@ class EditExercisePage extends StatelessWidget {
                       options: [
                         DeleteMenuOption(
                           itemType: "exercise",
-                          name: viewModel.name,
+                          name: () => viewModel.name,
                           onDelete: viewModel.delete,
                         ),
                       ],

@@ -49,7 +49,7 @@ class EditScorePage extends StatelessWidget {
                       options: [
                         DeleteMenuOption(
                           itemType: "score",
-                          name: viewModel.score!.title,
+                          name: () => viewModel.score!.title,
                           onDelete: viewModel.delete,
                         ),
                       ],

@@ -28,7 +28,6 @@ class MetadataForm<T extends MetadataField> extends StatefulWidget {
 
   final Widget Function(T field, FocusNode focusNode) buildFieldWidget;
 
-  /// returning false cancels the add
   final Future<void> Function(T field) onAdd;
 
   final String? Function(T field) removeMessage;

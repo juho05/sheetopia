@@ -16,6 +16,7 @@ import 'package:sheetopia/data/repositories/scores/score.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/ui/common/filter_viewmodel.dart';
+import 'package:sheetopia/utils/compare_names.dart';
 import 'package:sheetopia/utils/tag_sync.dart';
 
 class LibraryViewModel extends ChangeNotifier with FilterViewModel {
@@ -122,11 +123,11 @@ class LibraryViewModel extends ChangeNotifier with FilterViewModel {
     _reset();
   }
 
-  final SplayTreeSet<String> _filterInstruments = SplayTreeSet();
+  final SplayTreeSet<String> _filterInstruments = SplayTreeSet(compareNames);
 
   Iterable<String> get filterInstruments => _filterInstruments;
 
-  final SplayTreeSet<String> _filterGenres = SplayTreeSet();
+  final SplayTreeSet<String> _filterGenres = SplayTreeSet(compareNames);
 
   Iterable<String> get filterGenres => _filterGenres;
 

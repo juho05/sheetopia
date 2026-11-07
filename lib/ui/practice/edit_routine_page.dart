@@ -58,7 +58,7 @@ class EditRoutinePage extends StatelessWidget {
                       options: [
                         DeleteMenuOption(
                           itemType: "routine",
-                          name: viewModel.name,
+                          name: () => viewModel.name,
                           onDelete: viewModel.delete,
                           confirm: confirmDeleteRoutine,
                         ),

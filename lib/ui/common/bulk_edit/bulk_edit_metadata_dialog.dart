@@ -25,6 +25,7 @@ import 'package:sheetopia/ui/common/source_value.dart';
 import 'package:sheetopia/ui/common/tag_selector.dart';
 import 'package:sheetopia/ui/edit_score/auto_complete_input_dialog.dart';
 import 'package:sheetopia/ui/practice/category_selector.dart';
+import 'package:sheetopia/utils/compare_names.dart';
 
 typedef GetOptions =
     Future<Iterable<String>> Function(String filter, Iterable<String> exclude);
@@ -151,12 +152,10 @@ class _BulkEditMetadataDialogState extends State<BulkEditMetadataDialog> {
   MusicalKey? _musicalKey;
   bool _categoryChosen = false;
   ExerciseCategory? _category;
-  final SplayTreeSet<String> _addValues = SplayTreeSet();
-  final SplayTreeSet<String> _removeValues = SplayTreeSet();
-  final SplayTreeSet<Tag> _addTags = SplayTreeSet(_byName);
-  final SplayTreeSet<Tag> _removeTags = SplayTreeSet(_byName);
-
-  static int _byName(Tag a, Tag b) => a.name.compareTo(b.name);
+  final SplayTreeSet<String> _addValues = SplayTreeSet(compareNames);
+  final SplayTreeSet<String> _removeValues = SplayTreeSet(compareNames);
+  final SplayTreeSet<Tag> _addTags = SplayTreeSet(Tag.compareByName);
+  final SplayTreeSet<Tag> _removeTags = SplayTreeSet(Tag.compareByName);
 
   String get _text => _textController.text.trim();
 

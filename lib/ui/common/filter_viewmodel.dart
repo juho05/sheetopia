@@ -60,9 +60,7 @@ mixin FilterViewModel on ChangeNotifier {
     refilter();
   }
 
-  final SplayTreeSet<Tag> _filterTags = SplayTreeSet(
-    (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-  );
+  final SplayTreeSet<Tag> _filterTags = SplayTreeSet(Tag.compareByName);
 
   Iterable<Tag> get filterTags => _filterTags;
 
@@ -106,7 +104,6 @@ mixin FilterViewModel on ChangeNotifier {
   bool get isFiltered => _filterSearch.isNotEmpty || hasFilters;
 
   void clearFilters() {
-    if (!hasFilters) return;
     _filterSource = "";
     _filterDifficulties.clear();
     _filterTags.clear();

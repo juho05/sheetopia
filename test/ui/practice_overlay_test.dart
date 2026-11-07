@@ -70,11 +70,12 @@ void main() {
   });
 
   testWidgets("a stopwatch left on another day names the day", (tester) async {
+    final now = DateTime.now();
     await pumpRecovery(
       tester,
       PracticeRecovery(
         counted: const Duration(minutes: 4),
-        leftAt: DateTime.now().subtract(const Duration(days: 1)),
+        leftAt: DateTime(now.year, now.month, now.day - 1, 12),
         gap: const Duration(days: 1),
       ),
     );

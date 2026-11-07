@@ -54,10 +54,7 @@ mixin MetadataFormViewModel<T extends MetadataField> on ChangeNotifier {
 
   Future<void> persistRemoveTag(Tag tag);
 
-  static int _byName(Tag a, Tag b) =>
-      a.name.toLowerCase().compareTo(b.name.toLowerCase());
-
-  SplayTreeSet<Tag> _tags = SplayTreeSet(_byName);
+  SplayTreeSet<Tag> _tags = SplayTreeSet(Tag.compareByName);
 
   Iterable<Tag> get tags => _tags;
 
@@ -91,7 +88,7 @@ mixin MetadataFormViewModel<T extends MetadataField> on ChangeNotifier {
     required String? sourceLink,
     required Difficulty? difficulty,
   }) {
-    _tags = SplayTreeSet.of(tags, _byName);
+    _tags = SplayTreeSet.of(tags, Tag.compareByName);
     _source.load(source, sourceLink);
     _difficulty = difficulty;
     _fields.clear();
@@ -106,7 +103,7 @@ mixin MetadataFormViewModel<T extends MetadataField> on ChangeNotifier {
     required String? sourceLink,
     required Difficulty? difficulty,
   }) {
-    _tags = SplayTreeSet.of(tags, _byName);
+    _tags = SplayTreeSet.of(tags, Tag.compareByName);
     final control = form.control(formSource);
     if (formValue(formSource) == (_source.name ?? "")) {
       control.updateValue(source ?? "", updateParent: false);
@@ -143,7 +140,7 @@ mixin MetadataFormViewModel<T extends MetadataField> on ChangeNotifier {
   }
 
   void setTags(Iterable<Tag> tags) {
-    _tags = SplayTreeSet.of(tags, _byName);
+    _tags = SplayTreeSet.of(tags, Tag.compareByName);
     notifyListeners();
   }
 
