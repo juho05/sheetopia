@@ -88,17 +88,20 @@ class HomeViewModel extends ChangeNotifier {
     _importing = true;
     notifyListeners();
     try {
-      final pdfPath = await CunningDocumentScanner.getPictures(
+      final scanResult = await CunningDocumentScanner.scanDocuments(
         scannerSource: ScannerSource.camera,
-        asPdf: true,
+        output: ScanOutput.pdf,
       );
-      if (pdfPath == null || pdfPath.isEmpty) return null;
+      if (scanResult == null ||
+          scanResult.pdf == null ||
+          scanResult.pdf!.isEmpty) {
+        return null;
+      }
 
       try {
-        final scores = await _scoresRepo.importAll(
-          pdfPath.map((p) => XFile(p, mimeType: "application/pdf")),
-          status: ScoreStatus.needsFirstEdit,
-        );
+        final scores = await _scoresRepo.importAll([
+          XFile(scanResult.pdf!, mimeType: "application/pdf"),
+        ], status: ScoreStatus.needsFirstEdit);
         return scores.first.id;
       } finally {
         await CunningDocumentScanner.cleanCache();

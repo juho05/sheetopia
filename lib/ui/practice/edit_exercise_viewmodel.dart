@@ -220,16 +220,20 @@ class EditExerciseViewModel extends ChangeNotifier
     _scoresLoading = true;
     notifyListeners();
     try {
-      final pdfPaths = await CunningDocumentScanner.getPictures(
+      final scanResult = await CunningDocumentScanner.scanDocuments(
         scannerSource: ScannerSource.camera,
-        asPdf: true,
+        output: ScanOutput.pdf,
       );
-      if (pdfPaths == null || pdfPaths.isEmpty) return;
+      if (scanResult == null ||
+          scanResult.pdf == null ||
+          scanResult.pdf!.isEmpty) {
+        return;
+      }
 
       try {
-        await _importFiles(
-          pdfPaths.map((p) => XFile(p, mimeType: "application/pdf")),
-        );
+        await _importFiles([
+          XFile(scanResult.pdf!, mimeType: "application/pdf"),
+        ]);
       } finally {
         await CunningDocumentScanner.cleanCache();
       }
