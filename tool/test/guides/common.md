@@ -59,7 +59,8 @@ and look.
       tests too.
     - `zoom` reads small text in a region instead of a bigger screenshot.
 - Evidence: `save_as: "<test id>-<what>"` on the action whose screenshot
-  proves the point. It lands in `$RUN/screenshots/<platform>/`. Don't `Read`
+  proves the point. It lands in `$RUN/screenshots/<platform>/`. Cite it in
+  `evidence` by the path the tool printed after `saved`. Don't `Read`
   screenshot files, the tool already showed you the image.
 - Use `wait_ms` when an action needs time (imports, app start), instead of
   extra screenshots.
@@ -157,6 +158,14 @@ Agents reported these before. They are how the app works, don't report them:
 - The score viewer's top-right View options button fades with the overlay
   on desktop, 3 s after the last pointer movement, even outside
   fullscreen. Move the pointer to bring it back. The back button stays.
+- The library lists fewer scores than the demo library holds: its exercise
+  only scores (count in `$RUN/logs/demo-library.log`) show only under their
+  exercises. The DB and exports count them.
+- Exercise > View on a linked score opens a separate annotation page, not the
+  viewer. Esc there only clears the selection, leave it with the back arrow.
+- The page-turn flash fades within 300 ms, too fast for screenshots. Check
+  it with the driver's `key arrowRight --shot <file>` (feature suite), which
+  captures the first frame after the key, or report it blocked.
 - Practice records shorter than 3 s are discarded. Let the stopwatch run at
   least 4 s whenever a test needs recorded time.
 

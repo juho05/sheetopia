@@ -9,6 +9,8 @@
 #   provision <run> [<release>]  up, fixtures to ~/e2e/fixtures, install the
 #                                build under test (or the release dir, e.g.
 #                                v0.7.0)
+#   install <run> [<release>]    quit the app and install that release over
+#                                it (data kept)
 #   clock <run> +15m|+2h|-1d|reset    set the VM's clock relative to the
 #                                host's time
 #   snapshot <run> save|restore <name>
@@ -156,6 +158,12 @@ case "$CMD" in
     "$0" up "$RUN" --vm "$NAME" >/dev/null
     release="${1:-v$(jq -r .versions.current "$RUN/run.json")}"
     "$0" push "$RUN" --vm "$NAME" "$RUN/fixtures" /Users/$MACOS_VM_USER/e2e
+    "$0" install-dmg "$RUN" --vm "$NAME" "$(ls "$RUN/releases/$release/"*.dmg | head -1)"
+    ;;
+  install)
+    release="${1:-v$(jq -r .versions.current "$RUN/run.json")}"
+    vm_exec pkill -TERM -x Sheetopia >/dev/null 2>&1 || true
+    sleep 2
     "$0" install-dmg "$RUN" --vm "$NAME" "$(ls "$RUN/releases/$release/"*.dmg | head -1)"
     ;;
   snapshot)

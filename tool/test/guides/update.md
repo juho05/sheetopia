@@ -99,5 +99,7 @@ release (`versions.plain`, only for tests that use it) an empty file.
   Check now: no update offered.
 
 If the update fails, collect the evidence (macOS `~/Library/Logs/Sheetopia/
-update.log`, the app's logs page, `requests`), mark it failed and install the
-target build directly so later phases can still run, saying so in your result.
+update.log`, the app's logs page, `requests`) and mark it failed. After an
+old → new update whose `update.install` did not pass, the orchestrator installs
+the build under test itself. After new → next, install the target build
+directly and say so in your result.

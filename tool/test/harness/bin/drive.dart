@@ -15,7 +15,8 @@
 //                                  one stroke (also drags/swipes)
 //   gesture '<json>'               raw multi-pointer gesture, see main_e2e.dart
 //   scroll --at X,Y [--dx N] [--dy N] [--kind mouse|trackpad]
-//   key <key> [--mod meta,shift,control,alt] [--hold down|up]
+//   key <key> [--mod meta,shift,control,alt] [--hold down|up] [--shot <file.png>]
+//                                  --shot: the first frame after the key
 //   type <text> [--replace] [--submit]
 //   drop <path>... [--at X,Y] [--cancel]
 //   window [--size WxH] [--fullscreen true|false] [--maximize]
@@ -70,6 +71,7 @@ Future<void> main(List<String> arguments) async {
     ..addOption('fullscreen')
     ..addOption('timeout')
     ..addOption('ratio')
+    ..addOption('shot')
     ..addFlag('contains', negatable: false)
     ..addFlag('all', negatable: false)
     ..addFlag('icons', negatable: false)
@@ -193,11 +195,16 @@ Future<Object?> _run(String action, List<String> rest, ArgResults a) async {
         'kind': a.option('kind') ?? 'mouse',
       });
     case 'key':
-      return _call('key', {
+      final shotPath = a.option('shot');
+      final result = await _call('key', {
         if (rest.isNotEmpty) 'key': rest.first,
         'modifiers': a.option('mod')?.split(',').where((m) => m.isNotEmpty).toList() ?? [],
         'hold': ?a.option('hold'),
-      });
+        if (shotPath != null) 'screenshot': true,
+      }) as Map;
+      if (shotPath == null || result['png'] == null) return result;
+      final file = File(shotPath).absolute..writeAsBytesSync(base64Decode(result.remove('png') as String));
+      return {...result, 'shot': file.path};
     case 'type':
       if (rest.isEmpty) _fail('type needs the text');
       return _call('type', {'text': rest.join(' '), 'replace': a.flag('replace'), 'submit': a.flag('submit')});

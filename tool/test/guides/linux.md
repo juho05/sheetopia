@@ -119,7 +119,8 @@ gesture '{"pointers":[{"kind":"touch","points":[[100,300],[100,200]]},{"kind":"t
 scroll --at X,Y --dy 120 [--kind trackpad]
 key a | escape | arrowRight | z --mod control | z --mod control,shift
 key --mod control --hold down   # hold Ctrl for a following click, then --hold up
-type 'text' [--replace] [--submit]
+key arrowRight --shot $RUN/screenshots/linux/x.png   # also saves the first frame after the key
+type 'text' [--replace] [--submit]   # replaces the selection like a keyboard, --replace the whole value
 drop /home/sheetopia/e2e/fixtures/valid/x.pdf [--at X,Y]   # simulated drop (container paths)
 window --size 390x844 | --fullscreen true | --maximize
 wait --text 'Import successful!' [--gone] [--timeout 15000]
@@ -136,7 +137,8 @@ for describe, route, settle and wait: their text is the answer.
 - The driver sends pointer events with a device kind: the same stroke with
   `--kind stylus`, `touch`, `mouse`, `trackpad` must behave as the test says.
   `invertedStylus` is the eraser end. Multi-finger gestures are several
-  pointers in one `gesture`.
+  pointers in one `gesture`. A trackpad stroke is sent as pan/zoom events and
+  a trackpad tap as a mouse click, like the engine does.
 - `draw` and `gesture` move every frame with real timestamps, so a swipe has
   the velocity of its distance over `--duration` (e.g. 600 px in 400 ms is a
   fling, the same with `--hold 300` at the end is not).

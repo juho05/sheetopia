@@ -17,6 +17,7 @@ HOST_LIBS=(
   libpango-1.0.so.0 libpangocairo-1.0.so.0 libcairo.so.2 libcairo-gobject.so.2
   libharfbuzz.so.0 libfontconfig.so.1 libfreetype.so.6 libfribidi.so.0 libepoxy.so.0
   libX11.so.6 libXi.so.6
+  libwayland-client.so.0 libwayland-egl.so.1
   libasound.so.2
 )
 # <binary>:<library> pairs that are never loaded on Linux.

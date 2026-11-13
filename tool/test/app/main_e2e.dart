@@ -278,11 +278,22 @@ Future<Map<String, Object?>> _gesture(WidgetController prober, Map<String, dynam
     for (final p in pointers)
       (p['points'] as List).map((pt) => Offset((pt[0] as num).toDouble(), (pt[1] as num).toDouble())).toList(),
   ];
-  final gestures = <TestGesture>[];
+  // The engine never sends trackpad down/move/up: a drag on a trackpad arrives
+  // as pan/zoom events and a click as a mouse click.
+  final gestures = <TestGesture?>[];
+  final trackpads = <int, TestPointer>{};
   for (final (i, p) in pointers.indexed) {
+    var kind = _kind(p['kind'] as String?);
+    if (kind == PointerDeviceKind.trackpad && paths[i].length > 1) {
+      final pointer = trackpads[i] = TestPointer(_nextPointer++, kind);
+      prober.binding.handlePointerEvent(pointer.panZoomStart(paths[i].first, timeStamp: _now));
+      gestures.add(null);
+      continue;
+    }
+    if (kind == PointerDeviceKind.trackpad) kind = PointerDeviceKind.mouse;
     final gesture = await prober.createGesture(
       pointer: _nextPointer++,
-      kind: _kind(p['kind'] as String?),
+      kind: kind,
       // Stylus and eraser contact is the primary button too,
       // kPrimaryStylusButton is the barrel button.
       buttons: (p['buttons'] as num?)?.toInt() ?? kPrimaryButton,
@@ -299,15 +310,29 @@ Future<Map<String, Object?>> _gesture(WidgetController prober, Map<String, dynam
       final wait = target - _now;
       if (wait > Duration.zero) await Future<void>.delayed(wait);
       for (final (i, g) in gestures.indexed) {
-        if (paths[i].length > 1) await g.moveTo(_along(paths[i], f / frames), timeStamp: _now);
+        if (paths[i].length <= 1) continue;
+        final at = _along(paths[i], f / frames);
+        final trackpad = trackpads[i];
+        if (trackpad != null) {
+          prober.binding.handlePointerEvent(
+            trackpad.panZoomUpdate(paths[i].first, pan: at - paths[i].first, timeStamp: _now),
+          );
+        } else {
+          await g!.moveTo(at, timeStamp: _now);
+        }
       }
     }
   } else if (duration > Duration.zero && args.containsKey('durationMs')) {
     await Future<void>.delayed(duration);
   }
   if (hold > Duration.zero) await Future<void>.delayed(hold);
-  for (final g in gestures) {
-    await g.up(timeStamp: _now);
+  for (final (i, g) in gestures.indexed) {
+    final trackpad = trackpads[i];
+    if (trackpad != null) {
+      prober.binding.handlePointerEvent(trackpad.panZoomEnd(timeStamp: _now));
+    } else {
+      await g!.up(timeStamp: _now);
+    }
   }
   return {'pointers': gestures.length};
 }
@@ -402,11 +427,18 @@ Future<Map<String, Object?>> _key(Map<String, dynamic> args) async {
     }
   }
   final name = args['key'] as String?;
+  Map<String, Object?>? shot;
   if (name != null && hold == null) {
     final key = _keys[name];
     if (key == null) throw ArgumentError('unknown key $name, use ${_keys.keys.join('/')}');
     final character = name.length == 1 && modifiers.isEmpty ? name : (name == 'space' ? ' ' : null);
     _dispatchKey(KeyDownEvent(physicalKey: key.$1, logicalKey: key.$2, character: character, timeStamp: now));
+    // The first frame after the key, for effects too short for a screenshot
+    // call afterwards (the page-turn flash).
+    if (args['screenshot'] == true) {
+      await SchedulerBinding.instance.endOfFrame;
+      shot = await _screenshot(const {});
+    }
     await Future<void>.delayed(const Duration(milliseconds: 30));
     _dispatchKey(KeyUpEvent(physicalKey: key.$1, logicalKey: key.$2, timeStamp: now));
   }
@@ -416,7 +448,7 @@ Future<Map<String, Object?>> _key(Map<String, dynamic> args) async {
     }
   }
   await SchedulerBinding.instance.endOfFrame;
-  return {'key': name, 'modifiers': args['modifiers'] ?? []};
+  return {'key': name, 'modifiers': args['modifiers'] ?? [], ...?shot};
 }
 
 /// Types into the focused text field like a user would (fires onChanged).
@@ -425,9 +457,15 @@ Map<String, Object?> _type(Map<String, dynamic> args) {
   final state = context?.findAncestorStateOfType<EditableTextState>();
   if (state == null) throw StateError('no text field is focused, tap one first');
   final old = state.textEditingValue;
-  final text = args['replace'] == true ? args['text'] as String : old.text + (args['text'] as String);
+  final typed = args['text'] as String;
+  final selection = args['replace'] == true
+      ? TextSelection(baseOffset: 0, extentOffset: old.text.length)
+      : old.selection.isValid
+      ? old.selection
+      : TextSelection.collapsed(offset: old.text.length);
+  final text = old.text.replaceRange(selection.start, selection.end, typed);
   state.userUpdateTextEditingValue(
-    TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length)),
+    TextEditingValue(text: text, selection: TextSelection.collapsed(offset: selection.start + typed.length)),
     SelectionChangedCause.keyboard,
   );
   if (args['submit'] == true) state.performAction(state.widget.textInputAction ?? TextInputAction.done);

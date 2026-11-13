@@ -10,6 +10,7 @@
 #   provision <run> [<release>]   up, fixtures to ~/e2e/fixtures, the AppImage
 #                                 of the build under test (or the release dir,
 #                                 e.g. v0.7.0) to ~/Downloads
+#   install <run> [<release>]     replace the installed AppImage (data kept)
 #   app <run> [--env K=V]... [--integration] [--targz]
 #                                 (re)start the installed release build: the
 #                                 integrated AppImage, else the newest one in
@@ -121,6 +122,17 @@ case "$CMD" in
     "$0" push "$RUN" "$appimage" /home/$LINUX_USER/Downloads
     "$0" exec "$RUN" -- chmod +x "/home/$LINUX_USER/Downloads/$(basename "$appimage")"
     log "provisioned with $(basename "$appimage")"
+    ;;
+  install)
+    release="${1:-v$(jq -r .versions.current "$RUN/run.json")}"
+    appimage="$(ls "$RUN/releases/$release/"*.AppImage | head -1)"
+    stop_app
+    "$0" exec "$RUN" -- bash -c 'rm -f ~/Downloads/*.AppImage'
+    "$0" push "$RUN" "$appimage" /home/$LINUX_USER/Downloads
+    # An integrated AppImage is started instead of the one in ~/Downloads.
+    "$0" exec "$RUN" -- bash -c "chmod +x ~/Downloads/$(basename "$appimage")
+      if [ -e ~/.local/bin/sheetopia ]; then cp ~/Downloads/$(basename "$appimage") ~/.local/bin/sheetopia; fi"
+    log "installed $(basename "$appimage")"
     ;;
   app)
     envs=" SHEETOPIA_DISABLE_APPIMAGE_INTEGRATION=1"

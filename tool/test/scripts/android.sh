@@ -8,6 +8,7 @@
 #   provision <run> [<release>]    up, install the build under test (or the
 #                                  release dir, e.g. v0.7.0), put
 #                                  demo-library.zip into Download/
+#   install <run> [<release>]      install over the installed app (data kept)
 #   snapshot <run> save|restore <name>
 #                                  app data to/from <run>/snapshots/
 #                                  (stops the app, restore leaves it stopped
@@ -88,6 +89,12 @@ case "$CMD" in
     apk="$(ls "$RUN/releases/$release/"*x64*.apk | head -1)"
     dev install -r "$apk" >/dev/null
     "$0" push-files "$RUN" "$RUN/demo-library.zip" >/dev/null
+    log "installed $(basename "$apk")"
+    ;;
+  install)
+    release="${1:-v$(jq -r .versions.current "$RUN/run.json")}"
+    apk="$(ls "$RUN/releases/$release/"*x64*.apk | head -1)"
+    dev install -r "$apk" >/dev/null
     log "installed $(basename "$apk")"
     ;;
   snapshot)

@@ -301,7 +301,13 @@ Evidence screenshots go to $runDir/screenshots/$platform/ (the screen tools' sav
 
   Future<_Chain> platformChain(String platform) async {
     final update = updatePlatforms.contains(platform);
-    final oldToNew = update && enabled('old_to_new_update') && previous != null && previous.toString().isNotEmpty;
+    final hasPrevious = previous != null && previous.toString().isNotEmpty;
+    if (update && enabled('old_to_new_update') && hasPrevious && !_hasInstallAsset(runDir, platform, previous.toString())) {
+      log('$platform: no install asset of $previous, skipping old-to-new-update');
+    }
+    final oldToNew = update && enabled('old_to_new_update') && hasPrevious && _hasInstallAsset(runDir, platform, previous.toString());
+    String? missingBuild(String version) =>
+        _hasInstallAsset(runDir, platform, version) ? null : 'the $platform build of v$version is missing (a failed build, see builds/summary.tsv)';
     final env = _Env(platform, runDir);
     const restored =
         'The orchestrator restored the starting state of this platform (see "Starting state" in your platform guide), the app is not running. '
@@ -332,7 +338,7 @@ Return environmentOk=false only if the environment or app can't be used at all. 
       if (update && enabled('new_to_next_update') && next != null && next.toString().isNotEmpty)
         _StepSpec('new-to-next-update', '$restored\n\nThe installed app is the release build v$current. Take a fresh baseline export, then update to the imaginary next release v$next with the in-app updater, following the update guide (new -> next).', [
           for (final t in updateChecks) {'id': '${t['id']}.next', 'test': t['test']},
-        ], AgentKind.update),
+        ], AgentKind.update, requires: next.toString()),
       if (enabled('upgrade_messages') && next != null && next.toString().isNotEmpty)
         for (final t in upgradeMessageTests(platform))
           if (t['plain_build'] != true)
@@ -341,6 +347,7 @@ Return environmentOk=false only if the environment or app can't be used at all. 
               '$restored\n\nThe installed app is the release build v$current. Run this upgrade messages scenario, upgrading to the imaginary next release v$next as the test says (the update guide has the procedure). Its test messages are in $runDir/upgrade-messages-next.json.',
               [t],
               AgentKind.update,
+              requires: next.toString(),
             )
           else if (plain != null && plain.toString().isNotEmpty)
             _StepSpec(
@@ -348,6 +355,7 @@ Return environmentOk=false only if the environment or app can't be used at all. 
               '$restored\n\nThe installed app is the release build v$current. Run this upgrade messages scenario, upgrading to the imaginary plain release v$plain (no upgrade messages, assets in $runDir/releases/v$plain/) as the test says (the update guide has the procedure).',
               [t],
               AgentKind.update,
+              requires: plain.toString(),
             ),
     ];
 
@@ -379,6 +387,18 @@ Return environmentOk=false only if the environment or app can't be used at all. 
     if (steps.every((s) => results.containsKey(s.name))) {
       log('$platform: all steps finished earlier');
       return finish();
+    }
+
+    // Without the build under test every step would test something else.
+    final missingCurrent = missingBuild(current.toString());
+    if (missingCurrent != null) {
+      log('$platform: $missingCurrent, blocking the platform');
+      blockRest(missingCurrent);
+      return finish();
+    }
+    for (final s in steps) {
+      final missing = s.requires == null || results.containsKey(s.name) ? null : missingBuild(s.requires!);
+      if (missing != null) save(s.name, _blocked(s.tests, missing));
     }
 
     try {
@@ -422,6 +442,14 @@ ${s.prompt}${s.tests.isEmpty ? '' : '\n\nTests (report every id exactly once):\n
             return finish();
           }
           if (s.name == 'setup') notes = (result['notes'] ?? '').toString();
+          if (s.name == 'old-to-new-update' && !_passed(result, 'update.install')) {
+            log('$platform: the update to v$current did not pass, installing it directly');
+            if (!await env.run(['install', runDir])) {
+              blockRest('installing v$current after the failed old-to-new update failed, see logs/env-$platform.log');
+              return finish();
+            }
+            notes += '\nThe old-to-new update did not pass, the orchestrator installed v$current directly over the previous release (data kept).';
+          }
           final last = steps.lastWhere((x) => !x.restore).name;
           if (s.name == last && !await env.run(['snapshot', runDir, 'save', 'start'])) {
             blockRest('saving the starting state failed, see logs/env-$platform.log');
@@ -513,7 +541,25 @@ class _StepSpec {
   /// Starts from the restored starting state.
   final bool restore;
 
-  const _StepSpec(this.name, this.prompt, this.tests, this.kind, {this.restore = true});
+  /// The release version the step installs besides the build under test.
+  final String? requires;
+
+  const _StepSpec(this.name, this.prompt, this.tests, this.kind, {this.restore = true, this.requires});
+}
+
+bool _passed(Json result, String testId) => ((result['results'] as List?) ?? const []).any((r) => r is Map && r['id'] == testId && r['status'] == 'pass');
+
+/// Whether the asset the platform's env script installs exists for [version].
+bool _hasInstallAsset(String runDir, String platform, String version) {
+  if (platform == 'ios') return Directory(p.join(runDir, 'builds', 'current', 'ios', 'Runner.app')).existsSync();
+  final pattern = switch (platform) {
+    'linux' => RegExp(r'\.AppImage$'),
+    'android' => RegExp(r'x64.*\.apk$'),
+    'macos' => RegExp(r'\.dmg$'),
+    _ => null,
+  };
+  final dir = Directory(p.join(runDir, 'releases', version.startsWith('v') ? version : 'v$version'));
+  return pattern != null && dir.existsSync() && dir.listSync().any((e) => pattern.hasMatch(p.basename(e.path)));
 }
 
 Json _blocked(List<Json> tests, String reason) => {
@@ -739,10 +785,15 @@ String _writeReport(String runDir, Json run, List<_Chain> chains, Map<String, in
     ],
   }));
 
-  String evidence(Object? e) {
+  String evidence(Object? e, Object? platform) {
     final path = e.toString();
     final abs = p.isAbsolute(path) ? path : p.join(_repo, path);
-    final rel = p.isWithin(runDir, abs) ? p.relative(abs, from: runDir) : (File(p.join(runDir, path)).existsSync() ? path : null);
+    final shot = p.join('screenshots', '$platform', path);
+    final rel = p.isWithin(runDir, abs)
+        ? p.relative(abs, from: runDir)
+        : File(p.join(runDir, path)).existsSync()
+            ? path
+            : (File(p.join(runDir, shot)).existsSync() ? shot : null);
     if (rel == null) return '<code>${_esc(path)}</code>';
     if (RegExp(r'\.(png|jpe?g)$', caseSensitive: false).hasMatch(rel)) {
       return '<a href="${_esc(rel)}"><img loading="lazy" src="${_esc(rel)}" alt="${_esc(rel)}"></a>';
@@ -811,7 +862,7 @@ pre { white-space: pre-wrap; margin: 0; font: inherit; }
         html.write('<td class="muted">-</td>');
       } else {
         html.write('<td><details><summary class="${_esc(r['status'])}">${_esc(r['status'])}</summary><pre>${_esc(r['summary'])}</pre>'
-            '${((r['evidence'] as List?) ?? const []).map(evidence).join(' ')}</details></td>');
+            '${((r['evidence'] as List?) ?? const []).map((e) => evidence(e, pl)).join(' ')}</details></td>');
       }
     }
     html.writeln('</tr>');
@@ -823,7 +874,7 @@ pre { white-space: pre-wrap; margin: 0; font: inherit; }
   for (final i in sorted) {
     html.writeln('''<div class="issue"><div><b class="${i['severity'] == 'critical' || i['severity'] == 'major' ? 'fail' : 'blocked'}">${_esc(i['severity'])}</b> ${_esc(i['title'])} <span class="muted">(${_esc(i['platform'])}, ${_esc(i['testId'] ?? i['step'])})</span></div>
 <details><summary>Details</summary><p><b>Steps</b></p><pre>${_esc(i['steps'])}</pre><p><b>Expected</b></p><pre>${_esc(i['expected'])}</pre><p><b>Actual</b></p><pre>${_esc(i['actual'])}</pre></details>
-<div>${((i['evidence'] as List?) ?? const []).map(evidence).join(' ')}</div></div>''');
+<div>${((i['evidence'] as List?) ?? const []).map((e) => evidence(e, i['platform'])).join(' ')}</div></div>''');
   }
 
   html.writeln('<h2>Notes</h2>');

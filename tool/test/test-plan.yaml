@@ -420,7 +420,10 @@ platform_features:
       pages, and staff lines and text are as sharp as without the crop
       (`zoom` both). The View options button (tune icon, top right; on
       desktop move the pointer first, it fades after 3 s) toggles both
-      switches in the open viewer and Settings shows the change.
+      switches in the open viewer and Settings shows the change. Turning
+      Crop page margins on there adds a "Crop this score" row (on by
+      default) and moves Done down: look again before the next tap, a tap at
+      Done's old position switches the row off and excludes the score.
   - id: window.close
     platforms: [ macos, linux ]
     excluded: mobile apps have no close button

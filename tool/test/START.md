@@ -41,6 +41,9 @@ If old→current is selected, ask afterwards which release it starts from:
 | Start release (old→current only) | `build.previous_release=<latest or tag>` |
 
 Before starting:
+- old→current: the start release must be newer than v0.7.0, older ones
+  ignore the fake GitHub (prepare.sh refuses them). Otherwise tell the user
+  and drop old→current.
 - old→current: compare `version:` in `pubspec.yaml` with the start release.
   If they are equal, the update has nothing to do. Tell the user and ask
   whether to continue.

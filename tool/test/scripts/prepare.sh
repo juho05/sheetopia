@@ -82,6 +82,10 @@ fi
 PREVIOUS_TAG=""
 if plan enabled phases.old_to_new_update.enabled; then
   PREVIOUS_TAG="$("$E2E_SCRIPTS/previous_release.sh" "$RUN")"
+  # v0.7.0 and older ignore the fake GitHub variables and query the real one.
+  if [ "$(printf '%s\n' "${PREVIOUS_TAG#v}" 0.7.0 | sort -V | tail -1)" = 0.7.0 ]; then
+    die "the previous release $PREVIOUS_TAG ignores the fake GitHub, old_to_new_update needs a release after v0.7.0"
+  fi
 fi
 
 warnings=()
