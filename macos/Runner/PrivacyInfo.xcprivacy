@@ -11,9 +11,10 @@
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
 		<!--
-			File timestamps: the bundled sqlite3 and PDFium frameworks (drift
-			database, pdfrx rendering) stat files, and NSFileCreationDate is
-			reachable from the app binary. All of it happens on files inside the
+			File timestamps: the bundled sqlite3, PDFium and pdfium_dart
+			frameworks (drift database, pdfrx rendering, pdfium_dart is a second
+			PDFium copy from the native asset build) stat files, and
+			NSFileCreationDate is reachable from the app binary. All of it happens on files inside the
 			app container, never on files belonging to other apps or the system.
 		-->
 		<dict>
