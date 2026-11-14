@@ -99,12 +99,18 @@ class MidiRepository with WidgetsBindingObserver {
           (_pageScanRefs > 0 ||
               _rememberedKeys.value.any((k) => k.type == "bluetooth")) &&
           _midi.bluetoothState == BluetoothState.unauthorized) {
+        Log.debug(
+          "Retrying Bluetooth start after resume, it was unauthorized before",
+        );
         unawaited(startBluetooth());
       }
       _wasInBackground = false;
     }
     if (foreground == _foreground) return;
     _foreground = foreground;
+    Log.debug(
+      "MIDID: app moved to ${foreground ? "foreground" : "background"}",
+    );
     if (foreground) {
       unawaited(_refreshDevices());
     } else {
@@ -121,6 +127,9 @@ class MidiRepository with WidgetsBindingObserver {
     _midi.onBluetoothStateChanged.listen(_onBluetoothStateChanged);
     await _refreshDevices();
     if (_rememberedKeys.value.any((k) => k.type == "bluetooth")) {
+      Log.debug(
+        "Starting Bluetooth on launch because a bluetooth device is remembered",
+      );
       await startBluetooth();
     }
   }
@@ -131,6 +140,7 @@ class MidiRepository with WidgetsBindingObserver {
       });
 
   Future<void> _startBluetoothCentral() async {
+    Log.debug("Starting Bluetooth central");
     try {
       await _midi.startBluetoothCentral();
     } catch (e, st) {
@@ -155,6 +165,9 @@ class MidiRepository with WidgetsBindingObserver {
       _midiMappings[device.key] = device.mappings;
     }
     _rememberedKeys.add(remembered.map((d) => d.key).toSet());
+    Log.debug(
+      "Loaded remembered MIDI devices: ${_rememberedKeys.value.join(", ")}",
+    );
   }
 
   Future<void> _persistRememberedDevices() async {
@@ -172,6 +185,7 @@ class MidiRepository with WidgetsBindingObserver {
 
   Future<void> _rememberAndPersist(MidiDeviceKey key) async {
     if (!_rememberedKeys.value.contains(key)) {
+      Log.debug("Remembering MIDI device $key");
       _rememberedKeys.add({..._rememberedKeys.value, key});
       _updateScanning();
     }
@@ -180,6 +194,7 @@ class MidiRepository with WidgetsBindingObserver {
 
   Future<void> forgetDevice(MidiDeviceKey key) async {
     if (!_rememberedKeys.value.contains(key)) return;
+    Log.debug("Forgetting MIDI device $key");
     _rememberedKeys.add({..._rememberedKeys.value}..remove(key));
     _midiMappings.remove(key);
     _updateScanning();
@@ -199,6 +214,7 @@ class MidiRepository with WidgetsBindingObserver {
       if (_registerNextPageKeys.containsKey(key)) {
         _midiMappings[key] = (_midiMappings[key] ?? MidiMappings())
             .withNextPage(mapping);
+        Log.debug("Mapped next page of $key to $mapping");
         await _rememberAndPersist(key);
         _registerNextPageKeys[key]?.complete();
         _registerNextPageKeys.remove(key);
@@ -207,6 +223,7 @@ class MidiRepository with WidgetsBindingObserver {
       if (_registerPrevPageKeys.containsKey(key)) {
         _midiMappings[key] = (_midiMappings[key] ?? MidiMappings())
             .withPrevPage(mapping);
+        Log.debug("Mapped previous page of $key to $mapping");
         await _rememberAndPersist(key);
         _registerPrevPageKeys[key]?.complete();
         _registerPrevPageKeys.remove(key);
@@ -322,12 +339,14 @@ class MidiRepository with WidgetsBindingObserver {
 
   void startScanning() {
     _pageScanRefs++;
+    Log.debug("MIDI page scan requested, refs: $_pageScanRefs");
     _updateScanning();
   }
 
   void stopScanning() {
     if (_pageScanRefs == 0) return;
     _pageScanRefs--;
+    Log.debug("MIDI page scan released, refs: $_pageScanRefs");
     _updateScanning();
   }
 
@@ -342,25 +361,55 @@ class MidiRepository with WidgetsBindingObserver {
         (_pageScanRefs > 0 || missing.any((k) => k.type == "bluetooth"));
 
     if (active && _pollTimer == null) {
+      Log.debug("Starting MIDI device poll: ${_scanReason(missing)}");
       _pollTimer = Timer.periodic(
         _devicePollInterval,
         (_) => _refreshDevices(),
       );
-    } else if (!active) {
-      _pollTimer?.cancel();
+    } else if (!active && _pollTimer != null) {
+      Log.debug("Stopping MIDI device poll: ${_idleReason(bluetooth: false)}");
+      _pollTimer!.cancel();
       _pollTimer = null;
     }
 
     if (bluetooth) {
-      _bleScanStopTimer?.cancel();
-      _bleScanStopTimer = null;
-      if (!_bleScanActive) unawaited(_startBleScan());
-    } else if (_bleScanActive) {
-      _bleScanStopTimer ??= Timer(_bleScanStopDelay, () {
+      final bleMissing = missing.where((k) => k.type == "bluetooth");
+      if (_bleScanStopTimer != null) {
+        Log.debug(
+          "Cancelled pending BLE scan stop: ${_scanReason(bleMissing)}",
+        );
+        _bleScanStopTimer!.cancel();
+        _bleScanStopTimer = null;
+      }
+      if (!_bleScanActive) {
+        Log.debug("Starting BLE scan: ${_scanReason(bleMissing)}");
+        unawaited(_startBleScan());
+      }
+    } else if (_bleScanActive && _bleScanStopTimer == null) {
+      Log.debug(
+        "Stopping BLE scan in ${_bleScanStopDelay.inSeconds}s, "
+        "${_idleReason(bluetooth: true)}",
+      );
+      _bleScanStopTimer = Timer(_bleScanStopDelay, () {
+        Log.debug("Stopped BLE scan");
         _bleScanStopped();
         _midi.stopScanningForBluetoothDevices();
       });
     }
+  }
+
+  String _scanReason(Iterable<MidiDeviceKey> missing) {
+    if (_pageScanRefs > 0) return "MIDI page open";
+    return "remembered devices missing: ${missing.join(", ")}";
+  }
+
+  String _idleReason({required bool bluetooth}) {
+    if (!_foreground) return "app in background";
+    if (bluetooth && _midi.bluetoothState != BluetoothState.poweredOn) {
+      return "Bluetooth ${_midi.bluetoothState.name}";
+    }
+    final kind = bluetooth ? "bluetooth device" : "device";
+    return "MIDI page closed and no reconnectable remembered $kind missing";
   }
 
   Set<MidiDeviceKey> _missingRememberedKeys() {
@@ -386,12 +435,12 @@ class MidiRepository with WidgetsBindingObserver {
     }
     if (!_bleScanActive || !Platform.isAndroid) return;
     _bleScanRestartTimer?.cancel();
-    _bleScanRestartTimer = Timer.periodic(
-      _bleScanRestartInterval,
-      (_) => _midi.startScanningForBluetoothDevices().catchError((e) {
+    _bleScanRestartTimer = Timer.periodic(_bleScanRestartInterval, (_) {
+      Log.debug("Restarting long running BLE scan");
+      _midi.startScanningForBluetoothDevices().catchError((e) {
         Log.error("Failed to restart BLE scan", e: e);
-      }),
-    );
+      });
+    });
   }
 
   void _bleScanStopped() {
@@ -408,8 +457,10 @@ class MidiRepository with WidgetsBindingObserver {
   }
 
   Future<void> _doConnect(MidiDevice device, MidiDeviceKey key) async {
+    Log.debug("Connecting to MIDI device $key");
     try {
       await _midi.connectToDevice(device).timeout(_connectTimeout);
+      Log.debug("Connected to MIDI device $key");
     } catch (_) {
       _midi.disconnectDevice(device);
       rethrow;
@@ -421,13 +472,27 @@ class MidiRepository with WidgetsBindingObserver {
   Future<void> _refreshDevices() async {
     final devices = await _midi.devices ?? [];
     if (_devices.isClosed) return;
-    if (!_sameDevices(_devices.value, devices)) _devices.add(devices);
+    if (!_sameDevices(_devices.value, devices)) {
+      Log.debug("MIDI devices changed: ${_describeDevices(devices)}");
+      _devices.add(devices);
+    }
     _onDevicesChanged();
   }
 
   void _onDevicesChanged() {
     _reconnectMatching();
     _updateScanning();
+  }
+
+  String _describeDevices(List<MidiDevice> devices) {
+    if (devices.isEmpty) return "none";
+    return devices
+        .map((d) {
+          final state = d.connected ? "connected" : "disconnected";
+          final battery = d.batteryLevel == null ? "" : ", ${d.batteryLevel}%";
+          return "${MidiDeviceKey.fromDevice(d)} [$state$battery]";
+        })
+        .join(", ");
   }
 
   bool _sameDevices(List<MidiDevice> a, List<MidiDevice> b) {
@@ -445,8 +510,10 @@ class MidiRepository with WidgetsBindingObserver {
   }
 
   Future<void> _onBluetoothStateChanged(BluetoothState state) async {
+    Log.debug("Bluetooth state changed to ${state.name}");
     _bluetoothState.add(state);
     if (state != BluetoothState.poweredOn) {
+      if (_bleScanActive) Log.debug("BLE scan ended: Bluetooth ${state.name}");
       _bleScanStopped();
     }
     if (state == BluetoothState.poweredOff) {
@@ -477,6 +544,7 @@ class MidiRepository with WidgetsBindingObserver {
       if (_connectsInFlight.containsKey(key)) continue;
       final until = _reconnectBackoffUntil[key];
       if (until != null && DateTime.now().isBefore(until)) continue;
+      Log.debug("Reconnecting to remembered MIDI device $key");
       unawaited(_autoConnect(device, key));
     }
   }
@@ -484,7 +552,12 @@ class MidiRepository with WidgetsBindingObserver {
   Future<void> _autoConnect(MidiDevice device, MidiDeviceKey key) async {
     try {
       await _connect(device);
-    } catch (_) {
+    } catch (e) {
+      Log.debug(
+        "Reconnect to $key failed, retrying in "
+        "${_reconnectBackoff.inSeconds}s at the earliest",
+        e: e,
+      );
       _reconnectBackoffUntil[key] = DateTime.now().add(_reconnectBackoff);
       return;
     }
@@ -494,6 +567,7 @@ class MidiRepository with WidgetsBindingObserver {
   }
 
   Future<void> _onDeviceDisconnected(MidiDevice device) async {
+    Log.debug("MIDI device ${MidiDeviceKey.fromDevice(device)} disconnected");
     _unregisterDevice(device);
     final devices = await _midi.devices ?? [];
     if (_devices.isClosed) return;
@@ -510,7 +584,8 @@ class MidiRepository with WidgetsBindingObserver {
     try {
       await _connect(device);
       await _rememberAndPersist(key);
-    } catch (_) {
+    } catch (e) {
+      Log.warn("Failed to connect to MIDI device $key", e: e);
       Toast.show("Could not connect to ${device.name}");
     } finally {
       await _refreshDevices();
@@ -519,6 +594,7 @@ class MidiRepository with WidgetsBindingObserver {
 
   Future<void> disconnectDevice(MidiDevice device) async {
     final key = MidiDeviceKey.fromDevice(device);
+    Log.debug("Disconnecting MIDI device $key on user request");
     _unregisterDevice(device);
     await forgetDevice(key);
     _midi.disconnectDevice(device);
