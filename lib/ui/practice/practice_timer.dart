@@ -99,6 +99,8 @@ class PracticeTimer extends ChangeNotifier {
 
   bool get running => _state == PracticeTimerState.running;
 
+  bool get _counting => running && _recovery == null;
+
   bool get paused => _state == PracticeTimerState.paused;
 
   bool get started => _state != PracticeTimerState.idle;
@@ -385,10 +387,10 @@ class PracticeTimer extends ChangeNotifier {
     switch (state) {
       case AppLifecycleState.detached:
         _detached = true;
-        if (running) unawaited(_checkpoint(publish: true));
+        if (_counting) unawaited(_checkpoint(publish: true));
       case AppLifecycleState.resumed:
         _detached = false;
-        if (running) unawaited(_onForeground());
+        if (_counting) unawaited(_onForeground());
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
@@ -399,7 +401,7 @@ class PracticeTimer extends ChangeNotifier {
   /// Only on the way into the background, coming back passes hidden too and
   /// a checkpoint then would count the gap without asking.
   void _onHide() {
-    if (!running) return;
+    if (!_counting) return;
     if (_mobile) _stopTicker();
     unawaited(_checkpoint(publish: true));
   }
