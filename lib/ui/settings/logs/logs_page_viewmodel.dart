@@ -28,6 +28,8 @@ class LogsPageViewModel extends ChangeNotifier {
   final LogRepository _repository;
 
   StreamSubscription? _newMessageSubscription;
+  bool _streamEnabled = false;
+  int _loadGeneration = 0;
 
   DateTime _sessionTime;
 
@@ -69,8 +71,8 @@ class LogsPageViewModel extends ChangeNotifier {
 
   Future<void> enableMessageStream(bool loadNewMessages) async {
     if (sessionTime != Log.sessionStartTime) return;
-    bool oldValue = _newMessageSubscription != null;
-    if (oldValue == loadNewMessages) return;
+    if (_streamEnabled == loadNewMessages) return;
+    _streamEnabled = loadNewMessages;
     if (loadNewMessages) {
       await _loadMessages();
     } else {
@@ -106,12 +108,16 @@ class LogsPageViewModel extends ChangeNotifier {
   }
 
   Future<void> _loadMessages() async {
+    final generation = ++_loadGeneration;
     _newMessageSubscription?.cancel();
     _newMessageSubscription = null;
+    _streamEnabled = sessionTime == Log.sessionStartTime;
 
-    _logMessages = (await _repository.getMessages(sessionTime));
+    final messages = await _repository.getMessages(sessionTime);
+    if (generation != _loadGeneration) return;
+    _logMessages = messages;
 
-    if (sessionTime == Log.sessionStartTime) {
+    if (_streamEnabled) {
       _newMessageSubscription = _repository.newMessageStream.listen(
         _onNewMessage,
       );
@@ -214,6 +220,8 @@ class LogsPageViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _loadGeneration++;
+    _searchDebounce?.cancel();
     _newMessageSubscription?.cancel();
     _newMessageSubscription = null;
     super.dispose();
