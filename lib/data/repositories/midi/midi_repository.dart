@@ -7,6 +7,7 @@
  */
 
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
@@ -25,10 +26,14 @@ typedef MidiActionListener = void Function(MidiAction action);
 class MidiRepository with WidgetsBindingObserver {
   static const _rememberedDevicesKey = "midi.remembered_devices";
   static const _connectTimeout = Duration(seconds: 20);
-  static const _reconnectScanTimeout = Duration(seconds: 20);
-  static const _reconnectStartupScanTimeout = Duration(minutes: 1);
   static const _reconnectBackoff = Duration(seconds: 5);
   static const _devicePollInterval = Duration(seconds: 20);
+
+  // Android downgrades scans running for 30 minutes to opportunistic mode.
+  static const _bleScanRestartInterval = Duration(minutes: 25);
+
+  // Android throttles apps that start more than 5 scans within 30 seconds.
+  static const _bleScanStopDelay = Duration(seconds: 10);
   static const _bluetoothOffToastDelay = Duration(seconds: 2);
 
   final MidiCommand _midi = MidiCommand();
@@ -61,44 +66,83 @@ class MidiRepository with WidgetsBindingObserver {
 
   final Map<MidiDeviceKey, Set<int>> _pressedContinuousControllers = {};
 
+  Future<void>? _bluetoothStarting;
+
+  int _pageScanRefs = 0;
+  bool _foreground = _isForeground(WidgetsBinding.instance.lifecycleState);
+  bool _wasInBackground = false;
+
+  bool _bleScanActive = false;
+  Timer? _bleScanRestartTimer;
+  Timer? _bleScanStopTimer;
+  Timer? _pollTimer;
+
+  final Map<MidiDeviceKey, Future<void>> _connectsInFlight = {};
+  final Map<MidiDeviceKey, DateTime> _reconnectBackoffUntil = {};
+
   MidiRepository({required this._keyValue}) {
-    // TODO init only when midi is enabled in settings
     WidgetsBinding.instance.addObserver(this);
     _init();
   }
 
+  static bool _isForeground(AppLifecycleState? state) =>
+      state == null ||
+      state == AppLifecycleState.resumed ||
+      state == AppLifecycleState.inactive;
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final foreground = _isForeground(state);
+    if (!foreground) _wasInBackground = true;
     if (state == AppLifecycleState.resumed) {
-      if (_scanRefCount > 0) {
-        unawaited(_startBleScan());
+      if (_wasInBackground &&
+          (_pageScanRefs > 0 ||
+              _rememberedKeys.value.any((k) => k.type == "bluetooth")) &&
+          _midi.bluetoothState == BluetoothState.unauthorized) {
+        unawaited(startBluetooth());
       }
-      _scanToReconnect(timeout: _reconnectStartupScanTimeout);
+      _wasInBackground = false;
+    }
+    if (foreground == _foreground) return;
+    _foreground = foreground;
+    if (foreground) {
+      unawaited(_refreshDevices());
+    } else {
+      _updateScanning();
     }
   }
 
   Future<void> _init() async {
     await _loadRememberedDevices();
-    _devices.add(await _midi.devices ?? []);
     _midi.onMidiDataReceived?.listen(_onData);
     _midi.onMidiDeviceDisconnected?.listen(_onDeviceDisconnected);
-    _midi.onMidiSetupChanged?.listen(_onSetupChanged);
-    _midi.onBatteryLevelChanged?.listen(_onBatteryLevelChanged);
+    _midi.onMidiSetupChanged?.listen((_) => _refreshDevices());
+    _midi.onBatteryLevelChanged?.listen((_) => _refreshDevices());
     _midi.onBluetoothStateChanged.listen(_onBluetoothStateChanged);
-    await _midi
-        .startBluetoothCentral()
-        .catchError((e, st) {
-          Log.error("Failed to start Bluetooth central", e: e, st: st);
-        })
-        .then((value) async {
-          await _midi.waitUntilBluetoothIsInitialized().timeout(
-            const Duration(seconds: 10),
-            onTimeout: () {
-              Log.warn("Timed out waiting for Bluetooth to initialize");
-            },
-          );
-        });
-    await _scanToReconnect(timeout: _reconnectStartupScanTimeout);
+    await _refreshDevices();
+    if (_rememberedKeys.value.any((k) => k.type == "bluetooth")) {
+      await startBluetooth();
+    }
+  }
+
+  Future<void> startBluetooth() =>
+      _bluetoothStarting ??= _startBluetoothCentral().whenComplete(() {
+        _bluetoothStarting = null;
+      });
+
+  Future<void> _startBluetoothCentral() async {
+    try {
+      await _midi.startBluetoothCentral();
+    } catch (e, st) {
+      Log.error("Failed to start Bluetooth central", e: e, st: st);
+      return;
+    }
+    await _midi.waitUntilBluetoothIsInitialized().timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        Log.warn("Timed out waiting for Bluetooth to initialize");
+      },
+    );
   }
 
   Future<void> _loadRememberedDevices() async {
@@ -129,6 +173,7 @@ class MidiRepository with WidgetsBindingObserver {
   Future<void> _rememberAndPersist(MidiDeviceKey key) async {
     if (!_rememberedKeys.value.contains(key)) {
       _rememberedKeys.add({..._rememberedKeys.value, key});
+      _updateScanning();
     }
     await _persistRememberedDevices();
   }
@@ -137,6 +182,7 @@ class MidiRepository with WidgetsBindingObserver {
     if (!_rememberedKeys.value.contains(key)) return;
     _rememberedKeys.add({..._rememberedKeys.value}..remove(key));
     _midiMappings.remove(key);
+    _updateScanning();
     await _persistRememberedDevices();
   }
 
@@ -274,46 +320,86 @@ class MidiRepository with WidgetsBindingObserver {
     _actionListeners.remove(listener);
   }
 
-  int _scanRefCount = 0;
-  bool _bleScanActive = false;
-  bool _pollScheduled = false;
-
-  final Map<MidiDeviceKey, Future<void>> _connectsInFlight = {};
-  final Map<MidiDeviceKey, DateTime> _reconnectBackoffUntil = {};
-
-  bool _reconnectScanActive = false;
-  Timer? _reconnectScanTimer;
-
-  Future<void> startScanning() async {
-    _scanRefCount++;
-    if (_scanRefCount > 1) return;
-    await _startBleScan();
-    _startPollLoop();
+  void startScanning() {
+    _pageScanRefs++;
+    _updateScanning();
   }
 
   void stopScanning() {
-    if (_scanRefCount == 0) return;
-    _scanRefCount--;
-    if (_scanRefCount > 0) return;
-    if (!_bleScanActive) return;
-    _bleScanActive = false;
-    _midi.stopScanningForBluetoothDevices();
+    if (_pageScanRefs == 0) return;
+    _pageScanRefs--;
+    _updateScanning();
   }
 
-  Future<void> _startBleScan() async {
-    if (_midi.bluetoothState != BluetoothState.poweredOn) {
-      Log.info(
-        "Skipping BLE scan: Bluetooth is not powered on (${_midi.bluetoothState.name})",
+  // Scans while the MIDI page is open or a remembered device could reconnect.
+  // Wired devices report hot plugs on their own, the poll is only a fallback.
+  void _updateScanning() {
+    final missing = _missingRememberedKeys().where(_canReconnect).toList();
+    final active = _foreground && (_pageScanRefs > 0 || missing.isNotEmpty);
+    final bluetooth =
+        active &&
+        _midi.bluetoothState == BluetoothState.poweredOn &&
+        (_pageScanRefs > 0 || missing.any((k) => k.type == "bluetooth"));
+
+    if (active && _pollTimer == null) {
+      _pollTimer = Timer.periodic(
+        _devicePollInterval,
+        (_) => _refreshDevices(),
       );
-      return;
+    } else if (!active) {
+      _pollTimer?.cancel();
+      _pollTimer = null;
     }
+
+    if (bluetooth) {
+      _bleScanStopTimer?.cancel();
+      _bleScanStopTimer = null;
+      if (!_bleScanActive) unawaited(_startBleScan());
+    } else if (_bleScanActive) {
+      _bleScanStopTimer ??= Timer(_bleScanStopDelay, () {
+        _bleScanStopped();
+        _midi.stopScanningForBluetoothDevices();
+      });
+    }
+  }
+
+  Set<MidiDeviceKey> _missingRememberedKeys() {
+    final connected = _devices.value
+        .where((d) => d.connected)
+        .map(MidiDeviceKey.fromDevice)
+        .toSet();
+    return _rememberedKeys.value.difference(connected);
+  }
+
+  bool _canReconnect(MidiDeviceKey key) =>
+      key.type != "bluetooth" ||
+      _midi.bluetoothState == BluetoothState.poweredOn;
+
+  Future<void> _startBleScan() async {
     _bleScanActive = true;
     try {
       await _midi.startScanningForBluetoothDevices();
     } catch (e) {
       _bleScanActive = false;
       Log.error("Failed to start BLE scan", e: e);
+      return;
     }
+    if (!_bleScanActive || !Platform.isAndroid) return;
+    _bleScanRestartTimer?.cancel();
+    _bleScanRestartTimer = Timer.periodic(
+      _bleScanRestartInterval,
+      (_) => _midi.startScanningForBluetoothDevices().catchError((e) {
+        Log.error("Failed to restart BLE scan", e: e);
+      }),
+    );
+  }
+
+  void _bleScanStopped() {
+    _bleScanActive = false;
+    _bleScanRestartTimer?.cancel();
+    _bleScanRestartTimer = null;
+    _bleScanStopTimer?.cancel();
+    _bleScanStopTimer = null;
   }
 
   Future<void> _connect(MidiDevice device) {
@@ -332,29 +418,16 @@ class MidiRepository with WidgetsBindingObserver {
     }
   }
 
-  // Event-driven refresh comes from onMidiSetupChanged; this slow poll is only a
-  // fallback for platforms/paths that miss a setup event.
-  void _startPollLoop() {
-    if (_pollScheduled) return;
-    _pollScheduled = true;
-    _pollDevices();
-  }
-
-  Future<void> _pollDevices() async {
-    if (_scanRefCount == 0) {
-      _pollScheduled = false;
-      return;
-    }
-    await _refreshDevices();
-    Future.delayed(_devicePollInterval, _pollDevices);
-  }
-
   Future<void> _refreshDevices() async {
     final devices = await _midi.devices ?? [];
-    if (!_sameDevices(_devices.value, devices)) {
-      _devices.add(devices);
-      _maybeAutoReconnect();
-    }
+    if (_devices.isClosed) return;
+    if (!_sameDevices(_devices.value, devices)) _devices.add(devices);
+    _onDevicesChanged();
+  }
+
+  void _onDevicesChanged() {
+    _reconnectMatching();
+    _updateScanning();
   }
 
   bool _sameDevices(List<MidiDevice> a, List<MidiDevice> b) {
@@ -371,39 +444,15 @@ class MidiRepository with WidgetsBindingObserver {
     return true;
   }
 
-  Future<void> _onSetupChanged(String event) async {
-    _devices.add(await _midi.devices ?? []);
-    _maybeAutoReconnect();
-  }
-
-  Future<void> _onBatteryLevelChanged(MidiDevice device) async {
-    _devices.add(await _midi.devices ?? []);
-  }
-
   Future<void> _onBluetoothStateChanged(BluetoothState state) async {
     _bluetoothState.add(state);
-    switch (state) {
-      case BluetoothState.poweredOn:
-        if (_scanRefCount > 0 && !_bleScanActive) {
-          await _startBleScan();
-        }
-        await _scanToReconnect();
-      case BluetoothState.poweredOff:
-        _bleScanActive = false;
-        _devices.add(await _midi.devices ?? []);
-        if (!_hasReconnectableDisconnected()) _stopReconnectScan();
-        unawaited(_toastIfBluetoothStaysOff());
-      case BluetoothState.unauthorized:
-        _bleScanActive = false;
-        _devices.add(await _midi.devices ?? []);
-        if (!_hasReconnectableDisconnected()) _stopReconnectScan();
-        Toast.show("Bluetooth permission denied");
-      case BluetoothState.resetting:
-        _bleScanActive = false;
-        if (!_hasReconnectableDisconnected()) _stopReconnectScan();
-      default:
-        break;
+    if (state != BluetoothState.poweredOn) {
+      _bleScanStopped();
     }
+    if (state == BluetoothState.poweredOff) {
+      unawaited(_toastIfBluetoothStaysOff());
+    }
+    await _refreshDevices();
   }
 
   // A toast shown while hidden stays frozen until the window is restored, since
@@ -419,62 +468,12 @@ class MidiRepository with WidgetsBindingObserver {
     Toast.show("Bluetooth is off");
   }
 
-  void _maybeAutoReconnect() {
-    if (_hasReconnectableDisconnected()) {
-      _reconnectMatching(_devices.value);
-    } else {
-      _stopReconnectScan();
-    }
-  }
-
-  bool _hasReconnectableDisconnected() {
-    final remembered = _rememberedKeys.value;
-    if (remembered.isEmpty) return false;
-    final connected = _devices.value
-        .where((d) => d.connected)
-        .map(MidiDeviceKey.fromDevice)
-        .toSet();
-    return remembered.any((k) => _canReconnect(k) && !connected.contains(k));
-  }
-
-  bool _canReconnect(MidiDeviceKey key) =>
-      key.type != "bluetooth" ||
-      _midi.bluetoothState == BluetoothState.poweredOn;
-
-  // Bounded scan that connects remembered devices as they appear, then stops
-  // once all are connected or the timeout elapses.
-  Future<void> _scanToReconnect({
-    Duration timeout = _reconnectScanTimeout,
-  }) async {
-    if (!_hasReconnectableDisconnected()) return;
-    if (_reconnectScanActive) {
-      _reconnectScanTimer?.cancel();
-      _reconnectScanTimer = Timer(timeout, _stopReconnectScan);
-      await _reconnectMatching(_devices.value);
-      return;
-    }
-    _reconnectScanActive = true;
-    await startScanning();
-    _reconnectScanTimer = Timer(timeout, _stopReconnectScan);
-    await _reconnectMatching(_devices.value);
-  }
-
-  void _stopReconnectScan() {
-    if (!_reconnectScanActive) return;
-    _reconnectScanActive = false;
-    _reconnectScanTimer?.cancel();
-    _reconnectScanTimer = null;
-    stopScanning();
-  }
-
-  Future<void> _reconnectMatching(List<MidiDevice> devices) async {
-    final remembered = _rememberedKeys.value;
-    if (remembered.isEmpty) return;
-    for (final device in devices) {
-      final key = MidiDeviceKey.fromDevice(device);
-      if (!remembered.contains(key)) continue;
-      if (!_canReconnect(key)) continue;
+  void _reconnectMatching() {
+    final missing = _missingRememberedKeys();
+    for (final device in _devices.value) {
       if (device.connected) continue;
+      final key = MidiDeviceKey.fromDevice(device);
+      if (!missing.contains(key) || !_canReconnect(key)) continue;
       if (_connectsInFlight.containsKey(key)) continue;
       final until = _reconnectBackoffUntil[key];
       if (until != null && DateTime.now().isBefore(until)) continue;
@@ -485,28 +484,25 @@ class MidiRepository with WidgetsBindingObserver {
   Future<void> _autoConnect(MidiDevice device, MidiDeviceKey key) async {
     try {
       await _connect(device);
-      _reconnectBackoffUntil.remove(key);
-      _devices.add(await _midi.devices ?? []);
-      Toast.show("Reconnected to ${device.name}");
     } catch (_) {
       _reconnectBackoffUntil[key] = DateTime.now().add(_reconnectBackoff);
-    } finally {
-      if (!_hasReconnectableDisconnected()) _stopReconnectScan();
+      return;
     }
+    _reconnectBackoffUntil.remove(key);
+    Toast.show("Reconnected to ${device.name}");
+    await _refreshDevices();
   }
 
   Future<void> _onDeviceDisconnected(MidiDevice device) async {
-    final key = MidiDeviceKey.fromDevice(device);
     _unregisterDevice(device);
     final devices = await _midi.devices ?? [];
+    if (_devices.isClosed) return;
     for (final d in devices) {
       if (device.id == d.id) d.connected = false;
     }
     _devices.add(devices);
     Toast.show("${device.name} disconnected");
-    if (_rememberedKeys.value.contains(key)) {
-      await _scanToReconnect();
-    }
+    _onDevicesChanged();
   }
 
   Future<void> connectDevice(MidiDevice device) async {
@@ -517,7 +513,7 @@ class MidiRepository with WidgetsBindingObserver {
     } catch (_) {
       Toast.show("Could not connect to ${device.name}");
     } finally {
-      _devices.add(await _midi.devices ?? []);
+      await _refreshDevices();
     }
   }
 
@@ -526,7 +522,7 @@ class MidiRepository with WidgetsBindingObserver {
     _unregisterDevice(device);
     await forgetDevice(key);
     _midi.disconnectDevice(device);
-    _devices.add(await _midi.devices ?? []);
+    await _refreshDevices();
   }
 
   // Only clears transient runtime state; mappings survive for reconnect.
@@ -539,6 +535,9 @@ class MidiRepository with WidgetsBindingObserver {
 
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _pollTimer?.cancel();
+    _bleScanRestartTimer?.cancel();
+    _bleScanStopTimer?.cancel();
     _devices.close();
     _rememberedKeys.close();
     _bluetoothState.close();

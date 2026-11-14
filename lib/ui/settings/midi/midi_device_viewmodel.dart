@@ -30,6 +30,8 @@ class MidiDeviceViewModel extends ChangeNotifier {
       ? _repo.getMidiMappings(_device!).prevPage?.toString()
       : null;
 
+  bool _disposed = false;
+
   StreamSubscription? _devicesSub;
   MidiDeviceViewModel({
     required String deviceId,
@@ -48,7 +50,7 @@ class MidiDeviceViewModel extends ChangeNotifier {
       await _repo.registerNextPage(_device!);
     } finally {
       _recordingNextPage = false;
-      notifyListeners();
+      if (!_disposed) notifyListeners();
     }
   }
 
@@ -70,7 +72,7 @@ class MidiDeviceViewModel extends ChangeNotifier {
       await _repo.registerPrevPage(_device!);
     } finally {
       _recordingPrevPage = false;
-      notifyListeners();
+      if (!_disposed) notifyListeners();
     }
   }
 
@@ -97,6 +99,11 @@ class MidiDeviceViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
+    if (_device != null) {
+      if (_recordingNextPage) _repo.cancelRegisterNextPage(_device!);
+      if (_recordingPrevPage) _repo.cancelRegisterPrevPage(_device!);
+    }
     _devicesSub?.cancel();
     super.dispose();
   }

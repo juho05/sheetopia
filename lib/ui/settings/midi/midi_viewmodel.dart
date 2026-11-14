@@ -62,6 +62,7 @@ class MidiViewModel extends ChangeNotifier {
       notifyListeners();
     });
     _repo.startScanning();
+    _repo.startBluetooth();
   }
 
   void forget(MidiDeviceKey key) => _repo.forgetDevice(key);
