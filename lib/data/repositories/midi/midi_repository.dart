@@ -142,6 +142,9 @@ class MidiRepository with WidgetsBindingObserver {
 
   Future<void> _onData(MidiPacket? packet) async {
     if (packet == null) return;
+    final data = packet.data;
+    // a note_on with velocyity 0 is equivalent to note_off and should be ignored
+    if (data.length >= 3 && data[0] & 0xF0 == 0x90 && data[2] == 0) return;
 
     final key = MidiDeviceKey.fromDevice(packet.device);
 
