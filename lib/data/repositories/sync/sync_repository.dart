@@ -271,6 +271,8 @@ class SyncRepository {
     _con = SyncConnection.fromJson(jsonDecode(conStr));
     _user = await _keyValue.loadString(_userKey);
 
+    await ensureLocalNetworkPermission();
+
     try {
       _checkApiVersion(
         (await _service.getServerInfo(_con!.baseUri)).apiVersion,

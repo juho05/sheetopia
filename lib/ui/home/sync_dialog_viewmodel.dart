@@ -15,6 +15,7 @@ import 'package:reactive_forms/reactive_forms.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/services/sync/exceptions.dart';
+import 'package:sheetopia/utils/local_network_permission.dart';
 
 class SyncDialogViewModel extends ChangeNotifier {
   final SyncRepository _repo;
@@ -70,6 +71,14 @@ class SyncDialogViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       final baseUri = Uri.parse(form.control("url").value.trim());
+
+      final allowed = await ensureLocalNetworkPermission();
+      if (!allowed) {
+        _errorText =
+            "Local network permission is required to reach a sync server "
+            "on your Wi‑Fi. Allow it in system settings and try again.";
+        return;
+      }
 
       final isValidUri = await _repo.isSheetopiaUri(baseUri);
       if (!isValidUri) {
