@@ -539,6 +539,7 @@ class AnnotateViewModel extends ChangeNotifier {
     double aspect, {
     bool isTouch = false,
     bool isStylus = false,
+    bool isEraser = false,
     Object? owner,
   }) {
     if (_activePageIndex != null) {
@@ -553,7 +554,10 @@ class AnnotateViewModel extends ChangeNotifier {
       _startLasso(pageIndex, p);
       return true;
     }
-    if (eraser) {
+    // isEraser: the inverted (eraser) end of a stylus erases regardless of
+    // the selected tool. Lasso keeps priority so an active selection drag
+    // is not surprised by a flipped pen.
+    if (eraser || isEraser) {
       _eraseSnapshot = List.of(_pages[pageIndex] ?? const <Stroke>[]);
       _erasePending = [];
       _lastErasePoint = p;

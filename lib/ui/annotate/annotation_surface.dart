@@ -127,6 +127,9 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
           _aspect,
           isTouch: event.kind == PointerDeviceKind.touch,
           isStylus: _isStylus(event),
+          // The inverted (eraser) end of a stylus erases no matter which
+          // tool is selected in the toolbar.
+          isEraser: event.kind == PointerDeviceKind.invertedStylus,
           owner: this,
         ) ??
         false;
