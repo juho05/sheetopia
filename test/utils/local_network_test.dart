@@ -6,8 +6,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sheetopia/ui/home/sync_dialog_viewmodel.dart';
+import 'package:sheetopia/utils/local_network.dart';
 
 void main() {
   group("isLocalNetworkHost", () {
@@ -40,12 +42,74 @@ void main() {
       expect(isLocalNetworkHost(""), isFalse);
     });
 
+    test("does not treat CGNAT as local", () {
+      expect(isLocalNetworkHost("100.64.0.1"), isFalse);
+      expect(isLocalNetworkHost("100.101.102.103"), isFalse);
+    });
+
+    test("treats CGNAT as local on Android", () {
+      expect(
+        isAndroidLocalNetworkAddress(InternetAddress("100.64.0.1")),
+        isTrue,
+      );
+      expect(
+        isAndroidLocalNetworkAddress(InternetAddress("100.127.255.254")),
+        isTrue,
+      );
+      expect(
+        isAndroidLocalNetworkAddress(InternetAddress("192.168.1.1")),
+        isTrue,
+      );
+      expect(
+        isAndroidLocalNetworkAddress(InternetAddress("100.63.255.255")),
+        isFalse,
+      );
+      expect(
+        isAndroidLocalNetworkAddress(InternetAddress("100.128.0.1")),
+        isFalse,
+      );
+      expect(isAndroidLocalNetworkAddress(InternetAddress("8.8.8.8")), isFalse);
+    });
+
     test("matches how Uri exposes hosts", () {
       expect(isLocalNetworkHost(Uri.parse("http://[::1]:8080").host), isTrue);
       expect(
         isLocalNetworkHost(Uri.parse("http://192.168.0.2:9000/x").host),
         isTrue,
       );
+    });
+  });
+
+  group("sharesIpv6Subnet", () {
+    final own = [
+      InternetAddress("2001:db8:1:2::10"),
+      InternetAddress("fe80::1"),
+      InternetAddress("192.168.1.5"),
+    ];
+
+    test("matches addresses in the same /64", () {
+      expect(
+        sharesIpv6Subnet(InternetAddress("2001:db8:1:2::99"), own),
+        isTrue,
+      );
+      expect(
+        sharesIpv6Subnet(InternetAddress("2001:db8:1:2:ffff::1"), own),
+        isTrue,
+      );
+    });
+
+    test("rejects other subnets and IPv4", () {
+      expect(
+        sharesIpv6Subnet(InternetAddress("2001:db8:1:3::1"), own),
+        isFalse,
+      );
+      expect(
+        sharesIpv6Subnet(InternetAddress("fe80::2"), [
+          InternetAddress("fe80::1"),
+        ]),
+        isFalse,
+      );
+      expect(sharesIpv6Subnet(InternetAddress("192.168.1.6"), own), isFalse);
     });
   });
 }

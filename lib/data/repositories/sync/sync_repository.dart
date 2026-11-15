@@ -35,6 +35,7 @@ import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/sync_connection.dart';
 import 'package:sheetopia/data/services/sync/sync_service.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
+import 'package:sheetopia/utils/local_network.dart';
 
 enum SyncState { none, offline, error, partial, syncing, success }
 
@@ -73,6 +74,7 @@ class SyncRepository {
       ValueNotifier(null);
 
   bool _startupSync = false;
+  bool _manualSync = false;
 
   static const String _lastSyncKey = "last_sync";
 
@@ -291,6 +293,7 @@ class SyncRepository {
     if (!signedIn) return;
     _nextSyncDelay = Duration.zero;
     if (state.value != SyncState.syncing) {
+      _manualSync = true;
       _scheduleSync();
     }
   }
@@ -327,10 +330,16 @@ class SyncRepository {
     if (state.value == SyncState.syncing) return;
     state.value = SyncState.syncing;
     _itemsFailed = false;
+    final requestLocalNetwork = _startupSync || _manualSync;
+    _manualSync = false;
 
     try {
       if (lastSync.value == null) {
         await _loadLastSync();
+      }
+
+      if (requestLocalNetwork) {
+        await requestLocalNetworkPermissionIfNeeded(_con!.baseUri);
       }
 
       final serverInfo = await _service.getServerInfo(_con!.baseUri);
@@ -415,7 +424,14 @@ class SyncRepository {
       }
     } on DioException catch (e, st) {
       if (signedIn) {
-        if (_isNetworkError(e)) {
+        if (isNetworkError(e) &&
+            await localNetworkPermissionMissing(_con!.baseUri)) {
+          Log.warn("Sync failed, local network access denied", e: e);
+          error.value =
+              "Local network access was denied. Allow it in the system "
+              "settings to sync with this server.";
+          state.value = SyncState.error;
+        } else if (isNetworkError(e)) {
           Log.warn("Sync failed", e: e);
           error.value =
               "Could not reach the sync server. Check your internet "
@@ -473,7 +489,7 @@ class SyncRepository {
     }
   }
 
-  static bool _isNetworkError(DioException e) => switch (e.type) {
+  static bool isNetworkError(DioException e) => switch (e.type) {
     DioExceptionType.connectionTimeout ||
     DioExceptionType.sendTimeout ||
     DioExceptionType.receiveTimeout ||

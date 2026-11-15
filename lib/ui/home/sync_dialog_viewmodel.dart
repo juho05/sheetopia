@@ -15,6 +15,7 @@ import 'package:reactive_forms/reactive_forms.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/sync/sync_repository.dart';
 import 'package:sheetopia/data/services/sync/exceptions.dart';
+import 'package:sheetopia/utils/local_network.dart';
 
 class SyncDialogViewModel extends ChangeNotifier {
   final SyncRepository _repo;
@@ -22,12 +23,15 @@ class SyncDialogViewModel extends ChangeNotifier {
   bool get signedIn => _repo.signedIn;
 
   bool _loading = false;
+
   bool get loading => _loading;
 
   String? _errorText;
+
   String? get errorText => _errorText;
 
   String get user => _repo.user;
+
   String get server => _repo.serverUri.toString();
 
   SyncState get state => _repo.state.value;
@@ -35,6 +39,7 @@ class SyncDialogViewModel extends ChangeNotifier {
   String? get syncError => _repo.error.value;
 
   String? _lastSync;
+
   String? get lastSync => _lastSync;
 
   final form = FormGroup({
@@ -68,8 +73,9 @@ class SyncDialogViewModel extends ChangeNotifier {
     _errorText = null;
     _loading = true;
     notifyListeners();
+    final baseUri = Uri.parse(form.control("url").value.trim());
     try {
-      final baseUri = Uri.parse(form.control("url").value.trim());
+      await requestLocalNetworkPermissionIfNeeded(baseUri);
 
       final isValidUri = await _repo.isSheetopiaUri(baseUri);
       if (!isValidUri) {
@@ -92,7 +98,12 @@ class SyncDialogViewModel extends ChangeNotifier {
           : "The sync server is outdated. Update the server to connect.";
     } on DioException catch (e, st) {
       Log.warn("Failed to connect to sync server", e: e, st: st);
-      _errorText = "Failed to connect to server!";
+      _errorText =
+          SyncRepository.isNetworkError(e) &&
+              await localNetworkPermissionMissing(baseUri)
+          ? "Local network access was denied. Allow it in the system "
+                "settings to connect to this server."
+          : "Failed to connect to server!";
     } catch (e, st) {
       Log.error(
         "Unexpected error while logging in to sync server",
@@ -153,32 +164,4 @@ class _BaseUriValidator extends Validator<dynamic> {
     }
     return null;
   }
-}
-
-// Mirrors what App Transport Security exempts via NSAllowsLocalNetworking:
-// localhost, .local and unqualified names, loopback, link-local and private ranges.
-bool isLocalNetworkHost(String host) {
-  final normalized = host.toLowerCase();
-  if (normalized.isEmpty) {
-    return false;
-  }
-  if (normalized == "localhost" || normalized.endsWith(".local")) {
-    return true;
-  }
-
-  final address = InternetAddress.tryParse(normalized);
-  if (address == null) {
-    return !normalized.contains(".");
-  }
-  if (address.isLoopback || address.isLinkLocal) {
-    return true;
-  }
-
-  final bytes = address.rawAddress;
-  if (address.type == InternetAddressType.IPv4) {
-    return bytes[0] == 10 ||
-        (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
-        (bytes[0] == 192 && bytes[1] == 168);
-  }
-  return (bytes[0] & 0xfe) == 0xfc;
 }
