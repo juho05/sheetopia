@@ -650,6 +650,11 @@ class SyncRepository {
     );
     for (final s in setlists) {
       await _db.transaction(() async {
+        if (await _db.managers.deletedSetlistsTable
+            .filter((f) => f.setlistId(s.id))
+            .exists()) {
+          return;
+        }
         final result = await _db.managers.setlistsTable.createReturningOrNull(
           (o) => o(
             id: s.id,
@@ -864,27 +869,34 @@ class SyncRepository {
       changedAfter: lastSync.value,
     );
     for (final c in categories) {
-      final result = await _db.managers.exerciseCategoriesTable
-          .createReturningOrNull(
-            (o) => o(
-              id: c.id,
-              name: c.name,
-              position: c.position,
-              updatedAt: Value(c.updatedAt.toUtc()),
-              uploaded: const Value(true),
-            ),
-            onConflict: DoUpdate.withExcluded(
-              (old, excluded) => ExerciseCategoriesTableCompanion.custom(
-                name: excluded.name,
-                position: excluded.position,
-                uploaded: excluded.uploaded,
-                updatedAt: excluded.updatedAt,
+      await _db.transaction(() async {
+        if (await _db.managers.deletedExerciseCategoriesTable
+            .filter((f) => f.categoryId(c.id))
+            .exists()) {
+          return;
+        }
+        final result = await _db.managers.exerciseCategoriesTable
+            .createReturningOrNull(
+              (o) => o(
+                id: c.id,
+                name: c.name,
+                position: c.position,
+                updatedAt: Value(c.updatedAt.toUtc()),
+                uploaded: const Value(true),
               ),
-              where: (old, excluded) =>
-                  old.updatedAt.isSmallerThan(excluded.updatedAt),
-            ),
-          );
-      if (result != null) _changedCategories.add(c.id);
+              onConflict: DoUpdate.withExcluded(
+                (old, excluded) => ExerciseCategoriesTableCompanion.custom(
+                  name: excluded.name,
+                  position: excluded.position,
+                  uploaded: excluded.uploaded,
+                  updatedAt: excluded.updatedAt,
+                ),
+                where: (old, excluded) =>
+                    old.updatedAt.isSmallerThan(excluded.updatedAt),
+              ),
+            );
+        if (result != null) _changedCategories.add(c.id);
+      });
     }
   }
 
@@ -1015,6 +1027,11 @@ class SyncRepository {
     );
     for (final e in exercises) {
       await _db.transaction(() async {
+        if (await _db.managers.deletedExercisesTable
+            .filter((f) => f.exerciseId(e.id))
+            .exists()) {
+          return;
+        }
         final categoryId = await _knownCategoryId(e.id, e.categoryId);
         final tagIds = await _knownTagIds("exercise ${e.id}", e.tagIds);
         final complete =
@@ -1217,6 +1234,11 @@ class SyncRepository {
     );
     for (final r in routines) {
       await _db.transaction(() async {
+        if (await _db.managers.deletedPracticeRoutinesTable
+            .filter((f) => f.routineId(r.id))
+            .exists()) {
+          return;
+        }
         final entries = await _knownExerciseEntries(r.id, r.entries);
         final complete = entries.length == r.entries.length;
         final result = await _db.managers.practiceRoutinesTable
@@ -1400,36 +1422,43 @@ class SyncRepository {
       changedAfter: lastSync.value,
     );
     for (final r in records) {
-      final duration = r.metadata.duration;
-      final startedAt = r.metadata.startedAt;
-      // runningSince stays out, a record running here is never stopped remotely
-      final result = await _db.managers.practiceRecordsTable
-          .createReturningOrNull(
-            (o) => o(
-              id: r.id,
-              exercise: r.exerciseId,
-              routine: Value(r.routineId),
-              routineEntry: Value(r.routineEntryId),
-              startedAt: (startedAt ?? r.updatedAt).toUtc(),
-              duration: Value(Duration(milliseconds: duration ?? 0)),
-              updatedAt: Value(r.updatedAt.toUtc()),
-              uploaded: const Value(true),
-            ),
-            onConflict: DoUpdate.withExcluded(
-              (old, excluded) => PracticeRecordsTableCompanion.custom(
-                exercise: excluded.exercise,
-                routine: excluded.routine,
-                routineEntry: excluded.routineEntry,
-                startedAt: startedAt != null ? excluded.startedAt : null,
-                duration: duration != null ? excluded.duration : null,
-                uploaded: excluded.uploaded,
-                updatedAt: excluded.updatedAt,
+      await _db.transaction(() async {
+        if (await _db.managers.deletedPracticeRecordsTable
+            .filter((f) => f.recordId(r.id))
+            .exists()) {
+          return;
+        }
+        final duration = r.metadata.duration;
+        final startedAt = r.metadata.startedAt;
+        // runningSince stays out, a record running here is never stopped remotely
+        final result = await _db.managers.practiceRecordsTable
+            .createReturningOrNull(
+              (o) => o(
+                id: r.id,
+                exercise: r.exerciseId,
+                routine: Value(r.routineId),
+                routineEntry: Value(r.routineEntryId),
+                startedAt: (startedAt ?? r.updatedAt).toUtc(),
+                duration: Value(Duration(milliseconds: duration ?? 0)),
+                updatedAt: Value(r.updatedAt.toUtc()),
+                uploaded: const Value(true),
               ),
-              where: (old, excluded) =>
-                  old.updatedAt.isSmallerThan(excluded.updatedAt),
-            ),
-          );
-      if (result != null) _changedRecords.add(r.id);
+              onConflict: DoUpdate.withExcluded(
+                (old, excluded) => PracticeRecordsTableCompanion.custom(
+                  exercise: excluded.exercise,
+                  routine: excluded.routine,
+                  routineEntry: excluded.routineEntry,
+                  startedAt: startedAt != null ? excluded.startedAt : null,
+                  duration: duration != null ? excluded.duration : null,
+                  uploaded: excluded.uploaded,
+                  updatedAt: excluded.updatedAt,
+                ),
+                where: (old, excluded) =>
+                    old.updatedAt.isSmallerThan(excluded.updatedAt),
+              ),
+            );
+        if (result != null) _changedRecords.add(r.id);
+      });
     }
   }
 
@@ -1541,35 +1570,42 @@ class SyncRepository {
   Future<void> _downloadTagChanges() async {
     final tags = await _service.getTags(_con!, changedAfter: lastSync.value);
     for (final t in tags) {
-      final result = await _db.managers.tagsTable.createReturningOrNull(
-        (o) => o(
-          id: t.id,
-          name: t.name,
-          color: t.color,
-          type: t.type != null ? Value(t.type!) : const Value.absent(),
-          updatedAt: Value(t.updatedAt.toUtc()),
-          uploaded: const Value(true),
-        ),
-        onConflict: DoUpdate.withExcluded(
-          (old, excluded) => TagsTableCompanion.custom(
-            name: excluded.name,
-            color: excluded.color,
-            uploaded: excluded.uploaded,
-            updatedAt: excluded.updatedAt,
-            type: t.type != null ? excluded.type : null,
+      await _db.transaction(() async {
+        if (await _db.managers.deletedTagsTable
+            .filter((f) => f.tagId(t.id))
+            .exists()) {
+          return;
+        }
+        final result = await _db.managers.tagsTable.createReturningOrNull(
+          (o) => o(
+            id: t.id,
+            name: t.name,
+            color: t.color,
+            type: t.type != null ? Value(t.type!) : const Value.absent(),
+            updatedAt: Value(t.updatedAt.toUtc()),
+            uploaded: const Value(true),
           ),
-          where: (old, excluded) =>
-              old.updatedAt.isSmallerThan(excluded.updatedAt),
-        ),
-      );
-      if (result != null) {
-        _changedTags.add(t.id);
-        final affectedScores = await _db.managers.scoreTagsTable
-            .filter((f) => f.tag.id(t.id))
-            .map((s) => s.score)
-            .get();
-        _changedScores.addAll(affectedScores);
-      }
+          onConflict: DoUpdate.withExcluded(
+            (old, excluded) => TagsTableCompanion.custom(
+              name: excluded.name,
+              color: excluded.color,
+              uploaded: excluded.uploaded,
+              updatedAt: excluded.updatedAt,
+              type: t.type != null ? excluded.type : null,
+            ),
+            where: (old, excluded) =>
+                old.updatedAt.isSmallerThan(excluded.updatedAt),
+          ),
+        );
+        if (result != null) {
+          _changedTags.add(t.id);
+          final affectedScores = await _db.managers.scoreTagsTable
+              .filter((f) => f.tag.id(t.id))
+              .map((s) => s.score)
+              .get();
+          _changedScores.addAll(affectedScores);
+        }
+      });
     }
   }
 
@@ -1773,6 +1809,12 @@ class SyncRepository {
         final score = await _db.managers.scoresTable
             .filter((f) => f.id(s.id))
             .getSingleOrNull();
+        if (score == null &&
+            await _db.managers.deletedScoresTable
+                .filter((f) => f.scoreId(s.id))
+                .exists()) {
+          return;
+        }
 
         final metadataChanged =
             score != null &&
@@ -1968,22 +2010,37 @@ class SyncRepository {
         .filter((f) => f.fileDownloaded.isFalse())
         .get();
     for (final s in scores) {
+      final file = await _scoresRepo.scoreFile(s.id, s.fileType);
+      final part = File("${file.path}.part");
       try {
         await _scoresRepo.createScoreDir(s.id);
-        final file = await _scoresRepo.scoreFile(s.id, s.fileType);
-        final partFile = File("${file.path}.part");
         await _service.downloadScoreFile(
           _con!,
           s.id,
           fileType: s.fileType,
-          target: partFile,
+          target: part,
         );
 
-        await partFile.rename(file.path);
-
-        await _db.managers.scoresTable
-            .filter((f) => f.id(s.id))
-            .update((o) => o(fileDownloaded: const Value(true)));
+        final applied = await _db.transaction(() async {
+          final current = await _db.managers.scoresTable
+              .filter((f) => f.id(s.id))
+              .getSingleOrNull();
+          if (current == null ||
+              current.fileDownloaded ||
+              current.fileType != s.fileType ||
+              !current.fileUpdatedAt.isAtSameMomentAs(s.fileUpdatedAt)) {
+            return false;
+          }
+          await ScoresRepository.replaceFile(part, file);
+          await _db.managers.scoresTable
+              .filter((f) => f.id(s.id))
+              .update((o) => o(fileDownloaded: const Value(true)));
+          return true;
+        });
+        if (!applied) {
+          Log.warn("Dropping stale download of score file ${s.id}");
+          continue;
+        }
 
         await _thumbnailService.invalidateThumbnails([s.id]);
         _changedScores.add(s.id);
@@ -1992,6 +2049,13 @@ class SyncRepository {
       } on StatusCodeException catch (e) {
         _itemsFailed = true;
         Log.warn("Failed to download file of score ${s.id}", e: e);
+      } on FileSystemException catch (e) {
+        _itemsFailed = true;
+        Log.warn("Failed to store file of score ${s.id}", e: e);
+      } finally {
+        try {
+          if (await part.exists()) await part.delete();
+        } catch (_) {}
       }
     }
   }

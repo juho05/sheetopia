@@ -69,9 +69,10 @@ class EditScoreViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> changeFile() async {
+  Future<void> changeFile({Future<void> Function()? beforeReplace}) async {
     final file = await selectScoreFile();
     if (file == null) return;
+    await beforeReplace?.call();
     await _repo.updateScoreFile(score!.id, file);
   }
 

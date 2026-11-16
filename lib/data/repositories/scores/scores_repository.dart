@@ -33,8 +33,8 @@ import 'package:sheetopia/data/services/database/tags_table.dart';
 import 'package:sheetopia/data/services/pdf_validation_service.dart';
 import 'package:sheetopia/data/services/score_processing/page_margins.dart';
 import 'package:sheetopia/data/services/thumbnail_service.dart';
-import 'package:sheetopia/utils/id_path.dart';
 import 'package:sheetopia/utils/compare_names.dart';
+import 'package:sheetopia/utils/id_path.dart';
 
 sealed class ScoreFileException implements Exception {
   const ScoreFileException();
@@ -1139,6 +1139,10 @@ class ScoresRepository {
       await _db.managers.tagsTable.filter((f) => f.id(tagId)).delete();
       await _db.managers.deletedTagsTable.create(
         (o) => o(tagId: tagId, deletedAt: Value(DateTime.now().toUtc())),
+        onConflict: DoUpdate.withExcluded(
+          (old, excluded) =>
+              DeletedTagsTableCompanion.custom(deletedAt: excluded.deletedAt),
+        ),
       );
       _updatedScoreIds.add((
         changed: affectedScores.toSet(),
@@ -1459,6 +1463,17 @@ class ScoresRepository {
     return scores;
   }
 
+  static Future<void> replaceFile(File source, File target) async {
+    try {
+      await source.rename(target.path);
+    } on FileSystemException {
+      await source.copy(target.path);
+      try {
+        await source.delete();
+      } catch (_) {}
+    }
+  }
+
   Future<void> updateScoreFile(String scoreId, XFile file) async {
     final score = (await getScore(scoreId))!;
 
@@ -1467,42 +1482,48 @@ class ScoresRepository {
       throw InvalidFileTypeException(filePath: file.path);
     }
 
-    final tempDir = await getTemporaryDirectory();
-    final tempFile = File(
-      path.join(tempDir.path, "sheetopia_import_${_db.newId()}"),
-    );
+    final target = await scoreFile(scoreId, fileType);
+    final newFile = File("${target.path}.new");
     try {
-      await file.saveTo(tempFile.path);
-      await _validateFile(tempFile, fileType, name: file.name);
       await createScoreDir(scoreId);
-      await tempFile.copy((await scoreFile(scoreId, fileType)).path);
-    } finally {
+      await file.saveTo(newFile.path);
+      await _validateFile(newFile, fileType, name: file.name);
+    } catch (_) {
       try {
-        await tempFile.delete();
+        await newFile.delete();
       } catch (_) {}
+      rethrow;
     }
 
-    if (fileTypeExtension(fileType) != fileTypeExtension(score.fileType)) {
+    try {
+      await _db.transaction(() async {
+        await _db.managers.scoresTable
+            .filter((f) => f.id(scoreId))
+            .update(
+              (o) => o(
+                fileUpdatedAt: Value(DateTime.now().toUtc()),
+                fileType: Value(fileType),
+                fileUploaded: const Value(false),
+                fileDownloaded: const Value(true),
+              ),
+            );
+        await _db.clearProcessingResult(scoreId);
+        await updateScoreStatus([scoreId]);
+        await replaceFile(newFile, target);
+      });
+    } catch (_) {
       try {
-        (await scoreFile(score.id, score.fileType)).delete();
+        await newFile.delete();
       } catch (_) {}
+      rethrow;
     }
 
     await _thumbnailService.invalidateThumbnails([scoreId]);
-
-    await _db.transaction(() async {
-      await _db.managers.scoresTable
-          .filter((f) => f.id(scoreId))
-          .update(
-            (o) => o(
-              fileUpdatedAt: Value(DateTime.now().toUtc()),
-              fileType: Value(fileType),
-              fileUploaded: const Value(false),
-            ),
-          );
-      await _db.clearProcessingResult(scoreId);
-      await updateScoreStatus([scoreId]);
-    });
+    if (fileTypeExtension(fileType) != fileTypeExtension(score.fileType)) {
+      try {
+        await (await scoreFile(score.id, score.fileType)).delete();
+      } catch (_) {}
+    }
     _updatedScoreIds.add((changed: {scoreId}, remoteTriggered: false));
     _processingRequests.add({scoreId});
   }
@@ -1671,6 +1692,10 @@ class ScoresRepository {
         (o) => scoreIds.map(
           (scoreId) =>
               o(scoreId: scoreId, deletedAt: Value(DateTime.now().toUtc())),
+        ),
+        onConflict: DoUpdate.withExcluded(
+          (old, excluded) =>
+              DeletedScoresTableCompanion.custom(deletedAt: excluded.deletedAt),
         ),
       );
     });

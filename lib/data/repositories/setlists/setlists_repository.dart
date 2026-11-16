@@ -188,6 +188,11 @@ class SetlistsRepository {
         (o) => ids.map(
           (id) => o(setlistId: id, deletedAt: Value(DateTime.now().toUtc())),
         ),
+        onConflict: DoUpdate.withExcluded(
+          (old, excluded) => DeletedSetlistsTableCompanion.custom(
+            deletedAt: excluded.deletedAt,
+          ),
+        ),
       );
     });
     _updatedSetlistIds.add((changed: ids, needsUpload: true));

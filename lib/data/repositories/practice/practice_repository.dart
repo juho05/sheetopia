@@ -378,6 +378,11 @@ class PracticeRepository {
       await _db.managers.deletedExerciseCategoriesTable.create(
         (o) =>
             o(categoryId: categoryId, deletedAt: Value(DateTime.now().toUtc())),
+        onConflict: DoUpdate.withExcluded(
+          (old, excluded) => DeletedExerciseCategoriesTableCompanion.custom(
+            deletedAt: excluded.deletedAt,
+          ),
+        ),
       );
       movedIds.addAll(
         await _writeCategoryPositions(await _orderedCategories()),
@@ -954,6 +959,11 @@ class PracticeRepository {
             deletedAt: Value(DateTime.now().toUtc()),
           ),
         ),
+        onConflict: DoUpdate.withExcluded(
+          (old, excluded) => DeletedExercisesTableCompanion.custom(
+            deletedAt: excluded.deletedAt,
+          ),
+        ),
       );
     });
     await _scoresRepo.deleteScores(scoreIdsToDelete.nonNulls.toSet());
@@ -1427,6 +1437,11 @@ class PracticeRepository {
           (routineId) =>
               o(routineId: routineId, deletedAt: Value(DateTime.now().toUtc())),
         ),
+        onConflict: DoUpdate.withExcluded(
+          (old, excluded) => DeletedPracticeRoutinesTableCompanion.custom(
+            deletedAt: excluded.deletedAt,
+          ),
+        ),
       );
     });
     _updatedRoutineIds.add((changed: routineIds, needsUpload: true));
@@ -1694,7 +1709,11 @@ class PracticeRepository {
         (o) => recordIds.map(
           (id) => o(recordId: id, deletedAt: Value(DateTime.now().toUtc())),
         ),
-        mode: InsertMode.insertOrReplace,
+        onConflict: DoUpdate.withExcluded(
+          (old, excluded) => DeletedPracticeRecordsTableCompanion.custom(
+            deletedAt: excluded.deletedAt,
+          ),
+        ),
       );
     });
     _updatedRecordIds.add((changed: recordIds, needsUpload: true));

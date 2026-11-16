@@ -34,22 +34,26 @@ class EditScorePreview extends StatefulWidget {
 
 class _EditScorePreviewState extends State<EditScorePreview> {
   PdfDocumentRefFile? pdfRef;
+  int _pdfRefGeneration = 0;
+  bool _documentReleased = false;
 
   late final ScoresRepository _scoresRepo;
   final Map<int, List<Stroke>> _annotations = {};
   StreamSubscription? _annotationsSub;
 
+  PdfDocumentRefFile _createPdfRef() => PdfDocumentRefFile(
+    widget.score.file!.path,
+    autoDispose: true,
+    key: PdfDocumentRefKey(
+      "${widget.score.file!.path}-${widget.score.fileUpdatedAt}-$_pdfRefGeneration",
+    ),
+  );
+
   @override
   void initState() {
     super.initState();
     if (widget.score.file != null && widget.score.fileType == FileType.pdf) {
-      pdfRef = PdfDocumentRefFile(
-        widget.score.file!.path,
-        autoDispose: true,
-        key: PdfDocumentRefKey(
-          "${widget.score.file!.path}-${widget.score.fileUpdatedAt}",
-        ),
-      );
+      pdfRef = _createPdfRef();
     }
     _scoresRepo = context.read<ScoresRepository>();
     _loadAnnotations();
@@ -58,12 +62,43 @@ class _EditScorePreviewState extends State<EditScorePreview> {
         .listen((_) => _loadAnnotations());
   }
 
+  // Windows can't replace a file that PDFium holds open.
+  Future<void> _releaseDocument() async {
+    final ref = pdfRef;
+    if (ref == null ||
+        _documentReleased ||
+        widget.score.file == null ||
+        widget.score.fileType != FileType.pdf) {
+      return;
+    }
+    final listenable = ref.resolveListenable();
+    await listenable.load();
+    final document = listenable.document;
+    if (!mounted) return;
+    setState(() => _documentReleased = true);
+    await WidgetsBinding.instance.endOfFrame;
+    await document?.dispose();
+  }
+
+  void _reopenDocument() {
+    if (!mounted || !_documentReleased) return;
+    setState(() {
+      _documentReleased = false;
+      _pdfRefGeneration++;
+      pdfRef = _createPdfRef();
+    });
+  }
+
   Future<void> _changeFile(EditScoreViewModel viewModel) async {
     try {
-      await viewModel.changeFile();
+      await viewModel.changeFile(
+        beforeReplace: Platform.isWindows ? _releaseDocument : null,
+      );
     } on ScoreFileException catch (e, st) {
+      _reopenDocument();
       Toast.exception(e, st: st, errorMsg: e.userMessage);
     } catch (e, st) {
+      _reopenDocument();
       Toast.exception(e, st: st, errorMsg: "Failed to change score file!");
     }
   }
@@ -90,17 +125,14 @@ class _EditScorePreviewState extends State<EditScorePreview> {
   @override
   void didUpdateWidget(covariant EditScorePreview oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.score.fileUpdatedAt != widget.score.fileUpdatedAt) {
+      _documentReleased = false;
+    }
     if (widget.score.file != null &&
         widget.score.fileType == FileType.pdf &&
         (oldWidget.score.fileUpdatedAt != widget.score.fileUpdatedAt ||
             oldWidget.score.file == null && widget.score.file != null)) {
-      pdfRef = PdfDocumentRefFile(
-        widget.score.file!.path,
-        autoDispose: true,
-        key: PdfDocumentRefKey(
-          "${widget.score.file!.path}-${widget.score.fileUpdatedAt}",
-        ),
-      );
+      pdfRef = _createPdfRef();
     }
     if (oldWidget.score.id != widget.score.id) {
       _annotationsSub?.cancel();
@@ -119,7 +151,7 @@ class _EditScorePreviewState extends State<EditScorePreview> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.score.file == null) {
+    if (widget.score.file == null || _documentReleased) {
       return const Center(child: CircularProgressIndicator.adaptive());
     }
     return Stack(
