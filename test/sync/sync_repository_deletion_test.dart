@@ -95,6 +95,11 @@ class _FakeSyncService extends SyncService {
 
   bool userEndpointMissing = false;
 
+  Completer<void>? scoresGate;
+  int scoresRequests = 0;
+  int _runningScoresRequests = 0;
+  int maxParallelScoresRequests = 0;
+
   @override
   Future<ServerInfoModel> getServerInfo(Uri baseUri) async => ServerInfoModel(
     server: "sheetopia-sync",
@@ -138,7 +143,19 @@ class _FakeSyncService extends SyncService {
   Future<List<ScoreModel>> getScores(
     SyncConnection con, {
     DateTime? changedAfter,
-  }) async => scores;
+  }) async {
+    scoresRequests++;
+    _runningScoresRequests++;
+    if (_runningScoresRequests > maxParallelScoresRequests) {
+      maxParallelScoresRequests = _runningScoresRequests;
+    }
+    try {
+      await scoresGate?.future;
+      return scores;
+    } finally {
+      _runningScoresRequests--;
+    }
+  }
 
   @override
   Future<List<TagModel>> getTags(
@@ -1007,4 +1024,79 @@ void main() {
     expect(errors, [null]);
     expect(repo.state.value, SyncState.success);
   });
+
+  Future<void> waitForScoresRequests(int count) async {
+    while (service.scoresRequests < count) {
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+    }
+  }
+
+  test(
+    "a pause and resume during a sync queues a follow-up sync instead of a parallel one",
+    () async {
+      service.scoresGate = Completer();
+      await repo.login(
+        baseUri: Uri.parse("https://example.invalid"),
+        user: "alice",
+        password: "secret",
+      );
+      await waitForScoresRequests(1);
+
+      for (final state in [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        TestWidgetsFlutterBinding.instance.handleAppLifecycleStateChanged(
+          state,
+        );
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(repo.state.value, SyncState.syncing);
+
+      service.scoresGate!.complete();
+      await waitForScoresRequests(2);
+      while (repo.state.value != SyncState.success) {
+        await Future<void>.delayed(const Duration(milliseconds: 1));
+      }
+
+      expect(service.maxParallelScoresRequests, 1);
+      expect(service.scoresRequests, 2);
+    },
+  );
+
+  test(
+    "a sync started before a logout does not continue after a re-login",
+    () async {
+      service.scoresGate = Completer();
+      await repo.login(
+        baseUri: Uri.parse("https://example.invalid"),
+        user: "alice",
+        password: "secret",
+      );
+      await waitForScoresRequests(1);
+
+      final loggedOut = repo.logout();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await repo.login(
+        baseUri: Uri.parse("https://example.invalid"),
+        user: "alice",
+        password: "secret",
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      service.scoresGate!.complete();
+      await loggedOut;
+      await waitForScoresRequests(2);
+      while (repo.state.value != SyncState.success) {
+        await Future<void>.delayed(const Duration(milliseconds: 1));
+      }
+
+      expect(service.maxParallelScoresRequests, 1);
+      expect(repo.error.value, isNull);
+    },
+  );
 }

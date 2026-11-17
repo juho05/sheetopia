@@ -166,11 +166,10 @@ class SyncRepository {
     _syncingEnabled = false;
     _syncTimer?.cancel();
     _syncTimer = null;
-    if (state.value != SyncState.syncing &&
-        _nextSyncDelay < _defaultSyncDelay) {
+    if (_runningSync == null && _nextSyncDelay < _defaultSyncDelay) {
       _sync();
     } else {
-      state.value = SyncState.none;
+      if (_runningSync == null) state.value = SyncState.none;
       _nextSyncDelay = _defaultSyncDelay;
     }
   }
@@ -179,6 +178,7 @@ class SyncRepository {
     if (_syncingEnabled) return;
     _syncingEnabled = true;
     if (signedIn) _startupSync = true;
+    if (_runningSync != null) _nextSyncDelay = Duration.zero;
     _sync();
   }
 
@@ -223,10 +223,13 @@ class SyncRepository {
     await _db.managers.deletedPracticeRoutinesTable.delete();
     await _db.managers.deletedPracticeRecordsTable.delete();
 
+    if (_runningSync != null) _nextSyncDelay = Duration.zero;
     _sync();
   }
 
-  Future<void> logout() async {
+  Future<void> logout() => _logout(waitForSync: true);
+
+  Future<void> _logout({required bool waitForSync}) async {
     _syncTimer?.cancel();
     _syncTimer = null;
     _nextSyncDelay = _defaultSyncDelay;
@@ -238,6 +241,9 @@ class SyncRepository {
     await _updateLastSync(null);
     await _keyValue.remove(_userKey);
     await _encryptedStorage.delete(_conKey);
+
+    final running = _runningSync;
+    if (waitForSync && running != null) await running;
 
     await _db.managers.scoresTable.update(
       (o) => o(
@@ -292,7 +298,7 @@ class SyncRepository {
   Future<void> syncNow() async {
     if (!signedIn) return;
     _nextSyncDelay = Duration.zero;
-    if (state.value != SyncState.syncing) {
+    if (_runningSync == null) {
       _manualSync = true;
       _scheduleSync();
     }
@@ -301,7 +307,7 @@ class SyncRepository {
   void requestSync() {
     if (!signedIn) return;
     _nextSyncDelay = const Duration(seconds: 5);
-    if (state.value != SyncState.syncing) {
+    if (_runningSync == null) {
       _scheduleSync();
     }
   }
@@ -325,9 +331,26 @@ class SyncRepository {
     });
   }
 
-  Future<void> _sync() async {
-    if (!signedIn || _disposed) return;
-    if (state.value == SyncState.syncing) return;
+  Future<void>? _runningSync;
+  SyncConnection? _runningSyncCon;
+
+  bool get _syncCurrent => _con != null && identical(_con, _runningSyncCon);
+
+  SyncConnection get _syncCon {
+    if (!_syncCurrent) throw const _SyncCancelledException();
+    return _con!;
+  }
+
+  Future<void> _sync() {
+    if (!signedIn || _disposed) return Future.value();
+    return _runningSync ??= _runSync().whenComplete(() {
+      _runningSync = null;
+      _runningSyncCon = null;
+    });
+  }
+
+  Future<void> _runSync() async {
+    _runningSyncCon = _con;
     state.value = SyncState.syncing;
     _itemsFailed = false;
     final requestLocalNetwork = _startupSync || _manualSync;
@@ -339,10 +362,10 @@ class SyncRepository {
       }
 
       if (requestLocalNetwork) {
-        await requestLocalNetworkPermissionIfNeeded(_con!.baseUri);
+        await requestLocalNetworkPermissionIfNeeded(_syncCon.baseUri);
       }
 
-      final serverInfo = await _service.getServerInfo(_con!.baseUri);
+      final serverInfo = await _service.getServerInfo(_syncCon.baseUri);
       final syncTime = serverInfo.time;
       _checkApiVersion(serverInfo.apiVersion);
       final apiVersion = Version.parse(serverInfo.apiVersion);
@@ -406,6 +429,7 @@ class SyncRepository {
         await _downloadPracticeRecordChanges();
       }
 
+      if (!_syncCurrent) throw const _SyncCancelledException();
       await _updateLastSync(syncTime);
 
       error.value = null;
@@ -413,17 +437,19 @@ class SyncRepository {
       if (!_itemsFailed) {
         await _scoresRepo.deleteAbandonedScores();
       }
+    } on _SyncCancelledException catch (_) {
+      Log.info("Sync cancelled by logout");
     } on UnauthenticatedException catch (_) {
-      await logout();
+      if (_syncCurrent) await _logout(waitForSync: false);
     } on ApiVersionMismatchException catch (e) {
-      if (signedIn) {
+      if (_syncCurrent) {
         Log.warn("Sync failed", e: e);
         error.value = e.message;
         state.value = SyncState.error;
         if (_startupSync) startupVersionMismatch.value = e;
       }
     } on DioException catch (e, st) {
-      if (signedIn) {
+      if (_syncCurrent) {
         if (isNetworkError(e) &&
             await localNetworkPermissionMissing(_con!.baseUri)) {
           Log.warn("Sync failed, local network access denied", e: e);
@@ -444,7 +470,7 @@ class SyncRepository {
         }
       }
     } catch (e, st) {
-      if (signedIn) {
+      if (_syncCurrent) {
         Log.error("Sync failed", e: e, st: st);
         error.value = switch (e) {
           StatusCodeException() || InvalidResponseBody() => _serverErrorMessage,
@@ -506,7 +532,7 @@ class SyncRepository {
 
     for (final tagId in deletedTagIds) {
       try {
-        await _service.deleteTag(_con!, tagId);
+        await _service.deleteTag(_syncCon, tagId);
       } on NotFoundException catch (_) {
         // tag is already deleted on server or was never synced
       }
@@ -525,7 +551,7 @@ class SyncRepository {
 
     for (final scoreId in deletedScoreIds) {
       try {
-        await _service.deleteScore(_con!, scoreId);
+        await _service.deleteScore(_syncCon, scoreId);
       } on NotFoundException catch (_) {
         // score is already deleted on server or was never synced
       }
@@ -543,7 +569,7 @@ class SyncRepository {
 
     for (final setlistId in deletedSetlistIds) {
       try {
-        await _service.deleteSetlist(_con!, setlistId);
+        await _service.deleteSetlist(_syncCon, setlistId);
       } on NotFoundException catch (_) {
         // already deleted on the server or never synced
       }
@@ -556,7 +582,7 @@ class SyncRepository {
 
   Future<void> _downloadDeletedSetlists(bool honourDeletedAt) async {
     final deletedSetlists = await _service.getDeletedSetlists(
-      _con!,
+      _syncCon,
       since: lastSync.value,
     );
     for (final d in deletedSetlists) {
@@ -602,7 +628,7 @@ class SyncRepository {
               .get();
       try {
         await _service.updateSetlist(
-          _con!,
+          _syncCon,
           s.id,
           name: s.name,
           scoreIds: entries.map((e) => e.score).toList(),
@@ -645,7 +671,7 @@ class SyncRepository {
 
   Future<void> _downloadSetlistChanges() async {
     final setlists = await _service.getSetlists(
-      _con!,
+      _syncCon,
       changedAfter: lastSync.value,
     );
     for (final s in setlists) {
@@ -694,7 +720,7 @@ class SyncRepository {
 
     for (final id in ids) {
       try {
-        await _service.deleteExerciseCategory(_con!, id);
+        await _service.deleteExerciseCategory(_syncCon, id);
       } on NotFoundException catch (_) {
         // already deleted on the server or never synced
       }
@@ -713,7 +739,7 @@ class SyncRepository {
 
     for (final id in ids) {
       try {
-        await _service.deleteExercise(_con!, id);
+        await _service.deleteExercise(_syncCon, id);
       } on NotFoundException catch (_) {
         // already deleted on the server or never synced
       }
@@ -732,7 +758,7 @@ class SyncRepository {
 
     for (final id in ids) {
       try {
-        await _service.deletePracticeRoutine(_con!, id);
+        await _service.deletePracticeRoutine(_syncCon, id);
       } on NotFoundException catch (_) {
         // already deleted on the server or never synced
       }
@@ -751,7 +777,7 @@ class SyncRepository {
 
     for (final id in ids) {
       try {
-        await _service.deletePracticeRecord(_con!, id);
+        await _service.deletePracticeRecord(_syncCon, id);
       } on NotFoundException catch (_) {
         // already deleted on the server or never synced
       }
@@ -764,7 +790,7 @@ class SyncRepository {
 
   Future<void> _downloadDeletedExerciseCategories(bool honourDeletedAt) async {
     final deleted = await _service.getDeletedExerciseCategories(
-      _con!,
+      _syncCon,
       since: lastSync.value,
     );
     for (final d in deleted) {
@@ -822,7 +848,7 @@ class SyncRepository {
     for (final c in changed) {
       try {
         await _service.updateExerciseCategory(
-          _con!,
+          _syncCon,
           c.id,
           name: c.name,
           position: c.position,
@@ -865,7 +891,7 @@ class SyncRepository {
 
   Future<void> _downloadExerciseCategoryChanges() async {
     final categories = await _service.getExerciseCategories(
-      _con!,
+      _syncCon,
       changedAfter: lastSync.value,
     );
     for (final c in categories) {
@@ -902,7 +928,7 @@ class SyncRepository {
 
   Future<void> _downloadDeletedExercises(bool honourDeletedAt) async {
     final deleted = await _service.getDeletedExercises(
-      _con!,
+      _syncCon,
       since: lastSync.value,
     );
     for (final d in deleted) {
@@ -968,7 +994,7 @@ class SyncRepository {
               .get();
       try {
         await _service.updateExercise(
-          _con!,
+          _syncCon,
           e.id,
           name: e.name,
           categoryId: e.category,
@@ -1022,7 +1048,7 @@ class SyncRepository {
 
   Future<void> _downloadExerciseChanges() async {
     final exercises = await _service.getExercises(
-      _con!,
+      _syncCon,
       changedAfter: lastSync.value,
     );
     for (final e in exercises) {
@@ -1123,7 +1149,7 @@ class SyncRepository {
 
   Future<void> _downloadDeletedPracticeRoutines(bool honourDeletedAt) async {
     final deleted = await _service.getDeletedPracticeRoutines(
-      _con!,
+      _syncCon,
       since: lastSync.value,
     );
     for (final d in deleted) {
@@ -1171,7 +1197,7 @@ class SyncRepository {
               .get();
       try {
         await _service.updatePracticeRoutine(
-          _con!,
+          _syncCon,
           r.id,
           name: r.name,
           metadata: PracticeRoutineMetadataModel(
@@ -1229,7 +1255,7 @@ class SyncRepository {
 
   Future<void> _downloadPracticeRoutineChanges() async {
     final routines = await _service.getPracticeRoutines(
-      _con!,
+      _syncCon,
       changedAfter: lastSync.value,
     );
     for (final r in routines) {
@@ -1320,7 +1346,7 @@ class SyncRepository {
 
   Future<void> _downloadDeletedPracticeRecords(bool honourDeletedAt) async {
     final deleted = await _service.getDeletedPracticeRecords(
-      _con!,
+      _syncCon,
       since: lastSync.value,
     );
     for (final d in deleted) {
@@ -1370,7 +1396,7 @@ class SyncRepository {
     for (final r in changed) {
       try {
         await _service.updatePracticeRecord(
-          _con!,
+          _syncCon,
           r.id,
           exerciseId: r.exercise,
           routineId: r.routine,
@@ -1418,7 +1444,7 @@ class SyncRepository {
 
   Future<void> _downloadPracticeRecordChanges() async {
     final records = await _service.getPracticeRecords(
-      _con!,
+      _syncCon,
       changedAfter: lastSync.value,
     );
     for (final r in records) {
@@ -1464,7 +1490,7 @@ class SyncRepository {
 
   Future<void> _downloadDeletedTags(bool honourDeletedAt) async {
     final deletedTags = await _service.getDeletedTags(
-      _con!,
+      _syncCon,
       since: lastSync.value,
     );
     for (final d in deletedTags) {
@@ -1525,7 +1551,7 @@ class SyncRepository {
     for (final t in changedTags) {
       try {
         await _service.updateTag(
-          _con!,
+          _syncCon,
           t.id,
           name: t.name,
           color: t.color,
@@ -1568,7 +1594,7 @@ class SyncRepository {
   }
 
   Future<void> _downloadTagChanges() async {
-    final tags = await _service.getTags(_con!, changedAfter: lastSync.value);
+    final tags = await _service.getTags(_syncCon, changedAfter: lastSync.value);
     for (final t in tags) {
       await _db.transaction(() async {
         if (await _db.managers.deletedTagsTable
@@ -1611,7 +1637,7 @@ class SyncRepository {
 
   Future<void> _downloadDeletedScores(bool honourDeletedAt) async {
     final deletedScores = await _service.getDeletedScores(
-      _con!,
+      _syncCon,
       since: lastSync.value,
     );
     final actuallyDeleted = <String>{};
@@ -1682,7 +1708,7 @@ class SyncRepository {
     for (final (s, refs) in changedScores) {
       try {
         final result = await _service.updateScore(
-          _con!,
+          _syncCon,
           s.id,
           title: s.title,
           metadataUpdatedAt: s.metadataUpdatedAt.toUtc(),
@@ -1767,7 +1793,7 @@ class SyncRepository {
       final file = await _scoresRepo.scoreFile(s.id, s.fileType);
       try {
         await _service.uploadScoreFile(
-          _con!,
+          _syncCon,
           s.id,
           file: file,
           updatedAt: s.fileUpdatedAt.toUtc(),
@@ -1799,7 +1825,7 @@ class SyncRepository {
 
   Future<void> _downloadMetadataChanges() async {
     final scores = await _service.getScores(
-      _con!,
+      _syncCon,
       changedAfter: lastSync.value,
     );
 
@@ -2015,7 +2041,7 @@ class SyncRepository {
       try {
         await _scoresRepo.createScoreDir(s.id);
         await _service.downloadScoreFile(
-          _con!,
+          _syncCon,
           s.id,
           fileType: s.fileType,
           target: part,
@@ -2087,4 +2113,8 @@ class SyncRepository {
     if (writtenAt == null) return false;
     return writtenAt.toUtc().isAfter(deletedAt.toUtc());
   }
+}
+
+class _SyncCancelledException implements Exception {
+  const _SyncCancelledException();
 }
