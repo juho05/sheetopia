@@ -16,10 +16,10 @@ import 'package:drift/drift.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
-import 'package:io/io.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:sheetopia/data/repositories/importexport/archive_reader.dart';
 import 'package:sheetopia/data/repositories/logger/log.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
@@ -43,6 +43,17 @@ import 'package:sheetopia/utils/file_export.dart';
 import 'package:sheetopia/utils/id_path.dart';
 
 enum ImportExportStatus { idle, importing, exporting }
+
+typedef _ArchiveData = ({
+  List<TagModel> tags,
+  List<ScoreModel> scores,
+  List<SetlistModel> setlists,
+  List<ExerciseCategoryModel> categories,
+  List<ExerciseModel> exercises,
+  List<PracticeRoutineModel> routines,
+  List<PracticeRecordModel> records,
+  Set<String> fileNames,
+});
 
 class InvalidFileException implements Exception {
   final String message;
@@ -108,41 +119,39 @@ class ImportExportRepository extends ChangeNotifier {
         acceptedTypeGroups: <XTypeGroup>[zipTypeGroup],
       );
       if (zipFile == null) return false;
-      final extension = path.extension(zipFile.path);
-      if (extension != ".zip") {
-        throw InvalidFileException("invalid file extension: $extension");
-      }
 
-      onSelected?.call();
-
-      final tempDir = await getTemporaryDirectory();
-      final dir = await tempDir.createTemp("sheetopia-import-");
       try {
-        final result = await compute(_decodeZIPFile, {
-          "inputPath": zipFile.path,
-          "outputPath": dir.path,
-        });
+        final extension = path.extension(zipFile.path);
+        if (extension != ".zip") {
+          throw InvalidFileException("invalid file extension: $extension");
+        }
 
-        final tags = result["tags"] as List<TagModel>;
-        final scores = result["scores"] as List<ScoreModel>;
-        final setlists = result["setlists"] as List<SetlistModel>;
-        final categories = result["categories"] as List<ExerciseCategoryModel>;
-        final exercises = result["exercises"] as List<ExerciseModel>;
-        final routines = result["routines"] as List<PracticeRoutineModel>;
-        final records = result["records"] as List<PracticeRecordModel>;
-        final scoresDir = result["scoresDir"] as String;
+        onSelected?.call();
 
-        final importedAt = DateTime.now().toUtc();
+        final reader = await ArchiveReader.open(zipFile.path);
+        try {
+          final _ArchiveData data;
+          try {
+            data = await reader.run(_readArchive);
+          } on FormatException catch (e) {
+            throw InvalidFileException(e.toString());
+          }
+          final importedAt = DateTime.now().toUtc();
 
-        await _importTags(tags, importedAt);
-        await _importScores(scores, scoresDir, importedAt);
-        await _importSetlists(setlists, importedAt);
-        await _importExerciseCategories(categories, importedAt);
-        await _importExercises(exercises, importedAt);
-        await _importPracticeRoutines(routines, importedAt);
-        await _importPracticeRecords(records, importedAt);
+          await _importTags(data.tags, importedAt);
+          await _importScores(data.scores, reader, data.fileNames, importedAt);
+          await _importSetlists(data.setlists, importedAt);
+          await _importExerciseCategories(data.categories, importedAt);
+          await _importExercises(data.exercises, importedAt);
+          await _importPracticeRoutines(data.routines, importedAt);
+          await _importPracticeRecords(data.records, importedAt);
+        } finally {
+          await reader.close();
+        }
       } finally {
-        await dir.delete(recursive: true);
+        if (Platform.isAndroid) {
+          await _deletePickerCopy(zipFile, await getTemporaryDirectory());
+        }
       }
     } finally {
       _scoresRepo.remoteChangedTags(_changedTags);
@@ -177,15 +186,10 @@ class ImportExportRepository extends ChangeNotifier {
 
     try {
       final tempDir = await getTemporaryDirectory();
-      final dir = await tempDir.createTemp("sheetopia-export-");
-      final scoresTargetDir = Directory(path.join(dir.path, "scores"));
-      await scoresTargetDir.create();
+      final tempExportDir = await tempDir.createTemp("sheetopia-export-");
+      final scoreFiles = <String, String>{};
 
       try {
-        final scoresDir = await _scoresRepo.scoresDir;
-
-        await copyPath(scoresDir.path, scoresTargetDir.path);
-
         {
           final tags = await _scoresRepo.getTags();
           final tagModels = tags
@@ -200,7 +204,7 @@ class ImportExportRepository extends ChangeNotifier {
               )
               .toList();
           await compute(_saveJson, {
-            "dir": dir.path,
+            "dir": tempExportDir.path,
             "fileName": "tags.json",
             "models": tagModels,
           });
@@ -215,44 +219,52 @@ class ImportExportRepository extends ChangeNotifier {
               size: 500,
               offset: offset,
             );
-            scoreModels.addAll(
-              scores
-                  .where((s) => s.file != null)
-                  .map(
-                    (s) => ScoreModel(
-                      id: s.id,
-                      title: s.title,
-                      fileType: s.fileType,
-                      fileUpdatedAt: s.fileUpdatedAt,
-                      metadata: ScoreMetadataModel(
-                        composer: s.composer,
-                        arranger: s.arranger ?? "",
-                        partOf: s.partOf ?? "",
-                        musicalKey: s.musicalKey?.name ?? "",
-                        source: s.source,
-                        sourceLink: s.sourceLink,
-                        genres: s.genres,
-                        instruments: s.instruments,
-                        notes: s.notes,
-                        difficulty: s.difficulty?.level ?? 0,
-                        annotations: s.annotations == null
-                            ? {}
-                            : jsonDecode(s.annotations!)
-                                  as Map<String, dynamic>,
-                        cropExcluded: s.cropExcluded,
-                      ),
-                      metadataUpdatedAt: s.metadataUpdatedAt,
-                      tagIds: s.tags.map((t) => t.id).toList(),
-                      type: s.type,
-                    ),
+            for (final s in scores) {
+              if (s.file == null) continue;
+              if (!await s.file!.exists()) {
+                Log.warn("Skipping score ${s.id} without file in export");
+                continue;
+              }
+              scoreFiles[path.posix.join(
+                    "scores",
+                    s.id,
+                    path.basename(s.file!.path),
+                  )] =
+                  s.file!.path;
+              scoreModels.add(
+                ScoreModel(
+                  id: s.id,
+                  title: s.title,
+                  fileType: s.fileType,
+                  fileUpdatedAt: s.fileUpdatedAt,
+                  metadata: ScoreMetadataModel(
+                    composer: s.composer ?? "",
+                    arranger: s.arranger ?? "",
+                    partOf: s.partOf ?? "",
+                    musicalKey: s.musicalKey?.name ?? "",
+                    source: s.source ?? "",
+                    sourceLink: s.sourceLink ?? "",
+                    genres: s.genres,
+                    instruments: s.instruments,
+                    notes: s.notes ?? "",
+                    difficulty: s.difficulty?.level ?? 0,
+                    annotations: s.annotations == null
+                        ? {}
+                        : jsonDecode(s.annotations!) as Map<String, dynamic>,
+                    cropExcluded: s.cropExcluded,
                   ),
-            );
+                  metadataUpdatedAt: s.metadataUpdatedAt,
+                  tagIds: s.tags.map((t) => t.id).toList(),
+                  type: s.type,
+                ),
+              );
+            }
             if (scores.length < 500) break;
             offset += scores.length;
           }
 
           await compute(_saveJson, {
-            "dir": dir.path,
+            "dir": tempExportDir.path,
             "fileName": "scores.json",
             "models": scoreModels,
           });
@@ -273,7 +285,7 @@ class ImportExportRepository extends ChangeNotifier {
             );
           }
           await compute(_saveJson, {
-            "dir": dir.path,
+            "dir": tempExportDir.path,
             "fileName": "setlists.json",
             "models": setlistModels,
           });
@@ -282,7 +294,7 @@ class ImportExportRepository extends ChangeNotifier {
         {
           final categories = await _db.managers.exerciseCategoriesTable.get();
           await compute(_saveJson, {
-            "dir": dir.path,
+            "dir": tempExportDir.path,
             "fileName": "exercise_categories.json",
             "models": [
               for (final c in categories)
@@ -313,7 +325,7 @@ class ImportExportRepository extends ChangeNotifier {
           }
 
           await compute(_saveJson, {
-            "dir": dir.path,
+            "dir": tempExportDir.path,
             "fileName": "exercises.json",
             "models": [
               for (final e in exercises)
@@ -362,7 +374,7 @@ class ImportExportRepository extends ChangeNotifier {
           }
 
           await compute(_saveJson, {
-            "dir": dir.path,
+            "dir": tempExportDir.path,
             "fileName": "practice_routines.json",
             "models": [
               for (final r in routines)
@@ -383,7 +395,7 @@ class ImportExportRepository extends ChangeNotifier {
         {
           final records = await _db.managers.practiceRecordsTable.get();
           await compute(_saveJson, {
-            "dir": dir.path,
+            "dir": tempExportDir.path,
             "fileName": "practice_records.json",
             "models": [
               for (final r in records)
@@ -402,25 +414,62 @@ class ImportExportRepository extends ChangeNotifier {
           });
         }
 
-        // create marker file
-        await File(path.join(dir.path, ".sheetopia")).create();
+        final fileName =
+            "sheetopia-export-${DateFormat("yyyy-MM-dd_HH-mm-ss").format(DateTime.now())}.zip";
+
+        if (!Platform.isAndroid && !Platform.isIOS) {
+          final result = await getSaveLocation(
+            suggestedName: fileName,
+            acceptedTypeGroups: [zipTypeGroup],
+            canCreateDirectories: true,
+          );
+          if (result == null) return false;
+
+          Directory? stagingDir;
+          File staging;
+          try {
+            staging = await File("${result.path}.part").create();
+          } on FileSystemException {
+            // sandboxed save dialogs may only grant access to the chosen file
+            stagingDir = await tempDir.createTemp();
+            staging = File(path.join(stagingDir.path, fileName));
+          }
+          try {
+            await compute(_createZipFile, {
+              "dir": tempExportDir.path,
+              "files": scoreFiles,
+              "path": staging.path,
+            });
+            if (stagingDir == null) {
+              await staging.rename(result.path);
+            } else {
+              await staging.copy(result.path);
+            }
+          } catch (_) {
+            if (stagingDir == null) {
+              try {
+                await staging.delete();
+              } catch (_) {}
+            }
+            rethrow;
+          } finally {
+            await stagingDir?.delete(recursive: true);
+          }
+          return true;
+        }
 
         final zipFileDir = await tempDir.createTemp();
 
         try {
-          final datetime = DateTime.now();
-
-          final fileName =
-              "sheetopia-export-${DateFormat("yyyy-MM-dd_HH-mm-ss").format(datetime)}.zip";
-
           final zipFile = File(path.join(zipFileDir.path, fileName));
 
-          await compute(_createZipFileFromDir, {
-            "dir": dir.path,
+          await compute(_createZipFile, {
+            "dir": tempExportDir.path,
+            "files": scoreFiles,
             "path": zipFile.path,
           });
 
-          await dir.delete(recursive: true);
+          await tempExportDir.delete(recursive: true);
 
           if (Platform.isAndroid) {
             return await exportFileMobile(
@@ -430,44 +479,29 @@ class ImportExportRepository extends ChangeNotifier {
             );
           }
 
-          if (Platform.isIOS) {
-            final result = await SharePlus.instance.share(
-              ShareParams(
-                title: "Export scores",
-                fileNameOverrides: [fileName],
-                files: [
-                  XFile(
-                    zipFile.path,
-                    name: fileName,
-                    mimeType: "application/zip",
-                  ),
-                ],
-                sharePositionOrigin: sharePositionOrigin,
-              ),
-            );
-            return result.status != ShareResultStatus.dismissed;
-          }
-
-          final result = await getSaveLocation(
-            suggestedName: path.basename(zipFile.path),
-            acceptedTypeGroups: [zipTypeGroup],
-            canCreateDirectories: true,
+          final result = await SharePlus.instance.share(
+            ShareParams(
+              title: "Export scores",
+              fileNameOverrides: [fileName],
+              files: [
+                XFile(
+                  zipFile.path,
+                  name: fileName,
+                  mimeType: "application/zip",
+                ),
+              ],
+              sharePositionOrigin: sharePositionOrigin,
+            ),
           );
-
-          if (result == null) {
-            return false;
-          }
-
-          await zipFile.copy(result.path);
+          return result.status != ShareResultStatus.dismissed;
         } finally {
           await zipFileDir.delete(recursive: true);
         }
       } finally {
-        if (dir.existsSync()) {
-          await dir.delete(recursive: true);
+        if (tempExportDir.existsSync()) {
+          await tempExportDir.delete(recursive: true);
         }
       }
-      return true;
     } finally {
       _status = ImportExportStatus.idle;
       notifyListeners();
@@ -869,7 +903,8 @@ class ImportExportRepository extends ChangeNotifier {
 
   Future<void> _importScores(
     List<ScoreModel> scores,
-    String scoresDir,
+    ArchiveReader reader,
+    Set<String> fileNames,
     DateTime importedAt,
   ) async {
     await _dropPendingTombstones(
@@ -889,23 +924,25 @@ class ImportExportRepository extends ChangeNotifier {
         final metadataChanged =
             score != null &&
             score.metadataUpdatedAt.isBefore(s.metadataUpdatedAt);
-        final fileChanged =
+        var fileChanged =
             score != null && score.fileUpdatedAt.isBefore(s.fileUpdatedAt);
 
-        if (score == null || fileChanged) {
-          final scoreFile = File(
-            path.join(
-              idPath(scoresDir, s.id),
-              "score${fileTypeExtension(s.fileType)}",
-            ),
-          );
-          if (!await scoreFile.exists()) {
-            throw InvalidFileException("missing score file for ${s.id}");
-          }
+        final entryName =
+            "scores/${idSegment(s.id)}/score${fileTypeExtension(s.fileType)}";
+        if ((score == null || fileChanged) && !fileNames.contains(entryName)) {
+          Log.warn("Missing file for score ${s.id} in import");
+          if (score == null) return;
+          fileChanged = false;
+        }
 
+        if (score == null || fileChanged) {
           await _scoresRepo.createScoreDir(s.id);
           final targetScoreFile = await _scoresRepo.scoreFile(s.id, s.fileType);
-          await scoreFile.copy(targetScoreFile.path);
+          try {
+            await reader.extract(entryName, targetScoreFile.path);
+          } on FormatException catch (e) {
+            throw InvalidFileException(e.toString());
+          }
           await _thumbnailService.invalidateThumbnails({s.id});
 
           if (score != null &&
@@ -1073,6 +1110,25 @@ class ImportExportRepository extends ChangeNotifier {
     }
   }
 
+  /// file_selector on Android copies the picked file to {cacheDir}/{uuid}/.
+  Future<void> _deletePickerCopy(XFile file, Directory tempDir) async {
+    final copyDir = path.dirname(file.path);
+    if (!path.equals(path.dirname(copyDir), tempDir.path) ||
+        !_uuid.hasMatch(path.basename(copyDir))) {
+      return;
+    }
+    try {
+      await File(file.path).delete();
+      await Directory(copyDir).delete();
+    } catch (e) {
+      Log.warn("Failed to delete picked import file: $e");
+    }
+  }
+
+  static final _uuid = RegExp(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+  );
+
   static Future<void> _saveJson(Map params) async {
     final json = jsonEncode(params["models"]);
     await File(
@@ -1080,107 +1136,88 @@ class ImportExportRepository extends ChangeNotifier {
     ).writeAsString(json, encoding: utf8, flush: true, mode: FileMode.write);
   }
 
-  static Future<List<T>> _readOptionalJsonList<T>(
-    String dir,
-    String fileName,
-    T Function(Map<String, dynamic> json) fromJson,
-  ) async {
-    final file = File(path.join(dir, fileName));
-    if (!await file.exists()) return const [];
-    final json =
-        jsonDecode(await file.readAsString(encoding: utf8)) as List<dynamic>;
-    return json.map((e) => fromJson(e)).toList();
+  static Future<void> _createZipFile(Map params) async {
+    final encoder = ZipFileEncoder()
+      ..create(params["path"], level: DeflateLevel.defaultCompression);
+    try {
+      await encoder.addDirectory(
+        Directory(params["dir"]),
+        includeDirName: false,
+      );
+      encoder.addArchiveFile(ArchiveFile.directory("scores/"));
+      final files = params["files"] as Map<String, String>;
+      for (final MapEntry(key: name, value: filePath) in files.entries) {
+        try {
+          await encoder.addFile(File(filePath), name);
+        } on PathNotFoundException {
+          // the file was replaced after the export read the rows
+        }
+      }
+      encoder.addArchiveFile(ArchiveFile.bytes(".sheetopia", const []));
+    } finally {
+      await encoder.close();
+    }
   }
 
-  static Future<void> _createZipFileFromDir(Map params) async {
-    await ZipFileEncoder().zipDirectory(
-      Directory(params["dir"]),
-      filename: params["path"],
-      level: DeflateLevel.defaultCompression,
-    );
-  }
-
-  static Future<Map> _decodeZIPFile(Map params) async {
-    final inputPath = params["inputPath"];
-    final outputPath = params["outputPath"];
-
-    await extractFileToDisk(inputPath, outputPath);
-
-    if (!await File(path.join(outputPath, ".sheetopia")).exists()) {
+  static _ArchiveData _readArchive(Archive archive) {
+    if (archive.findFile(".sheetopia") == null) {
       throw InvalidFileException("missing .sheetopia marker file");
     }
 
+    List<T> readList<T>(
+      String name,
+      T Function(Map<String, dynamic> json) fromJson, {
+      bool required = false,
+    }) {
+      final file = archive.findFile(name);
+      if (file == null) {
+        if (required) throw InvalidFileException("missing $name");
+        return const [];
+      }
+      final json =
+          jsonDecode(utf8.decode(file.readBytes() ?? const []))
+              as List<dynamic>;
+      return json.map((e) => fromJson(e)).toList();
+    }
+
     try {
-      List<TagModel> tags;
-      {
-        final tagsJson =
-            jsonDecode(
-                  await File(
-                    path.join(outputPath, "tags.json"),
-                  ).readAsString(encoding: utf8),
-                )
-                as List<dynamic>;
-        tags = tagsJson.map((tag) => TagModel.fromJson(tag)).toList();
+      final scores = readList(
+        "scores.json",
+        ScoreModel.fromJson,
+        required: true,
+      );
+      for (final s in scores) {
+        if (!isSafeId(s.id)) {
+          throw InvalidFileException("invalid score id: ${s.id}");
+        }
       }
-
-      List<ScoreModel> scores;
-      {
-        final scoresJson =
-            jsonDecode(
-                  await File(
-                    path.join(outputPath, "scores.json"),
-                  ).readAsString(encoding: utf8),
-                )
-                as List<dynamic>;
-        scores = scoresJson.map((score) => ScoreModel.fromJson(score)).toList();
-      }
-
-      final setlists = await _readOptionalJsonList(
-        outputPath,
-        "setlists.json",
-        SetlistModel.fromJson,
+      return (
+        tags: readList("tags.json", TagModel.fromJson, required: true),
+        scores: scores,
+        setlists: readList("setlists.json", SetlistModel.fromJson),
+        categories: readList(
+          "exercise_categories.json",
+          ExerciseCategoryModel.fromJson,
+        ),
+        exercises: readList("exercises.json", ExerciseModel.fromJson),
+        routines: readList(
+          "practice_routines.json",
+          PracticeRoutineModel.fromJson,
+        ),
+        records: readList(
+          "practice_records.json",
+          PracticeRecordModel.fromJson,
+        ),
+        fileNames: {
+          for (final f in archive)
+            if (f.isFile) f.name,
+        },
       );
-
-      final categories = await _readOptionalJsonList(
-        outputPath,
-        "exercise_categories.json",
-        ExerciseCategoryModel.fromJson,
-      );
-
-      final exercises = await _readOptionalJsonList(
-        outputPath,
-        "exercises.json",
-        ExerciseModel.fromJson,
-      );
-
-      final routines = await _readOptionalJsonList(
-        outputPath,
-        "practice_routines.json",
-        PracticeRoutineModel.fromJson,
-      );
-
-      final records = await _readOptionalJsonList(
-        outputPath,
-        "practice_records.json",
-        PracticeRecordModel.fromJson,
-      );
-
-      final scoresDir = Directory(path.join(outputPath, "scores"));
-      if (!await scoresDir.exists()) {
-        throw InvalidFileException("missing scores directory");
-      }
-
-      return {
-        "scores": scores,
-        "tags": tags,
-        "setlists": setlists,
-        "categories": categories,
-        "exercises": exercises,
-        "routines": routines,
-        "records": records,
-        "scoresDir": scoresDir.path,
-      };
+    } on InvalidFileException {
+      rethrow;
     } on Exception catch (e) {
+      throw InvalidFileException(e.toString());
+    } on TypeError catch (e) {
       throw InvalidFileException(e.toString());
     }
   }

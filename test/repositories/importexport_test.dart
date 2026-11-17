@@ -14,12 +14,16 @@ import 'package:drift/native.dart';
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logger/logger.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:sheetopia/data/repositories/encrypted_storage/encrypted_storage.dart';
+import 'package:sheetopia/data/repositories/importexport/archive_reader.dart';
 import 'package:sheetopia/data/repositories/importexport/importexport_repository.dart';
 import 'package:sheetopia/data/repositories/keyvalue/key_value_repository.dart';
+import 'package:sheetopia/data/repositories/logger/log.dart';
+import 'package:sheetopia/data/repositories/logger/log_repository.dart';
 import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
@@ -85,6 +89,8 @@ class _FakeFileSelector extends FileSelectorPlatform
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   TestWidgetsFlutterBinding.ensureInitialized();
+  Log.init(LogRepository());
+  Log.level = Level.off;
 
   late Directory tempDir;
   late Directory exportDir;
@@ -807,4 +813,303 @@ void main() {
     final file = await scoresRepo.scoreFile("bulk-7", FileType.pdf);
     expect(await file.readAsString(), "%PDF-1.4 bulk 7");
   });
+
+  test("fields cleared in a newer export are cleared on import", () async {
+    final clearedAt = contentTime.add(const Duration(days: 1));
+    await db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .update(
+          (o) => o(
+            composer: const Value(null),
+            source: const Value(null),
+            sourceLink: const Value(null),
+            notes: const Value(null),
+            metadataUpdatedAt: Value(clearedAt),
+          ),
+        );
+
+    final zip = await exportAll();
+
+    await db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .update(
+          (o) => o(
+            composer: const Value("Bach"),
+            source: const Value("IMSLP"),
+            sourceLink: const Value("https://imslp.org"),
+            notes: const Value("slow"),
+            metadataUpdatedAt: Value(contentTime),
+          ),
+        );
+
+    await importFrom(zip);
+
+    final score = await db.managers.scoresTable
+        .filter((f) => f.id(scoreId))
+        .getSingle();
+    expect(score.metadataUpdatedAt, clearedAt);
+    expect(score.composer, isNull);
+    expect(score.source, isNull);
+    expect(score.sourceLink, isNull);
+    expect(score.notes, isNull);
+  });
+
+  test("a score without a file is left out of the export", () async {
+    const missingId = "score-missing";
+    await db.managers.scoresTable.create(
+      (o) => o(
+        id: missingId,
+        title: "Missing",
+        searchText: " missing ",
+        fileDownloaded: true,
+        fileType: FileType.pdf,
+        lastOpened: Value(contentTime),
+        metadataUpdatedAt: Value(contentTime),
+        fileUpdatedAt: Value(contentTime),
+      ),
+    );
+
+    final zip = await exportAll();
+    final archive = ZipDecoder().decodeBytes(await File(zip).readAsBytes());
+    final scoresJson = String.fromCharCodes(
+      archive.findFile("scores.json")!.content,
+    );
+    expect(scoresJson, isNot(contains(missingId)));
+    expect(scoresJson, contains(scoreId));
+  });
+
+  test("a repacked archive with unusual entry names imports", () async {
+    final archive = ZipDecoder().decodeBytes(
+      await File(await exportAll()).readAsBytes(),
+    );
+    final repacked = Archive();
+    for (final f in archive) {
+      repacked.add(
+        f.isFile
+            ? ArchiveFile.bytes("./${f.name}", f.content)
+            : ArchiveFile.directory("./${f.name}"),
+      );
+    }
+    final bytes = ZipEncoder().encode(repacked);
+    final from = "scores/$scoreId/".codeUnits;
+    final to = "scores\\$scoreId\\".codeUnits;
+    for (var i = 0; i <= bytes.length - from.length; i++) {
+      var match = true;
+      for (var j = 0; j < from.length && match; j++) {
+        match = bytes[i + j] == from[j];
+      }
+      if (match) bytes.setRange(i, i + to.length, to);
+    }
+    final zip = path.join(exportDir.path, "repacked.zip");
+    await File(zip).writeAsBytes(bytes);
+
+    await db.managers.setlistsTable.delete();
+    await db.managers.scoresTable.delete();
+    await (await scoresRepo.scoresDir).delete(recursive: true);
+    await (await scoresRepo.scoresDir).create(recursive: true);
+
+    await importFrom(zip);
+
+    final ids = await db.managers.scoresTable.map((s) => s.id).get();
+    expect(ids, [scoreId]);
+    final file = await scoresRepo.scoreFile(scoreId, FileType.pdf);
+    expect(await file.readAsString(), "%PDF-1.4 fake");
+  });
+
+  test("a score missing its file in the archive is skipped", () async {
+    const otherId = "score-other";
+    await db.managers.scoresTable.create(
+      (o) => o(
+        id: otherId,
+        title: "Other",
+        searchText: " other ",
+        fileDownloaded: true,
+        fileType: FileType.pdf,
+        lastOpened: Value(contentTime),
+        metadataUpdatedAt: Value(contentTime),
+        fileUpdatedAt: Value(contentTime),
+      ),
+    );
+    await scoresRepo.createScoreDir(otherId);
+    await (await scoresRepo.scoreFile(
+      otherId,
+      FileType.pdf,
+    )).writeAsString("%PDF-1.4 other");
+
+    final zip = await exportAll();
+    final archive = ZipDecoder().decodeBytes(await File(zip).readAsBytes());
+    final stripped = Archive();
+    for (final f in archive) {
+      if (!f.name.startsWith("scores/$scoreId/")) stripped.add(f);
+    }
+    final strippedPath = path.join(exportDir.path, "stripped.zip");
+    await File(strippedPath).writeAsBytes(ZipEncoder().encode(stripped));
+
+    await db.managers.setlistsTable.delete();
+    await db.managers.scoresTable.delete();
+    await (await scoresRepo.scoresDir).delete(recursive: true);
+    await (await scoresRepo.scoresDir).create(recursive: true);
+
+    await importFrom(strippedPath);
+
+    final ids = await db.managers.scoresTable.map((s) => s.id).get();
+    expect(ids, [otherId]);
+    expect(await db.managers.setlistsTable.count(), 1);
+  });
+
+  test("an import stages nothing outside the scores dir", () async {
+    final zip = await exportAll();
+    await scoresRepo.deleteScore(scoreId);
+
+    final before = tempDir.listSync().map((e) => e.path).toSet();
+    await importFrom(zip);
+    final after = tempDir.listSync().map((e) => e.path).toSet();
+
+    expect(after, before);
+    final scoresDir = await scoresRepo.scoresDir;
+    final leftovers = scoresDir
+        .listSync(recursive: true)
+        .where((e) => e.path.endsWith(".part"));
+    expect(leftovers, isEmpty);
+    final file = await scoresRepo.scoreFile(scoreId, FileType.pdf);
+    expect(await file.readAsString(), "%PDF-1.4 fake");
+  });
+
+  test("the marker file is the last entry of an export", () async {
+    final archive = ZipDecoder().decodeBytes(
+      await File(await exportAll()).readAsBytes(),
+    );
+    expect(archive.files.last.name, ".sheetopia");
+    expect(archive.files.where((f) => f.name == ".sheetopia"), hasLength(1));
+  });
+
+  test("a zip without the marker file is rejected", () async {
+    final archive = Archive()
+      ..add(ArchiveFile.bytes("tags.json", "[]".codeUnits))
+      ..add(ArchiveFile.bytes("scores.json", "[]".codeUnits));
+    final zip = path.join(exportDir.path, "foreign.zip");
+    await File(zip).writeAsBytes(ZipEncoder().encode(archive));
+
+    fileSelector.fileToOpen = zip;
+    await expectLater(repo.import(), throwsA(isA<InvalidFileException>()));
+    expect(repo.status, ImportExportStatus.idle);
+  });
+
+  for (final (name, json) in [
+    ("an object", "{}"),
+    ("a list of non objects", "[1]"),
+    ("an entry missing a field", '[{"id": "a"}]'),
+  ]) {
+    test("a scores.json holding $name is rejected", () async {
+      final archive = Archive()
+        ..add(ArchiveFile.bytes("tags.json", "[]".codeUnits))
+        ..add(ArchiveFile.bytes("scores.json", json.codeUnits))
+        ..add(ArchiveFile.bytes(".sheetopia", const []));
+      final zip = path.join(exportDir.path, "malformed.zip");
+      await File(zip).writeAsBytes(ZipEncoder().encode(archive));
+
+      fileSelector.fileToOpen = zip;
+      await expectLater(repo.import(), throwsA(isA<InvalidFileException>()));
+      expect(repo.status, ImportExportStatus.idle);
+    });
+  }
+
+  test("a file that is not a zip is rejected", () async {
+    final zip = path.join(exportDir.path, "broken.zip");
+    await File(zip).writeAsString("not a zip");
+
+    fileSelector.fileToOpen = zip;
+    await expectLater(repo.import(), throwsA(isA<InvalidFileException>()));
+  });
+
+  test("a truncated zip is rejected", () async {
+    final bytes = await File(await exportAll()).readAsBytes();
+    final zip = path.join(exportDir.path, "truncated.zip");
+    await File(zip).writeAsBytes(bytes.sublist(0, bytes.length - 30));
+
+    fileSelector.fileToOpen = zip;
+    await expectLater(repo.import(), throwsA(isA<InvalidFileException>()));
+  });
+
+  test("a score id unusable as a path rejects the whole archive", () async {
+    final archive = ZipDecoder().decodeBytes(
+      await File(await exportAll()).readAsBytes(),
+    );
+    final scoresJson = String.fromCharCodes(
+      archive.findFile("scores.json")!.content,
+    );
+    final tampered = Archive();
+    for (final f in archive) {
+      if (f.name == "scores.json") {
+        tampered.add(
+          ArchiveFile.bytes(
+            "scores.json",
+            scoresJson.replaceAll(scoreId, "../evil").codeUnits,
+          ),
+        );
+      } else {
+        tampered.add(f);
+      }
+    }
+    final zip = path.join(exportDir.path, "tampered.zip");
+    await File(zip).writeAsBytes(ZipEncoder().encode(tampered));
+
+    await scoresRepo.deleteTag(tagId);
+
+    fileSelector.fileToOpen = zip;
+    await expectLater(repo.import(), throwsA(isA<InvalidFileException>()));
+    expect(await db.managers.tagsTable.count(), 0);
+  });
+
+  test(
+    "the archive reader reports a missing entry and keeps working",
+    () async {
+      final zip = await exportAll();
+      final reader = await ArchiveReader.open(zip);
+      try {
+        final target = path.join(tempDir.path, "extracted.pdf");
+        await expectLater(
+          reader.extract("scores/nope/score.pdf", target),
+          throwsA(isA<PathNotFoundException>()),
+        );
+        expect(await File(target).exists(), isFalse);
+
+        await reader.extract("scores/$scoreId/score.pdf", target);
+        expect(await File(target).readAsString(), "%PDF-1.4 fake");
+      } finally {
+        await reader.close();
+      }
+    },
+  );
+
+  test("a failed export keeps the file it would have replaced", () async {
+    final target = path.join(exportDir.path, "export.zip");
+    await File(target).writeAsString("old backup");
+    final scoreFile = await scoresRepo.scoreFile(scoreId, FileType.pdf);
+    await Process.run("chmod", ["000", scoreFile.path]);
+    addTearDown(() => Process.run("chmod", ["644", scoreFile.path]));
+
+    fileSelector.saveLocation = target;
+    await expectLater(repo.export(), throwsA(anything));
+
+    expect(await File(target).readAsString(), "old backup");
+    expect(await File("$target.part").exists(), isFalse);
+    expect(repo.status, ImportExportStatus.idle);
+  }, skip: !Platform.isLinux && !Platform.isMacOS);
+
+  test("an export works when only the chosen file is writable", () async {
+    final dir = await Directory(path.join(exportDir.path, "locked")).create();
+    final target = path.join(dir.path, "export.zip");
+    await File(target).writeAsString("old backup");
+    await Process.run("chmod", ["555", dir.path]);
+    addTearDown(() => Process.run("chmod", ["755", dir.path]));
+
+    fileSelector.saveLocation = target;
+    expect(await repo.export(), isTrue);
+
+    final archive = ZipDecoder().decodeBytes(await File(target).readAsBytes());
+    expect(archive.findFile("scores/$scoreId/score.pdf"), isNotNull);
+    expect(await dir.list().map((e) => e.path).toList(), [target]);
+    expect(repo.status, ImportExportStatus.idle);
+  }, skip: !Platform.isLinux && !Platform.isMacOS);
 }

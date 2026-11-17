@@ -739,7 +739,7 @@ packages:
     source: hosted
     version: "0.20.3"
   io:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: io
       sha256: "2635216ca6a737e60de577ffa1a48a0bec76ca8a62917cfc1bb88c14c570646f"

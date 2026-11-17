@@ -12,9 +12,13 @@ final _safeId = RegExp(r'^[A-Za-z0-9_-]+$', multiLine: false);
 
 /// Ids can come from the sync server or an import file, so they must never
 /// be joined into a path directly.
-String idPath(String parent, String id) {
-  if (!_safeId.hasMatch(id)) {
+String idPath(String parent, String id) => path.join(parent, idSegment(id));
+
+bool isSafeId(String id) => _safeId.hasMatch(id);
+
+String idSegment(String id) {
+  if (!isSafeId(id)) {
     throw ArgumentError.value(id, "id", "not usable as a path segment");
   }
-  return path.join(parent, id);
+  return id;
 }

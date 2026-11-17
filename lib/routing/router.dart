@@ -250,6 +250,9 @@ GoRouter get goRouter {
                     routes: [
                       GoRoute(
                         path: "details",
+                        redirect: (context, state) => state.extra is LogMessage
+                            ? null
+                            : "/settings/debug/logs",
                         builder: (context, state) =>
                             LogDetailsPage(msg: state.extra! as LogMessage),
                       ),
