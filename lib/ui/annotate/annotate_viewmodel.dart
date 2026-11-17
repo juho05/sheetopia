@@ -1000,7 +1000,10 @@ class AnnotateViewModel extends ChangeNotifier {
     final pageIndex = _activePageIndex;
     if (pageIndex == null) return;
     final snapshot = _eraseSnapshot;
-    if (snapshot != null) _pages[pageIndex] = snapshot;
+    if (snapshot != null) {
+      _pages[pageIndex] = snapshot;
+      _markDirty();
+    }
     _lassoPoints = null;
     _dragStartX = null;
     _dragStartY = null;
