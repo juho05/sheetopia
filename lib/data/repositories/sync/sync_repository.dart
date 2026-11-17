@@ -209,6 +209,11 @@ class SyncRepository {
     required String password,
   }) async {
     if (signedIn) throw Exception("already signed in");
+    if (await _keyValue.loadString(_userKey) != null ||
+        await _keyValue.loadDateTime(_lastSyncKey) != null) {
+      Log.warn("Previous session did not log out, resetting sync state");
+      await _resetSyncState(waitForSync: true);
+    }
     _con = await _service.login(baseUri, user: user, password: password);
     _user = user;
 
@@ -238,6 +243,10 @@ class SyncRepository {
     state.value = SyncState.none;
     error.value = null;
 
+    await _resetSyncState(waitForSync: waitForSync);
+  }
+
+  Future<void> _resetSyncState({required bool waitForSync}) async {
     await _updateLastSync(null);
     await _keyValue.remove(_userKey);
     await _encryptedStorage.delete(_conKey);

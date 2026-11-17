@@ -109,7 +109,7 @@ class _LoginView extends StatelessWidget {
                 labelText: "Password",
               ),
               onSubmitted: (control) {
-                if (viewModel.form.valid) {
+                if (viewModel.form.valid && !viewModel.loading) {
                   viewModel.login();
                 }
               },
