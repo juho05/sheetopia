@@ -171,7 +171,11 @@ class _HomePageState extends State<HomePage> {
         child: VersionChecker(
           child: IntegrateAppImage(
             child: ChangeNotifierProvider(
-              create: (context) => HomeViewModel(scoresRepo: context.read()),
+              create: (context) => HomeViewModel(
+                scoresRepo: context.read(),
+                setlistsRepo: context.read(),
+                practiceRepo: context.read(),
+              ),
               builder: (context, _) {
                 return Consumer<HomeViewModel>(
                   builder: (context, viewModel, _) {

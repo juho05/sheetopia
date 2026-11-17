@@ -167,9 +167,16 @@ class SetlistNavigationViewModel extends ChangeNotifier
       return;
     }
     if (oldScoreId != null) {
-      final i = entries.indexWhere((e) => e.scoreId == oldScoreId);
-      if (i >= 0) {
-        _index = i;
+      int? closest;
+      for (var i = 0; i < entries.length; i++) {
+        if (entries[i].scoreId != oldScoreId) continue;
+        if (closest == null ||
+            (i - oldIndex).abs() < (closest - oldIndex).abs()) {
+          closest = i;
+        }
+      }
+      if (closest != null) {
+        _index = closest;
         return;
       }
     }

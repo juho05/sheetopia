@@ -36,6 +36,7 @@ class _SetlistDetailPageState extends State<SetlistDetailPage> {
     super.initState();
     _viewModel = SetlistDetailViewModel(
       repo: context.read(),
+      scoresRepo: context.read(),
       setlistId: widget.setlistId,
     );
     _viewModel.addListener(_popIfDeleted);

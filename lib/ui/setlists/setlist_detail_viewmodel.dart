@@ -9,11 +9,13 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/setlists/setlist.dart';
 import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 
 class SetlistDetailViewModel extends ChangeNotifier {
   final SetlistsRepository _repo;
+  final ScoresRepository _scoresRepo;
   final String setlistId;
 
   Setlist? _setlist;
@@ -21,6 +23,7 @@ class SetlistDetailViewModel extends ChangeNotifier {
   bool _deleted = false;
 
   StreamSubscription? _updatedSub;
+  StreamSubscription? _scoresSub;
 
   Setlist? get setlist => _setlist;
 
@@ -31,11 +34,15 @@ class SetlistDetailViewModel extends ChangeNotifier {
   List<SetlistEntry> get entries => _setlist?.entries ?? const [];
 
   SetlistDetailViewModel({
-    required SetlistsRepository repo,
+    required this._repo,
+    required this._scoresRepo,
     required this.setlistId,
-  }) : _repo = repo {
+  }) {
     _updatedSub = _repo.updatedSetlistIds
         .where((ids) => ids.contains(setlistId))
+        .listen((_) => load());
+    _scoresSub = _scoresRepo.updatedScoreIds
+        .where((ids) => entries.any((e) => ids.contains(e.scoreId)))
         .listen((_) => load());
     load();
   }
@@ -85,6 +92,7 @@ class SetlistDetailViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _updatedSub?.cancel();
+    _scoresSub?.cancel();
     super.dispose();
   }
 }

@@ -49,6 +49,16 @@ class SelectionModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void deselectAll(Iterable<String> ids) {
+    var changed = false;
+    for (final id in ids) {
+      if (_idSet.remove(id)) changed = true;
+    }
+    if (!changed) return;
+    _ids.removeWhere((id) => !_idSet.contains(id));
+    notifyListeners();
+  }
+
   void toggle(String id) => contains(id) ? deselect(id) : select(id);
 
   void clear() {

@@ -6,12 +6,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cross_file/cross_file.dart';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
+import 'package:sheetopia/data/repositories/setlists/setlists_repository.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
 import 'package:sheetopia/file_picker.dart';
 import 'package:sheetopia/ui/common/selection/selection_model.dart';
@@ -19,6 +22,11 @@ import 'package:sheetopia/utils/receive_drop.dart';
 
 class HomeViewModel extends ChangeNotifier {
   final ScoresRepository _scoresRepo;
+  final SetlistsRepository _setlistsRepo;
+  final PracticeRepository _practiceRepo;
+
+  final List<StreamSubscription> _subs = [];
+  bool _disposed = false;
 
   bool _importing = false;
 
@@ -50,14 +58,52 @@ class HomeViewModel extends ChangeNotifier {
 
   bool get selecting => selection?.isNotEmpty ?? false;
 
-  HomeViewModel({required this._scoresRepo}) {
+  HomeViewModel({
+    required this._scoresRepo,
+    required this._setlistsRepo,
+    required this._practiceRepo,
+  }) {
     scoreSelection.addListener(notifyListeners);
     setlistSelection.addListener(notifyListeners);
     routineSelection.addListener(notifyListeners);
+    _subs.addAll([
+      _scoresRepo.deletedScoreIds.listen(scoreSelection.deselectAll),
+      _setlistsRepo.updatedSetlistIds.listen(
+        (ids) => _deselectMissing(
+          setlistSelection,
+          ids,
+          (id) async => await _setlistsRepo.getSetlist(id) != null,
+        ),
+      ),
+      _practiceRepo.updatedRoutineIds.listen(
+        (ids) => _deselectMissing(
+          routineSelection,
+          ids,
+          (id) async => await _practiceRepo.getRoutine(id) != null,
+        ),
+      ),
+    ]);
+  }
+
+  Future<void> _deselectMissing(
+    SelectionModel selection,
+    Set<String> changedIds,
+    Future<bool> Function(String id) exists,
+  ) async {
+    final missing = <String>[];
+    for (final id in changedIds.where(selection.contains)) {
+      if (!await exists(id)) missing.add(id);
+    }
+    if (_disposed) return;
+    selection.deselectAll(missing);
   }
 
   @override
   void dispose() {
+    _disposed = true;
+    for (final sub in _subs) {
+      sub.cancel();
+    }
     scoreSelection.dispose();
     setlistSelection.dispose();
     routineSelection.dispose();

@@ -118,27 +118,36 @@ class _BulkEditMenuState extends State<BulkEditMenu> {
       ],
     );
     if (edit == null) return;
-    switch (edit) {
-      case BulkTextEdit(field: ScoreField.arranger, :final value):
-        await _viewModel.editArranger(value);
-      case BulkTextEdit(field: ScoreField.partOf, :final value):
-        await _viewModel.editPartOf(value);
-      case BulkTextEdit(:final value):
-        await _viewModel.editComposer(value);
-      case BulkSourceEdit(:final source, :final sourceLink):
-        await _viewModel.editSource(source, sourceLink);
-      case BulkDifficultyEdit(:final difficulty):
-        await _viewModel.editDifficulty(difficulty);
-      case BulkMusicalKeyEdit(:final musicalKey):
-        await _viewModel.editMusicalKey(musicalKey);
-      case BulkValuesEdit(field: ScoreField.genres, :final add, :final remove):
-        await _viewModel.editGenres(add, remove);
-      case BulkValuesEdit(:final add, :final remove):
-        await _viewModel.editInstruments(add, remove);
-      case BulkTagsEdit(:final addIds, :final removeIds):
-        await _viewModel.editTags(addIds.toSet(), removeIds.toSet());
-      case BulkCategoryEdit():
-        return;
+    try {
+      switch (edit) {
+        case BulkTextEdit(field: ScoreField.arranger, :final value):
+          await _viewModel.editArranger(value);
+        case BulkTextEdit(field: ScoreField.partOf, :final value):
+          await _viewModel.editPartOf(value);
+        case BulkTextEdit(:final value):
+          await _viewModel.editComposer(value);
+        case BulkSourceEdit(:final source, :final sourceLink):
+          await _viewModel.editSource(source, sourceLink);
+        case BulkDifficultyEdit(:final difficulty):
+          await _viewModel.editDifficulty(difficulty);
+        case BulkMusicalKeyEdit(:final musicalKey):
+          await _viewModel.editMusicalKey(musicalKey);
+        case BulkValuesEdit(
+          field: ScoreField.genres,
+          :final add,
+          :final remove,
+        ):
+          await _viewModel.editGenres(add, remove);
+        case BulkValuesEdit(:final add, :final remove):
+          await _viewModel.editInstruments(add, remove);
+        case BulkTagsEdit(:final addIds, :final removeIds):
+          await _viewModel.editTags(addIds.toSet(), removeIds.toSet());
+        case BulkCategoryEdit():
+          return;
+      }
+    } catch (e, st) {
+      Toast.exception(e, st: st, errorMsg: "Failed to update selected scores!");
+      return;
     }
     Toast.show(
       edit.field == ScoreField.partOf
@@ -165,7 +174,17 @@ class _BulkEditMenuState extends State<BulkEditMenu> {
               title: "Add to setlist",
             );
             if (setlist == null) return;
-            final count = await _viewModel.addToSetlist(setlist.id);
+            final int count;
+            try {
+              count = await _viewModel.addToSetlist(setlist.id);
+            } catch (e, st) {
+              Toast.exception(
+                e,
+                st: st,
+                errorMsg: "Failed to add scores to setlist!",
+              );
+              return;
+            }
             Toast.show(
               "Added $count ${count == 1 ? "score" : "scores"} "
               "to \"${setlist.name}\"",

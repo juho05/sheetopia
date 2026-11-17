@@ -262,6 +262,23 @@ void main() {
     nav.dispose();
   });
 
+  test("re-anchoring stays on the reprise being played", () async {
+    await insertScore("a");
+    await insertScore("b");
+    await insertScore("c");
+    await repo.addScores(setlistId, ["a", "b", "c", "a"]);
+
+    final nav = await navigationFor();
+    nav.jumpTo(3);
+
+    await scoresRepo.deleteScore("b");
+    await waitFor(() => nav.length == 3);
+
+    expect(nav.position, 2, reason: "the closest occurrence, not the first");
+    expect(nav.currentScoreId, "a");
+    nav.dispose();
+  });
+
   test("re-anchoring falls back to a nearby entry", () async {
     await insertScore("a");
     await insertScore("b");
