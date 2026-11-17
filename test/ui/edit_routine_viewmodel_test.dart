@@ -213,6 +213,27 @@ void main() {
     expect((await repo.getRoutine(routineId))!.name, "Evening");
   });
 
+  test(
+    "an empty name keeps the saved name and saves the description",
+    () async {
+      final routineId = await repo.createRoutine(
+        name: "Morning",
+        description: "",
+      );
+      final viewModel = await loadedViewModel(routineId);
+
+      setName(viewModel, "Mornin");
+      await Future.delayed(const Duration(milliseconds: 100));
+      setName(viewModel, "");
+      setDescription(viewModel, "Every day");
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      final routine = (await repo.getRoutine(routineId))!;
+      expect(routine.name, "Morning");
+      expect(routine.description, "Every day");
+    },
+  );
+
   test("added exercises are stored right away", () async {
     final first = await createExercise("Chromatic");
     final second = await createExercise("Thirds");

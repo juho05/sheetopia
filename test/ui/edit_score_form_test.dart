@@ -101,6 +101,32 @@ void main() {
     expect(done().onPressed, isNotNull);
   });
 
+  testWidgets("an empty title keeps the saved title and saves other fields", (
+    tester,
+  ) async {
+    await db.managers.scoresTable
+        .filter((f) => f.id("a"))
+        .update((o) => o(composer: const Value("Bach")));
+    await pumpForm(tester);
+    final title = find.byType(TextField).first;
+    final composer = find.widgetWithText(TextField, "Bach");
+
+    await tester.enterText(title, "Titl");
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.enterText(title, "");
+    await settle(tester);
+    await tester.enterText(composer, "Brahms");
+    await settle(tester);
+
+    final score = (await repo.getScore("a"))!;
+    expect(score.title, "Title");
+    expect(score.composer, "Brahms");
+    final row = await db.managers.scoresTable
+        .filter((f) => f.id("a"))
+        .getSingle();
+    expect(row.searchText, " title brahms ");
+  });
+
   testWidgets("empty optional fields are hidden until added", (tester) async {
     await pumpForm(tester);
 

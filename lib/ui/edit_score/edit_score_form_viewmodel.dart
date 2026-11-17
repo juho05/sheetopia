@@ -168,14 +168,18 @@ class EditScoreFormViewModel extends ChangeNotifier
   bool get canPersist => !_editScoreViewModel.deleted;
 
   @override
-  Future<void> persistValues() => _repo.updateScore(
-    _score.id,
-    title: formValue(formTitle),
-    composer: formValue(formComposer),
-    arranger: formValue(formArranger),
-    partOf: formValue(formPartOf),
-    notes: formValue(formNotes),
-  );
+  Future<void> persistValues({({String name, String link})? source}) {
+    final title = formValue(formTitle);
+    return _repo.updateScore(
+      _score.id,
+      title: title.isNotEmpty ? title : null,
+      composer: formValue(formComposer),
+      arranger: formValue(formArranger),
+      partOf: formValue(formPartOf),
+      notes: formValue(formNotes),
+      source: source,
+    );
+  }
 
   @override
   Future<void> persistSource(String source, String sourceLink) =>

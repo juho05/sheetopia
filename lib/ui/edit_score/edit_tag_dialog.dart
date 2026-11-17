@@ -69,6 +69,24 @@ class EditTagDialog extends StatefulWidget {
 class _EditTagDialogState extends State<EditTagDialog> {
   final FocusNode _nameFocus = FocusNode();
 
+  bool _submitting = false;
+
+  Future<void> _submit() async {
+    if (_submitting) return;
+    setState(() => _submitting = true);
+    try {
+      if (widget.viewModel.editMode) {
+        await widget.viewModel.updateTag();
+        if (mounted) Navigator.pop(context, true);
+      } else {
+        final tag = await widget.viewModel.createTag();
+        if (mounted) Navigator.pop(context, tag);
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
   void _pickColor(ReactiveFormFieldState<Color, Color> field) {
     showDialog<void>(
       context: field.context,
@@ -176,21 +194,7 @@ class _EditTagDialogState extends State<EditTagDialog> {
                 ReactiveFormConsumer(
                   builder: (context, form, _) {
                     return FilledButton(
-                      onPressed: form.valid
-                          ? () async {
-                              if (widget.viewModel.editMode) {
-                                await widget.viewModel.updateTag();
-                                if (context.mounted) {
-                                  Navigator.pop(context, true);
-                                }
-                              } else {
-                                final tag = await widget.viewModel.createTag();
-                                if (context.mounted) {
-                                  Navigator.pop(context, tag);
-                                }
-                              }
-                            }
-                          : null,
+                      onPressed: form.valid && !_submitting ? _submit : null,
                       child: Text(
                         widget.viewModel.editMode ? "Update" : "Create",
                       ),

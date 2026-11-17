@@ -44,7 +44,8 @@ mixin MetadataFormViewModel<T extends MetadataField> on ChangeNotifier {
 
   bool get canPersist;
 
-  Future<void> persistValues();
+  /// [source] is only set when it changed
+  Future<void> persistValues({({String name, String link})? source});
 
   Future<void> persistSource(String source, String sourceLink);
 
@@ -178,7 +179,7 @@ mixin MetadataFormViewModel<T extends MetadataField> on ChangeNotifier {
 
   void listenToValues() {
     _valueSub = form.valueChanges.listen((_) {
-      if (form.invalid || !canPersist) return;
+      if (!canPersist) return;
       _valuesDebounce?.cancel();
       _valuesDebounce = Timer(valuesDebounceDuration, saveValues);
     });
@@ -196,9 +197,9 @@ mixin MetadataFormViewModel<T extends MetadataField> on ChangeNotifier {
     final source = formValue(formSource);
     final sourceChanged = _source.updateName(source);
     if (sourceChanged && !_disposed) notifyListeners();
-    await persistValues();
-    if (!sourceChanged) return;
-    await persistSource(source, _source.savedLink);
+    await persistValues(
+      source: sourceChanged ? (name: source, link: _source.savedLink) : null,
+    );
   }
 
   bool _disposed = false;

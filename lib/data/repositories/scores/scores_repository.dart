@@ -681,18 +681,36 @@ class ScoresRepository {
 
   Future<void> updateScore(
     String scoreId, {
-    required String title,
+    String? title,
     required String composer,
     required String arranger,
     required String partOf,
     required String notes,
+    ({String name, String link})? source,
   }) async {
     await _db.transaction(() async {
+      final searchTitle =
+          title ??
+          (await _db.managers.scoresTable
+                  .filter((f) => f.id(scoreId))
+                  .getSingleOrNull())
+              ?.title ??
+          "";
       await _db.managers.scoresTable
           .filter((f) => f.id(scoreId))
           .update(
             (o) => o(
-              title: Value(title),
+              title: title != null ? Value(title) : const Value.absent(),
+              source: source != null
+                  ? Value(source.name.isNotEmpty ? source.name : null)
+                  : const Value.absent(),
+              sourceLink: source != null
+                  ? Value(
+                      source.name.isNotEmpty && source.link.isNotEmpty
+                          ? source.link
+                          : null,
+                    )
+                  : const Value.absent(),
               composer: composer.isNotEmpty
                   ? Value(composer)
                   : const Value(null),
@@ -702,7 +720,7 @@ class ScoresRepository {
               partOf: partOf.isNotEmpty ? Value(partOf) : const Value(null),
               notes: notes.isNotEmpty ? Value(notes) : const Value(null),
               searchText: Value(
-                generateSearchText([title, composer, arranger, partOf]),
+                generateSearchText([searchTitle, composer, arranger, partOf]),
               ),
               metadataUpdatedAt: Value(DateTime.now().toUtc()),
               metadataUploaded: const Value(false),

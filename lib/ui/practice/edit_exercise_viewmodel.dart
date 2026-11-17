@@ -159,12 +159,14 @@ class EditExerciseViewModel extends ChangeNotifier
   bool get canPersist => _exerciseId != null;
 
   @override
-  Future<void> persistValues() => _repo.updateExercise(
-    _exerciseId!,
-    name: name,
-    description: formValue(formDescription),
-    instrument: formValue(formInstrument),
-  );
+  Future<void> persistValues({({String name, String link})? source}) =>
+      _repo.updateExercise(
+        _exerciseId!,
+        name: name.isNotEmpty ? name : null,
+        description: formValue(formDescription),
+        instrument: formValue(formInstrument),
+        source: source,
+      );
 
   @override
   Future<void> persistSource(String source, String sourceLink) =>

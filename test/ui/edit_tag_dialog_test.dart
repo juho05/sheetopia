@@ -89,4 +89,39 @@ void main() {
     expect(created?.color.toARGB32(), Colors.indigo.toARGB32());
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets("a double tap on Create creates one tag", (tester) async {
+    await tester.pumpWidget(
+      Provider<ScoresRepository>.value(
+        value: repo,
+        child: MaterialApp(
+          builder: (context, child) =>
+              // ignore: deprecated_member_use
+              MaterialUiCompatibilityBridge(child: child!),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () =>
+                    EditTagDialog.showCreate(context, type: TagType.score),
+                child: const Text("open"),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text("open"));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), "Recital");
+    await tester.pump();
+    final create = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, "Create"),
+    );
+    create.onPressed!();
+    create.onPressed!();
+    await tester.pumpAndSettle();
+
+    expect(await db.managers.tagsTable.count(), 1);
+  });
 }

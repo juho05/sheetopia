@@ -583,15 +583,26 @@ class PracticeRepository {
 
   Future<void> updateExercise(
     String exerciseId, {
-    required String name,
+    String? name,
     required String description,
     required String instrument,
+    ({String name, String link})? source,
   }) async {
     await _db.managers.exercisesTable
         .filter((f) => f.id(exerciseId))
         .update(
           (o) => o(
-            name: Value(name),
+            name: name != null ? Value(name) : const Value.absent(),
+            source: source != null
+                ? Value(source.name.isNotEmpty ? source.name : null)
+                : const Value.absent(),
+            sourceLink: source != null
+                ? Value(
+                    source.name.isNotEmpty && source.link.isNotEmpty
+                        ? source.link
+                        : null,
+                  )
+                : const Value.absent(),
             description: description.isNotEmpty
                 ? Value(description)
                 : const Value(null),
@@ -1275,14 +1286,14 @@ class PracticeRepository {
 
   Future<void> updateRoutine(
     String routineId, {
-    required String name,
+    String? name,
     required String description,
   }) async {
     await _db.managers.practiceRoutinesTable
         .filter((f) => f.id(routineId))
         .update(
           (o) => o(
-            name: Value(name),
+            name: name != null ? Value(name) : const Value.absent(),
             description: description.isNotEmpty
                 ? Value(description)
                 : const Value(null),

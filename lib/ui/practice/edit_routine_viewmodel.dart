@@ -76,10 +76,7 @@ class EditRoutineViewModel extends ChangeNotifier {
         formDescription: FormControl<String>(),
       }) {
     _load().then((_) {
-      _valueSub = form.valueChanges.listen((_) {
-        if (form.invalid) return;
-        _onValuesChanged();
-      });
+      _valueSub = form.valueChanges.listen((_) => _onValuesChanged());
     });
   }
 
@@ -210,7 +207,7 @@ class EditRoutineViewModel extends ChangeNotifier {
     _valuesDebounce = null;
     await _repo.updateRoutine(
       _routineId!,
-      name: name,
+      name: name.isNotEmpty ? name : null,
       description: _formValue(formDescription),
     );
   }
