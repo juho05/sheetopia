@@ -23,8 +23,8 @@ import 'package:sheetopia/data/services/sync/models/deleted_tags.dart';
 import 'package:sheetopia/data/services/sync/models/exercise_categories.dart';
 import 'package:sheetopia/data/services/sync/models/exercise_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/exercises.dart';
-import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
 import 'package:sheetopia/data/services/sync/models/practice_records.dart';
+import 'package:sheetopia/data/services/sync/models/practice_routines.dart';
 import 'package:sheetopia/data/services/sync/models/score_metadata.dart';
 import 'package:sheetopia/data/services/sync/models/scores.dart';
 import 'package:sheetopia/data/services/sync/models/server_info.dart';
@@ -607,6 +607,7 @@ class SyncService {
         uri,
         data: stream,
         options: Options(
+          receiveTimeout: const Duration(seconds: 60),
           contentType:
               fileTypeToMimeType(fileType) ?? "application/octet-stream",
           headers: {
