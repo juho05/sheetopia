@@ -636,9 +636,11 @@ class _PdfViewState extends State<PdfView> {
                 if (annotator != null) return;
                 if (event is PointerScrollEvent &&
                     event.kind == PointerDeviceKind.mouse) {
-                  if (event.scrollDelta.dy > 0) {
+                  final Offset(:dx, :dy) = event.scrollDelta;
+                  final delta = dx.abs() > dy.abs() ? dx : dy;
+                  if (delta > 0) {
                     _viewModel.nextPage();
-                  } else {
+                  } else if (delta < 0) {
                     _viewModel.prevPage();
                   }
                 }
