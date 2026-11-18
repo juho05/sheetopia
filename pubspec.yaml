@@ -15,7 +15,7 @@ dependencies:
   flutter_system_integration:
     git:
       url: https://github.com/juho05/flutter_system_integration
-      ref: b461294075b732c4beea48221b0ba7453d980579
+      ref: 336835b0d99ad4a54339de47fabc571962372a36
   dotted_border: ^3.1.0
   drift: ^2.32.0
   drift_flutter: ^0.3.0
