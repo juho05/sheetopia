@@ -16,8 +16,9 @@ permissions:
   contents: read
 
 env:
+  FLUTTER_VERSION: "3.50.0"
   # flutter 3.50.0 has multiple critical graphics bugs on Linux on Wayland
-  FLUTTER_VERSION: "3.47.9"
+  FLUTTER_VERSION_LINUX: "3.47.9"
   APK_BUILD_DIR: "/tmp/build"
 
 jobs:
@@ -228,6 +229,8 @@ jobs:
           sudo apt-get install -y appstream desktop-file-utils zsync
 
       - uses: ./.github/actions/flutter-setup
+        with:
+          linux: "true"
 
       - name: Compile linux
         run: flutter build linux
@@ -273,6 +276,8 @@ jobs:
           sudo apt-get install -y clang cmake libgtk-3-dev ninja-build
 
       - uses: ./.github/actions/flutter-setup
+        with:
+          linux: "true"
 
       - name: Compile linux
         run: flutter build linux

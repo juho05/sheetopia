@@ -5,17 +5,20 @@ inputs:
   working-directory:
     description: Directory containing pubspec.yaml
     default: "."
+  linux:
+    description: Use FLUTTER_VERSION_LINUX if defined
+    default: "false"
 
 runs:
   using: composite
   steps:
     - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
       with:
-        flutter-version: ${{ env.FLUTTER_VERSION }}
+        flutter-version: ${{ inputs.linux == 'true' && env.FLUTTER_VERSION_LINUX || env.FLUTTER_VERSION }}
         channel: "stable"
         cache: true
 
     - name: Dependencies
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      run: flutter pub get --enforce-lockfile
+      run: flutter pub get
