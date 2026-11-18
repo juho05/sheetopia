@@ -1760,12 +1760,15 @@ class ScoresRepository {
     );
   }
 
+  static const _cleanupRetries = 5;
+  static const _cleanupInitialDelay = Duration(milliseconds: 500);
+
+  final Set<String> _pendingCleanups = {};
+
   Future<void> cleanupScoreFilesAfterDelete(String scoreId) async {
+    final Directory dir;
     try {
-      final dir = await scoreDir(scoreId);
-      if (await dir.exists()) {
-        await dir.delete(recursive: true);
-      }
+      dir = await scoreDir(scoreId);
       await _thumbnailService.invalidateThumbnails([scoreId]);
     } catch (e, st) {
       Log.error(
@@ -1773,7 +1776,50 @@ class ScoresRepository {
         e: e,
         st: st,
       );
+      return;
     }
+    if (_pendingCleanups.contains(scoreId)) return;
+    try {
+      await _deleteDirIfExists(dir);
+    } on FileSystemException catch (_) {
+      _pendingCleanups.add(scoreId);
+      unawaited(
+        _retryCleanup(
+          scoreId,
+          dir,
+        ).whenComplete(() => _pendingCleanups.remove(scoreId)),
+      );
+    }
+  }
+
+  Future<void> _retryCleanup(String scoreId, Directory dir) async {
+    var delay = _cleanupInitialDelay;
+    for (var i = 0; i < _cleanupRetries; i++, delay *= 2) {
+      await Future.delayed(delay);
+      try {
+        await _db.transaction(() async {
+          if (await _db.managers.scoresTable
+              .filter((f) => f.id(scoreId))
+              .exists()) {
+            return;
+          }
+          await _deleteDirIfExists(dir);
+        });
+        return;
+      } catch (e, st) {
+        if (i == _cleanupRetries - 1) {
+          Log.error(
+            "Failed to clean up files of deleted score $scoreId",
+            e: e,
+            st: st,
+          );
+        }
+      }
+    }
+  }
+
+  static Future<void> _deleteDirIfExists(Directory dir) async {
+    if (await dir.exists()) await dir.delete(recursive: true);
   }
 
   Future<void> deleteAll() async {
