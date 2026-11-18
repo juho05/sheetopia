@@ -28,7 +28,7 @@ DEST="$RUN/releases/$TAG"
 mkdir -p "$DEST"
 
 # Only what the update platforms and the simulator-less iOS need.
-jq -r '.assets[] | select(.name | test("macOS-universal\\.dmg$|linux-x86-64\\.(AppImage|tar\\.gz)$|android-(arm64v8|x64)\\.apk$|SHA256SUMS\\.txt$")) | "\(.name)\t\(.browser_download_url)"' <<<"$release" |
+jq -r '.assets[] | select(.name | test("macOS-universal\\.dmg$|linux-x86-64\\.(AppImage|tar\\.gz)$|windows-x86-64\\.(exe|zip)$|android-(arm64v8|x64)\\.apk$|SHA256SUMS\\.txt$")) | "\(.name)\t\(.browser_download_url)"' <<<"$release" |
   while IFS=$'\t' read -r name url; do
     if [ -s "$DEST/$name" ]; then continue; fi
     log "downloading $name"

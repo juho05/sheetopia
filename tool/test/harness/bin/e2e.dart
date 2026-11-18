@@ -70,6 +70,7 @@ const _guides = {
   'ios': 'tool/test/guides/ios.md',
   'linux': 'tool/test/guides/linux.md',
   'android': 'tool/test/guides/android.md',
+  'windows': 'tool/test/guides/windows.md',
 };
 
 const _envScripts = {
@@ -77,6 +78,7 @@ const _envScripts = {
   'ios': 'ios_sim.sh',
   'linux': 'linux_env.sh',
   'android': 'android.sh',
+  'windows': 'windows_vm.sh',
 };
 
 // Replaces Claude Code's default system prompt, which costs ~6k tokens on
@@ -556,6 +558,7 @@ bool _hasInstallAsset(String runDir, String platform, String version) {
     'linux' => RegExp(r'\.AppImage$'),
     'android' => RegExp(r'x64.*\.apk$'),
     'macos' => RegExp(r'\.dmg$'),
+    'windows' => RegExp(r'windows-x86-64\.exe$'),
     _ => null,
   };
   final dir = Directory(p.join(runDir, 'releases', version.startsWith('v') ? version : 'v$version'));
@@ -607,6 +610,8 @@ class _Env {
       case 'macos':
         await run(['pull', runDir, '/Users/admin/Library/Logs/Sheetopia/update.log', logs], quiet: true);
         await run(['pull', runDir, '/Users/admin/e2e/app.log', logs], quiet: true);
+      case 'windows':
+        await run(['pull', runDir, 'C:/Users/sheetopia/e2e/app.log', logs], quiet: true);
       case 'android':
         await _script('tool/test/scripts/android.sh', ['adb', runDir, 'logcat', '-d'], outputFile: p.join(logs, 'logcat.txt'));
     }

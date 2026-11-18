@@ -2,7 +2,7 @@
 // through the environment scripts and answers every action with a downscaled
 // screenshot, so seeing the effect costs no extra request.
 //
-//   tool.sh mcp --run <run dir> --platform linux|android|macos|ios
+//   tool.sh mcp --run <run dir> --platform linux|android|macos|ios|windows
 //   tool.sh mcp --path              prints the compiled executable's path
 //
 // Coordinates are pixels of the returned images (the server scales them to
@@ -64,7 +64,7 @@ class _Screen {
 Future<void> main(List<String> arguments) async {
   final parser = ArgParser()
     ..addOption('run')
-    ..addOption('platform', allowed: ['linux', 'android', 'macos', 'ios'])
+    ..addOption('platform', allowed: ['linux', 'android', 'macos', 'ios', 'windows'])
     ..addFlag('path', negatable: false);
   final a = parser.parse(arguments);
   if (a.flag('path')) {
@@ -189,9 +189,9 @@ Future<_Screen> _screen({String? sim, bool driver = false}) async {
         await _sh('android.sh', ['screenshot', _run, _shot]);
         return _readShot();
       });
-    case 'linux' || 'macos':
+    case 'linux' || 'macos' || 'windows':
       return _Screen(0.5, () async {
-        await _sh(_platform == 'linux' ? 'linux_env.sh' : 'macos_vm.sh', ['vnc', _run, 'screenshot', _shot]);
+        await _sh(_vncScripts[_platform]!, ['vnc', _run, 'screenshot', _shot]);
         return _readShot();
       });
     default:
@@ -402,10 +402,16 @@ String _compactUi(String xml, double scale) {
   return lines.isEmpty ? '(no elements, is the screen off or the dump empty?)' : lines.join('\n');
 }
 
+const _vncScripts = {'linux': 'linux_env.sh', 'macos': 'macos_vm.sh', 'windows': 'windows_vm.sh'};
+
 List<_Tool> _vncTools() {
-  final script = _platform == 'linux' ? 'linux_env.sh' : 'macos_vm.sh';
+  final script = _vncScripts[_platform]!;
   Future<String> vnc(List<String> args) => _sh(script, ['vnc', _run, ...args]);
-  final mods = _platform == 'macos' ? 'cmd, option, ctrl, shift' : 'ctrl, alt, shift, super';
+  final mods = switch (_platform) {
+    'macos' => 'cmd, option, ctrl, shift',
+    'windows' => 'ctrl, alt, shift, super (the Windows key)',
+    _ => 'ctrl, alt, shift, super',
+  };
   return [
     _Tool('click', 'Mouse click, optionally with modifiers held ($mods).', {
       ..._xy,

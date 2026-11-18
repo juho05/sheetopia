@@ -11,7 +11,8 @@ E2E_BIN="$E2E_HOME/bin"
 export PATH="$E2E_BIN:$PATH"
 
 # The run splits by host: a Mac tests macOS and iOS, an x86_64 Linux machine
-# tests Linux and Android (and runs the feature suite). See test-plan.yaml.
+# tests Linux, Android and Windows (and runs the feature suite). See
+# test-plan.yaml.
 case "$(uname -s)/$(uname -m)" in
   Darwin/arm64) E2E_HOST=macos ;;
   Linux/x86_64) E2E_HOST=linux ;;
@@ -36,6 +37,23 @@ LINUX_IMAGE="sheetopia-e2e-desktop:24.04"
 LINUX_USER="sheetopia"
 ACT_IMAGE="catthehacker/ubuntu:act-24.04"
 ACT_IMAGE_22="catthehacker/ubuntu:act-22.04"
+
+# Windows 11 VMs (dockur/windows: QEMU/KVM in Docker) for the Windows tests
+# and builds. Runs only ever use throwaway copies of the golden disks.
+WINDOWS_IMAGE="dockurr/windows:latest"
+WINDOWS_HOME="$E2E_HOME/windows"
+WINDOWS_GOLDEN="$WINDOWS_HOME/golden"
+WINDOWS_BUILD_GOLDEN="$WINDOWS_HOME/golden-build"
+WINDOWS_SSH_KEY="$WINDOWS_HOME/id_ed25519"
+WINDOWS_USER="sheetopia"
+WINDOWS_PASSWORD="sheetopia"
+# Installed into the golden test VM for virtual MIDI ports (teVirtualMIDI driver).
+LOOPMIDI_URL="https://www.tobias-erichsen.de/wp-content/uploads/2020/01/loopMIDISetup_1_0_16_27.zip"
+# Installed into the golden build VM, like on GitHub's windows-latest runner.
+VS_BUILDTOOLS_URL="https://aka.ms/vs/17/release/vs_BuildTools.exe"
+GIT_WINDOWS_URL="https://github.com/git-for-windows/git/releases/download/v2.51.0.windows.1/Git-2.51.0-64-bit.exe"
+# inno_bundle looks for Inno Setup 6.
+INNO_SETUP_URL="https://github.com/jrsoftware/issrc/releases/download/is-6_7_4/innosetup-6.7.4.exe"
 
 ANDROID_API="36"
 ANDROID_SYSTEM_IMAGE="system-images;android-$ANDROID_API;google_apis;x86_64"

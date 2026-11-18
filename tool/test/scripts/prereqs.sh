@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: tool/test/scripts/prereqs.sh [--check] [--skip-images]
+# Usage: tool/test/scripts/prereqs.sh [--check] [--skip-images] [--no-windows]
 #
 # Installs what the E2E harness needs on this host beyond a normal Flutter
 # development setup (Flutter, Xcode / Android SDK, Docker on Linux are
@@ -8,19 +8,24 @@
 #   Mac (Apple Silicon): act, node, tart, sendmidi, axe, lilypond, the golden
 #                        macOS test VM (~26 GB download, ~30 GB on disk)
 #   Linux (x86_64):      act, jq, lilypond, the Android x86_64 emulator image,
-#                        the desktop container image, the snd-virmidi module
+#                        the desktop container image, the snd-virmidi module,
+#                        the golden Windows test and build VMs (~8 GB
+#                        download, up to 2.5 h, ~60 GB on disk)
 #
 #   --check        only report what is missing, exit 1 if anything is
 #   --skip-images  don't download/build VM and container images
+#   --no-windows   leave out what only the Windows tests need
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 CHECK_ONLY=0
 SKIP_IMAGES=0
+WINDOWS=1
 for arg in "$@"; do
   case "$arg" in
     --check) CHECK_ONLY=1 ;;
     --skip-images) SKIP_IMAGES=1 ;;
+    --no-windows) WINDOWS=0 ;;
     *) die "unknown argument $arg" ;;
   esac
 done
@@ -128,6 +133,21 @@ elif [ "$E2E_HOST" = linux ]; then
     for image in "$ACT_IMAGE" "$ACT_IMAGE_22"; do
       if ! need "$image" docker image inspect "$image" && installing; then docker pull "$image"; fi
     done
+  fi
+
+  if [ $WINDOWS = 1 ]; then
+    need tun test -e /dev/net/tun || die "the Windows VMs need /dev/net/tun (modprobe tun)"
+    need ssh command -v ssh || die "install an OpenSSH client first"
+    need unzip command -v unzip || die "install unzip first"
+    if [ $SKIP_IMAGES = 0 ]; then
+      if ! need windows-image docker image inspect "$WINDOWS_IMAGE" && installing; then docker pull "$WINDOWS_IMAGE"; fi
+      if ! need windows-golden-vm test -f "$WINDOWS_GOLDEN.ready" && installing; then
+        "$E2E_SCRIPTS/windows_vm.sh" golden
+      fi
+      if ! need windows-golden-build-vm test -f "$WINDOWS_BUILD_GOLDEN.ready" && installing; then
+        "$E2E_SCRIPTS/windows_vm.sh" golden-build
+      fi
+    fi
   fi
 else
   die "the harness runs on Apple Silicon Macs and x86_64 Linux"

@@ -7,13 +7,13 @@ code, you find out whether the app works and report precisely what happened.
 
 - **Never touch the host's own Sheetopia.** Everything happens in the run's
   throwaway environments (macOS VM, Linux desktop container, Android
-  emulator, iOS simulators) through the scripts in `tool/test/scripts/`. Don't
+  emulator, iOS simulators, Windows VM) through the scripts in `tool/test/scripts/`. Don't
   launch Sheetopia on the host and don't read or write the host's Sheetopia
   data (`~/Library/Application Support/de.julianh.sheetopia`,
   `~/.local/share/de.julianh.sheetopia`) or its keychain/keyring.
 - Two hosts run the plan independently: a Mac (macOS VM, iOS simulators)
   and an x86_64 Linux machine (Linux desktop container, Android emulator,
-  feature suite). You only ever touch the platforms of your host.
+  Windows VM, feature suite). You only ever touch the platforms of your host.
 - All paths below are relative to the repository root. `$RUN` is the run
   directory you were given (`tool/test/runs/<id>`), `run.json` in it has the
   versions under test.

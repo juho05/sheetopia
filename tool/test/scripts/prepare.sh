@@ -28,7 +28,9 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-"$E2E_SCRIPTS/prereqs.sh" --check >&2 || die "prerequisites missing, run tool/test/scripts/prereqs.sh"
+prereq_args=(--check)
+E2E_PLAN="$E2E_DIR/test-plan.yaml" plan ${sets[@]+"${sets[@]}"} enabled platforms.windows.enabled || prereq_args+=(--no-windows)
+"$E2E_SCRIPTS/prereqs.sh" "${prereq_args[@]}" >&2 || die "prerequisites missing, run tool/test/scripts/prereqs.sh"
 
 RUN="$E2E_DIR/runs/$ID"
 [ -e "$RUN" ] && die "run $ID already exists"

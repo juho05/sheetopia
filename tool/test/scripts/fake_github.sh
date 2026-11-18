@@ -48,7 +48,8 @@ case "$CMD" in
     serve "$@"
     # Bind only where the platform's environment can reach the host: tart's
     # bridge for the macOS VM, Docker's bridge for the Linux desktop
-    # container, loopback for the Android emulator (its 10.0.2.2).
+    # container and the Windows VM, loopback for the Android emulator (its
+    # 10.0.2.2).
     case "$PLATFORM" in
       macos)
         bind="$(ifconfig bridge100 2>/dev/null | awk '/inet /{print $2; exit}')"
@@ -59,6 +60,13 @@ case "$CMD" in
         bind="$(docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}' 2>/dev/null)"
         bind="${bind:-172.17.0.1}"
         guest_host=host.docker.internal
+        ;;
+      windows)
+        # The VM's traffic leaves through its container, which reaches the
+        # host on Docker's bridge. Windows can't resolve host.docker.internal.
+        bind="$(docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}' 2>/dev/null)"
+        bind="${bind:-172.17.0.1}"
+        guest_host="$bind"
         ;;
       android) bind=127.0.0.1 guest_host=10.0.2.2 ;;
       *) bind=127.0.0.1 guest_host=127.0.0.1 ;;

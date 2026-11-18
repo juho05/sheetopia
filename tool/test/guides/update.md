@@ -1,7 +1,7 @@
 # Update test guide
 
 The in-app updater is tested twice per update platform (macOS, Linux
-AppImage, Android):
+AppImage, Android, Windows installer):
 
 - **old → new**: the previous published release (`versions.previous` in
   `$RUN/run.json`, assets in `$RUN/releases/<tag>/`) updates to the build under
@@ -21,6 +21,7 @@ $S/fake_github.sh stop $RUN <platform>
 ```
 
 Hand `$URL` to the app: macOS `macos_vm.sh launch $RUN --fake-github $URL`,
+Windows `windows_vm.sh launch $RUN --fake-github $URL`,
 Linux `linux_env.sh app $RUN --env SHEETOPIA_GITHUB_API_URL=$URL --env SHEETOPIA_GITHUB_WEB_URL=$URL`, Android `android.sh fake-github $RUN $URL` and restart the app.
 Releases older than the one supporting these variables ignore them and talk to
 the real GitHub; that's why `old_to_new_update` may be disabled in the plan.
@@ -49,7 +50,7 @@ release (`versions.plain`, only for tests that use it) an empty file.
    `old-to-new` or `new-to-next` (the update it is the baseline for; setup
    uses `setup` when old → new is off). The export after the update is
    `<platform>-<phase>-after.zip`.
-   - macOS/Linux: save dialog, then `pull` the file.
+   - macOS/Linux/Windows: save dialog, then `pull` the file.
    - Android: the system save dialog, save to Downloads, then
      `android.sh adb $RUN pull /sdcard/Download/<file> <dest>`.
    Don't open scores between this export and the update.
@@ -68,7 +69,9 @@ release (`versions.plain`, only for tests that use it) an empty file.
 3. Watch the progress until the app restarts. Linux: Restart quits at once and
    the new version comes up about 10 s later (2 s delay plus the AppImage
    start). Click it once and poll the process list in one Bash loop before
-   clicking again. On Android allow installing unknown apps and confirm the
+   clicking again. Windows: the app exits and the installer wizard opens
+   (UAC prompt: Yes), click through it; its last page starts the new
+   version. On Android allow installing unknown apps and confirm the
    system installer; the installer ends the app, reopen it yourself.
 4. `requests` must show the tag list, the upgrade messages file at the target
    tag (not for a previous release without upgrade messages) and the download
@@ -77,7 +80,8 @@ release (`versions.plain`, only for tests that use it) an empty file.
 ## Verifying
 
 - Version: Settings > About (and on macOS Info.plist, on Android
-  `adb shell dumpsys package de.julianh.sheetopia | grep versionName`).
+  `adb shell dumpsys package de.julianh.sheetopia | grep versionName`, on
+  Windows the exe's ProductVersion, see the Windows guide).
 - The toast "Successfully updated to v<target>!" appeared once; the dialog is
   gone after the restart. The toast only stays 2.5 s, too short for a
   screenshot after the relaunch: check the app log for the debug entry

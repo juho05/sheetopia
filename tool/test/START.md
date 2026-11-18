@@ -19,8 +19,8 @@ questions. Preselect nothing, describe each option in one short line.
 2. **Tests**
    - Platform features: OS and plugin behaviour with real input
    - Feature suite: the app's own logic (Linux host only)
-3. **Platforms** (only this host's: Linux host Linux and Android, Mac macOS
-   and iOS)
+3. **Platforms** (only this host's: Linux host Linux, Android and Windows,
+   Mac macOS and iOS)
 
 If old→current is selected, ask afterwards which release it starts from:
 `latest` (recommended) or a tag like `v0.7.0`.
@@ -37,7 +37,7 @@ If old→current is selected, ask afterwards which release it starts from:
 | Upgrade messages | `phases.upgrade_messages.enabled` |
 | Platform features | `phases.platform_features.enabled` |
 | Feature suite | `phases.feature_suite.enabled` |
-| Linux / Android / macOS / iOS | `platforms.<linux\|android\|macos\|ios>.enabled` |
+| Linux / Android / Windows / macOS / iOS | `platforms.<linux\|android\|windows\|macos\|ios>.enabled` |
 | Start release (old→current only) | `build.previous_release=<latest or tag>` |
 
 Before starting:
@@ -59,7 +59,8 @@ tool/test/scripts/tool.sh e2e 2026-10-15_1400 \
   --set phases.old_to_new_update.enabled=false --set phases.new_to_next_update.enabled=true \
   --set phases.upgrade_messages.enabled=true \
   --set phases.platform_features.enabled=true --set phases.feature_suite.enabled=true \
-  --set platforms.linux.enabled=true --set platforms.android.enabled=true
+  --set platforms.linux.enabled=true --set platforms.android.enabled=true \
+  --set platforms.windows.enabled=true
 ```
 
 To continue an unfinished run (usage limit, crash, aborted), run

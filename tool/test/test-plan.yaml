@@ -6,7 +6,8 @@
 #
 # Two machines share this plan and run it independently: a Mac tests macOS
 # (tart VM) and iOS (simulator), an x86_64 Linux machine tests Linux (desktop
-# container), Android (emulator) and runs the feature suite. Each host only
+# container), Android (emulator), Windows (dockur VM) and runs the feature
+# suite. Each host only
 # runs the platforms whose `host` it is.
 #
 # Tests are written for the agents that execute them: say what to do and what
@@ -28,7 +29,8 @@
 run:
   # Environments running at the same time on one host, one agent each.
   # Mac: macOS VM (8 GB) + iOS simulators (~2 GB each).
-  # Linux: desktop container (light) + Android emulator (~3 GB).
+  # Linux: desktop container (light) + Android emulator (~3 GB) + Windows VM
+  # (8 GB, the third one waits for a free slot).
   max_parallel_environments: 2
   # Tests per agent. Each agent starts from the restored starting state, and
   # an agent's cost grows with the square of its length: keep it small.
@@ -65,6 +67,10 @@ platforms:
   android:
     host: linux
     enabled: true
+  windows:
+    host: linux
+    enabled: true
+    vm: { cpus: 4, memory_gb: 8 }
 
 phases:
   build:
@@ -99,8 +105,9 @@ data_verification:
   ignore_fields: [ ]
 
 # Update tests (old→new and new→next) run on these platforms. iOS has no
-# in-app updater (App Store), Linux tests the AppImage (the tar.gz has none).
-update_platforms: [ macos, linux, android ]
+# in-app updater (App Store), Linux tests the AppImage (the tar.gz has none),
+# Windows the installer.
+update_platforms: [ macos, linux, android, windows ]
 
 update_checks:
   - id: update.dialog
@@ -118,7 +125,8 @@ update_checks:
       Install downloads the platform's asset from the fake server (check its
       request log), shows progress, installs and restarts into the new version.
       On Android, allow "install unknown apps" when asked and confirm the
-      system installer.
+      system installer. On Windows the app exits and the installer wizard
+      opens: click through it, its last page starts the new version.
   - id: update.success_toast
     test: >-
       After the restart the toast "Successfully updated to v<new>!" appears
@@ -188,14 +196,15 @@ upgrade_messages:
       tapping outside. OK closes it; it does not appear after another
       restart. The "Successfully updated" toast still appears.
   - id: upgrade_messages.version_check_disabled
-    platforms: [ linux, macos, ios ]
+    platforms: [ linux, macos, ios, windows ]
     test: >-
-      Version checking disabled outside the app, so no updater: Linux and
-      macOS first start the build under test with --env
+      Version checking disabled outside the app, so no updater: Linux, macOS
+      and Windows first start the build under test with --env
       SHEETOPIA_DISABLE_VERSION_CHECK=1 and the fake GitHub URLs (Settings
       has no Version Checking entry, the fake GitHub gets no requests at
       all), the iOS build has it disabled at build time. Upgrade by installing the next build directly (Linux: the next
-      AppImage into ~/Downloads; macOS: install-dmg; iOS: install
+      AppImage into ~/Downloads; macOS: install-dmg; Windows: run the next
+      installer from ~\Downloads; iOS: install
       $RUN/builds/next/ios/Runner.app over the installed app) and start it
       the same way: the "Important Changes" dialog (save a screenshot) shows
       the two v<next> messages with only OK (Cupertino style on macOS and
@@ -217,10 +226,11 @@ upgrade_messages:
 
 # Platform dependent tests (see the rule at the top). Each runs on all listed
 # platforms: macOS in the VM, iOS in the simulator(s), Linux in the desktop
-# container, Android in the emulator, with real input and system UI.
+# container, Android in the emulator, Windows in the VM, with real input and
+# system UI.
 platform_features:
   - id: launch.cold_start
-    platforms: [ macos, linux, android, ios ]
+    platforms: [ macos, linux, android, ios, windows ]
     via: platform builds, plugin registration
     test: >-
       The app starts without errors, shows the library, and Settings > Debug >
@@ -232,8 +242,61 @@ platform_features:
     test: >-
       The tar.gz bundle extracts and its `sheetopia` binary starts and shows the
       library. It does not offer AppImage integration or auto updates.
+  - id: launch.windows_installer
+    platforms: [ windows ]
+    excluded: the Inno Setup installer is Windows-only
+    via: release packaging (inno_bundle)
+    own_agent: true
+    test: >-
+      Quit the app and uninstall Sheetopia through Settings > Apps >
+      Installed apps: its folder in Program Files and the Start menu entry
+      are gone (report whether the app data in
+      %APPDATA%\juho05\Sheetopia survived, as information). Double-click
+      the installer in ~\Downloads in Explorer and go through the wizard
+      like a user (install mode choice, UAC): it installs, the Start menu
+      has Sheetopia with its icon, the last page starts the app and Settings
+      > About shows the version under test. Installed apps lists it with
+      that version.
+  - id: launch.windows_zip
+    platforms: [ windows ]
+    excluded: the zip release is Windows-only
+    via: release packaging (zip with the VC++ runtime DLLs)
+    test: >-
+      Copy the zip release ($RUN/releases/v<current>/*windows-x86-64.zip)
+      to ~\Downloads, extract it with Explorer's Extract All to
+      ~\sheetopia-zip and double-click sheetopia.exe there: it starts
+      without a missing DLL error and shows the library with the installed
+      app's data (both use %APPDATA%\juho05\Sheetopia).
+  - id: edit.change_file_open_pdf
+    platforms: [ windows ]
+    excluded: only Windows releases the open PDF before replacing it (Windows can't replace a file PDFium holds open)
+    via: edit_score_preview.dart (_releaseDocument), edit_score_viewmodel.dart changeFile
+    test: >-
+      Edit score of a demo score with its preview showing the PDF (File tab
+      below 900px): Change file to fixtures/paper/tinted-margins.pdf
+      replaces it, the preview and the library thumbnail show the new file,
+      the viewer opens it and the log has no Error entry. Change file to
+      fake.pdf and to corrupt.pdf: a clear error, the old file stays and the
+      preview shows it again (not blank, no stuck spinner), annotating and
+      Change file still work afterwards. Repeat once with the score open in
+      Annotate before going back to Edit score.
+  - id: edit.delete_open_pdf
+    platforms: [ windows ]
+    excluded: >-
+      only Windows refuses to delete a file PDFium still holds open, the
+      cleanup then retries for about 15 s
+    via: scores_repository.dart cleanupScoreFilesAfterDelete (retries while the files are busy)
+    test: >-
+      Delete scores whose PDF is still open: from Edit score with the
+      preview showing it (app bar menu > Delete), right after leaving the
+      viewer, and two scores at once through the library selection right
+      after opening one of them. List
+      %APPDATA%\juho05\Sheetopia\scores before and after: within 20 s of
+      each delete exactly the deleted scores' directories are gone, and the
+      log has no "Failed to clean up files of deleted score" entry. The
+      library, thumbnails and the remaining scores are unaffected.
   - id: import.file_picker
-    platforms: [ macos, linux, android, ios ]
+    platforms: [ macos, linux, android, ios, windows ]
     via: file_selector (desktop), file_picker (mobile), lib/file_picker.dart
     test: >-
       Library FAB > Import files opens the native picker, which only offers
@@ -244,7 +307,7 @@ platform_features:
       choose them (renamed/"all files"), fake.pdf and corrupt.pdf give a clear
       error and import nothing from that batch.
   - id: import.drag_and_drop
-    platforms: [ macos, linux, android, ios ]
+    platforms: [ macos, linux, android, ios, windows ]
     via: desktop_drop, lib/ui/common/drop_area.dart
     test: >-
       Drag PDFs from the system file manager onto the app: one PDF (library:
@@ -252,9 +315,11 @@ platform_features:
       fake.pdf and corrupt.pdf (each a clear error, nothing imported), a mix
       of valid and invalid (nothing imported, "Unsupported file type!"),
       dropping onto the Practice tab and the Exercises page (several files
-      ask Separate/Single exercises) and onto Edit exercise > scores. The
+      ask Separate/Single exercises, also when some are invalid, the error
+      comes after the choice) and onto Edit exercise > scores. The
       Setlists tab and a drop while a dialog is open are ignored.
-      macOS: Finder → app window. Linux: Thunar → app window. Android: split
+      macOS: Finder → app window. Linux: Thunar → app window. Windows:
+      Explorer → app window. Android: split
       screen with the Files app, long-press drag. iOS: iPad simulator
       (`--sim tablet`), Split View or Slide Over with Files, drag.
   - id: share.receive
@@ -275,7 +340,7 @@ platform_features:
       shared copies are cleaned up from the share inbox afterwards.
   - id: share.send
     platforms: [ macos, android, ios ]
-    excluded: Linux has no share action, it saves files instead (export.save_dialog)
+    excluded: Linux and Windows have no share action, they save files instead (export.save_dialog)
     via: share_plus, edit_score_preview.dart, edit_exercise_scores.dart, logs_page.dart, importexport_repository.dart
     test: >-
       Every share action opens the system share sheet with the right file:
@@ -287,19 +352,19 @@ platform_features:
       file. Dismissing the sheet shows no success message. On iPad the sheet
       is anchored to its button.
   - id: export.save_dialog
-    platforms: [ macos, linux, android ]
+    platforms: [ macos, linux, android, windows ]
     excluded: iOS has no save dialog, it shares instead (share.send)
     via: file_selector getSaveLocation (desktop), file_picker saveFile (Android), score_file.dart, importexport_repository.dart, logs_page_viewmodel.dart
     test: >-
       Save score PDF (Edit score save button; Android: share menu > Export),
       Edit exercise score menu > Export, Export .zip (Settings >
-      Import/Export) and Save log (Debug > logs, Linux/Android only, macOS
-      shares instead) use the native save dialog with a sensible default
+      Import/Export) and Save log (Debug > logs, Linux/Android/Windows only,
+      macOS shares instead) use the native save dialog with a sensible default
       file name (<title>.pdf, sheetopia-export-<date>.zip,
       sheetopia-logs_<date>.txt), the files land where chosen and are
       complete. Cancelling shows no success toast.
   - id: export.large_library
-    platforms: [ macos, linux, android, ios ]
+    platforms: [ macos, linux, android, ios, windows ]
     via: archive ZipFileEncoder, importexport_repository.dart (exports used to fail with "Too many open files" on macOS)
     test: >-
       Import fixtures/large-library.zip through Settings > Import/Export >
@@ -310,7 +375,7 @@ platform_features:
       entries (`unzip -l <zip> | grep -c score.pdf` on the host after
       pulling it).
   - id: import.archive
-    platforms: [ macos, linux, android, ios ]
+    platforms: [ macos, linux, android, ios, windows ]
     via: file_selector openFile, importexport_page.dart
     test: >-
       Settings > Import/Export > Import: a valid export imports ("Import
@@ -319,26 +384,26 @@ platform_features:
       greys out non-zip files (Android), notes.txt not being selectable
       passes.
   - id: shortcuts.platform_modifier
-    platforms: [ macos, linux ]
+    platforms: [ macos, linux, windows ]
     excluded: >-
-      the Apple/other branch is the same on mobile, macOS and Linux cover both
+      the Apple/other branch is the same on mobile, the desktops cover both
       sides; key delivery from hardware keyboards is Flutter's
     via: selection_shortcuts.dart, selection_gestures.dart, annotation_toolbar.dart (Cmd on Apple, Ctrl elsewhere)
     test: >-
       Select all in the library, setlists, routines, exercises and practice
       records, modifier+click to start a selection and Shift+click range
       select, undo/redo in
-      annotations use Cmd on macOS and Ctrl on Linux, and the other modifier
-      does nothing.
+      annotations use Cmd on macOS and Ctrl on Linux and Windows, and the
+      other modifier does nothing.
   - id: annotate.default_mode
-    platforms: [ macos, linux, android, ios ]
+    platforms: [ macos, linux, android, ios, windows ]
     via: annotate_viewmodel.dart (draw mode on desktop, move mode on mobile)
     test: >-
-      Opening Edit score > Annotate starts in Draw mode on macOS/Linux and in
-      Move mode on Android/iOS; drawing with the platform's primary input
+      Opening Edit score > Annotate starts in Draw mode on
+      macOS/Linux/Windows and in Move mode on Android/iOS; drawing with the platform's primary input
       (mouse/finger) behaves accordingly.
   - id: ui.platform_adaptive
-    platforms: [ macos, linux, android, ios ]
+    platforms: [ macos, linux, android, ios, windows ]
     via: adaptive_dialog_action.dart, menu_button.dart, home_viewmodel.dart, import_source_dialog.dart
     test: >-
       Confirmation dialogs (delete score, delete setlist, update available
@@ -346,12 +411,13 @@ platform_features:
       macOS/iOS and Material buttons elsewhere, and they work. Popup menus use the compact item height on desktop. "Scan
       pages" appears only on Android/iOS (FAB menu, import source dialog).
   - id: links.external
-    platforms: [ macos, linux, android, ios ]
+    platforms: [ macos, linux, android, ios, windows ]
     via: url_launcher
     test: >-
       A score source link (the demo has none, add one), an exercise source
       link (Hanon No. 1, editor and the practice start overlay), About > GitHub and Privacy policy open in the system
-      browser (Linux: check ~/e2e/opened-urls.log); the app stays
+      browser (Linux: check ~/e2e/opened-urls.log; Windows: Edge's address
+      bar); the app stays
       usable and returning to it keeps its state.
   - id: theme.linux_portal
     platforms: [ linux ]
@@ -370,9 +436,12 @@ platform_features:
       on Sunday with LC_TIME=en_US.UTF-8 (LANG unchanged), also when only
       LC_ALL is set.
   - id: viewer.fullscreen
-    platforms: [ macos, linux ]
+    platforms: [ macos, linux, windows ]
     excluded: mobile has no window fullscreen, see viewer.immersive
-    via: flutter_fullscreen, window_manager, full_screen.dart, play_session.dart
+    via: >-
+      flutter_fullscreen, window_manager, full_screen.dart, play_session.dart,
+      windows/runner/flutter_window.cpp (Windows switches fullscreen in the
+      runner over the sheetopia/window channel)
     test: >-
       In the score viewer, setlist play, routine play and exercise play F/F11
       and the fullscreen button toggle real window fullscreen, Esc leaves it,
@@ -380,7 +449,16 @@ platform_features:
       without a score show a text card instead, there F/F11/Esc work too but
       the app bar, toolbar and cursor intentionally stay. Leaving the
       viewer exits fullscreen (except on macOS, where it intentionally stays,
-      with the back button visible while the overlay shows).
+      with the back button visible while the overlay shows). Windows: the
+      window covers the screen and the taskbar without a frame or rounded
+      corners (winstate FULLSCREEN), it switches in one step without visible
+      intermediate sizes, and leaving restores the size and position it had
+      before, also when it was maximized (un-maximizing afterwards returns
+      to the earlier normal size). Snapping the window out of fullscreen with
+      the keyboard (super+left or super+right) leaves fullscreen and the app
+      follows (the frame is back, F toggles it on again). super+down
+      minimizes it instead and restoring it returns to fullscreen, that's
+      intended.
   - id: viewer.immersive
     platforms: [ android, ios ]
     excluded: desktop has window fullscreen instead, see viewer.fullscreen
@@ -390,15 +468,16 @@ platform_features:
       leaving restores them, also when leaving via system back or a
       notification.
   - id: viewer.keep_awake
-    platforms: [ macos, linux, android, ios ]
+    platforms: [ macos, linux, android, ios, windows ]
     via: wakelock_plus, play_session.dart
     test: >-
       While a score is open the display doesn't sleep: macOS `pmset -g
       assertions`, Linux the screensaver inhibition over D-Bus, Android
-      `dumpsys power | grep -i wake`, iOS best effort (say how you checked).
-      Leaving the viewer releases it.
+      `dumpsys power | grep -i wake`, Windows `powercfg /requests`
+      (DISPLAY), iOS best effort (say how you checked). Leaving the viewer
+      releases it.
   - id: viewer.score_processing
-    platforms: [ macos, linux, android, ios ]
+    platforms: [ macos, linux, android, ios, windows ]
     via: >-
       appearance.dart (Match paper color on by default on Android/iOS),
       score_processing_service.dart (pdfrx renders in a background isolate),
@@ -406,7 +485,7 @@ platform_features:
       pixels)
     test: >-
       Before changing anything: Settings > Appearance > Match paper color is
-      on on Android/iOS and off on macOS/Linux, Settings > Page Margins >
+      on on Android/iOS and off on macOS/Linux/Windows, Settings > Page Margins >
       Crop page margins is off everywhere. Import
       fixtures/paper/tinted-margins.pdf (two pages of cream paper with about
       20% empty margin on every side) and wait until the app log has
@@ -425,7 +504,7 @@ platform_features:
       default) and moves Done down: look again before the next tap, a tap at
       Done's old position switches the row off and excludes the score.
   - id: window.close
-    platforms: [ macos, linux ]
+    platforms: [ macos, linux, windows ]
     excluded: mobile apps have no close button
     via: window_manager setPreventClose, window_listener.dart, app_shutdown.dart
     test: >-
@@ -435,7 +514,7 @@ platform_features:
       wizard are kept as scores with their file names as titles, that is
       intended.
   - id: lifecycle.practice_timer
-    platforms: [ macos, linux, android, ios ]
+    platforms: [ macos, linux, android, ios, windows ]
     via: practice_timer.dart (mobile stops ticking and checks the gap on return, desktop keeps counting)
     test: >-
       Start an exercise without a target duration, send the app to the
@@ -450,7 +529,7 @@ platform_features:
       or wait if it can't be moved) shows the recovery instead, on all
       platforms.
   - id: midi.virtual_device
-    platforms: [ macos, linux, ios ]
+    platforms: [ macos, linux, ios, windows ]
     excluded: the Android emulator has no MIDI devices
     via: flutter_midi_command (fork), midi_repository.dart
     test: >-
@@ -462,15 +541,16 @@ platform_features:
       Remembered while away); Disconnect and Forget remove the mapping and
       stop the reconnecting.
   - id: midi.bluetooth_unavailable
-    platforms: [ macos, linux, android, ios ]
+    platforms: [ macos, linux, android, ios, windows ]
     via: flutter_midi_command, midi_repository.dart
     test: >-
       Without Bluetooth the MIDI page still lists wired/virtual devices, no
       crash and no error in the log. A denied permission shows the "Bluetooth
       permission denied" toast at start. Android: deny, then allow the "nearby
-      devices" permission; macOS: deny, then allow the Bluetooth prompt.
+      devices" permission; macOS: deny, then allow the Bluetooth prompt;
+      Windows: the VM has no Bluetooth adapter.
   - id: storage.credentials
-    platforms: [ macos, linux, android, ios ]
+    platforms: [ macos, linux, android, ios, windows ]
     via: flutter_secure_storage, dbus_secrets (Linux), encrypted_storage_*.dart, sync_dialog_viewmodel.dart
     test: >-
       The sync dialog validates URLs ("invalid URI"; plain http:// to a

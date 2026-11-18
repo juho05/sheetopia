@@ -15,6 +15,9 @@
 #     e2e      the Linux profile build with the driver extension for the
 #              feature suite (tool/test/app/main_e2e.dart), built in an Ubuntu
 #              24.04 container so it runs in the test desktop
+#     windows  the steps of the build_windows_x86_64 job (installer and zip)
+#              in a throwaway Windows build VM (tool/test/windows/build.ps1),
+#              act can't run windows-latest jobs
 #
 # Results land in <run>/releases/v<version>/ under the release asset names
 # (the release job's renames) and <run>/builds/<stage>/. Logs:
@@ -50,6 +53,7 @@ if [ ${#parts[@]} -eq 0 ]; then
     linux)
       { platform_on linux || platform_on android; } && parts+=(host)
       platform_on linux && plan enabled phases.feature_suite.enabled && parts+=(e2e)
+      platform_on windows && parts+=(windows)
       ;;
     *) die "unsupported host $(uname -sm)" ;;
   esac
@@ -187,6 +191,50 @@ EOF
   else
     note current linux-e2e "FAILED (logs/build-current-linux-e2e.log)"
   fi
+fi
+
+# --- Linux host: Windows build VM ---------------------------------------------
+
+if want windows; then
+  W="$E2E_SCRIPTS/windows_vm.sh"
+  wlog="$RUN/logs/build-windows-vm.log"
+  flutter_version="$(sed -n 's/^ *FLUTTER_VERSION: *"\(.*\)"/\1/p' "$RUN/stage/current/.github/workflows/release.yml")"
+  sdk_zip="$WINDOWS_HOME/flutter_windows_$flutter_version-stable.zip"
+  if [ ! -f "$sdk_zip" ]; then
+    log "downloading Flutter $flutter_version for Windows"
+    mkdir -p "$WINDOWS_HOME"
+    curl -fL --retry 3 -o "$sdk_zip.part" \
+      "https://storage.googleapis.com/flutter_infra_release/releases/stable/windows/flutter_windows_$flutter_version-stable.zip" &&
+      mv "$sdk_zip.part" "$sdk_zip" || rm -f "$sdk_zip.part"
+  fi
+  "$W" down "$RUN" --vm build >>"$wlog" 2>&1 || true
+  log "booting the Windows build VM"
+  if [ ! -f "$sdk_zip" ]; then
+    note all build_windows_x86_64 "FAILED (Flutter $flutter_version for Windows could not be downloaded)"
+  elif ! { "$W" up "$RUN" --vm build && "$W" push "$RUN" --vm build "$sdk_zip" C:/e2e &&
+    "$W" exec "$RUN" --vm build -- "tar -xf C:\\e2e\\$(basename "$sdk_zip") -C C:\\e2e && del C:\\e2e\\$(basename "$sdk_zip")"; } >>"$wlog" 2>&1; then
+    note all build_windows_x86_64 "FAILED (logs/build-windows-vm.log)"
+  else
+    for stage in "${stages[@]}"; do
+      v="$(version_of "$stage")"
+      rel="$(release_dir "$stage")"
+      out="$RUN/builds/$stage/windows"
+      log "build_windows_x86_64 ($stage, in the build VM)"
+      rm -rf "$out"
+      if "$W" push "$RUN" --vm build "$RUN/stage/$stage" C:/e2e/src >>"$wlog" 2>&1 &&
+        "$W" exec "$RUN" --vm build -- "powershell -NoProfile -ExecutionPolicy Bypass -File C:\\e2e\\windows\\build.ps1 -Src C:\\e2e\\src\\$stage -Flutter C:\\e2e\\flutter -Out C:\\e2e\\out\\$stage" \
+          >"$RUN/logs/build-$stage-build_windows_x86_64.log" 2>&1 &&
+        "$W" pull "$RUN" --vm build "C:/e2e/out/$stage" "$RUN/builds/$stage" >>"$wlog" 2>&1 &&
+        mv "$RUN/builds/$stage/$stage" "$out"; then
+        cp "$out/installer.exe" "$rel/Sheetopia-$v-windows-x86-64.exe"
+        cp "$out/Sheetopia.zip" "$rel/Sheetopia-$v-windows-x86-64.zip"
+        note "$stage" build_windows_x86_64 ok
+      else
+        note "$stage" build_windows_x86_64 "FAILED (logs/build-$stage-build_windows_x86_64.log)"
+      fi
+    done
+  fi
+  "$W" down "$RUN" --vm build >>"$wlog" 2>&1 || true
 fi
 
 # --- Mac host: the .dmg job ------------------------------------------------------

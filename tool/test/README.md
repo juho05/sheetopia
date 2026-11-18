@@ -11,7 +11,7 @@ Two machines share the plan and run it independently:
 | Host | Platforms | Environments | Extra |
 |---|---|---|---|
 | Mac (Apple Silicon) | macOS, iOS | tart macOS VM (no Xcode), headless iOS simulators (phone, tablet) | signed .dmg via act on the Mac itself |
-| Linux (x86_64) | Linux, Android | Ubuntu 24.04 + Xfce desktop container (VNC), KVM Android emulator | ubuntu jobs via act natively, **full feature suite** |
+| Linux (x86_64) | Linux, Android, Windows | Ubuntu 24.04 + Xfce desktop container (VNC), KVM Android emulator, Windows 11 VM (dockur/windows, VNC + SSH) | ubuntu jobs via act natively, Windows job steps in a Windows build VM, **full feature suite** |
 
 ## What a run does
 
@@ -26,7 +26,8 @@ Two machines share the plan and run it independently:
    job signs with the login keychain's identity without touching keychains,
    and notarization, uploads and attestation are skipped), plus the iOS simulator
    build (Mac) and the Linux profile build with the driver extension
-   (`app/main_e2e.dart`, Linux).
+   (`app/main_e2e.dart`, Linux). The Windows job's steps run in a throwaway
+   Windows build VM (`windows/build.ps1`, Linux).
 3. **Test**, one chain per platform: the orchestrator provisions the
    environment, then agents run
    setup (import demo library, baseline export) →
@@ -70,7 +71,7 @@ Continue an unfinished run (keeps builds and finished steps):
 tool/test/scripts/tool.sh e2e 2026-10-14_1700 --resume
 ```
 
-A full run takes hours and spawns roughly 22 (Mac) to 50 (Linux) agents.
+A full run takes hours and spawns roughly 22 (Mac) to 65 (Linux) agents.
 
 ## Setting up a machine
 
@@ -79,8 +80,10 @@ A full run takes hours and spawns roughly 22 (Mac) to 50 (Linux) agents.
    Linux).
 2. `tool/test/scripts/prereqs.sh` installs the rest and builds the base images
    (Mac: act, node, tart, sendmidi, axe, lilypond and a ~30 GB macOS VM; Linux: act,
-   jq, lilypond, the Android x86_64 image, the desktop image and the
-   `snd-virmidi` module, which needs sudo once).
+   jq, lilypond, the Android x86_64 image, the desktop image, the
+   `snd-virmidi` module, which needs sudo once, and the golden Windows test
+   and build VMs, up to 2.5 h unattended and ~60 GB, `--no-windows` skips them).
+   Windows runs unactivated.
    `prereqs.sh --check` only reports.
 3. Mac: copy `local.env.example` to `local.env` (gitignored) and fill in the
    name of the Developer ID identity in the login keychain (codesign asks
@@ -112,6 +115,7 @@ Tests are prose for the agents: what to do and what must be true afterwards.
 | `harness/` | Dart tools: `mcp` (agents' screen tools), `drive` (driver client), `vnc`, `fake_github`, `export_diff`, `plan` |
 | `app/main_e2e.dart` | app entry point with the flutter_driver extension |
 | `linux/` | the Linux desktop container image |
+| `windows/` | scripts inside the Windows VMs: SSH setup, golden provisioning, build steps, desktop session runner, virtual MIDI |
 | `runs/` | run directories (gitignored) |
 
 The update tests point the app at the fake GitHub with
