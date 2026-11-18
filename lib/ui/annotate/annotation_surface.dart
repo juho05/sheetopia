@@ -39,7 +39,9 @@ class AnnotationSurface extends StatefulWidget {
 }
 
 class _AnnotationSurfaceState extends State<AnnotationSurface> {
-  static const double _tapSlop = 8;
+  static const double _tapSlop = 12;
+
+  static const double _lassoTapSpan = 8;
 
   Size _size = Size.zero;
 
@@ -49,10 +51,12 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
 
   Offset? _tapOrigin;
 
+  Rect? _extent;
+
   static const Duration _holdDelay = Duration(milliseconds: 1000);
 
   // In on-screen pixels, wide enough for the jitter of a resting stylus.
-  static const double _holdSlop = 8;
+  static const double _holdSlop = 12;
 
   Timer? _holdTimer;
   Offset _holdOrigin = Offset.zero;
@@ -134,7 +138,10 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
         ) ??
         false;
     _drawing = started ? viewModel : null;
-    if (started) _armHold(event.position);
+    if (started) {
+      _armHold(event.position);
+      _extent = Rect.fromPoints(event.position, event.position);
+    }
   }
 
   void _onUpdate(PointerMoveEvent event) {
@@ -142,6 +149,9 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
     if (origin != null && (event.position - origin).distance > _tapSlop) {
       _tapOrigin = null;
     }
+    _extent = _extent?.expandToInclude(
+      Rect.fromPoints(event.position, event.position),
+    );
     if ((event.position - _holdOrigin).distance > _holdSlop) {
       _armHold(event.position);
     }
@@ -157,9 +167,16 @@ class _AnnotationSurfaceState extends State<AnnotationSurface> {
     if (_tapOrigin != null) {
       _owned?.cancelStroke();
     } else {
-      _owned?.endStroke();
+      final extent = _extent;
+      _owned?.endStroke(
+        isTap:
+            extent != null &&
+            extent.width < _lassoTapSpan &&
+            extent.height < _lassoTapSpan,
+      );
     }
     _tapOrigin = null;
+    _extent = null;
     _drawing = null;
   }
 

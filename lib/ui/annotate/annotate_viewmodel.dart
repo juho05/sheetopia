@@ -176,9 +176,6 @@ class AnnotateViewModel extends ChangeNotifier {
   // streamlining: the marquee should track the pointer instead of lagging it.
   static const double _lassoMinD = 0.002;
 
-  // A lasso whose bounding box stays below this in both axes is a tap.
-  static const double _lassoMinSpan = 0.005;
-
   static const double _pasteNudge = 0.005;
 
   final ScoresRepository _repo;
@@ -734,9 +731,9 @@ class AnnotateViewModel extends ChangeNotifier {
     }
   }
 
-  void endStroke() {
+  void endStroke({bool isTap = false}) {
     if (_tool == AnnotateTool.lasso) {
-      _endLasso();
+      _endLasso(isTap);
       return;
     }
     final pageIndex = _activePageIndex;
@@ -793,7 +790,7 @@ class AnnotateViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _endLasso() {
+  void _endLasso(bool isTap) {
     final pageIndex = _activePageIndex;
     final points = _lassoPoints;
     final dragging = _dragStartX != null;
@@ -806,20 +803,15 @@ class AnnotateViewModel extends ChangeNotifier {
     if (dragging) {
       _commitDrag();
     } else if (pageIndex != null && points != null) {
-      _closeLasso(pageIndex, points);
+      _closeLasso(pageIndex, points, isTap);
     }
     _pingLasso(pageIndex);
     notifyListeners();
   }
 
-  void _closeLasso(int pageIndex, List<double> polygon) {
+  void _closeLasso(int pageIndex, List<double> polygon, bool isTap) {
     _selection = null;
-    final box = polygonBounds(polygon);
-    if (polygon.length < 6 || box == null) return;
-    if (box.maxX - box.minX < _lassoMinSpan &&
-        box.maxY - box.minY < _lassoMinSpan) {
-      return;
-    }
+    if (isTap || polygon.length < 6 || polygonBounds(polygon) == null) return;
     final strokes = _pages[pageIndex] ?? const <Stroke>[];
     final indices = selectStrokes(strokes, polygon);
     if (indices.isEmpty) return;

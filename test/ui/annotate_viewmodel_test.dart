@@ -246,6 +246,17 @@ void main() {
       expect(viewModel.hasSelection, isFalse);
     });
 
+    test('a lasso ended as a tap selects nothing', () {
+      draw(0, const [Offset(0.3, 0.3), Offset(0.4, 0.4)]);
+      viewModel.setLasso();
+      viewModel.startStroke(0, _p(0.2, 0.2), _aspect);
+      viewModel.appendPoint(_p(0.5, 0.2), _aspect);
+      viewModel.appendPoint(_p(0.5, 0.5), _aspect);
+      viewModel.appendPoint(_p(0.2, 0.5), _aspect);
+      viewModel.endStroke(isTap: true);
+      expect(viewModel.hasSelection, isFalse);
+    });
+
     test('a lasso on another page replaces the selection', () {
       draw(0, const [Offset(0.3, 0.3), Offset(0.4, 0.4)]);
       draw(1, const [Offset(0.3, 0.3), Offset(0.4, 0.4)]);
