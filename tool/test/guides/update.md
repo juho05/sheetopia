@@ -59,9 +59,22 @@ release (`versions.plain`, only for tests that use it) an empty file.
 
 1. Start the fake server with the starting and the target release, e.g.
    `start $RUN macos v0.7.0 v0.8.0`, and (re)start the app pointing at it.
-2. The "New version available" dialog appears at start (if it was shown in the
-   last day or you chose "Remind later", use Settings > Version Checking >
-   Check now instead). Check its texts and buttons, then press Install.
+2. The "New version available" dialog appears at start, except when:
+   - the app asked GitHub less than 3 hours ago: it then uses the latest
+     version it saw then without a request (`requests` stays empty). Setup
+     starts the app without the fake server, so in the following hours the
+     app still knows the real GitHub's latest version;
+   - the dialog was shown in the last day (any choice, also Ignore and
+     dismissing it);
+   - that exact version was ignored (a newer one shows the dialog again).
+
+   Settings > Version Checking > Check now skips all three and always asks
+   the server. To see the dialog at start, move the clock forward by a day
+   (or terminate the app and move the timestamps `version.last_check` and
+   `version.last_displayed_dialog` back: rows of the `key_value` table in
+   `sheetopia_database.sqlite`, milliseconds since the epoch) and serve a
+   version that wasn't ignored. Check its texts and buttons, then press
+   Install.
    View opens the releases page and closes the dialog, Check now brings it
    back.
    If the "Important Changes" dialog appears before the download, check it

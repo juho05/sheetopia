@@ -158,9 +158,13 @@ update_checks:
       Settings > Version Checking reports no new version.
   - id: update.ignore_remind
     test: >-
-      Ignore suppresses that version (toast, no dialog on the next start);
-      Remind later shows it again once a day has passed (move the clock or
-      check the stored timestamp) and Check now always finds it.
+      Remind later first: no toast, no dialog on the next start within a day,
+      the dialog again on a start after a day has passed (move the clock, or
+      the timestamps, see the update guide). Then Ignore: the toast "You won't
+      be reminded about this version again" and no dialog on starts after a
+      day either. Ignore lasts until the server offers a newer version, so do
+      it last (or serve a newer tag to see the dialog come back). Check now
+      always finds the version, ignored or not.
 
 # Upgrade message scenarios. Each test gets its own agent, starts from the
 # restored starting state (build under test installed) and ends with the
@@ -316,12 +320,16 @@ platform_features:
       of valid and invalid (nothing imported, "Unsupported file type!"),
       dropping onto the Practice tab and the Exercises page (several files
       ask Separate/Single exercises, also when some are invalid, the error
-      comes after the choice) and onto Edit exercise > scores. The
-      Setlists tab and a drop while a dialog is open are ignored.
+      comes after the choice) and onto the Scores pane of the exercise
+      editor: it imports the files as scores of that exercise, also while
+      creating one (Create exercise, including each exercise of "Separate
+      exercises"). The editor's Metadata pane, the Setlists tab and a drop
+      while a dialog is open are ignored (no scrim, nothing imported).
       macOS: Finder → app window. Linux: Thunar → app window. Windows:
       Explorer → app window. Android: split
-      screen with the Files app, long-press drag. iOS: iPad simulator
-      (`--sim tablet`), Split View or Slide Over with Files, drag.
+      screen with the Files app, long-press drag. iOS: on the iPad simulator
+      (`--sim tablet`, see the iOS guide; the phone can't drag between apps),
+      Split View or Slide Over with Files, drag.
   - id: share.receive
     platforms: [ android, ios ]
     excluded: desktop apps don't receive shares
@@ -347,10 +355,14 @@ platform_features:
       the score PDF from Edit score and from the Edit exercise score menu
       (Android/iOS, named after the title; Android: Edit score share menu >
       Share), the export .zip (iOS only), the full and the filtered log
-      (.txt, all three). macOS only has the log share. Complete one share per
-      kind (save to Files / share back into Sheetopia) and check the received
-      file. Dismissing the sheet shows no success message. On iPad the sheet
-      is anchored to its button.
+      (.txt, all three). macOS only has the log share. The sheet's header is
+      the app's title for the action ("Share score file", "Share logs",
+      "Export scores"), not the file name; the file itself carries the name.
+      Complete one share per kind (save to Files / share back into
+      Sheetopia) and check the received file. Completing a share shows the
+      success toast where the app has one (logs: "Successfully shared log!"),
+      dismissing the sheet shows none. On iPad the sheet is anchored to its
+      button (tablet simulator).
   - id: export.save_dialog
     platforms: [ macos, linux, android, windows ]
     excluded: iOS has no save dialog, it shares instead (share.send)
@@ -445,9 +457,12 @@ platform_features:
     test: >-
       In the score viewer, setlist play, routine play and exercise play F/F11
       and the fullscreen button toggle real window fullscreen, Esc leaves it,
-      the overlay hides after 3s and the cursor hides with it. Exercises
-      without a score show a text card instead, there F/F11/Esc work too but
-      the app bar, toolbar and cursor intentionally stay. Leaving the
+      the overlay (app bar, fullscreen button) hides after 3s and the cursor
+      hides with it. In routine and exercise play the practice toolbar at the
+      bottom (previous, title, timer, next) intentionally stays visible in
+      fullscreen, with and without a score. Exercises without a score show a
+      text card instead, there F/F11/Esc work too but the app bar, toolbar
+      and cursor intentionally stay. Leaving the
       viewer exits fullscreen (except on macOS, where it intentionally stays,
       with the back button visible while the overlay shows). Windows: the
       window covers the screen and the taskbar without a frame or rounded
@@ -474,8 +489,8 @@ platform_features:
       While a score is open the display doesn't sleep: macOS `pmset -g
       assertions`, Linux the screensaver inhibition over D-Bus, Android
       `dumpsys power | grep -i wake`, Windows `powercfg /requests`
-      (DISPLAY), iOS best effort (say how you checked). Leaving the viewer
-      releases it.
+      (DISPLAY), iOS SpringBoard's idle timer log (see the iOS guide).
+      Leaving the viewer releases it.
   - id: viewer.score_processing
     platforms: [ macos, linux, android, ios, windows ]
     via: >-
@@ -544,11 +559,13 @@ platform_features:
     platforms: [ macos, linux, android, ios, windows ]
     via: flutter_midi_command, midi_repository.dart
     test: >-
-      Without Bluetooth the MIDI page still lists wired/virtual devices, no
-      crash and no error in the log. A denied permission shows the "Bluetooth
-      permission denied" toast at start. Android: deny, then allow the "nearby
-      devices" permission; macOS: deny, then allow the Bluetooth prompt;
-      Windows: the VM has no Bluetooth adapter.
+      Without Bluetooth the MIDI page still lists wired/virtual devices (the
+      platform guide's virtual device), no crash and no error in the log. A
+      denied permission shows the "Bluetooth permission denied" toast at
+      start. Android: deny, then allow the "nearby devices" permission; macOS:
+      deny, then allow the Bluetooth prompt; Windows: the VM has no Bluetooth
+      adapter; iOS: the simulator has no Bluetooth ("Bluetooth not
+      available", no prompt).
   - id: storage.credentials
     platforms: [ macos, linux, android, ios, windows ]
     via: flutter_secure_storage, dbus_secrets (Linux), encrypted_storage_*.dart, sync_dialog_viewmodel.dart

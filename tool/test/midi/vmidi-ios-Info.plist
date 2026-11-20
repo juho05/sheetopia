@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Linked into vmidi for the iOS simulator: iOS creates MIDI sources only for processes with the audio background mode. -->
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key>
+  <string>de.julianh.sheetopia.e2e.vmidi</string>
+  <key>CFBundleName</key>
+  <string>vmidi</string>
+  <key>UIBackgroundModes</key>
+  <array>
+    <string>audio</string>
+  </array>
+</dict>
+</plist>

@@ -15,6 +15,11 @@
 #                                  type, describe-ui, button home, ... (points)
 #   screenshot <run> <file.png>
 #   files <run> <file>...          put files into Files > On My iPhone
+#   files-dir <run>                that folder on the host (to check saved
+#                                  files)
+#   midi <run> start <name> | send on|off|cc <a> <b> | stop
+#                                  a virtual MIDI device inside the simulator
+#                                  (host devices don't reach it)
 #   open-url <run> <url>
 #   simctl <run> <simctl args...>  any simctl command, <udid> is appended
 #                                  after the subcommand
@@ -46,7 +51,11 @@ case "$CMD" in
     if [ -z "$type" ]; then
       if [ "$SIM" = tablet ]; then type="${IOS_DEVICE_TYPES[1]}"; else type="${IOS_DEVICE_TYPES[0]}"; fi
     fi
-    runtime="$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == "iOS")] | sort_by(.version) | last | .identifier')"
+    # The newest runtime that can run the device type: a runtime for a newer
+    # Xcode can show up as available but support (almost) no device types.
+    runtime="$(xcrun simctl list runtimes available -j | jq -r --arg type "$type" \
+      '[.runtimes[] | select(.platform == "iOS" and any(.supportedDeviceTypes[]; .name == $type))] | sort_by(.version | split(".") | map(tonumber)) | last | .identifier // empty')"
+    [ -n "$runtime" ] || die "no available iOS runtime supports the device type $type"
     UDID="$(xcrun simctl create "sheetopia-e2e-$(basename "$RUN")-$SIM" "$type" "$runtime")"
     echo "UDID=$UDID" >"$STATE"
     xcrun simctl boot "$UDID"
@@ -97,7 +106,7 @@ case "$CMD" in
     xcrun simctl io "$UDID" screenshot "${1:?file required}" >/dev/null 2>&1
     echo "{\"path\":\"$(cd "$(dirname "$1")" && pwd)/$(basename "$1")\"}"
     ;;
-  files)
+  files | files-dir)
     # "On My iPhone" is the File Provider storage of the LocalStorage app group.
     data="$HOME/Library/Developer/CoreSimulator/Devices/$UDID/data"
     local_storage() {
@@ -115,6 +124,7 @@ case "$CMD" in
     fi
     [ -n "$storage" ] || die "could not find the Files app's local storage"
     mkdir -p "$storage"
+    if [ "$CMD" = files-dir ]; then echo "$storage"; exit 0; fi
     cp "$@" "$storage/"
     log "copied $# file(s) to Files > On My iPhone"
     ;;
@@ -124,7 +134,52 @@ case "$CMD" in
     shift
     xcrun simctl "$sub" "$UDID" "$@"
     ;;
+  midi)
+    # A virtual MIDI device inside the simulator (one per simulator), see
+    # tool/test/midi/vmidi.swift.
+    cmds="$RUN/env/ios-$SIM-midi.txt"
+    pidfile="$RUN/env/ios-$SIM-midi.pid"
+    running() { [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null; }
+    case "${1:?usage: midi start <name> | send <on|off|cc> <a> <b> | stop}" in
+      start)
+        name="${2:?name required}"
+        running && die "a MIDI device is already running, stop it first"
+        bin="$E2E_BIN/vmidi-iossim" src="$E2E_DIR/midi/vmidi.swift" plist="$E2E_DIR/midi/vmidi-ios-Info.plist"
+        if [ ! -x "$bin" ] || [ "$src" -nt "$bin" ] || [ "$plist" -nt "$bin" ]; then
+          mkdir -p "$E2E_BIN"
+          xcrun -sdk iphonesimulator swiftc -O -target arm64-apple-ios17.0-simulator "$src" -o "$bin" \
+            -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$plist" >&2 ||
+            die "building vmidi failed"
+        fi
+        : >"$cmds"
+        nohup xcrun simctl spawn "$UDID" "$bin" "$name" "$cmds" >"$RUN/logs/ios-$SIM-midi.log" 2>&1 &
+        echo $! >"$pidfile"
+        for _ in $(seq 1 50); do
+          grep -q '^ready' "$RUN/logs/ios-$SIM-midi.log" 2>/dev/null && { log "MIDI device \"$name\" is up"; exit 0; }
+          grep -q '^error' "$RUN/logs/ios-$SIM-midi.log" 2>/dev/null && break
+          sleep 0.2
+        done
+        cat "$RUN/logs/ios-$SIM-midi.log" >&2
+        die "the MIDI device did not come up"
+        ;;
+      send)
+        running || die "no MIDI device running, start one first"
+        shift
+        [ $# -eq 3 ] || die "usage: midi send on|off|cc <a> <b>"
+        echo "$*" >>"$cmds"
+        ;;
+      stop)
+        if running; then kill "$(cat "$pidfile")" 2>/dev/null || true; fi
+        # simctl spawn doesn't always pass the signal on
+        pkill -f "vmidi-iossim .*$cmds" 2>/dev/null || true
+        rm -f "$pidfile"
+        log "MIDI device stopped"
+        ;;
+      *) die "unknown midi command $1" ;;
+    esac
+    ;;
   down)
+    "$0" midi "$RUN" --sim "$SIM" stop >/dev/null 2>&1 || true
     xcrun simctl shutdown "$UDID" >/dev/null 2>&1 || true
     xcrun simctl delete "$UDID" >/dev/null 2>&1 || true
     rm -f "$STATE"

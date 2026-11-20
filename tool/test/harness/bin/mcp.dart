@@ -467,7 +467,8 @@ final _sim = {'type': 'string', 'enum': ['phone', 'tablet'], 'description': 'sim
 
 List<_Tool> _iosTools() {
   Future<String> axe(Json a, List<String> args) => _sh('ios_sim.sh', ['axe', _run, '--sim', (a['sim'] as String?) ?? 'phone', ...args]);
-  Future<String> pt(Json a, String k) async => ((a[k] as num) / await _scaleOf(a)).toStringAsFixed(1);
+  // The images are already in points (see _screen), the unit axe takes.
+  Future<String> pt(Json a, String k) async => (a[k] as num).toStringAsFixed(1);
   return [
     _Tool('tap', 'Tap.', {..._xy, 'sim': _sim}, (a) async => axe(a, ['tap', '-x', await pt(a, 'x'), '-y', await pt(a, 'y')]), required: ['x', 'y']),
     _Tool('long_press', 'Long press.', {..._xy, 'seconds': {'type': 'number', 'description': 'default 1'}, 'sim': _sim}, (a) async => axe(a, [
@@ -480,15 +481,48 @@ List<_Tool> _iosTools() {
     _Tool('button', 'Hardware button: home, lock, side-button, siri, apple-pay.', {'name': _str('button'), 'sim': _sim}, (a) => axe(a, ['button', a['name'] as String]), required: ['name']),
     _Tool(
       'describe',
-      'Accessibility tree with frames in points (iOS points = image pixels).',
+      'Labelled and interactive elements of the accessibility tree, one per line: [x, y, width, height] in points (= image pixels), '
+          'type, "label", value=, flags. Unlabelled containers are left out.',
       {'sim': _sim},
-      (a) async {
-        final out = await axe(a, ['describe-ui']);
-        return out.length > 30000 ? '${out.substring(0, 30000)}\n(truncated)' : out;
-      },
+      (a) async => _compactAx(await axe(a, ['describe-ui'])),
       action: false,
     ),
   ];
+}
+
+/// axe's describe-ui JSON (a deep tree with ~20 keys per node) as one line per
+/// element that has a label or value or is interactive.
+String _compactAx(String json) {
+  final Object? tree;
+  try {
+    tree = jsonDecode(json);
+  } on FormatException {
+    return json.length > 30000 ? '${json.substring(0, 30000)}\n(truncated)' : json;
+  }
+  const interactive = {'Button', 'Link', 'TextField', 'SecureTextField', 'SearchField', 'Switch', 'Slider', 'Cell', 'Tab', 'MenuItem', 'CheckBox'};
+  final lines = <String>[];
+  void visit(Object? node) {
+    if (node is List) return node.forEach(visit);
+    if (node is! Map) return;
+    String? str(String k) => node[k] is String && (node[k] as String).trim().isNotEmpty ? (node[k] as String).trim().replaceAll('\n', ' ') : null;
+    final label = str('AXLabel') ?? str('title'), value = str('AXValue'), type = str('type') ?? '?';
+    final traits = [for (final t in (node['traits'] as List?) ?? const []) '$t'];
+    final flags = [
+      if (node['enabled'] == false) 'disabled',
+      for (final t in traits)
+        if (const {'selected', 'notEnabled', 'adjustable', 'header'}.contains(t)) t,
+    ];
+    if (label != null || value != null || interactive.contains(type)) {
+      final f = (node['frame'] as Map?) ?? const {};
+      final b = [for (final k in ['x', 'y', 'width', 'height']) ((f[k] as num?) ?? 0).round()];
+      lines.add('$b $type${label == null ? '' : ' "$label"'}${value == null || value == label ? '' : ' value="$value"'}'
+          '${flags.isEmpty ? '' : ' ${flags.join(' ')}'}');
+    }
+    visit(node['children']);
+  }
+
+  visit(tree);
+  return lines.isEmpty ? '(no elements, is the app in front?)' : lines.join('\n');
 }
 
 Future<String> _drive(List<String> args) async {

@@ -157,7 +157,9 @@ fi
 # --- Linux host: E2E profile build --------------------------------------------
 
 if want e2e; then
-  flutter_version="$(sed -n 's/^ *FLUTTER_VERSION: *"\(.*\)"/\1/p' "$RUN/stage/current/.github/workflows/release.yml")"
+  workflow="$RUN/stage/current/.github/workflows/release.yml"
+  flutter_version="$(sed -n 's/^ *FLUTTER_VERSION_LINUX: *"\(.*\)"/\1/p' "$workflow")"
+  [ -n "$flutter_version" ] || flutter_version="$(sed -n 's/^ *FLUTTER_VERSION: *"\(.*\)"/\1/p' "$workflow")"
   sdk="$E2E_HOME/flutter-$flutter_version"
   if [ ! -x "$sdk/bin/flutter" ]; then
     log "downloading Flutter $flutter_version for the E2E build"

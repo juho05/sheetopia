@@ -19,6 +19,9 @@
 #   exec <run> -- cmd...         run a command in the VM (as admin, in the
 #                                GUI session)
 #   sh <run> 'script'            run a bash script in the VM
+#   midi <run> start <name> | send on|off|cc <a> <b> | stop
+#                                a virtual MIDI device in the VM that stays
+#                                until stopped
 #   push <run> <local path> <vm dir>   copy a file/dir into the VM
 #   pull <run> <vm path> <local dir>   copy a file/dir out of the VM
 #   vnc <run> <vnc action...>    the screen: screenshot/click/type/key/...
@@ -93,6 +96,11 @@ if [ "$CMD" = "golden" ]; then
     # No "reopen windows" and crash dialogs getting in the way.
     defaults write com.apple.loginwindow TALLogoutSavesState -bool false
     defaults write com.apple.CrashReporter DialogType none
+    # No Software Update notifications over the app, no Terminal window
+    # restored at login.
+    sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled -bool false
+    sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload -bool false
+    defaults write com.apple.Terminal NSQuitAlwaysKeepsWindows -bool false
     mkdir -p ~/bin ~/e2e
   '
   tar -C "$E2E_BIN" -cf - sendmidi | vm_exec_stdin tar -xf - -C /Users/$MACOS_VM_USER/bin
@@ -142,6 +150,14 @@ case "$CMD" in
     # The VNC server's first frame is blank, take it once here.
     SHEETOPIA_VNC="$(grep -o 'vnc://[^ ]*' "$RUN/logs/tart-$NAME.log" | head -1)" \
       e2e_tool vnc screenshot "$RUN/logs/vnc-warmup-$NAME.png" >/dev/null 2>&1 || true
+    # Nothing in front of the app: the golden image restores a Terminal
+    # window, and Software Update notifications cover the window's top right
+    # (clicking one opens System Settings). pkill, not AppleScript: scripting
+    # other apps raises an Automation prompt in the guest.
+    vm_exec pkill -x Terminal >/dev/null 2>&1 || true
+    vm_exec bash -lc 'sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled -bool false
+      sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload -bool false
+      sudo softwareupdate --schedule off >/dev/null 2>&1; killall NotificationCenter 2>/dev/null' >/dev/null 2>&1 || true
     # Same time zone as the host so the demo library's "today" matches.
     tz="$(host_timezone)"
     vm_exec sudo systemsetup -settimezone "$tz" >/dev/null 2>&1 || true
@@ -206,6 +222,40 @@ case "$CMD" in
   sh)
     vm_exec bash -lc "${1:?script required}"
     ;;
+  midi)
+    # A virtual MIDI device in the VM that stays until stopped, see
+    # tool/test/midi/vmidi.swift (`sendmidi virt` removes its source as soon
+    # as it has sent).
+    case "${1:?usage: midi start <name> | send <on|off|cc> <a> <b> | stop}" in
+      start)
+        name="${2:?name required}"
+        bin="$E2E_BIN/vmidi-macos" src="$E2E_DIR/midi/vmidi.swift"
+        if [ ! -x "$bin" ] || [ "$src" -nt "$bin" ]; then
+          mkdir -p "$E2E_BIN"
+          xcrun -sdk macosx swiftc -O -target arm64-apple-macos13 "$src" -o "$bin" >&2 || die "building vmidi failed"
+        fi
+        "$0" push "$RUN" --vm "$NAME" "$bin" /Users/$MACOS_VM_USER/e2e/bin
+        # shellcheck disable=SC2016
+        vm_exec bash -lc 'pkill -f vmidi-macos; : >~/e2e/midi.txt; : >~/e2e/midi.log
+          nohup ~/e2e/bin/vmidi-macos "$1" ~/e2e/midi.txt >~/e2e/midi.log 2>&1 </dev/null &
+          for _ in $(seq 1 50); do grep -q "^ready" ~/e2e/midi.log && exit 0; grep -q "^error" ~/e2e/midi.log && break; sleep 0.2; done
+          cat ~/e2e/midi.log >&2; exit 1' vmidi "$name" || die "the MIDI device did not come up"
+        log "MIDI device \"$name\" is up"
+        ;;
+      send)
+        shift
+        [ $# -eq 3 ] || die "usage: midi send on|off|cc <a> <b>"
+        # shellcheck disable=SC2016
+        vm_exec bash -lc 'pgrep -f vmidi-macos >/dev/null || { echo "no MIDI device running, start one first" >&2; exit 1; }
+          echo "$1 $2 $3" >>~/e2e/midi.txt' vmidi "$@"
+        ;;
+      stop)
+        vm_exec pkill -f vmidi-macos >/dev/null 2>&1 || true
+        log "MIDI device stopped"
+        ;;
+      *) die "unknown midi command $1" ;;
+    esac
+    ;;
   push)
     src="${1:?local path required}" dest="${2:?vm dir required}"
     vm_exec mkdir -p "$dest"
@@ -218,6 +268,17 @@ case "$CMD" in
     ;;
   vnc)
     [ -f "$STATE" ] || die "VM $NAME is not up"
+    # tart can crash (an assertion in Virtualization.framework's VNC server,
+    # see ~/Library/Logs/DiagnosticReports/tart-*.ips); launchd then restarts
+    # it, the guest boots again and the VNC server gets a new port, appended
+    # to the log.
+    url="$(grep -o 'vnc://[^ ]*' "$RUN/logs/tart-$NAME.log" 2>/dev/null | tail -1)"
+    if [ -n "$url" ] && [ "$url" != "$(sed -n 's/^VNC=//p' "$STATE")" ]; then
+      sed -i '' "s|^VNC=.*|VNC=$url|" "$STATE"
+      for _ in $(seq 1 60); do vm_exec pgrep -x Dock >/dev/null 2>&1 && break; sleep 2; done
+      SHEETOPIA_VNC="$url" e2e_tool vnc screenshot "$RUN/logs/vnc-warmup-$NAME.png" >/dev/null 2>&1 || true
+      die "the VM restarted (tart crashed and was restarted). It booted again from its disk: the app isn't running, windows, the clock offset and background processes (sendmidi, vmidi) are gone. The screen tools work again from the next call. Relaunch the app and redo what was lost, or return environmentOk=false if the step can't continue."
+    fi
     SHEETOPIA_VNC="$(sed -n 's/^VNC=//p' "$STATE")" SHEETOPIA_VNC_KEYMAP=apple e2e_tool vnc "$@"
     ;;
   ip)

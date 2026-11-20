@@ -42,7 +42,9 @@ installing() { [ $CHECK_ONLY = 0 ]; }
 
 # Expected parts of a Flutter development setup, not installed here.
 need flutter command -v flutter || die "install Flutter first"
-need python3 command -v python3 || die "install python3 first (demo library generator)"
+# The fixture and demo library scripts use match statements (Python 3.10+).
+need python3 python3 -c 'import sys; sys.exit(sys.version_info < (3, 10))' ||
+  die "python3 on PATH must be 3.10 or newer, found $(python3 --version 2>&1 || echo none) at $(command -v python3 || echo nowhere)"
 
 if [ "$E2E_HOST" = macos ]; then
   need xcode xcrun simctl help || die "install Xcode first"

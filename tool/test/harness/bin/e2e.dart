@@ -187,6 +187,11 @@ Future<void> main(List<String> arguments) async {
   }
   _repo = (await Process.run('git', ['rev-parse', '--show-toplevel'])).stdout.toString().trim();
   if (_repo.isEmpty) fail('not inside the repository');
+  // A run takes hours, mostly without user input: an idle sleep stalls builds
+  // and VMs. caffeinate ends with this process.
+  if (Platform.isMacOS) {
+    await Process.start('caffeinate', ['-i', '-w', '$pid'], mode: ProcessStartMode.detached);
+  }
 
   // --- Prepare ---------------------------------------------------------------
 
@@ -228,16 +233,26 @@ Future<void> main(List<String> arguments) async {
   log('phase Build');
   final summaryTsv = File(p.join(runDir, 'builds', 'summary.tsv'));
   // Failing unit tests and skipped builds are no reason to rebuild everything.
-  bool builtOk() =>
-      summaryTsv.existsSync() &&
-      !summaryTsv.readAsLinesSync().map((l) => l.split('\t')).any((f) => f.length > 2 && f[1] != 'test' && f[2].startsWith('FAILED'));
+  bool builtOk() => summaryTsv.existsSync() && _failedBuilds(summaryTsv).isEmpty;
   if (!enabled('build')) {
     log('build phase disabled');
   } else if (resume && builtOk()) {
     log('keeping the builds of the run');
   } else {
     log('build.sh running, logs in $runDir/logs/');
-    final build = await _script('tool/test/scripts/build.sh', [runDir], outputFile: p.join(runDir, 'logs', 'build.log'));
+    final buildLog = p.join(runDir, 'logs', 'build.log');
+    var build = await _script('tool/test/scripts/build.sh', [runDir], outputFile: buildLog);
+    // Failed builds are mostly transient (downloads, act), retry just those.
+    for (var attempt = 1; attempt <= _buildRetries && build.exitCode != 0; attempt++) {
+      final failed = _failedBuilds(summaryTsv);
+      if (failed.isEmpty) break; // only unit tests failed
+      log('retrying failed builds in ${_buildRetryDelay.inMinutes} min (attempt $attempt of $_buildRetries): ${failed.map((f) => '${f.stage} ${f.part}').join(', ')}');
+      await Future<void>.delayed(_buildRetryDelay);
+      for (final f in failed) {
+        await _script('tool/test/scripts/build.sh', [runDir, if (f.stage != 'all') ...['--stage', f.stage], '--only', f.part], outputFile: buildLog);
+      }
+      build = (exitCode: _failedBuilds(summaryTsv).isEmpty ? 0 : 1, stdout: '');
+    }
     final tsv = summaryTsv.existsSync() ? summaryTsv.readAsStringSync().trim() : '(no summary.tsv)';
     var buildSummary = '$tsv\n\nFiles:\n${_buildFiles(runDir).join('\n')}';
     if (build.exitCode != 0) {
@@ -248,10 +263,23 @@ Return a short plain text report:
 - the content of $runDir/builds/summary.tsv,
 - for every FAILED step the cause from its log (read the end of the log, find the first real error),
 - the files in $runDir/releases/*/ and $runDir/builds/current/ (one line each).
-Don't try to fix build failures in the repository. You may re-run a single failed step once if the failure is clearly transient (network), with build.sh --stage <s> --only <part>, and report the outcome.''', label: 'build', kind: AgentKind.build);
+The failed steps were already retried $_buildRetries times. Don't try to fix build failures in the repository and don't re-run builds.''', label: 'build', kind: AgentKind.build);
       if (report is String) buildSummary = report;
     }
     log(buildSummary.split('\n').take(12).join('\n'));
+  }
+
+  // Without the build under test a platform tests nothing, and a later
+  // --resume rebuilds everything anyway: stop instead of running a hollow run.
+  final missingBuilds = [
+    for (final platform in platforms)
+      if (!_hasInstallAsset(runDir, platform, versions['current'].toString())) platform,
+    if (platforms.contains('linux') && enabled('feature_suite') && !Directory(p.join(runDir, 'builds', 'current', 'linux-e2e')).existsSync())
+      'linux (feature suite driver build)',
+  ];
+  if (missingBuilds.isNotEmpty) {
+    fail('the build under test v${versions['current']} is missing for ${missingBuilds.join(', ')} '
+        '(see builds/summary.tsv and logs/build-*.log), stopping the run. Fix the cause and continue with --resume');
   }
 
   // --- Test ------------------------------------------------------------------
@@ -424,19 +452,56 @@ Return environmentOk=false only if the environment or app can't be used at all. 
 
       final setupNotes = (results['setup']?['notes'] ?? '').toString();
       var notes = setupNotes;
+      // A step that updates to another release leaves that one installed; the
+      // snapshots only hold app data, so the next step needs the build under
+      // test reinstalled.
+      var otherReleaseInstalled = false;
       for (final s in steps) {
         if (results.containsKey(s.name)) continue;
+        if (s.restore && otherReleaseInstalled) {
+          log('$platform: reinstalling the build under test v$current after the update in the previous step');
+          final installArgs = platform == 'ios'
+              ? ['install', runDir, p.join(runDir, 'builds', 'current', 'ios', 'Runner.app')]
+              : ['install', runDir];
+          if (!await env.run(installArgs) && !await env.recover()) {
+            blockRest('reinstalling v$current failed and the $platform environment could not be recreated, see logs/env-$platform.log');
+            return finish();
+          }
+          otherReleaseInstalled = false;
+        }
         if (s.restore && !await env.run(['snapshot', runDir, 'restore', 'start']) && !await env.recover()) {
           blockRest('the $platform environment could not be restored, see logs/env-$platform.log');
           return finish();
         }
-        final r = await agent('''${common(platform)}
+        if (s.requires != null) otherReleaseInstalled = true;
+        Future<Json> attempt(String label, String retryNote) async {
+          final r = await agent('''${common(platform)}
 
 Step: ${s.name}
 Notes from setup: ${notes.isEmpty ? '(none)' : notes}
+$retryNote
+${s.prompt}${s.tests.isEmpty ? '' : '\n\nTests (report every id exactly once):\n${testList(s.tests)}'}''', label: label, kind: s.kind, platform: platform, schema: _resultSchema);
+          return r is Json ? r : _blocked(s.tests, 'the agent failed, see agents/$label.jsonl');
+        }
 
-${s.prompt}${s.tests.isEmpty ? '' : '\n\nTests (report every id exactly once):\n${testList(s.tests)}'}''', label: '$platform-${s.name}', kind: s.kind, platform: platform, schema: _resultSchema);
-        final Json result = r is Json ? r : _blocked(s.tests, 'the agent failed, see agents/$platform-${s.name}.jsonl');
+        var result = await attempt('$platform-${s.name}', '');
+        // An environment that broke mid-step (e.g. a crashed VM) blocks the
+        // tests it was running: recreate it and give the step a second agent.
+        final blocked = ((result['results'] as List?) ?? const []).any((t) => t is Map && t['status'] == 'blocked');
+        if (s.restore && result['environmentOk'] != true && blocked) {
+          log('$platform: ${s.name} broke the environment, recreating it and retrying the step once');
+          if (!await env.recover()) {
+            save(s.name, result);
+            blockRest('the $platform environment broke in ${s.name} and could not be recreated');
+            return finish();
+          }
+          final previous = result;
+          result = await attempt('$platform-${s.name}-retry', '''
+A previous agent ran this step and the environment broke (it has been recreated from the starting state). Its notes: ${previous['notes']}
+Its results: ${jsonEncode(previous['results'])}
+Run the whole step again; tests it already passed may be checked faster, but report every test.
+''');
+        }
         save(s.name, result);
         if (!s.restore) {
           if (result['environmentOk'] != true) {
@@ -619,6 +684,29 @@ class _Env {
     await run(['down', runDir], quiet: true);
     if (platform == 'ios') await run(['down', runDir, '--sim', 'tablet'], quiet: true);
   }
+}
+
+const _buildRetries = 2;
+const _buildRetryDelay = Duration(minutes: 1);
+
+/// The failed builds in builds/summary.tsv as build.sh parts to rerun (the
+/// unit tests don't count). Stage `all` means every stage of the part.
+List<({String stage, String part})> _failedBuilds(File summaryTsv) {
+  if (!summaryTsv.existsSync()) return const [];
+  return {
+    for (final f in summaryTsv.readAsLinesSync().map((l) => l.split('\t')))
+      if (f.length > 2 && f[1] != 'test' && f[2].startsWith('FAILED'))
+        (
+          stage: f[0],
+          part: switch (f[1]) {
+            'build_macos_dmg' => 'macos',
+            'ios-simulator' => 'ios',
+            'linux-e2e' => 'e2e',
+            'build_windows_x86_64' => 'windows',
+            _ => 'host', // the ubuntu jobs: Linux tar.gz, AppImage, Android
+          },
+        ),
+  }.toList();
 }
 
 List<String> _buildFiles(String runDir) => [
