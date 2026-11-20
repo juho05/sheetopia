@@ -519,10 +519,9 @@ void main() {
       await db.managers.practiceRecordsTable
           .filter((f) => f.id(record.id))
           .update((o) => o(duration: const Value(Duration(minutes: 3))));
-      await setRunningSince(
-        record.id,
-        DateTime.now().subtract(const Duration(hours: 1)),
-      );
+      final startedAt = DateTime.now().subtract(const Duration(hours: 1));
+      await backdate(record.id, startedAt);
+      await setRunningSince(record.id, startedAt);
 
       await repo.resetExerciseProgress(exercise);
 

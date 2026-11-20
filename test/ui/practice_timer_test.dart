@@ -374,8 +374,7 @@ void main() {
 
     expect(timer.elapsed, greaterThanOrEqualTo(const Duration(minutes: 32)));
     expect(timer.running, isTrue, reason: "whoever counts until now goes on");
-    final record = (await allRecords()).single;
-    expect(record.runningSince, isNotNull);
+    expect(await repo.getRunningRecord(), isNotNull);
     timer.dispose();
   });
 
