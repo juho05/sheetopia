@@ -15,18 +15,25 @@ Available on: [Windows](#windows), [macOS](#macos), [Linux](#linux), [Android](#
 
 - [x] Import PDF files of your sheet music (scanned or digital)
     - [x] Scan using device camera
+    - [x] Share PDF files from other apps to Sheetopia
+    - [x] Drag and drop PDF files into the library
 - [x] Manage metadata such as:
     - Title
     - Composer
     - Arranger
-    - Difficulty
-    - Instruments
-    - Genres
     - Tags
+    - Instruments
     - Source
+    - Genres
+    - Difficulty
+    - Key
+    - Part of
     - Notes
 - [x] Search/filter your sheet music
+- [x] Multi-select and metadata bulk-editing
 - [x] Full screen reading/play mode
+    - [x] Viewer background matched to the score background
+    - [x] Automatic page cropping to remove empty margins
 - [x] Annotations with stylus support
     - [x] Multiple colors (pen and marker/highlighter)
     - [x] Hold to snap to shape (line, rectangle, ellipse)
@@ -44,10 +51,9 @@ Available on: [Windows](#windows), [macOS](#macos), [Linux](#linux), [Android](#
     - [x] Exercises with categories, tags and other metadata
     - [x] Add/link multiple scores to exercises
     - [x] Build practice routines from exercises with target times
-    - [x] Track practice sessions
+    - [x] Track practice time
     - [x] View statistics
 - [x] Import/export your library
-- [x] Modern UI with light/dark theme
 
 ## Install
 
@@ -91,7 +97,9 @@ Visit [sheetopia-sync](https://github.com/juho05/sheetopia-sync#setup) to instal
 ### Android
 
 1. Download `Sheetopia-x.x.x-android.apk` from the *Assets* section of the
-   [latest release](https://github.com/juho05/sheetopia/releases/latest).
+   [latest release](https://github.com/juho05/sheetopia/releases/latest). If you want a smaller download you can also
+   download the `Sheetopia-x.x.x-android-$ARCH.apk` file
+   corresponding to your architecture.
 2. Open the downloaded file and allow your browser/file manager (depending on what you use to open the file) to install
    apps from unknown sources by clicking on *Settings* when prompted and enabling *Allow from this source*.
 3. Click on *Install* when asked whether you want to install Sheetopia (you might have to open the APK file again).
@@ -107,52 +115,52 @@ Visit [sheetopia-sync](https://github.com/juho05/sheetopia-sync#setup) to instal
 ## Screenshots
 
 <p align="center">
-  <img src="screenshots/library-0.7.0.png" alt="Library"><br>
+  <img src="screenshots/library-0.8.0.png" alt="Library"><br>
   <em>library</em>
 </p>
 
 <p align="center">
-  <img src="screenshots/filter-0.7.0.png" alt="Filter"><br>
+  <img src="screenshots/filter-0.8.0.png" alt="Filter"><br>
   <em>filter library by metadata</em>
 </p>
 
 <p align="center">
-  <img src="screenshots/edit_score-0.7.0.png" alt="Edit score"><br>
+  <img src="screenshots/edit_score-0.8.0.png" alt="Edit score"><br>
   <em>edit metadata</em>
 </p>
 
 <p align="center">
-  <img src="screenshots/annotate-0.7.0.png" alt="Annotations"><br>
+  <img src="screenshots/annotate-0.8.0.png" alt="Annotations"><br>
   <em>annotate scores with stylus support</em>
 </p>
 
 <p align="center">
-  <img src="screenshots/play_setlist-0.7.0.png" alt="Setlist play mode"><br>
+  <img src="screenshots/play_setlist-0.8.0.png" alt="Setlist play mode"><br>
   <em>create and play setlists</em>
 </p>
 
 <p align="center">
-  <img src="screenshots/practice_tab-0.7.0.png" alt="Practice tab"><br>
+  <img src="screenshots/practice_tab-0.8.0.png" alt="Practice tab"><br>
   <em>the separate tab for practice</em>
 </p>
 
 <p align="center">
-  <img src="screenshots/practice_routine-0.7.0.png" alt="Practice routine details page"><br>
+  <img src="screenshots/practice_routine-0.8.0.png" alt="Practice routine details page"><br>
   <em>build practice routines and track your practice time</em>
 </p>
 
 <p align="center">
-  <img src="screenshots/practice_play-0.7.0.png" alt="Practice start overlay"><br>
+  <img src="screenshots/practice_play-0.8.0.png" alt="Practice start overlay"><br>
   <em>the UI for starting an exercise</em>
 </p>
 
 <p align="center">
-  <img src="screenshots/exercise_edit-0.7.0.png" alt="Exercise edit page"><br>
+  <img src="screenshots/exercise_edit-0.8.0.png" alt="Exercise edit page"><br>
   <em>edit exercise metadata and add multiple scores</em>
 </p>
 
 <p align="center">
-  <img src="screenshots/practice_statistics-0.7.0.png" alt="Practice statistics page"><br>
+  <img src="screenshots/practice_statistics-0.8.0.png" alt="Practice statistics page"><br>
   <em>view practice statistics</em>
 </p>
 
