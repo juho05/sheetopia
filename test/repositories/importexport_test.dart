@@ -1095,7 +1095,7 @@ void main() {
     expect(await File(target).readAsString(), "old backup");
     expect(await File("$target.part").exists(), isFalse);
     expect(repo.status, ImportExportStatus.idle);
-  }, skip: !Platform.isLinux && !Platform.isMacOS);
+  }, skip: (!Platform.isLinux && !Platform.isMacOS) || _isRoot());
 
   test("an export works when only the chosen file is writable", () async {
     final dir = await Directory(path.join(exportDir.path, "locked")).create();
@@ -1113,3 +1113,5 @@ void main() {
     expect(repo.status, ImportExportStatus.idle);
   }, skip: !Platform.isLinux && !Platform.isMacOS);
 }
+
+bool _isRoot() => Process.runSync("id", ["-u"]).stdout.toString().trim() == "0";

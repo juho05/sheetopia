@@ -1,2 +1,1 @@
-#include? "Pods/Target Support Files/Pods-Share Extension/Pods-Share Extension.profile.xcconfig"
 #include "Generated.xcconfig"

@@ -358,9 +358,11 @@ platform_features:
       the score PDF from Edit score and from the Edit exercise score menu
       (Android/iOS, named after the title; Android: Edit score share menu >
       Share), the export .zip (iOS only), the full and the filtered log
-      (.txt, all three). macOS only has the log share. The sheet's header is
-      the app's title for the action ("Share score file", "Share logs",
-      "Export scores"), not the file name; the file itself carries the name.
+      (.txt, all three). macOS only has the log share. On macOS and iOS the
+      sheet's header is the app's title for the action ("Share score file",
+      "Share logs", "Export scores"), not the file name; the file itself
+      carries the name. Android's chooser always shows its own header
+      ("Sharing 1 file" and the file name), that is expected.
       Complete one share per kind (save to Files / share back into
       Sheetopia) and check the received file. Completing a share shows the
       success toast where the app has one (logs: "Successfully shared log!"),
