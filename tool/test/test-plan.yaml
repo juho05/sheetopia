@@ -333,7 +333,7 @@ platform_features:
   - id: share.receive
     platforms: [ android, ios ]
     excluded: desktop apps don't receive shares
-    via: flutter_sharing_intent (fork), lib/main.dart, share_inbox.dart
+    via: flutter_sharing_intent (fork), lib/main.dart, ios/Share Extension
     own_agent: true
     test: >-
       Share from the Files app into Sheetopia: one PDF ("Import as"
@@ -344,8 +344,11 @@ platform_features:
       nothing half-imported) and a mix of valid and invalid (nothing
       imported, error toast). Share one valid PDF and one invalid file each
       while a score is open in the viewer, while an exercise page is open
-      and with the app not running (cold start, force stop first). iOS: the
-      shared copies are cleaned up from the share inbox afterwards.
+      and with the app not running (cold start, force stop first). Android:
+      share one PDF each from the Download folder itself (Internal storage >
+      Download), the Downloads view and the Documents category. The shared
+      copies are cleaned up from the share inbox afterwards (Android:
+      cache/ShareInbox, iOS: ShareInbox in the app group container).
   - id: share.send
     platforms: [ macos, android, ios ]
     excluded: Linux and Windows have no share action, they save files instead (export.save_dialog)
@@ -561,11 +564,11 @@ platform_features:
     test: >-
       Without Bluetooth the MIDI page still lists wired/virtual devices (the
       platform guide's virtual device), no crash and no error in the log. A
-      denied permission shows the "Bluetooth permission denied" toast at
-      start. Android: deny, then allow the "nearby devices" permission; macOS:
-      deny, then allow the Bluetooth prompt; Windows: the VM has no Bluetooth
-      adapter; iOS: the simulator has no Bluetooth ("Bluetooth not
-      available", no prompt).
+      denied permission shows "Bluetooth permission denied" inline on the
+      MIDI Devices page (no toast). Android: deny, then allow the "nearby
+      devices" permission; macOS: deny, then allow the Bluetooth prompt;
+      Windows: the VM has no Bluetooth adapter; iOS: the simulator has no
+      Bluetooth ("Bluetooth not available", no prompt).
   - id: storage.credentials
     platforms: [ macos, linux, android, ios, windows ]
     via: flutter_secure_storage, dbus_secrets (Linux), encrypted_storage_*.dart, sync_dialog_viewmodel.dart

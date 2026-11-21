@@ -24,7 +24,6 @@ import 'package:sheetopia/data/repositories/practice/practice_repository.dart';
 import 'package:sheetopia/data/repositories/scores/scores_repository.dart';
 import 'package:sheetopia/data/repositories/themeManager/theme_manager.dart';
 import 'package:sheetopia/data/services/database/scores_table.dart';
-import 'package:sheetopia/data/services/sharing/share_inbox.dart';
 import 'package:sheetopia/providers.dart';
 import 'package:sheetopia/routing/practice_resume.dart';
 import 'package:sheetopia/routing/router.dart';
@@ -248,7 +247,11 @@ class _AppState extends State<App> {
     } catch (e, st) {
       Toast.exception(e, st: st, errorMsg: "Failed to import scores!");
     } finally {
-      await cleanUpSharedFiles(files.map((f) => f.value!));
+      try {
+        await FlutterSharingIntent.instance.cleanUp(files.toList());
+      } catch (e, st) {
+        Log.warn("Failed to clean up shared files", e: e, st: st);
+      }
     }
   }
 

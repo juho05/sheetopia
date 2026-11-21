@@ -28,7 +28,7 @@ dependencies:
   flutter_sharing_intent:
     git:
       url: https://github.com/juho05/flutter_sharing_intent
-      ref: 66df86bb27eca12bc011e3a311bc78ca554af33d
+      ref: ba5e421c84e4252838d9256b8b7aaa660f89ba46
   go_router: ^18.0.1
   image: ^4.9.1
   intl: ^0.20.2

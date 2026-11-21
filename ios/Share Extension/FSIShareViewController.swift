@@ -18,7 +18,8 @@ public let kAppChannel = "flutter_sharing_intent"
 /// Each share gets its own directory below it (`ShareInbox/<uuid>/`), so
 /// original file names survive without two shares of the same name colliding,
 /// and the host app can delete the whole share in one go once it has imported
-/// it. Keep in sync with `lib/data/services/sharing/share_inbox.dart`.
+/// it. Keep in sync with `kShareInboxDirectory` in the flutter_sharing_intent
+/// fork, whose plugin does the cleanup.
 public let kShareInboxDirectory = "ShareInbox"
 
 // @objc(FSIShareViewController)
@@ -30,6 +31,8 @@ open class FSIShareViewController: UIViewController {
 
     // Identifies this share's directory inside the inbox.
     private let shareId = UUID().uuidString
+
+    private let staleShareAge: TimeInterval = 24 * 60 * 60
 
     // Results
     private var sharedMedia: [SharingFile] = []
@@ -525,17 +528,18 @@ open class FSIShareViewController: UIViewController {
         return dir
     }
 
-    /// Deletes leftovers from earlier shares.
+    /// Deletes leftovers of shares the host app never got to import.
     ///
-    /// The host app removes each share directory once it has imported it, so
-    /// anything still here belongs to a share the app never got to process
-    /// (it was killed on the way, or the import failed). Without this the
-    /// copies would stay in the container forever, invisible to the app.
+    /// Only old ones, an earlier share may not be imported yet.
     private func purgeStaleShares() {
         guard let inbox = inboxURL(),
               let entries = try? FileManager.default.contentsOfDirectory(
-                at: inbox, includingPropertiesForKeys: nil) else { return }
+                at: inbox, includingPropertiesForKeys: [.contentModificationDateKey]) else { return }
+        let cutoff = Date().addingTimeInterval(-staleShareAge)
         for entry in entries where entry.lastPathComponent != shareId {
+            let modified = (try? entry.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate ?? .distantPast
+            guard modified < cutoff else { continue }
             do {
                 try FileManager.default.removeItem(at: entry)
             } catch {

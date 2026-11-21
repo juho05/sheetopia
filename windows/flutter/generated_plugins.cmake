@@ -9,9 +9,9 @@ list(APPEND FLUTTER_PLUGIN_LIST
   flutter_secure_storage_windows
   permission_handler_windows
   screen_retriever_windows
-  share_plus
   universal_ble
   url_launcher_windows
+  share_plus
   window_manager
 )
 
