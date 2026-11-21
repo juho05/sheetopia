@@ -16,6 +16,6 @@ const systemIntegrationConfig = SystemIntegrationConfig(
   githubRepo: "sheetopia",
   desktopId: "de.julianh.sheetopia",
   desktopIconAsset: "assets/icon/sheetopia-circle.png",
-  desktopCategories: ["Multimedia"],
+  desktopCategories: ["AudioVideo", "Audio", "Music"],
   upgradeMessagesAsset: "assets/upgrade_messages.json",
 );
