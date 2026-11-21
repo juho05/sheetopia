@@ -106,6 +106,7 @@ class _MetadataFormState<T extends MetadataField>
         focusNode: _titleFocus,
         onTapOutside: (event) => _titleFocus.unfocus(),
         selectAllOnTap: true,
+        decoration: const InputDecoration(hintText: "Enter title..."),
         style: Theme.of(context).textTheme.headlineSmall,
       ),
       children: [for (final field in widget.permanentFields) _row(field)],
